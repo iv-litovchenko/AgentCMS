@@ -1,0 +1,970 @@
+{
+  "version": "0.0.4",
+  "mcpVersion": "0.2.0",
+  "agentId": "0-ws-test",
+  "agentRootRel": "workspaces/0-ws-test",
+  "kitFolder": "awn-topics/0-agent-kit",
+  "pathHints": {
+    "topicManifest": "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
+    "externalSlot": "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
+    "internalSlot": "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
+    "agentKit": "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
+    "storageLayers": "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
+    "storageFile": "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
+    "adoptFolder": "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
+    "adoptFolderBrowse": "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
+    "adoptFolderScan": "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
+  },
+  "menuSummary": {
+    "topicCount": 0,
+    "hasServiceTree": true,
+    "hasContainerTree": true,
+    "hasSharedTree": true
+  },
+  "awnSystem": {
+    "exists": false,
+    "root": "awn-databases/cms-base",
+    "typeSummary": null,
+    "docs": {
+      "registry": {
+        "path": "awn-databases/cms-base/registry.yml",
+        "exists": false,
+        "content": null
+      }
+    },
+    "hint": "CMS-модель: GLOBAL-MCP-INSTRUCTION.md + awn-system/types/slots/_base.yml (slot-categories)"
+  },
+  "platformSettings": {
+    "maintenance-mode": false,
+    "default-locale": "ru",
+    "mcp-mode": "standard",
+    "batch-enabled": true,
+    "batch-read-limit": 20,
+    "batch-write-limit": 10,
+    "batch-deny-exec": true,
+    "confirm-delete": true,
+    "confirm-exec": true,
+    "read-text-max-bytes": "120000",
+    "read-binary-max-bytes": "1500000",
+    "index-semantic-enabled": true,
+    "index-fulltext-enabled": true,
+    "index-storage-enabled": true,
+    "index-links-enabled": false,
+    "index-entities-enabled": true,
+    "index-entity-gliner-enabled": true,
+    "indexing-ocr-langs": "rus+eng",
+    "index-ocr-enabled": false,
+    "index-workspace-id-enabled": true,
+    "index-wsmap-enabled": true,
+    "index-storage-mode": "quick",
+    "index-storage-batch-size": 30,
+    "index-storage-sqlite-enabled": true,
+    "index-path-prefixes": [],
+    "index-exclude-patterns": ".git/\n.agent-cms/cache/\nnode_modules/\nawn-temp/\nawn-media-cloud/\nawn-google-drive/\n*.mdback",
+    "index-file-extensions": [
+      ".md",
+      ".sidecar.md"
+    ],
+    "search-default-scopes": [
+      "semantic",
+      "fulltext"
+    ],
+    "search-semantic-chunk-size": "900",
+    "search-semantic-chunk-overlap": "100",
+    "search-hybrid-semantic-weight": "60",
+    "search-hybrid-fulltext-weight": "40",
+    "auto-retain-facts": false,
+    "always-context-platform-readme": true,
+    "always-context-global-response-style": true,
+    "always-context-global-rules": true,
+    "always-context-global-markdown-showcase": false,
+    "always-context-md-files": [
+      "AGENTS.md"
+    ],
+    "always-context-ws-folder": "awn-topics/0-shared/0-context/awn-storage/",
+    "default-workspace-id": "agent-focus",
+    "media-cloud-default-provider": "google-drive",
+    "media-cloud-providers": [
+      {
+        "key": "google-drive",
+        "title": "Google Диск"
+      },
+      {
+        "key": "yandex-disk",
+        "title": "Яндекс Диск"
+      }
+    ]
+  },
+  "workspaceSettings": {
+    "agent-language": "ru",
+    "response-style": "agents-md",
+    "notify-on-complete": false,
+    "workspace-idle-screensaver-minutes": "3",
+    "workspace-pomodoro-enabled": true,
+    "workspace-pomodoro-work-minutes": "1",
+    "workspace-pomodoro-break-minutes": "5",
+    "awn-id-next": 9017,
+    "awn-id-issued": 113,
+    "awn-id-updated-at": "2026-10-14T14:57:14.805Z",
+    "awn-id-model": "workspace-id-autoincrement-v1",
+    "awn-recycle-id-next": 3,
+    "awn-recycle-id-issued": 2,
+    "awn-recycle-id-updated-at": "2026-10-07T21:23:11.615Z",
+    "awn-recycle-id-model": "workspace-recycle-marker-v1",
+    "awn-recycle-id-pad-width": 8,
+    "registry-query-presets": [
+      {
+        "id": "always-context",
+        "name": "Всегда в контексте",
+        "about": "Записи с awn-runtime-load-always (storage-index). Системные MD — отдельно через list_workspace_always_context.",
+        "query": "where:\n  - field: awn-runtime-load-always\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\n  - awn-type\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "cron",
+        "name": "Cron",
+        "about": "Темы и записи с awn-runtime-cron (расписание в awn-runtime-cron-schedule).",
+        "query": "where:\n  - field: awn-runtime-cron\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\n  - awn-runtime-cron-schedule\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "heartbeat",
+        "name": "Сердцебиение",
+        "about": "Записи с awn-runtime-heartbeat — периодическая проверка агентом.",
+        "query": "where:\n  - field: awn-runtime-heartbeat\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "reminders",
+        "name": "Напоминания",
+        "about": "Записи с awn-runtime-reminder: true (только этот флаг, без привязки к датам).",
+        "query": "where:\n  - field: awn-runtime-reminder\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "nav-main",
+        "name": "На главной",
+        "about": "awn-main в frontmatter (SQL-like через storage-index).",
+        "query": "where:\n  - field: awn-main\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "nav-focus",
+        "name": "В фокусе",
+        "about": "awn-focus в frontmatter. Альтернатива: source nav-focus (кэш .agent-cms/state/nav-registry).",
+        "query": "where:\n  - field: awn-focus\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "topics",
+        "name": "Темы",
+        "about": "Манифесты тем (awn-type awn.hub.topic), storage-index.",
+        "query": "where:\n  - field: awn-type\n    eq: awn.hub.topic\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "recent-records",
+        "name": "Последние записи",
+        "about": "Записи с awn-id, сортировка по убыванию id (недавно присвоенные). Опционально pathPrefix — только внутри темы.",
+        "query": "where:\n  - field: awn-id\n    gte: 1\nfields:\n  - path\n  - awn-name\n  - awn-type\n  - awn-id\nsort:\n  field: awn-id\n  dir: desc\nlimit: 50"
+      },
+      {
+        "id": "created-last-7-days",
+        "name": "Созданы за 7 дней",
+        "about": "awn-create (ISO) не старше 7 суток. relativeDays + relativeDaysField пересчитываются при run_workspace_registry_query.",
+        "query": "relativeDays: 7\nrelativeDaysField: awn-create\nfields:\n  - path\n  - awn-name\n  - awn-create\n  - awn-update\nsort:\n  field: awn-create\n  dir: desc\nlimit: 100"
+      }
+    ],
+    "ws-static-plugin-example": "",
+    "ws-static-example-1": "значение 1",
+    "ws-static-example-2": "значение 2",
+    "ws-static-example-3": "значение 3",
+    "dependencies-file": "dependencies.csv",
+    "dependencies-columns": [],
+    "default-slot": "main",
+    "awn-temp-ttl-days": 0,
+    "voice-cms-topic-path": "awn-topics/0-agent-kit/0-agent/manifest.md",
+    "voice-cms-channel": "thread",
+    "voice-route-system-prompt": "",
+    "voice-route-claude-cli-path": "claude",
+    "voice-route-claude-model": "sonnet",
+    "voice-route-claude-session-id": "dca6bc90-3700-43de-a741-391ae93091d9",
+    "voice-route-claude-permission-mode": "",
+    "voice-route-codex-cli-path": "codex",
+    "voice-route-codex-model": "",
+    "voice-route-codex-session-id": "0db2b4cd-5967-4bbb-bb93-ad564aee88e8",
+    "voice-route-codex-permission-mode": "untrusted",
+    "voice-route-qwenpaw-url": "http://127.0.0.1:8088",
+    "voice-route-qwenpaw-user-id": "default",
+    "voice-route-qwenpaw-agent-id": "default",
+    "voice-route-qwenpaw-approval-level": "AUTO",
+    "voice-route-qwenpaw-session-id": "",
+    "voice-route-runtime": "claude",
+    "voice-proactive-mode": "off",
+    "voice-proactive-idle-seconds-min": 500,
+    "voice-proactive-idle-seconds-max": 1000,
+    "voice-proactive-cooldown-seconds": 9000,
+    "voice-proactive-quiet-hours-enabled": true,
+    "voice-proactive-quiet-hours-start": "11:02",
+    "voice-proactive-quiet-hours-end": "04:00",
+    "voice-proactive-prompt": "testощшошщ",
+    "voice-input-enabled": true,
+    "voice-input-mode": "fn_button",
+    "voice-input-capture": "microphone",
+    "voice-input-global-listen": false,
+    "voice-input-to-compose": false,
+    "voice-input-response-enabled": false,
+    "voice-wake-name": "",
+    "voice-stt-engine": "browser",
+    "voice-stt-lang": "ru-RU",
+    "voice-stt-prompt": "",
+    "voice-stt-whisper-model": "base",
+    "voice-stt-elevenlabs-api-key": "",
+    "voice-stt-elevenlabs-model": "scribe_v2",
+    "voice-tts-enabled": false,
+    "voice-tts-engine": "browser",
+    "voice-tts-playback-mode": "dialog",
+    "voice-tts-prompt": "",
+    "voice-tts-rate": 1,
+    "voice-tts-pitch": 1,
+    "voice-tts-include-captions": true,
+    "voice-tts-browser-lang": "ru-RU",
+    "voice-tts-browser-voice": "",
+    "voice-tts-edge-voice": "ru-RU-SvetlanaNeural",
+    "voice-tts-edge-rate": 1,
+    "voice-tts-piper-model": "",
+    "voice-tts-piper-binary": "piper",
+    "voice-tts-elevenlabs-api-key": "",
+    "voice-tts-elevenlabs-voice-id": "EXAVITQu4vr4xnSDxMaL",
+    "voice-tts-elevenlabs-model": "eleven_multilingual_v2",
+    "voice-tts-elevenlabs-rate": 1,
+    "voice-compose-templates": [
+      "[object Object]",
+      "[object Object]",
+      "[object Object]"
+    ],
+    "voice-file-hub-max-attach-mb": "25",
+    "voice-media-camera-enabled": false,
+    "voice-media-camera-on-speech": true,
+    "voice-media-camera-facing": "environment",
+    "voice-media-screen-enabled": false,
+    "voice-media-screen-on-speech": false,
+    "voice-window-character-model": "robot",
+    "voice-window-compact-mode": false,
+    "voice-window-topmost": true,
+    "voice-window-pet-overlay": false,
+    "voice-window-transparent": false,
+    "voice-window-background": "wallpaper",
+    "voice-window-background-image-url": "",
+    "voice-window-compact-dialog-qa": true,
+    "voice-window-dialog-auto-scroll": true,
+    "voice-window-keep-awake": true,
+    "voice-window-processing-sound": "off"
+  },
+  "serviceDocs": [
+    {
+      "slotKey": "agent",
+      "manifestPath": "awn-topics/0-agent-kit/agent/manifest.md",
+      "exists": true,
+      "content": "---\nawn-name: Агент\nawn-tags: [system, service]\nawn-type: awn.hub.topic\n---\n\n# Агент\n\nОписание агента: роль, цели и границы workspace.\n"
+    },
+    {
+      "slotKey": "user",
+      "manifestPath": "awn-topics/0-agent-kit/user/manifest.md",
+      "exists": true,
+      "content": "---\nawn-name: Пользователь\nawn-tags: [system, service]\nawn-type: awn.hub.topic\n---\n\n# Пользователь\n\nПрофиль пользователя: предпочтения, контекст и стиль работы.\n"
+    },
+    {
+      "slotKey": "agent.voice.tts",
+      "manifestPath": "awn-topics/0-agent-kit/agent.voice.tts/manifest.md",
+      "exists": false,
+      "content": null
+    },
+    {
+      "slotKey": "agent.voice.stt",
+      "manifestPath": "awn-topics/0-agent-kit/agent.voice.stt/manifest.md",
+      "exists": false,
+      "content": null
+    }
+  ],
+  "topicRegistry": {
+    "version": 1,
+    "model": "topic-registry",
+    "hint": "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или list_workspace_always_context.",
+    "topics": [
+      {
+        "manifestPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+        "label": "Ая тест темы 2031",
+        "displayPath": "aja-test-oblasti-2031/aja-test-temy-2031/aja-test-temy-2031",
+        "description": "Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном.",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md",
+        "label": "Ая тест темы 2049-2",
+        "displayPath": "aja-test-oblasti-2049/aja-test-temy-2049-2/aja-test-temy-2049-2",
+        "description": "Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки.",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/0-agent/manifest.md",
+        "label": "Агент",
+        "displayPath": "awn-topics/0-agent-kit/0-agent/0-agent",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/0-devices/manifest.md",
+        "label": "Управление ПК, устройствами, различный софт",
+        "displayPath": "awn-topics/0-agent-kit/0-devices/0-devices",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/0-user/manifest.md",
+        "label": "Пользователь",
+        "displayPath": "awn-topics/0-agent-kit/0-user/0-user",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md",
+        "label": "ierarhi-3 н",
+        "displayPath": "awn-topics/0-agent-kit/ierarhi-1-o/ierarhi-3-n/ierarhi-3-n",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/real-world-and-space/manifest.md",
+        "label": "Объекты реального мира, места и пространства",
+        "displayPath": "awn-topics/0-agent-kit/real-world-and-space/real-world-and-space",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-agent-kit/test/manifest.md",
+        "label": "Тест",
+        "displayPath": "awn-topics/0-agent-kit/test/test",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-shared/0-downloads/manifest.md",
+        "label": "Загрузки из браузера",
+        "displayPath": "awn-topics/0-shared/0-downloads/0-downloads",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/0-shared/0-inbox/manifest.md",
+        "label": "Входящие",
+        "displayPath": "awn-topics/0-shared/0-inbox/0-inbox",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/009/manifest.md",
+        "label": "9",
+        "displayPath": "awn-topics/009/009",
+        "description": "шошщощш",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/finansy/manifest.md",
+        "label": "Финансы",
+        "displayPath": "awn-topics/finansy/finansy",
+        "description": "ауцауцауц",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/html-i-css-2/manifest.md",
+        "label": "HTML и CSS 2",
+        "displayPath": "awn-topics/html-i-css-2/html-i-css-2",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md",
+        "label": "Дом и быт",
+        "displayPath": "awn-topics/lichnaya-zhizn/dom-i-byt/dom-i-byt",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md",
+        "label": "Друзья и общение",
+        "displayPath": "awn-topics/lichnaya-zhizn/druzya-i-obshchenie/druzya-i-obshchenie",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md",
+        "label": "Хобби и увлечения",
+        "displayPath": "awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/hobbi-i-uvlecheniya",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md",
+        "label": "Книги и обучение",
+        "displayPath": "awn-topics/lichnaya-zhizn/knigi-i-obuchenie/knigi-i-obuchenie",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md",
+        "label": "Личные цели",
+        "displayPath": "awn-topics/lichnaya-zhizn/lichnye-tseli/lichnye-tseli",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md",
+        "label": "Питание и рецепты",
+        "displayPath": "awn-topics/lichnaya-zhizn/pitanie-i-retsepty/pitanie-i-retsepty",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md",
+        "label": "Подкаст «Голос недели»",
+        "displayPath": "awn-topics/lichnaya-zhizn/podkast-golos-nedeli/podkast-golos-nedeli",
+        "description": "Личный подкаст: короткие эпизоды раз в неделю на разные темы",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md",
+        "label": "Привычки и саморазвитие",
+        "displayPath": "awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/privychki-i-samorazvitie",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/puteshestviya/manifest.md",
+        "label": "Путешествия",
+        "displayPath": "awn-topics/lichnaya-zhizn/puteshestviya/puteshestviya",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md",
+        "label": "Семья и близкие",
+        "displayPath": "awn-topics/lichnaya-zhizn/semya-i-blizkie/semya-i-blizkie",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md",
+        "label": "Тема без слотов",
+        "displayPath": "awn-topics/lichnaya-zhizn/tema-bez-slotov/tema-bez-slotov",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md",
+        "label": "Здоровье и спорт",
+        "displayPath": "awn-topics/lichnaya-zhizn/zdorove-i-sport/zdorove-i-sport",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/moi-vklady/manifest.md",
+        "label": "Мои вклады",
+        "displayPath": "awn-topics/moi-vklady/moi-vklady",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/novay-tema-test-id/manifest.md",
+        "label": "Новай тема тест ID",
+        "displayPath": "awn-topics/novay-tema-test-id/novay-tema-test-id",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/php/manifest.md",
+        "label": "PHP",
+        "displayPath": "awn-topics/php/php",
+        "description": "Описание",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/tema-bez-slotov/manifest.md",
+        "label": "Тема без слотов",
+        "displayPath": "awn-topics/tema-bez-slotov/tema-bez-slotov",
+        "description": "888",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/temma-so-slotami/manifest.md",
+        "label": "Темма со слотами",
+        "displayPath": "awn-topics/temma-so-slotami/temma-so-slotami",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/test-1000-soobscheniy/manifest.md",
+        "label": "Тест 1000 сообщений",
+        "displayPath": "awn-topics/test-1000-soobscheniy/test-1000-soobscheniy",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/test-formatov-faylov/manifest.md",
+        "label": "Тест форматов файлов",
+        "displayPath": "awn-topics/test-formatov-faylov/test-formatov-faylov",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/test-md-blokov/manifest.md",
+        "label": "Тест md-блоков",
+        "displayPath": "awn-topics/test-md-blokov/test-md-blokov",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/test-vseh-svoystvo/manifest.md",
+        "label": "Тест всех свойство",
+        "displayPath": "awn-topics/test-vseh-svoystvo/test-vseh-svoystvo",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/test/manifest.md",
+        "label": "Тест",
+        "displayPath": "awn-topics/test/test",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "awn-topics/tevt-diagramm/manifest.md",
+        "label": "Тевт диаграмм",
+        "displayPath": "awn-topics/tevt-diagramm/tevt-diagramm",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "codex-test/test/manifest.md",
+        "label": "test",
+        "displayPath": "codex-test/test/test",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/analitika/manifest.md",
+        "label": "Аналитика",
+        "displayPath": "crm-studio/analitika/analitika",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/grafik/manifest.md",
+        "label": "График",
+        "displayPath": "crm-studio/grafik/grafik",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/kalendar/manifest.md",
+        "label": "Календарь",
+        "displayPath": "crm-studio/kalendar/kalendar",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/klienty/manifest.md",
+        "label": "Клиенты",
+        "displayPath": "crm-studio/klienty/klienty",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/mastera/manifest.md",
+        "label": "Мастера",
+        "displayPath": "crm-studio/mastera/mastera",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/uslugi/manifest.md",
+        "label": "Услуги",
+        "displayPath": "crm-studio/uslugi/uslugi",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "crm-studio/zapisi/manifest.md",
+        "label": "Записи",
+        "displayPath": "crm-studio/zapisi/zapisi",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      }
+    ],
+    "topicCount": 44
+  },
+  "topicCount": 44,
+  "dataStoresSummary": {
+    "version": 1,
+    "model": "data-stores-summary",
+    "hint": "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
+    "storeCount": 37,
+    "dataStoreCount": 29,
+    "groupCount": 8,
+    "collectionCount": 27,
+    "singleCount": 2,
+    "recordCount": 67,
+    "entries": [
+      {
+        "path": "awn-databases/0-contents",
+        "kind": "group",
+        "group": "",
+        "title": "Контент",
+        "description": "Контент",
+        "recordCount": 16
+      },
+      {
+        "path": "awn-databases/0-contents/0-facts",
+        "kind": "collection",
+        "group": "0-contents",
+        "title": "Банк фактов",
+        "description": "Банк фактов",
+        "recordCount": 8
+      },
+      {
+        "path": "awn-databases/0-contents/0-glossary",
+        "kind": "collection",
+        "group": "0-contents",
+        "title": "Глоссарий",
+        "description": "Глоссарий",
+        "recordCount": 7
+      },
+      {
+        "path": "awn-databases/0-contents/0-reference",
+        "kind": "collection",
+        "group": "0-contents",
+        "title": "Справочник",
+        "description": "Справочник",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/0-taxonomies",
+        "kind": "group",
+        "group": "",
+        "title": "Таксономии (справочники)",
+        "description": "Таксономии (справочники)",
+        "recordCount": 11
+      },
+      {
+        "path": "awn-databases/0-taxonomies/777",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "777",
+        "description": "777",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/0-taxonomies/kollektsiya-1",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Коллекция-1",
+        "description": "Коллекция-1",
+        "recordCount": 4
+      },
+      {
+        "path": "awn-databases/0-taxonomies/kollektsiya-1-tree",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Коллекция-1-tree",
+        "description": "Коллекция-1-tree",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/0-taxonomies/kollektsiya-2-many",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Коллекция-2-many",
+        "description": "Коллекция-2-many",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/0-taxonomies/kollektsiya-2-many-tree",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Коллекция-2-many-tree",
+        "description": "Коллекция-2-many-tree",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/555",
+        "kind": "collection",
+        "group": "",
+        "title": "555",
+        "description": "555",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/888",
+        "kind": "group",
+        "group": "",
+        "title": "888",
+        "description": "888",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/aaa",
+        "kind": "group",
+        "group": "",
+        "title": "ААА",
+        "description": "ААА",
+        "recordCount": 4
+      },
+      {
+        "path": "awn-databases/aaa/aaa",
+        "kind": "collection",
+        "group": "aaa",
+        "title": "ААА",
+        "description": "manifest + schema в корне; записи в awn-storage/data/, вложения в awn-storage/assets/",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/aaa/aaa2",
+        "kind": "collection",
+        "group": "aaa",
+        "title": "ААА2",
+        "description": "ААА2",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/aaa/techt-csv",
+        "kind": "collection",
+        "group": "aaa",
+        "title": "Течт CSV",
+        "description": "Течт CSV",
+        "recordCount": 2
+      },
+      {
+        "path": "awn-databases/finansy/rashody-csv",
+        "kind": "collection",
+        "group": "",
+        "title": "Расходы (таблица)",
+        "description": "Расходы (таблица)",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/gruppa",
+        "kind": "group",
+        "group": "",
+        "title": "Группа",
+        "description": "Группа",
+        "recordCount": 10
+      },
+      {
+        "path": "awn-databases/gruppa/fayly",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "Файлы",
+        "description": "Файлы",
+        "recordCount": 2
+      },
+      {
+        "path": "awn-databases/gruppa/kollektsiya",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "КОллекция",
+        "description": "КОллекция",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/gruppa/kollektsiya-ierarhiya",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "Коллекция иерархия",
+        "description": "Коллекция иерархия",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/gruppa/kollektsiya-tssv",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "Коллекция ЦСВ",
+        "description": "Коллекция ЦСВ",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/gruppa/kollektsiya-tssv-fayl",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "КОллекция ЦСВ-файл",
+        "description": "КОллекция ЦСВ-файл",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/gruppa/kollektsiya-tssv-fayl1",
+        "kind": "collection",
+        "group": "gruppa",
+        "title": "Коллекция ЦСВ-файл1",
+        "description": "Коллекция ЦСВ-файл1",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/gruppa/odinochka",
+        "kind": "single",
+        "group": "gruppa",
+        "title": "Одиночка",
+        "description": "Одиночка",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/personal-finance",
+        "kind": "group",
+        "group": "",
+        "title": "Личные финансы",
+        "description": "Личные финансы",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/personal-finance/dokhody",
+        "kind": "collection",
+        "group": "personal-finance",
+        "title": "Доходы",
+        "description": "Доходы",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/personal-finance/investicii",
+        "kind": "collection",
+        "group": "personal-finance",
+        "title": "Инвестиции",
+        "description": "Инвестиции",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/personal-finance/pokupki",
+        "kind": "collection",
+        "group": "personal-finance",
+        "title": "Покупки",
+        "description": "Покупки",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/personal-finance/raskhody",
+        "kind": "collection",
+        "group": "personal-finance",
+        "title": "Расходы",
+        "description": "Расходы",
+        "recordCount": 0
+      },
+      {
+        "path": "awn-databases/test-infobloka",
+        "kind": "group",
+        "group": "",
+        "title": "Тест инфоблока",
+        "description": "Тест инфоблока",
+        "recordCount": 18
+      },
+      {
+        "path": "awn-databases/test-infobloka/test-1",
+        "kind": "collection",
+        "group": "test-infobloka",
+        "title": "Тест 1",
+        "description": "Тест 1",
+        "recordCount": 6
+      },
+      {
+        "path": "awn-databases/test-infobloka/test-2",
+        "kind": "collection",
+        "group": "test-infobloka",
+        "title": "Тест 2",
+        "description": "Тест 2",
+        "recordCount": 11
+      },
+      {
+        "path": "awn-databases/test-infobloka/test-3",
+        "kind": "single",
+        "group": "test-infobloka",
+        "title": "Тест 3",
+        "description": "Тест 3",
+        "recordCount": 1
+      },
+      {
+        "path": "awn-databases/test22",
+        "kind": "group",
+        "group": "",
+        "title": "Тест22",
+        "description": "manifest + подпапки-накопители, без собственных записей",
+        "recordCount": 4
+      },
+      {
+        "path": "awn-databases/test22/prosto-spisok",
+        "kind": "collection",
+        "group": "test22",
+        "title": "Просто список",
+        "description": "Просто список",
+        "recordCount": 3
+      },
+      {
+        "path": "awn-databases/test22/test",
+        "kind": "collection",
+        "group": "test22",
+        "title": "Тест",
+        "description": "Тест",
+        "recordCount": 1
+      }
+    ],
+    "summaryLine": "29 инфоблоков · 8 групп · 67 записей"
+  },
+  "dataStoreCount": 29,
+  "dataRecordCount": 67,
+  "alwaysContext": {
+    "version": 1,
+    "model": "always-context",
+    "hint": "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+    "items": [
+      {
+        "entityKind": "topic",
+        "manifestPath": "awn-topics/tema-bez-slotov/manifest.md",
+        "slot": null,
+        "ref": null,
+        "label": "Тема без слотов",
+        "displayPath": "awn-topics/tema-bez-slotov/tema-bez-slotov",
+        "description": "888",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "---\nawn-attachments: []\nawn-status: open\nawn-quality: 4\nawn-importance: 0\nawn-emoji: \"\"\nawn-sort: 0\nawn-note-todo-sticker: \"\"\nawn-main: false\nawn-focus: false\nawn-slots-flexible: true\nawn-runtime-load-always: true\nawn-runtime-heartbeat: true\nawn-runtime-cron: true\nawn-runtime-cron-schedule: \"0 9 * * *\"\nawn-runtime-commands: true\nawn-index-exclude-record: false\nawn-index-exclude-subtree: false\nawn-tags: []\nawn-taxonomy:\n  kollektsiya-2-many-tree:\n    - korevoy-razdel\n    - podrzdel\n    - esche-podrazdel\nawn-type: awn.hub.topic\nawn-create: \"2026-08-02T21:33\"\nawn-owner: \"\"\nawn-category: \"\"\nawn-color: \"\"\nawn-description: 888\nawn-name: Тема без слотов\nawn-preview: \"\"\nawn-priority: \"\"\nawn-slots-disabled: true\nawn-web-url: рргш\nawn-update: 2026-09-26T09:39:33.004Z\nawn-version: 18\nawn-id: 40\n---\n\n\n99"
+      },
+      {
+        "entityKind": "topic",
+        "manifestPath": "awn-topics/test-vseh-svoystvo/manifest.md",
+        "slot": null,
+        "ref": null,
+        "label": "Тест всех свойство",
+        "displayPath": "awn-topics/test-vseh-svoystvo/test-vseh-svoystvo",
+        "description": "",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "---\nawn-attachments: []\n  Многострочный текст\n  второй абзац\n  ## Заголовок\n  **Жирный** и *курсив*.\n  - \"[[All-Field-Types]]\"\n  - \"[[main]]\"\n  version: 1\n    qty: 2\n- name: alpha\"\n  \\\"key\\\": \\\"value\\\",\n  \\\"count\\\": 1\n}\"\n  \\\"title\\\": \\\"Пример\\\",\nawn-status: open\nawn-quality: 4\nawn-importance: 0\nawn-emoji: 🧪\nawn-sort: 0\nawn-note-todo-sticker: \"\"\nawn-main: false\nawn-focus: false\nawn-slots-flexible: false\nawn-runtime-load-always: true\nawn-runtime-heartbeat: true\nawn-runtime-cron: true\nawn-runtime-cron-schedule: \"0 9 * * 1-5\"\nawn-runtime-commands: false\nawn-index-exclude-record: false\nawn-index-exclude-subtree: false\nawn-taxonomy:\n  kollektsiya-1: 009\n  kollektsiya-1-tree: 999\n  kollektsiya-2-many: 777\n  kollektsiya-2-many-tree:\n    - 55555\n    - 444\nawn-type: awn.hub.topic\nawn-create: \"2026-06-21T12:00\"\nawn-owner: me\nawn-category: reference\nawn-color: purple\nawn-description: \"\"\nawn-name: Тест всех свойство\nawn-preview: awn-storage/assets/preview/20260623203544.png\nawn-priority: high\nawn-slots-disabled: false\nawn-tags:\n  - reference\n  - 2024\n  - книги\n  - криминал-ит\n  - москва\nawn-web-url: \"https://example.com/all-field-types\"\ndemo_array:\n  - demo\n  - ui\n  - test\ndemo_boolean: true\ndemo_choice_many:\n  - alpha\n  - beta\ndemo_choice_one: in_progress\ndemo_code: \"version: 1\"\ndemo_color: \"#461796\"\ndemo_coordinates: \"55.7558, 37.6173\"\ndemo_cron: \"0 9 * * 1-5\"\ndemo_date: 2026-06-21\ndemo_datetime: \"2026-06-21T12:00\"\ndemo_duration: 2h 30m\ndemo_email: demo@example.com\ndemo_entity_preview: awn-storage/assets/preview/20260623203544.png\ndemo_file_many:\n  - awn-storage/assets/attachments/939bad10-15ef-4708-b6a1-fff2ee90d7df-20260810000040.png\n  - awn-storage/assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260810000044.png\ndemo_file_one: awn-storage/assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260810000026.png\ndemo_image_many: []\ndemo_image_one: \"\"\ndemo_integer: 42\ndemo_json: \"{\"\ndemo_lookup_category: reference\ndemo_lookup_color: purple\ndemo_lookup_owner: me\ndemo_lookup_priority: high\ndemo_lookup_status: open\ndemo_lookup_tags: []\ndemo_markdown: \"\"\ndemo_number: 3.14\ndemo_object: \"{\"\ndemo_password: \"\"\ndemo_path: awn-topics/test-vseh-poley/main.md\ndemo_phone: +7 900 123-45-67\ndemo_relation_many: \"[PHP](../php/manifest.md)\"\ndemo_relation_one: \"[pukpku](../pukpku/manifest.md)\"\ndemo_repeater: \"[object Object]\"\ndemo_secret: \"\"\ndemo_slug: all-field-types\ndemo_string: Пример однострочной строки\ndemo_text: \"\"\ndemo_time: \"14:30\"\ndemo_url: \"https://example.com/all-field-types\"\nfield-1: \"\"\nitems: \"\"\nawn-update: 2026-09-26T07:57:49.087Z\nawn-version: 23\nawn-id: 39\n---\n\n\n# All Field Types — демонстрация типов полей\n\nТема для проверки виджетов в панели **Свойства**:\n\n| Уровень | Где смотреть |\n| ------- | ------------ |\n| **topic** | frontmatter этой темы (`demo_*`) — **все типы** |\n| **record** | `Content/All-Field-Types.md` (`rec_*`) |\n| **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |\n\nСхема полей: **`schema.yml`** → `awn_schema`.\n\n**Медиа (5 типов файлов):**\n\n| Поле | Тип | Виджет |\n| ---- | --- | ------ |\n| `demo_file_one` | `awn.field.file.one` | файл |\n| `demo_file_many` | `awn.field.file.many` | файлы |\n| `demo_image_one` | `awn.field.file.image.one` | изображение |\n| `demo_image_many` | `awn.field.file.image.many` | изображения |\n| `demo_entity_preview` | `awn.field.file.image.for-preview` | превью сущности |\n| `awn-attachments` | `awn.field.file.many` + `widget: attachments` | блок вложений |\n| `awn-preview` | `awn.field.file.image.for-preview` | превью в aside |\n\n**Новые (new!):**\n\n| Поле | Тип |\n| ---- | --- |\n| `demo_time` | `awn.field.date.time` |\n| `demo_duration` | `awn.field.duration` |\n| `demo_code` | `awn.field.text.code` |\n| `demo_secret` | `awn.field.string.secret` |\n| `demo_object` | `awn.field.object` |\n| `demo_repeater` | `awn.field.repeater` |\n\nЗапись с заполненными значениями: [[All-Field-Types]].\n"
+      },
+      {
+        "entityKind": "platform-always",
+        "manifestPath": null,
+        "slot": null,
+        "ref": "GLOBAL-SKILL-2-RESPONSE-STYLE.md",
+        "label": "GLOBAL-SKILL-2-RESPONSE-STYLE.md",
+        "displayPath": "GLOBAL-SKILL-2-RESPONSE-STYLE.md",
+        "description": "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "# Префикс ответа\n\nНачинай каждый ответ человеку с префикса и пробела:\n\n- `🗄️` — ответ опирается на данные из workspace (поиск, чтение страниц/контента, факты).\n- `🌐` — опирается на данные из интернета (search_web, read_web_page, get_link_preview).\n- `🌐🗄️` — оба источника.\n- `💭` — только рассуждение, общие знания или уточняющий вопрос.\n\nСтавь 🗄️/🌐, только если в этом ходе вызвал tool и реально использовал его результат.\nПрефикс один, только в начале; он не заменяет ссылки на источники.\n\nПример: `🗄️ По вашим заметкам «Финансы»: доход за август — …`\n\n# Номер ответа\n\nПеред префиксом ставь порядковый номер ответа в текущем диалоге: `#N`.\n\n- Первый ответ в новом диалоге — `#1`, каждый следующий — на 1 больше.\n- Чтобы получить N, посмотри номер своего предыдущего ответа в истории и прибавь 1. Если предыдущего номера не видно (история сжата или обрезана), посчитай свои ответы человеку в истории.\n- Номер один на весь ответ, даже если в ходе было много вызовов tools; промежуточные сообщения между вызовами не нумеруются.\n\nФормат: `#N <префикс> текст`.\n\nПример: `#3 🗄️ По вашим заметкам «Финансы»: доход за август — …`\n\n# Как ссылаться на данные хранилища\n\n**Файлы и страницы.** Формат: «Название» `путь`.\n- Название — из `awn-name` (или `label`), путь — поле `path` / `displayPath` из ответа tool, относительно корня workspace (без `workspaces/<id>/`).\n- Первое упоминание — название + путь, дальше — только «Название».\n- Путь всегда в `code`, без жирного. Не собирай путь вручную и не сокращай его.\n- Нет названия — только `путь`.\n\n**Строки.** Если tool вернул `locationHint` — пиши как есть: `путь` L12-18.\n\n**Имена tools** (`search_workspace_hybrid` и т.п.) в ответе не называй — пиши, что сделал: «нашёл», «прочитал», «записал». Исключение: человек спрашивает про MCP или отладку — тогда имя в `code`.\n\n**Не выводи** сырой JSON, `awn-id`, `slot` / `ref` / `entityKind`, служебный frontmatter — только если попросили.\n\n# Шаблоны\n\nНашёл:\n\n```text\n#N 🗄️ Нашёл 3 записи:\n- «Финансы 2026» `finance/awn-storage/2026.md` L40-52 — доход за август\n- …\n```\n\nЗаписал или изменил:\n\n```text\n#N 🗄️ Обновил «Финансы 2026» `finance/awn-storage/2026.md`: добавил строку за сентябрь.\n```\n\nНе нашёл:\n\n```text\n#N 🗄️ В хранилище ничего не нашёл по «…». Искал в: … Уточни название или где лежит.\n```\n\nБольше 7 результатов — покажи топ-5 и сколько ещё.\n"
+      },
+      {
+        "entityKind": "platform-always",
+        "manifestPath": null,
+        "slot": null,
+        "ref": "GLOBAL-SKILL-3-RULES.md",
+        "label": "GLOBAL-SKILL-3-RULES.md",
+        "displayPath": "GLOBAL-SKILL-3-RULES.md",
+        "description": "Глобальные правила для всех хранилищ (корень репозитория)",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "# GLOBAL-RULES — как со мной работать\n\n## Правила\n\n1. **Память на диске** — если речь о моих заметках, планах или файлах, сначала загляни в хранилище (MCP), а не опирайся на «как было в чате».\n2. **Не выдумывай** — не придумывай пути, записи и факты; если не нашёл — скажи прямо и спроси.\n3. **Согласуй риск** — перед удалением, массовой правкой или необратимым шагом — коротко спроси меня.\n4. **Пиши как человеку** — на моём языке, коротко и по делу, без лишней «воды».\n\nПравила выше можно править под себя — это **мой** общий тон для всех workspace.\n"
+      }
+    ],
+    "itemCount": 4
+  },
+  "alwaysContextCount": 4,
+  "hint": "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace + RULES + RESPONSE-STYLE). Доки платформы: get_session_documentation. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+}

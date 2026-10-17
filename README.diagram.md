@@ -8,12 +8,12 @@ flowchart TD
     CMS --> ACTORS["👤 Человек (чат UI)<br/>🤖 Агент (MCP)<br/>1+1"]
     ACTORS --> CMS_ENDPOINT["🌐 localhost:<port> · 🔌 MCP-server"]
     CMS_ENDPOINT --> WS
-    WS --> TREE["📁 Дерево страниц<br/>Для изучения и анализа данных"]
+    WS --> TREE["📁 Дерево тем (топиков)<br/>Для изучения и анализа данных"]
     WS --> DATA["🗄️ Структурированные данные<br/>Для хранения структурированных данных"]
     WS --> REPOS["📦 Репозитории<br/>для размещения кода своих проектов"]
     REPOS --> MEDIATHEQUE["🎞️ Медиатека<br/>фото · видео · аудио · файлы · sidecar"]
     MEDIATHEQUE --> SCRIPTS["📜 Скрипты<br/>run_script · утилиты workspace"]
-    WS --> CHANNELS["📡 Каналы и источники<br/>темы · инфоблоки · дискуссии · журнал"]
+    WS --> CHANNELS["📡 Каналы источников информации"]
     CHANNELS --> CHANNEL_VIEWS["📺 Мультиканальная подача<br/>блог · форум · дайджест · лента<br/>дашборд · каталог · библиотека"]
     WS --> EXTRA_DATA["📎 Дополнительные данные"]
     WS --> ANNOT_BRANCH["✍️ Аннотации<br/>(зависимые записи · satellites)"]
@@ -109,20 +109,20 @@ flowchart TD
     class SCRIPTS accentScripts
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
-    click WS_NOTIFY href "zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
-    click WS_CONTEXT_REG href "zadachi-plany-i-idei/awn-storage/main/reestr-tem-i-avtozagruzka.md" "Реестр контекста"
-    click SEARCH href "zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
-    click REGISTRY_QUERIES href "zadachi-plany-i-idei/awn-storage/comments/main/sql-mddatabse-md-fayly-kak-bd.md" "Реестр запросов"
-    click MODULES href "zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
-    click CHANNELS href "obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы и источники"
-    click IDEA1 href "zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"
-    click IDEA2 href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/voxels-vertecx-elixirr-rasshi-mstpostroi-mstcms.md" "UI на базе движка · VOXELS"
-    click IDEA6 href "zadachi-plany-i-idei/awn-storage/ideas.md" "Пайплайн"
-    click IDEA7 href "zadachi-plany-i-idei/awn-storage/main/6-acsess-dostupy-prava.md" "Права доступа и роли"
-    click IDEA8 href "zadachi-plany-i-idei/awn-storage/main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md" "Пароли и приватные данные"
-    click C_SLOT href "zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy.md" "Дорожная карта"
-    click FACT_BANK href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/bank-faktov-i-glossariy.md" "Банк фактов"
-    click EXTRA_DIALOGS href "obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md" "Диалоги · дискуссия"
-    click ANNOT_SIDECAR href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/izobrazheniya-i-rabota-s-izobrazheniyami.md" "Sidecar"
-    click CLOUD_DISKS href "zadachi-plany-i-idei/awn-storage/main/drugie-idei/webdav-setevoy-protokol-protokol-obscheniya-s-oblachnymi-hranilischami.md" "Облачные диски"
+    click WS_NOTIFY href "awn-topics/zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
+    click WS_CONTEXT_REG href "awn-topics/zadachi-plany-i-idei/awn-storage/main/reestr-tem-i-avtozagruzka.md" "Реестр контекста"
+    click SEARCH href "awn-topics/zadachi-plany-i-idei/awn-storage/main/rag.md" "Поиск"
+    click REGISTRY_QUERIES href "awn-topics/zadachi-plany-i-idei/awn-storage/comments/main/sql-mddatabse-md-fayly-kak-bd.md" "Реестр запросов"
+    click MODULES href "awn-topics/zadachi-plany-i-idei/awn-storage/main/ideas-pakety-zavisimosti-i-steki-topikov.md" "Модули"
+    click CHANNELS href "awn-topics/obsuzhdeniya/awn-storage/obsuzhdenie-kanalov.md" "Каналы источников информации"
+    click IDEA1 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/git-dlya-md-faylov-i-media-razdelno.md" "Git-модуль · LFS"
+    click IDEA2 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/voxels-vertecx-elixirr-rasshi-mstpostroi-mstcms.md" "UI на базе движка · VOXELS"
+    click IDEA6 href "awn-topics/zadachi-plany-i-idei/awn-storage/ideas.md" "Пайплайн"
+    click IDEA7 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/6-acsess-dostupy-prava.md" "Права доступа и роли"
+    click IDEA8 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md" "Пароли и приватные данные"
+    click C_SLOT href "awn-topics/zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy.md" "Дорожная карта"
+    click FACT_BANK href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/bank-faktov-i-glossariy.md" "Банк фактов"
+    click EXTRA_DIALOGS href "awn-topics/obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md" "Диалоги · дискуссия"
+    click ANNOT_SIDECAR href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/izobrazheniya-i-rabota-s-izobrazheniyami.md" "Sidecar"
+    click CLOUD_DISKS href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/webdav-setevoy-protokol-protokol-obscheniya-s-oblachnymi-hranilischami.md" "Облачные диски"
 ```

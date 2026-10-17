@@ -101,7 +101,7 @@ function ensureCatalogCsv(preset) {
   const csvPath = path.join(CATALOG, preset, "main.csv");
   if (fs.existsSync(csvPath)) return csvPath;
 
-  const gitPath = `workspaces/agent-cms-core/catalog/${preset}/main.csv`;
+  const gitPath = `workspaces/0-ws-core/catalog/${preset}/main.csv`;
   try {
     const text = execSync(`git show HEAD:${gitPath}`, {
       cwd: path.dirname(CORE),

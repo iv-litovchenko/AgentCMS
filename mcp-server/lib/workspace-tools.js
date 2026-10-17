@@ -1,9 +1,14 @@
 import { z } from "zod";
+import { legacyAgentIdField, resolveWorkspaceId, workspaceIdField } from "./agent-scope.js";
 
-const workspaceId = z
-  .string()
-  .min(1)
-  .describe("Target workspace id from list_workspaces (not the MCP session context unless the same)");
+const workspaceRegistryTargetShape = {
+  workspaceId: workspaceIdField.optional(),
+  agentId: legacyAgentIdField.optional()
+};
+
+function registryWorkspaceId(payload = {}) {
+  return resolveWorkspaceId(payload);
+}
 
 const groupId = z.string().min(1).describe("Workspace group id from list_workspace_groups");
 
@@ -37,7 +42,7 @@ export function registerWorkspaceTools(reg, client) {
 
   reg(
     "register_workspace",
-    "Adopt an existing workspace folder into the platform registry (подхват). The folder must already exist and contain manifest.md with awn-type awn.page.ws. Does not create the folder or manifest — use create_workspace for that. Idempotent if the path is already in the registry (alreadyRegistered: true).",
+    "Adopt an existing workspace folder into the platform registry (подхват). The folder must already exist and contain manifest.md with awn-type awn.hub.topic.ws. Does not create the folder or manifest — use create_workspace for that. Idempotent if the path is already in the registry (alreadyRegistered: true).",
     z.object({
       path: z
         .string()
@@ -56,7 +61,7 @@ export function registerWorkspaceTools(reg, client) {
 
   reg(
     "discover_workspaces",
-    "Scan disk for workspace folders that already have manifest.md (awn.page.ws): project workspaces/, home, Desktop, optional roots. Use register_workspace with path to add one to the registry.",
+    "Scan disk for workspace folders that already have manifest.md (awn.hub.topic.ws): project workspaces/, home, Desktop, optional roots. Use register_workspace with path to add one to the registry.",
     z.object({
       roots: z.array(z.string()).optional().describe("Extra absolute or project-relative roots to scan"),
       maxDepth: z
@@ -83,7 +88,7 @@ export function registerWorkspaceTools(reg, client) {
     "update_workspace",
     "Update workspace metadata and registry flags. Does not move/delete the workspace folder.",
     z.object({
-      agentId: workspaceId,
+      ...workspaceRegistryTargetShape,
       name: z.string().optional(),
       description: z.string().optional(),
       active: z.boolean().optional(),
@@ -99,29 +104,37 @@ export function registerWorkspaceTools(reg, client) {
       priority: z.string().optional(),
       tags: z.array(z.string()).optional()
     }),
-    (payload) => client.patch("/api/agents/workspace", payload, { agentScope: false }),
+    (payload) => {
+      const agentId = registryWorkspaceId(payload);
+      const { workspaceId: _w, agentId: _a, ...rest } = payload;
+      return client.patch("/api/agents/workspace", { agentId, ...rest }, { agentScope: false });
+    },
     { agentScope: false }
   );
 
   reg(
     "set_default_workspace",
     "Set the default workspace opened on platform start.",
-    z.object({
-      agentId: workspaceId
-    }),
-    ({ agentId }) =>
-      client.post("/api/agents/workspace/default", { agentId }, { agentScope: false }),
+    z.object({ ...workspaceRegistryTargetShape }),
+    (payload) =>
+      client.post(
+        "/api/agents/workspace/default",
+        { agentId: registryWorkspaceId(payload) },
+        { agentScope: false }
+      ),
     { agentScope: false }
   );
 
   reg(
     "set_orchestrator_workspace",
     "Set the orchestrator workspace (only one; previous orchestrator is cleared).",
-    z.object({
-      agentId: workspaceId
-    }),
-    ({ agentId }) =>
-      client.post("/api/agents/workspace/orchestrator", { agentId }, { agentScope: false }),
+    z.object({ ...workspaceRegistryTargetShape }),
+    (payload) =>
+      client.post(
+        "/api/agents/workspace/orchestrator",
+        { agentId: registryWorkspaceId(payload) },
+        { agentScope: false }
+      ),
     { agentScope: false }
   );
 
@@ -179,20 +192,28 @@ export function registerWorkspaceTools(reg, client) {
     "assign_workspace_to_group",
     "Move a workspace into a sidebar group (one group per workspace).",
     z.object({
-      agentId: workspaceId,
+      ...workspaceRegistryTargetShape,
       groupId
     }),
-    (payload) => client.post("/api/agents/groups/assign", payload, { agentScope: false }),
+    (payload) =>
+      client.post(
+        "/api/agents/groups/assign",
+        { agentId: registryWorkspaceId(payload), groupId: payload.groupId },
+        { agentScope: false }
+      ),
     { agentScope: false }
   );
 
   reg(
     "remove_workspace_from_group",
     "Remove a workspace from its group (ungrouped section). Does not delete the workspace.",
-    z.object({
-      agentId: workspaceId
-    }),
-    ({ agentId }) => client.post("/api/agents/groups/unassign", { agentId }, { agentScope: false }),
+    z.object({ ...workspaceRegistryTargetShape }),
+    (payload) =>
+      client.post(
+        "/api/agents/groups/unassign",
+        { agentId: registryWorkspaceId(payload) },
+        { agentScope: false }
+      ),
     { agentScope: false }
   );
 

@@ -75,7 +75,7 @@ export function registerFactsTools(reg, client) {
   registerFactTool(
     reg,
     "create_workspace_fact",
-    "Create a distilled fact in awn-databases/contents/facts (md-lite collection). Not for full dialog logs.",
+    "Create a distilled fact in awn-databases/0-contents/0-facts (md-lite collection). Not for full dialog logs.",
     createFactSchema,
     createHandler
   );
@@ -83,7 +83,7 @@ export function registerFactsTools(reg, client) {
   registerFactTool(
     reg,
     "update_workspace_fact",
-    "Update an existing fact by record id or path in contents/facts.",
+    "Update an existing fact by record id or path in 0-contents/0-facts.",
     updateFactSchema,
     updateHandler
   );
@@ -91,7 +91,7 @@ export function registerFactsTools(reg, client) {
   registerFactTool(
     reg,
     "list_workspace_facts",
-    "List recent facts from contents/facts (newest first). No semantic search — use search_workspace_facts.",
+    "List recent facts from 0-contents/0-facts (newest first). No semantic search — use search_workspace_facts.",
     listFactsSchema,
     listHandler
   );
@@ -99,7 +99,7 @@ export function registerFactsTools(reg, client) {
   registerFactTool(
     reg,
     "search_workspace_facts",
-    "Semantic + fulltext search over contents/facts only. Returns cited hits for the agent to synthesize an answer.",
+    "Semantic + fulltext search over 0-contents/0-facts only. Returns cited hits for the agent to synthesize an answer.",
     searchFactsSchema,
     searchHandler
   );

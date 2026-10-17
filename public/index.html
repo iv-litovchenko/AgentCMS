@@ -10,11 +10,22 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.965" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.967" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
     <script src="/js/core/project-version.js?v=1"></script>
+    <script>
+      (function markAgentCmsDesktopFromQuery() {
+        try {
+          if (new URLSearchParams(window.location.search).get("desktop") === "1") {
+            document.documentElement.classList.add("is-agent-cms-desktop");
+          }
+        } catch (_error) {
+          /* ignore */
+        }
+      })();
+    </script>
   </head>
   <body class="app-booting">
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
@@ -442,18 +453,21 @@
                   title="ID (awn-id)"
                   aria-label="ID (awn-id)"
                   aria-pressed="false"
-                >
-                  <svg class="content-search-mode-id-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-                    <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
-                    <circle cx="9" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"></circle>
-                    <path d="M15 10h4M15 14h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                  </svg>
-                </button>
+                >ID</button>
+                <button
+                  type="button"
+                  id="content-search-mode-dql-btn"
+                  class="content-search-mode-btn content-search-mode-btn--dql"
+                  data-mode="dql"
+                  title="DQL (storage-index)"
+                  aria-pressed="false"
+                >DQL</button>
               </div>
               <select id="content-search-mode" class="content-search-mode visually-hidden" aria-label="Режим поиска" tabindex="-1">
                 <option value="text" selected>Текст</option>
                 <option value="semantic">Смысл</option>
                 <option value="id">ID</option>
+                <option value="dql">DQL</option>
               </select>
               <div class="content-search-input-zone">
                 <span class="content-search-input-icon" aria-hidden="true">
@@ -663,6 +677,39 @@
                 <p class="header-welcome-lead">
                   Здесь вы управляете <strong>хранилищами</strong> — отдельными workspace для проектов и агентов.
                 </p>
+                <div
+                  id="header-welcome-desktop-section"
+                  class="header-welcome-desktop"
+                  aria-label="Подсказка для настольного приложения Electron"
+                >
+                  <p class="header-welcome-desktop-title">Настольное приложение (Electron)</p>
+                  <p class="header-welcome-desktop-lead">
+                    Корень проекта должен указывать на ваш клон репозитория с
+                    <code>.agent-cms-global</code>, а не на служебную копию в Application Support — иначе
+                    пути к workspace выглядят как <code>../../../../Desktop/…</code>, а
+                    <code>platform.yml</code> может не подгружаться.
+                  </p>
+                  <ol class="header-welcome-desktop-steps">
+                    <li>
+                      <strong>File → Open Workspace…</strong> — выберите папку репозитория (например
+                      <code>~/Desktop/YamlCMS</code>, где есть
+                      <code>.agent-cms-global/ws-list-agents.json</code>).
+                    </li>
+                    <li>
+                      Либо в
+                      <code>~/Library/Application Support/agent-cms/desktop-config.json</code> задайте
+                      <code>"projectRoot": "/Users/…/Desktop/YamlCMS"</code> и перезапустите приложение.
+                    </li>
+                  </ol>
+                  <p
+                    id="header-welcome-desktop-warn"
+                    class="header-welcome-desktop-warn hidden"
+                    role="status"
+                    hidden
+                  >
+                    Похоже, открыт не тот корень проекта — используйте шаги выше, затем перезагрузите окно.
+                  </p>
+                </div>
                 <ol class="header-welcome-steps">
                   <li><strong>Создайте хранилище</strong> — папка с корневым <code>manifest.md</code></li>
                   <li><strong>Откройте его</strong> — карта, список или поток на главной</li>
@@ -1133,13 +1180,13 @@
                   <button type="button" class="header-index-flush-btn" data-index-flush="workspace-id" title="Синхронизировать счётчик awn-id">
                     ID
                   </button>
-                  <button type="button" class="header-index-flush-btn" data-index-flush="wsmap" title="Собрать WS-MAP.md из всех index.md в workspace">
+                  <button type="button" class="header-index-flush-btn" data-index-flush="wsmap" title="Собрать WS-MAP.md — реестр всех manifest.md в workspace">
                     Карта
                   </button>
                 </div>
                 <div class="header-index-popover-body menu-static-body menu-index-panel-body">
                   <p class="menu-static-description">
-                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей → awn-id → WS-MAP.md.
+                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей → awn-id → WS-MAP (manifest-реестр).
                     После сохранения .md sidecar индексы обновляются автоматически.
                   </p>
 
@@ -1262,8 +1309,12 @@
                     </button>
                   </div>
 
-                  <div class="menu-index-block" data-index-layer="link">
+                  <div class="menu-index-block menu-index-block--link-experimental" data-index-layer="link">
                     <div class="menu-index-block-title">5. Связи (граф)</div>
+                    <p class="menu-index-experimental-notice" role="note">
+                      Экспериментально — на данный момент работает некорректно. Рекомендуется выключить
+                      параметр <code>index-links-enabled</code> в настройках платформы.
+                    </p>
                     <p class="menu-static-description">
                       Wikilinks, markdown-ссылки, relation-поля · backlinks / соседи ·
                       <code>.agent-cms/link-index/</code>
@@ -1290,11 +1341,50 @@
                     <p id="menu-link-index-probe-result" class="menu-static-description menu-link-index-probe-result" aria-live="polite"></p>
                   </div>
 
+                  <div class="menu-index-block menu-index-block--entity-experimental" data-index-layer="entity">
+                    <div class="menu-index-block-title">Сущности (эксперимент)</div>
+                    <p class="menu-index-experimental-notice" role="note">
+                      Прототип: regex + frontmatter · опционально GLiNER (<code>index-entity-gliner-enabled</code>) ·
+                      правки в <code>~show-entities</code> (Склеить / Скрыть) → <code>entity-registry.yml</code>.
+                    </p>
+                    <p class="menu-static-description">
+                      Реестр объектов · фасетный поиск · фильтр в hybrid (<code>entityIds</code> / <code>entityWhere</code>) ·
+                      <code>.agent-cms/cache/indexes/entity/</code>
+                    </p>
+                    <p id="menu-entity-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-entity-index-rebuild-btn" class="menu-static-action-btn">
+                      Пересобрать реестр сущностей
+                    </button>
+                    <button type="button" id="menu-entity-editor-open-btn" class="menu-static-action-btn">
+                      Редактор сущностей
+                    </button>
+                    <button type="button" id="menu-entity-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-entities
+                    </button>
+                    <button type="button" id="menu-entity-registry-open-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      entity-registry.yml
+                    </button>
+                    <div class="menu-link-index-probe">
+                      <input
+                        type="text"
+                        id="menu-entity-index-probe-q"
+                        class="menu-link-index-probe-input"
+                        placeholder="поиск сущности (имя, тег, дата…)"
+                        spellcheck="false"
+                      />
+                      <button type="button" id="menu-entity-index-probe-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                        Найти
+                      </button>
+                    </div>
+                    <p id="menu-entity-index-probe-result" class="menu-static-description menu-link-index-probe-result" aria-live="polite"></p>
+                  </div>
+
                   <div class="menu-index-block" data-index-layer="workspaceId">
                     <div class="menu-index-block-title">6. ID (awn-id)</div>
                     <p class="menu-static-description">
                       Глобальный автоинкремент для всех записей ·
                       <code>settings.yml</code> (Автоинкремент) · MCP:
+                      <code>find_by_id</code>,
                       <code>resolve_workspace_id</code>,
                       <code>assign_workspace_id</code>
                     </p>
@@ -1324,7 +1414,7 @@
                   <div class="menu-index-block" data-index-layer="wsmap">
                     <div class="menu-index-block-title">7. Карта</div>
                     <p class="menu-static-description">
-                      Сводка всех <code>index.md</code> / <code>INDEX.md</code> в <code>WS-MAP.md</code> (корень workspace)
+                      Реестр всех <code>manifest.md</code> в <code>WS-MAP.md</code> (корень workspace): ID, статус, тип, путь, название, описание
                     </p>
                     <p id="menu-wsmap-status" class="menu-static-description" aria-live="polite"></p>
                     <button type="button" id="menu-wsmap-rebuild-btn" class="menu-static-action-btn">
@@ -1499,7 +1589,23 @@
                     Выход
                   </button>
                 </div>
-                <div class="header-profile-menu-divider" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-divider header-profile-menu-divider--after-main" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-divider header-profile-desktop-hint-divider" role="separator" aria-hidden="true"></div>
+                <div
+                  id="header-profile-desktop-hint-section"
+                  class="header-profile-menu-section header-profile-desktop-hint-section"
+                  role="group"
+                  aria-label="Настольное приложение"
+                >
+                  <div class="header-profile-menu-section-title">Electron</div>
+                  <p class="header-profile-desktop-hint-text">
+                    Если пути к workspace вида <code>../../../../Desktop/…</code> или не грузится
+                    <code>platform.yml</code>: <strong>File → Open Workspace…</strong> → папка репозитория с
+                    <code>.agent-cms-global</code> (например <code>~/Desktop/YamlCMS</code>), либо
+                    <code>desktop-config.json</code> → <code>projectRoot</code> и перезапуск.
+                  </p>
+                </div>
+                <div class="header-profile-menu-divider header-profile-desktop-hint-divider" role="separator" aria-hidden="true"></div>
                 <div class="header-profile-menu-section" role="group" aria-label="Документация">
                   <div class="header-profile-menu-section-title">Документация</div>
                   <button id="user-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Руководства Agent CMS">Руководства</button>
@@ -2838,6 +2944,7 @@
                   <span class="menu-static-title menu-static-title--languagetool">
                     <span aria-hidden="true">⚪</span>
                     <span class="menu-static-title-text">
+                      <span class="stub-static-mark menu-static-todo-prefix">TODO:</span>
                       Проверка текста
                       <span class="menu-static-subtitle">LanguageTool · локально <span class="stub-static-mark">(static)</span></span>
                     </span>
@@ -2882,6 +2989,7 @@
                   <span class="menu-static-title menu-static-title--images">
                     <span aria-hidden="true">⚪</span>
                     <span class="menu-static-title-text">
+                      <span class="stub-static-mark menu-static-todo-prefix">TODO:</span>
                       Изображения
                       <span class="menu-static-subtitle">инструменты и оптимизация <span class="stub-static-mark">(static)</span></span>
                     </span>
@@ -2990,6 +3098,7 @@
                   <span class="menu-static-title menu-static-title--server-sync">
                     <span aria-hidden="true">🟢</span>
                     <span class="menu-static-title-text">
+                      <span class="stub-static-mark menu-static-todo-prefix">TODO:</span>
                       Синхронизация с сервером
                       <span class="menu-static-subtitle stub-static-mark">(static)</span>
                     </span>
@@ -3018,6 +3127,7 @@
                   <span class="menu-static-title menu-static-title--awn-backup">
                     <span aria-hidden="true">⚪</span>
                     <span class="menu-static-title-text">
+                      <span class="stub-static-mark menu-static-todo-prefix">TODO:</span>
                       Резервное копирование
                       <span class="menu-static-subtitle stub-static-mark">awn-backup · (static)</span>
                     </span>
@@ -3043,6 +3153,7 @@
                   <span class="menu-static-title menu-static-title--awn-dashboards">
                     <span id="menu-awn-dashboards-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
                     <span class="menu-static-title-text">
+                      <span class="stub-static-mark menu-static-todo-prefix">TODO:</span>
                       Дашборды
                       <span class="menu-static-subtitle">awn-dashboards · виджеты</span>
                     </span>
@@ -6751,15 +6862,15 @@
             <div class="popover-label create-node-reserved-label">Служебные папки workspace</div>
             <div class="create-node-reserved-actions">
               <button id="create-node-kit-scaffold-btn" class="create-node-action-btn create-node-action-btn--service hidden" type="button" title="Правила, справочники и служебные темы агента.">
-                <span class="create-node-scaffold-title">Создать awn-agent-kit</span>
+                <span class="create-node-scaffold-title">Создать awn-topics/agent-kit</span>
                 <span class="create-node-scaffold-hint">Правила, справочники и служебные темы агента.</span>
               </button>
               <button id="create-node-shared-scaffold-btn" class="create-node-action-btn create-node-action-btn--shared hidden" type="button" title="Общие темы и ресурсы для всех тем агента.">
-                <span class="create-node-scaffold-title">Создать awn-shared</span>
+                <span class="create-node-scaffold-title">Создать awn-topics/shared</span>
                 <span class="create-node-scaffold-hint">Папка общих тем — накопители добавляются по одному.</span>
               </button>
               <button id="create-node-container-scaffold-btn" class="create-node-action-btn create-node-action-btn--container hidden" type="button" title="Области и темы рабочего контента агента.">
-                <span class="create-node-scaffold-title">Создать awn-container</span>
+                <span class="create-node-scaffold-title">Создать awn-topics</span>
                 <span class="create-node-scaffold-hint" id="create-node-container-scaffold-hint">Области и темы рабочего контента агента.</span>
               </button>
             </div>
@@ -6848,10 +6959,10 @@
             id="create-node-container-target-wrap"
             class="create-node-vault-option hidden is-disabled"
             for="create-node-container-target"
-            title="Создание только в awn-container"
+            title="Создание только в awn-topics"
           >
             <input id="create-node-container-target" type="checkbox" checked disabled aria-disabled="true" />
-            <span id="create-node-container-target-label">Создать в awn-container</span>
+            <span id="create-node-container-target-label">Создать в awn-topics</span>
           </label>
           <label class="create-node-vault-option create-form-indexing-option is-disabled" title="Заготовка — настройка при создании пока недоступна">
             <input type="checkbox" disabled aria-disabled="true" />
@@ -7890,6 +8001,10 @@ awn-type: awn.page.ws
                     <input class="awn-databases-add-parent-input" type="text" placeholder="1" spellcheck="false" />
                     <select class="agents-registry-select awn-databases-add-parent-select hidden" aria-label="Раздел"></select>
                   </label>
+                  <label class="create-node-vault-option awn-databases-add-go-to-edit-option">
+                    <input class="awn-databases-add-go-to-edit-input" type="checkbox" />
+                    <span>Перейти к редактированию</span>
+                  </label>
                   <button class="external-create-section-btn awn-databases-add-record-btn" type="button">Добавить элемент</button>
                 </div>
                 <div class="awn-databases-view-create-main-csv-form hidden">
@@ -8025,6 +8140,87 @@ awn-type: awn.page.ws
       </div>
     </div>
 
+    <div
+      id="content-search-dql-modal"
+      class="modal-overlay hidden content-search-dql-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="content-search-dql-title"
+    >
+      <div class="modal-card content-search-dql-modal-card">
+        <div class="content-search-advanced-modal-header">
+          <div>
+            <div class="modal-message" id="content-search-dql-title">DQL-lite</div>
+            <p class="content-search-advanced-modal-subtitle">
+              FROM / WHERE / WITH TEXT · <code>source_kind</code> · <code>@transform {"pick":[],"limit":10}</code> · Obsidian <code>dataview</code> = DQL-lite (не DataviewJS)
+            </p>
+          </div>
+          <button id="content-search-dql-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="content-search-dql-tabs" role="tablist" aria-label="Режим DQL">
+          <button type="button" id="content-search-dql-tab-text" class="content-search-dql-tab is-active" data-tab="text">Текст</button>
+          <button type="button" id="content-search-dql-tab-builder" class="content-search-dql-tab" data-tab="builder">Конструктор</button>
+          <button type="button" id="content-search-dql-tab-views" class="content-search-dql-tab" data-tab="views">Views</button>
+        </div>
+        <datalist id="content-search-dql-field-list"></datalist>
+        <div id="content-search-dql-panel-text" class="content-search-dql-panel">
+          <textarea
+            id="content-search-dql-input"
+            class="content-search-dql-input"
+            rows="10"
+            spellcheck="false"
+            placeholder='FROM awn-topics/finansy&#10;WHERE awn-type = "awn.content.record"&#10;WITH TEXT "аренда"'
+          ></textarea>
+        </div>
+        <div id="content-search-dql-panel-builder" class="content-search-dql-panel hidden">
+          <label class="content-search-dql-label">FROM (префикс; несколько через запятую в тексте)
+            <input id="content-search-dql-builder-from" type="text" class="content-search-dql-field-input" list="content-search-dql-field-list" />
+          </label>
+          <label class="content-search-dql-label">Тип записи (source_kind)
+            <select id="content-search-dql-builder-source-kind" class="content-search-dql-field-input">
+              <option value="">любой</option>
+              <option value="md">md</option>
+              <option value="csv-row">csv-row</option>
+            </select>
+          </label>
+          <div id="content-search-dql-builder-rows" class="content-search-dql-builder-rows"></div>
+          <button type="button" id="content-search-dql-builder-add" class="content-search-advanced-btn content-search-advanced-btn--add">+ Условие</button>
+          <label class="content-search-dql-label">WITH TEXT
+            <input id="content-search-dql-builder-with-text" type="text" class="content-search-dql-field-input" placeholder="необязательно" />
+          </label>
+          <label class="content-search-dql-label">LIMIT
+            <input id="content-search-dql-builder-limit" type="number" min="1" max="500" value="50" class="content-search-dql-field-input" />
+          </label>
+          <button type="button" id="content-search-dql-builder-apply" class="content-search-advanced-btn">Собрать DQL →</button>
+        </div>
+        <div id="content-search-dql-panel-views" class="content-search-dql-panel hidden">
+          <select id="content-search-dql-views-select" class="content-search-dql-field-input" aria-label="Сохранённые views"></select>
+          <label class="content-search-dql-label">Параметр $from (для view)
+            <input id="content-search-dql-view-param-from" type="text" class="content-search-dql-field-input" placeholder="awn-databases/…" />
+          </label>
+          <label class="content-search-dql-label">Параметр $limit (для view, LIMIT $limit)
+            <input id="content-search-dql-view-param-limit" type="number" min="1" max="500" class="content-search-dql-field-input" placeholder="20" />
+          </label>
+          <div class="content-search-dql-views-actions">
+            <input id="content-search-dql-view-name" type="text" class="content-search-dql-field-input" placeholder="Имя view" />
+            <button type="button" id="content-search-dql-view-save" class="content-search-advanced-btn">Сохранить</button>
+            <button type="button" id="content-search-dql-view-load" class="content-search-advanced-btn">Загрузить</button>
+            <button type="button" id="content-search-dql-view-delete" class="content-search-advanced-btn content-search-advanced-btn--ghost">Удалить</button>
+          </div>
+        </div>
+        <div class="content-search-advanced-modal-footer">
+          <button id="content-search-dql-reset-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Сбросить</button>
+          <button id="content-search-dql-open-dashboard-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Полноэкранный дашборд awn-dashboards">На дашборд</button>
+          <div class="content-search-advanced-modal-footer-actions">
+            <button id="content-search-dql-cancel-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Отмена</button>
+            <button id="content-search-dql-export-csv-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат DQL как CSV">CSV ↓</button>
+            <button id="content-search-dql-export-json-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button" title="Скачать результат DQL как JSON">JSON ↓</button>
+            <button id="content-search-dql-run-btn" class="content-search-advanced-btn content-search-advanced-btn--primary" type="button">Выполнить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="file-history-modal" class="modal-overlay hidden">
       <div class="modal-card file-history-card">
         <div class="md-showcase-header">
@@ -8063,6 +8259,93 @@ awn-type: awn.page.ws
       </div>
     </div>
 
+    <div id="entity-registry-editor-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="entity-registry-editor-title">
+      <div class="modal-card entity-registry-editor-card">
+        <div class="entity-registry-editor-header">
+          <div>
+            <div class="modal-message" id="entity-registry-editor-title">Реестр сущностей</div>
+            <p id="entity-registry-editor-subtitle" class="entity-registry-editor-subtitle">Типы · объекты · поиск по связанным заметкам</p>
+          </div>
+          <button id="entity-registry-editor-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="entity-registry-editor-layout">
+          <aside class="entity-registry-editor-types">
+            <div class="entity-registry-editor-panel-head">
+              <span class="entity-registry-editor-panel-title">Типы</span>
+              <button type="button" id="entity-editor-add-type-btn" class="entity-editor-tool-btn" title="Добавить тип">+ тип</button>
+            </div>
+            <ul id="entity-editor-type-list" class="entity-registry-editor-type-list"></ul>
+            <form id="entity-editor-add-type-form" class="entity-registry-editor-inline-form hidden">
+              <input id="entity-editor-new-type-label" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="Название типа" required />
+              <input id="entity-editor-new-type-tags" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="теги: еда, food" />
+              <div class="entity-registry-editor-inline-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Создать</button>
+                <button type="button" id="entity-editor-add-type-cancel" class="entity-editor-tool-btn">Отмена</button>
+              </div>
+            </form>
+            <p class="entity-registry-editor-hint">Теги (#еда) → тип «Еда». После правок — пересборка.</p>
+          </aside>
+          <section class="entity-registry-editor-list-pane">
+            <div class="entity-registry-editor-panel-head">
+              <span id="entity-editor-list-title" class="entity-registry-editor-panel-title">Объекты</span>
+              <button type="button" id="entity-editor-add-object-btn" class="entity-editor-tool-btn" title="Добавить объект вручную">+ объект</button>
+            </div>
+            <input id="entity-editor-object-q" class="entity-registry-editor-input entity-registry-editor-input--compact" type="search" placeholder="Фильтр по названию…" />
+            <form id="entity-editor-add-object-form" class="entity-registry-editor-inline-form hidden">
+              <input id="entity-editor-new-object-label" class="entity-registry-editor-input entity-registry-editor-input--compact" type="text" placeholder="Название объекта" required />
+              <div class="entity-registry-editor-inline-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Добавить</button>
+                <button type="button" id="entity-editor-add-object-cancel" class="entity-editor-tool-btn">Отмена</button>
+              </div>
+            </form>
+            <div id="entity-editor-list-hint" class="entity-registry-editor-hint hidden"></div>
+            <div id="entity-editor-object-list" class="entity-registry-editor-object-list"></div>
+          </section>
+          <section class="entity-registry-editor-detail">
+            <div class="entity-registry-editor-panel-head"><span class="entity-registry-editor-panel-title">Карточка</span></div>
+            <div id="entity-editor-detail-empty" class="entity-registry-editor-hint">Выберите объект слева</div>
+            <form id="entity-editor-detail-form" class="entity-registry-editor-form hidden">
+              <label class="entity-registry-editor-label">Тип
+                <select id="entity-editor-detail-type" class="entity-registry-editor-input"></select>
+              </label>
+              <label class="entity-registry-editor-label">Название
+                <input id="entity-editor-detail-label" class="entity-registry-editor-input" type="text" />
+              </label>
+              <label class="entity-registry-editor-label">Склеить с (канон)
+                <input id="entity-editor-detail-canonical" class="entity-registry-editor-input" type="text" placeholder="оставьте пустым, если не нужно" />
+              </label>
+              <label class="entity-registry-editor-check">
+                <input id="entity-editor-detail-reject" type="checkbox" /> Скрыть из реестра
+              </label>
+              <div class="entity-registry-editor-form-actions">
+                <button type="submit" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Сохранить</button>
+              </div>
+            </form>
+            <div id="entity-editor-mentions" class="entity-registry-editor-mentions"></div>
+          </section>
+        </div>
+        <div class="entity-registry-editor-search-bar">
+          <label class="entity-registry-editor-search-field">
+            <span class="entity-registry-editor-field-caption">Тип</span>
+            <select id="entity-editor-search-type" class="entity-registry-editor-input"></select>
+          </label>
+          <label class="entity-registry-editor-search-field">
+            <span class="entity-registry-editor-field-caption">Объект</span>
+            <select id="entity-editor-search-object" class="entity-registry-editor-input"></select>
+          </label>
+          <label class="entity-registry-editor-search-field entity-registry-editor-search-field--grow">
+            <span class="entity-registry-editor-field-caption">Текст в заметках</span>
+            <input id="entity-editor-search-q" class="entity-registry-editor-input" type="search" placeholder="опционально…" />
+          </label>
+          <div class="entity-registry-editor-search-actions">
+            <button type="button" id="entity-editor-search-btn" class="entity-editor-tool-btn entity-editor-tool-btn--primary">Найти</button>
+            <button type="button" id="entity-editor-rebuild-btn" class="entity-editor-tool-btn">Пересобрать</button>
+          </div>
+        </div>
+        <div id="entity-editor-search-results" class="entity-registry-editor-search-results"></div>
+      </div>
+    </div>
+
     <div id="workspace-index-catalog-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="workspace-index-catalog-title">
       <div class="modal-card workspace-index-catalog-card">
         <div class="workspace-index-catalog-header">
@@ -8094,7 +8377,7 @@ awn-type: awn.page.ws
       <div class="modal-card md-showcase-card">
         <div class="md-showcase-header">
           <div>
-            <div class="modal-message" id="md-showcase-title">GLOBAL-DOC-MARKDOWN.md</div>
+            <div class="modal-message" id="md-showcase-title">GLOBAL-SKILL-4-MARKDOWN.md</div>
             <p id="md-showcase-subtitle" class="md-showcase-subtitle">Поддерживаемая markdown-разметка · markdown-it preview</p>
           </div>
           <button id="md-showcase-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
@@ -8483,7 +8766,7 @@ awn-type: awn.page.ws
               <p class="api-docs-desc">
                 Действия: вызов функции с аргументами и ответом (JSON или текст). Агент сам решает, когда вызвать.
                 Список ниже в этой модалке — это tools Agent CMS (<code>list_workspaces</code>,
-                <code>database_frame_get</code>, …).
+                <code>get_database</code>, …).
               </p>
             </article>
             <article class="api-docs-endpoint mcp-docs-tool">
@@ -8565,7 +8848,8 @@ awn-type: awn.page.ws
     <script type="module" src="/js/pomodoro/pomodoro-state-bootstrap.js?v=1"></script>
     <script src="/js/pomodoro/workspace-pomodoro.js?v=9"></script>
     <script src="/js/app/connection-status.js?v=1"></script>
-    <script src="/js/panels/semantic-index-panel.js?v=23"></script>
+    <script src="/js/panels/semantic-index-panel.js?v=24"></script>
+    <script src="/js/panels/entity-registry-editor.js?v=2"></script>
     <script src="/js/panels/languagetool-panel.js?v=2"></script>
     <script src="/js/panels/file-find-bar.js?v=2"></script>
     <script src="/js/core/slug-translit.js?v=1"></script>
@@ -8574,15 +8858,35 @@ awn-type: awn.page.ws
     <script src="/js/core/node-config-bundle.js?v=1"></script>
     <script src="/js/core/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/js/cms/awn-dashboards.js?v=6"></script>
+    <script src="/js/cms/awn-dashboards.js?v=8"></script>
     <script src="/js/core/platform-status.js"></script>
     <script src="/js/editor/marker-blocks-preview.js?v=11"></script>
     <script src="/js/panels/mcp-docs-primitives-help.js?v=1"></script>
     <script src="/js/panels/api-docs-ui.js?v=2"></script>
     <script src="/vendor/d3.min.js?v=1"></script>
-    <script src="/js/panels/agent-rmm-live-brain.js?v=2"></script>
-    <script src="/vendor/channel-preset-icons/map.js?v=13"></script>
-    <script src="/main.js?v=0.5.1012"></script>
+    <script src="/js/panels/agent-rmm-live-brain.js?v=4"></script>
+    <script src="/vendor/channel-preset-icons/map.js?v=15"></script>
+    <script>
+      (function markAgentCmsDesktopRoot() {
+        var ua = typeof navigator !== "undefined" ? String(navigator.userAgent || "") : "";
+        if (window.desktopApp && window.desktopApp.isDesktop) {
+          document.documentElement.classList.add("is-agent-cms-desktop");
+          return;
+        }
+        if (/\bElectron\//i.test(ua) || /\bElectron\b/i.test(ua)) {
+          document.documentElement.classList.add("is-agent-cms-desktop");
+          return;
+        }
+        try {
+          if (new URLSearchParams(window.location.search).get("desktop") === "1") {
+            document.documentElement.classList.add("is-agent-cms-desktop");
+          }
+        } catch (_error) {
+          /* ignore */
+        }
+      })();
+    </script>
+    <script src="/main.js?v=0.5.1016"></script>
     <script src="/js/panels/discuss-panel.js?v=0.5.259"></script>
     <script src="/js/app/privacy-mode.js?v=5"></script>
     <script src="/js/app/sensitive-input.js?v=3"></script>

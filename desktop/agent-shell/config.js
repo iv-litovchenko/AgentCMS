@@ -76,7 +76,7 @@ function getVoiceBaseUrl() {
 function getDefaultAgentId() {
   const env = String(process.env.AGENT_CMS_AGENT || "").trim();
   if (env) return env;
-  return String(loadConfig().agentId || "agent-cms-test").trim();
+  return String(loadConfig().agentId || "0-ws-test").trim();
 }
 
 function getSharedCmsDesktopConfigPath() {

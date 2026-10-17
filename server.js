@@ -8,7 +8,12 @@ const { AsyncLocalStorage } = require("async_hooks");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const agentRegistry = require("./lib/agents/agent-registry");
-const { resolveChpuPath, isChpuReservedRootSegment } = require("./lib/config/chpu-resolver");
+const {
+  resolveChpuPath,
+  isChpuReservedRootSegment,
+  canonicalizeChpuWorkspacePath,
+  canonicalizeChpuWorkspaceAgentId
+} = require("./lib/config/chpu-resolver");
 const docsRegistry = require("./lib/docs/docs-registry");
 const apiDocs = require("./lib/docs/api-docs");
 const mcpDocs = require("./lib/docs/mcp-docs");
@@ -27,9 +32,22 @@ const {
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
 const {
+  getWorkspacePageIndexRelPath,
+  getWorkspacePageIndexLegacyRelPaths,
+  getWorkspacePageIndexHistoryManifestRel,
+  resolveWorkspacePageIndexFileOnDisk,
+  isWorkspaceTocMarkdownRel
+} = require("./lib/workspace/workspace-page-index-path");
+const {
+  resolveWorkspaceIdFromArgs,
+  resolveWorkspaceIdFromPayload,
+  resolveWorkspaceIdFromSearchParams
+} = require("./lib/workspace/resolve-workspace-id-from-args");
+const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
-  collectWorkspaceIndexMdPaths,
+  walkWorkspaceManifestFiles,
+  collectAllWorkspaceManifestRels,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
 const {
@@ -54,6 +72,7 @@ const { createSemanticSearchService } = require("./lib/indexes/semantic-search/s
 const { createFulltextSearchService } = require("./lib/indexes/fulltext-index/service");
 const { createStorageIndexService } = require("./lib/indexes/storage-index/service");
 const { createLinkIndexService } = require("./lib/indexes/link-index/service");
+const { createEntityIndexService } = require("./lib/indexes/entity-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./lib/workspace-id/service");
 const { generateWorkspaceSlug } = require("./lib/workspace/slug-service");
 const recordMaterials = require("./lib/record-materials");
@@ -103,6 +122,8 @@ const {
   writeRepositoryIndex,
   registerRepository,
   updateRepository,
+  deleteRepository,
+  renameRepository,
   readRepositoryGroups,
   writeRepositoryGroups,
   shouldSkipAwnRepositoriesSearch
@@ -112,6 +133,8 @@ const {
   getMediaLibrary,
   registerMediaLibrary,
   updateMediaLibrary,
+  deleteMediaLibrary,
+  renameMediaLibrary,
   writeMediaLibraryIndex,
   shouldSkipAwnMediaSearch,
   getMediaLibrarySliderFilesRel,
@@ -128,6 +151,8 @@ const {
   getAwnChannel,
   registerAwnChannel,
   updateAwnChannel,
+  deleteAwnChannel,
+  renameAwnChannel,
   assertChannelManifestRel,
   readChannelsIndex,
   writeChannelsIndex,
@@ -229,6 +254,7 @@ const {
   getNamedStorageBundleRel,
   getNamedStorageBundleDirRel,
   getManifestContainerDirRel,
+  inferAwnTypeFromRelPath,
   getStorageContainerPrefixRel,
   getManifestNamedSlotKey,
   isStorageAssetsInlineSubfolder,
@@ -305,6 +331,7 @@ const {
   isAllowedStorageSubfolderName,
   isStorageFileReadSlotName,
   isStorageFileWriteSlotName,
+  isStorageMarkdownMemorySlotName,
   isStorageFolderName,
   getStorageRootDirRel,
   getStorageFolderRegexAlternation,
@@ -341,7 +368,12 @@ const {
   normalizeDeclaredManifestTreeType,
   resolveMediaStorageSubfolderForManifest,
   isWorkspaceAwnMediaLibraryManifestRel,
-  isWorkspaceAwnChannelManifestRel
+  isWorkspaceAwnChannelManifestRel,
+  rewriteLegacyTopicPathsInRelPath,
+  AWN_TOPICS_AGENT_KIT_REL,
+  AWN_TOPICS_SHARED_REL,
+  AWN_TOPICS_INDEX_REL,
+  isTopicHubSectionManifestRel
 } = require("./lib/config/manifest-paths");
 const {
   buildDefaultFrontmatter,
@@ -415,6 +447,7 @@ const {
   writeAwnDataStoreProperty,
   readAwnDataStoreProperties,
   writeAwnDataStoreProperties,
+  updateAwnDataStore,
   readAwnDataRecordProperty,
   writeAwnDataRecordProperty,
   readAwnDataRecordProperties,
@@ -445,6 +478,7 @@ const {
   agentSystemExists,
   buildAgentSystemMenuTree,
   readAgentSystemFile,
+  readAgentSystemRendererFile,
   writeAgentSystemFile,
   getAgentSystemStatus
 } = require("./lib/agents/agent-system");
@@ -452,6 +486,7 @@ const { getCanonicalModelPayload } = require("./lib/awn/awn-canonical-model");
 const { parseYamlScalar, mergeFrontmatterOverrides } = require("./lib/awn/awn-yaml-utils");
 const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-service");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
+const { buildHubWorkspaceOutsideStructureReport } = require("./lib/services/hub-outside-structure");
 const { createExistsApi } = require("./lib/api/exists-api");
 const {
   validateContentSlotAccess,
@@ -703,6 +738,7 @@ const {
   getActiveAgentId,
   isPlatformAgentId,
   getAgentKitFolder,
+  resolveAgentKitIdentityTopicSlug,
   getAgentContainerFolder,
   getAgentSharedFolder,
   isAgentKitFolderEntryName,
@@ -722,10 +758,11 @@ const {
   DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
-const GLOBAL_DOC_MCP_FILE = "GLOBAL-DOC-MCP.md";
-const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-RESPONSE-STYLE.md";
-const GLOBAL_RULES_FILE = "GLOBAL-RULES.md";
-const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-DOC-MARKDOWN.md";
+const GLOBAL_DOC_WELCOME_FILE = "GLOBAL-SKILL-0-MCP-WELCOME.md";
+const GLOBAL_DOC_BASE_FILE = "GLOBAL-SKILL-1-BASE.md";
+const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-SKILL-2-RESPONSE-STYLE.md";
+const GLOBAL_RULES_FILE = "GLOBAL-SKILL-3-RULES.md";
+const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-SKILL-4-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
 
@@ -734,24 +771,18 @@ const SESSION_ALWAYS_PLATFORM_FILES = [
     file: GLOBAL_RESPONSE_STYLE_FILE,
     settingKey: "always-context-global-response-style",
     description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
-    root: "project"
+    root: "global-md"
   },
   {
     file: GLOBAL_RULES_FILE,
     settingKey: "always-context-global-rules",
-    description: "Глобальные правила для всех хранилищ (корень репозитория)",
-    root: "project"
+    description: "Глобальные правила для всех хранилищ",
+    root: "global-md"
   }
 ];
 
 /** Platform docs loaded on demand via get_session_documentation (not in session-context). */
 const SESSION_DOCUMENTATION_PLATFORM_FILES = [
-  {
-    file: GLOBAL_DOC_MCP_FILE,
-    settingKey: "always-context-global-mcp-doc",
-    description: "Глобальная карта MCP (корень репозитория, все агенты)",
-    root: "project"
-  },
   {
     file: PLATFORM_README_FILE,
     settingKey: "always-context-platform-readme",
@@ -762,7 +793,7 @@ const SESSION_DOCUMENTATION_PLATFORM_FILES = [
     file: GLOBAL_DOC_MARKDOWN_FILE,
     settingKey: "always-context-global-markdown-showcase",
     description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
-    root: "project"
+    root: "global-md"
   }
 ];
 
@@ -798,10 +829,14 @@ const ROOT_SYSTEM_CONFIG_FILE_NAMES = new Set([
 
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "README.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  WORKSPACE_WS_MAP_FILE,
   ".env",
   ".gitignore"
 ]);
@@ -1202,6 +1237,12 @@ function sendJson(res, statusCode, payload, extraHeaders = null) {
 }
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
+const {
+  GLOBAL_PLATFORM_MD_REL,
+  getGlobalPlatformMdDirAbs,
+  resolveGlobalPlatformMdAbs,
+  globalPlatformMdDisplayPath
+} = require("./lib/paths/global-platform-md");
 const {
   migrateProjectAgentCmsLayout,
   migrateAllWorkspaceAwnDatabasesFolders,
@@ -1830,14 +1871,25 @@ async function withWorkspaceActivityContext(req, url, fn) {
 
 async function readJsonBody(req, maxSize = 1_000_000) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    // Decode once at the end: a multi-byte UTF-8 char may be split across chunks.
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    const fail = () => {
+      tooLarge = true;
+      reject(new Error("Request body is too large"));
+    };
     req.on("data", (chunk) => {
-      body += chunk.toString("utf-8");
-      if (body.length > maxSize) {
-        reject(new Error("Request body is too large"));
-      }
+      if (tooLarge) return;
+      size += chunk.length;
+      // maxSize counts characters; a UTF-8 char is at most 4 bytes.
+      if (size > maxSize * 4) return fail();
+      chunks.push(chunk);
     });
     req.on("end", () => {
+      if (tooLarge) return;
+      const body = Buffer.concat(chunks).toString("utf-8");
+      if (body.length > maxSize) return fail();
       try {
         resolve(body ? JSON.parse(body) : {});
       } catch {
@@ -1849,7 +1901,7 @@ async function readJsonBody(req, maxSize = 1_000_000) {
 }
 
 function normalizeWorkspacePath(inputPath) {
-  const raw = String(inputPath ?? "").trim();
+  const raw = rewriteLegacyTopicPathsInRelPath(String(inputPath ?? "").trim());
   if (!raw || raw === ".") return null;
   const agentRoot = getAgentRoot();
   const safe = path.normalize(raw).replace(/^(\.\.[\/\\])+/, "");
@@ -1915,7 +1967,8 @@ function getStorageIndexService() {
       getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath,
-      getIndexPolicy: getActiveIndexPolicy
+      getIndexPolicy: getActiveIndexPolicy,
+      searchHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options)
     });
   }
   return storageIndexService;
@@ -1933,6 +1986,25 @@ function getLinkIndexService() {
     });
   }
   return linkIndexService;
+}
+
+let entityIndexService = null;
+function getEntityIndexService() {
+  if (!entityIndexService) {
+    entityIndexService = createEntityIndexService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath,
+      getIndexPolicy: getActiveIndexPolicy,
+      isEntityIndexExcluded,
+      getProjectRoot,
+      isEntityGlinerEnabled: async () => {
+        const settings = await getPlatformSettings(getProjectRoot());
+        return Boolean(normalizePlatformAgentSettings(settings)["index-entity-gliner-enabled"]);
+      }
+    });
+  }
+  return entityIndexService;
 }
 
 let workspaceIdService = null;
@@ -1966,6 +2038,7 @@ function getNavFlagsRegistryService() {
 
 function wrapNavFlagEntriesForAgent(agent, entries) {
   return (Array.isArray(entries) ? entries : []).map((entry) => ({
+    workspaceId: agent.id,
     agentId: agent.id,
     agentName: agent.name || agent.id,
     agentPath: agent.path,
@@ -2111,14 +2184,36 @@ function kickWorkspaceIndexFileSyncWorker() {
 async function drainWorkspaceIndexFileSyncQueue() {
   const paths = [...workspaceIndexFileSyncPending];
   workspaceIndexFileSyncPending.clear();
+  if (!paths.length) return;
+
+  const platformSettings = await getPlatformSettings(getProjectRoot());
+  if (isPlatformIndexEnabled(platformSettings, "storage") && paths.length > 1) {
+    await getStorageIndexService()
+      .updateFilesBatch(paths)
+      .catch(() => {});
+  }
+
   for (const relPath of paths) {
-    await syncWorkspaceIndexFile(
-      getSemanticSearchService(),
-      getStorageIndexService(),
-      getFulltextSearchService(),
-      relPath,
-      getLinkIndexService()
-    ).catch(() => {});
+    const storageAlreadyBatched = isPlatformIndexEnabled(platformSettings, "storage") && paths.length > 1;
+    if (storageAlreadyBatched) {
+      await syncWorkspaceIndexFile(
+        getSemanticSearchService(),
+        null,
+        getFulltextSearchService(),
+        relPath,
+        getLinkIndexService(),
+        getEntityIndexService()
+      ).catch(() => {});
+    } else {
+      await syncWorkspaceIndexFile(
+        getSemanticSearchService(),
+        getStorageIndexService(),
+        getFulltextSearchService(),
+        relPath,
+        getLinkIndexService(),
+        getEntityIndexService()
+      ).catch(() => {});
+    }
   }
 }
 
@@ -2200,6 +2295,7 @@ async function getWorkspaceIndexMonitorPayload() {
     loadFulltextIndex: loadFulltextIndexFile,
     loadStorageIndex: loadStorageIndexFile,
     getLinkIndexStatus: () => getLinkIndexService().getStatus(),
+    getEntityIndexStatus: () => getEntityIndexService().getStatus(),
     getOcrIndexStatus: () => getOcrIndexService().getStatus(),
     getWorkspaceIdStatus: () => getWorkspaceIdService().getStatus()
   });
@@ -2255,6 +2351,7 @@ function getIdentityService() {
     identityService = createIdentityService({
       getAgentRoot,
       getAgentKitFolder,
+      resolveAgentKitIdentityTopicSlug,
       getActiveAgentId,
       getProjectRoot,
       readWorkspaceManifestContent,
@@ -2445,7 +2542,8 @@ function getWorkspaceBrainService() {
       queryStorageIndex: (payload) => getStorageIndexService().query(payload),
       getSearchDefaultScopes,
       getPlatformSearchTuning: async () =>
-        getPlatformSearchTuning(await getPlatformSettings(getProjectRoot()))
+        getPlatformSearchTuning(await getPlatformSettings(getProjectRoot())),
+      resolveEntityFilterPaths: (payload) => getEntityIndexService().resolveFilterPaths(payload)
     });
   }
   return workspaceBrainService;
@@ -2596,7 +2694,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
     (isTopic
       ? "topic"
       : isSection
-        ? "awn.page.section"
+        ? "awn.hub.topic.section"
         : isArea
           ? "awn.page.area"
           : String(nodeKind || "topic"));
@@ -2616,6 +2714,7 @@ function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, optio
       isSection ||
       String(typeName).trim() === "awn.page.area" ||
       String(typeName).trim() === "awn.page.section" ||
+      String(typeName).trim() === "awn.hub.topic.section" ||
       String(typeName).trim() === "awn.page.topic"
   });
   frontmatter = upsertYamlScalarLine(frontmatter, "awn-name", title);
@@ -6494,7 +6593,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (bundleMatch) {
     return {
       error:
-        "Use write_content_body for internal single-file slots (main-single, todo-single, roadmap-single, main-single-csv)",
+        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|roadmap-single|main-single-csv, no ref) for internal single-file slots",
       status: 400
     };
   }
@@ -6521,13 +6620,16 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (ext === ".md" && WORKSPACE_FS_TYPED_MD_LAYERS.has(layer)) {
     const { STORAGE_SLOT_ROUTING } = require("./lib/config/storage-slot-routing");
     const spec = STORAGE_SLOT_ROUTING.find((entry) => entry.storageFolder === layer);
+    const manifestPath = parsed.manifestCandidates?.[0] || null;
+    const slot = spec?.slotKey || layer;
     return {
-      error: `For .md in awn-storage/${layer}/ use create_content / write_content_body / write_content_properties`,
+      error: `For .md in awn-storage/${layer}/ use write_content (part=body | properties) or create_content with hint.placement`,
       status: 400,
       hint: {
-        manifestPath: parsed.manifestCandidates?.[0] || null,
-        slot: spec?.slotKey || layer,
-        ref: parsed.relativePath
+        manifestPath,
+        slot,
+        ref: parsed.relativePath,
+        placement: { kind: "topic", path: manifestPath, slot, ref: parsed.relativePath }
       }
     };
   }
@@ -7323,7 +7425,10 @@ function validateStorageFileRequest(relFile, storageFolder, { write = false } = 
     if (canonicalFolder === STORAGE_SUBFOLDER_MAIN && baseName.toLowerCase().endsWith(".md")) {
       return { error: "Use external memory tools for .md in main/" };
     }
-  } else if (!isStorageFileReadSlotName(canonicalFolder)) {
+  } else if (
+    !isStorageFileReadSlotName(canonicalFolder) &&
+    !isStorageMarkdownMemorySlotName(canonicalFolder)
+  ) {
     return { error: "Reading is not allowed for this storage folder" };
   }
 
@@ -7728,6 +7833,21 @@ async function targetPathOccupiedByOther(fromAbsolute, toAbsolute) {
   }
 }
 
+async function renamePathCaseAwareFilesystem(fromAbsolute, toAbsolute) {
+  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) {
+    const tempAbsolute = path.join(
+      path.dirname(fromAbsolute),
+      `.case-rename-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    await fs.rename(fromAbsolute, tempAbsolute);
+    await fs.rename(tempAbsolute, toAbsolute);
+    return toAbsolute;
+  }
+
+  await fs.rename(fromAbsolute, toAbsolute);
+  return toAbsolute;
+}
+
 async function renamePathCaseAware(fromAbsolute, toAbsolute) {
   const fromResolved = path.resolve(fromAbsolute);
   const toResolved = path.resolve(toAbsolute);
@@ -7741,18 +7861,13 @@ async function renamePathCaseAware(fromAbsolute, toAbsolute) {
 
   await fs.mkdir(path.dirname(toAbsolute), { recursive: true });
 
-  if (isCaseOnlyPathRename(fromAbsolute, toAbsolute)) {
-    const tempAbsolute = path.join(
-      path.dirname(fromAbsolute),
-      `.case-rename-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
-    await fs.rename(fromAbsolute, tempAbsolute);
-    await fs.rename(tempAbsolute, toAbsolute);
-    return toAbsolute;
-  }
-
-  await fs.rename(fromAbsolute, toAbsolute);
-  return toAbsolute;
+  const { renamePathCaseAwareGitOrFs } = require("./lib/git/workspace-git-rename");
+  return renamePathCaseAwareGitOrFs(
+    getAgentRoot(),
+    fromAbsolute,
+    toAbsolute,
+    renamePathCaseAwareFilesystem
+  );
 }
 
 async function resolveMediaTargetFolderAbsolute(folderAbsolute, subdir, options = {}) {
@@ -9569,15 +9684,33 @@ async function normalizeServiceMenuTree(tree, serviceAbsolute) {
 const CONTAINER_AREA_NAME = "Контейнер";
 const SHARED_AREA_NAME = "Общие темы и ресурсы";
 const SHARED_DEFAULT_THEMES = [
-  { slug: "inbox", title: "Входящие" },
-  { slug: "notes", title: "Заметки" },
-  { slug: "references", title: "Источники" },
-  { slug: "artefacts", title: "Артефакты" },
-  { slug: "scripts", title: "Скрипты" },
-  { slug: "media", title: "Медиа" },
-  { slug: "downloads", title: "Загрузки из браузера" },
-  { slug: "context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
+  { slug: "0-inbox", title: "Входящие" },
+  { slug: "0-notes", title: "Заметки" },
+  { slug: "0-references", title: "Источники" },
+  { slug: "0-artefacts", title: "Артефакты" },
+  { slug: "0-scripts", title: "Скрипты" },
+  { slug: "0-media", title: "Медиа" },
+  { slug: "0-downloads", title: "Загрузки из браузера" },
+  { slug: "0-context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
 ];
+
+const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
+  inbox: "0-inbox",
+  notes: "0-notes",
+  references: "0-references",
+  artefacts: "0-artefacts",
+  scripts: "0-scripts",
+  media: "0-media",
+  downloads: "0-downloads",
+  context: "0-context"
+};
+
+function resolveSharedThemeCanonicalSlug(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (SHARED_DEFAULT_THEMES.some((theme) => theme.slug === normalized)) return normalized;
+  return SHARED_THEME_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+}
 
 async function normalizeContainerMenuTree(tree, containerAbsolute) {
   if (!tree || !containerAbsolute) return tree;
@@ -9608,6 +9741,24 @@ async function normalizeNestedContainerMenuTree(tree, containerAbsolute, contain
     tree.previewUrl = indexMeta.previewUrl;
   }
   tree.sections = (tree.sections || []).filter((section) => section.title !== CONTAINER_AREA_NAME);
+  const kitFolder = getAgentKitFolder();
+  if (kitFolder) {
+    tree.sections = tree.sections.filter((section) => {
+      const fp = String(section.folderPath || "").replace(/\\/g, "/");
+      if (fp === kitFolder || fp.startsWith(`${kitFolder}/`)) return false;
+      const base = fp.split("/").filter(Boolean).pop() || "";
+      return !isAgentKitFolderEntryName(base);
+    });
+  }
+  const sharedFolder = getAgentSharedFolder();
+  if (sharedFolder) {
+    tree.sections = tree.sections.filter((section) => {
+      const fp = String(section.folderPath || "").replace(/\\/g, "/");
+      if (fp === sharedFolder || fp.startsWith(`${sharedFolder}/`)) return false;
+      const base = fp.split("/").filter(Boolean).pop() || "";
+      return !isSharedFolderEntryName(base);
+    });
+  }
   return tree;
 }
 
@@ -9682,18 +9833,18 @@ async function bootstrapSharedDefaultThemes(sharedAbsolute, sharedFolder) {
 }
 
 function findSharedThemePreset(slug) {
-  const normalized = String(slug || "").trim().toLowerCase();
-  if (!normalized) return null;
-  return SHARED_DEFAULT_THEMES.find((theme) => theme.slug === normalized) || null;
+  const canonical = resolveSharedThemeCanonicalSlug(slug);
+  if (!canonical) return null;
+  return SHARED_DEFAULT_THEMES.find((theme) => theme.slug === canonical) || null;
 }
 
 const SHARED_MOUNT_SPECS = [
-  { slotKey: "inbox", themeSlug: "inbox", label: "Входящие", mode: "inbox" },
-  { slotKey: "notes", themeSlug: "notes", label: "Заметки", mode: "notes" },
-  { slotKey: "references", themeSlug: "references", label: "Источники", mode: "references" },
-  { slotKey: "artefacts", themeSlug: "artefacts", label: "Артефакты", mode: "artefacts" },
-  { slotKey: "scripts", themeSlug: "scripts", label: "Скрипты", mode: "scripts" },
-  { slotKey: "media", themeSlug: "media", label: "Медиа", mode: "media" }
+  { slotKey: "inbox", themeSlug: "0-inbox", label: "Входящие", mode: "inbox" },
+  { slotKey: "notes", themeSlug: "0-notes", label: "Заметки", mode: "notes" },
+  { slotKey: "references", themeSlug: "0-references", label: "Источники", mode: "references" },
+  { slotKey: "artefacts", themeSlug: "0-artefacts", label: "Артефакты", mode: "artefacts" },
+  { slotKey: "scripts", themeSlug: "0-scripts", label: "Скрипты", mode: "scripts" },
+  { slotKey: "media", themeSlug: "0-media", label: "Медиа", mode: "media" }
 ];
 
 const SHARED_MOUNT_SPECS_BY_SLOT = new Map(SHARED_MOUNT_SPECS.map((spec) => [spec.slotKey, spec]));
@@ -9714,7 +9865,8 @@ function isPathUnderSharedFolder(relPath) {
 function getSharedThemeManifestRel(themeSlug) {
   const sharedFolder = getAgentSharedFolder();
   if (!sharedFolder || !themeSlug) return null;
-  return `${sharedFolder}/${themeSlug}/${MANIFEST_FILE}`.replace(/\\/g, "/");
+  const canonical = resolveSharedThemeCanonicalSlug(themeSlug);
+  return `${sharedFolder}/${canonical}/${MANIFEST_FILE}`.replace(/\\/g, "/");
 }
 
 function getSharedThemeSlugFromManifestRel(manifestRel) {
@@ -9725,7 +9877,9 @@ function getSharedThemeSlugFromManifestRel(manifestRel) {
   if (!normalized.startsWith(prefix)) return null;
   const tail = normalized.slice(prefix.length);
   const slug = tail.split("/").filter(Boolean)[0] || null;
-  return slug && SHARED_MOUNT_SPECS_BY_THEME.has(slug) ? slug : slug;
+  if (!slug) return null;
+  const canonical = resolveSharedThemeCanonicalSlug(slug);
+  return SHARED_MOUNT_SPECS_BY_THEME.has(canonical) ? canonical : canonical;
 }
 
 function isTopicManifestEligibleForSharedMounts(manifestRel) {
@@ -9855,7 +10009,10 @@ function dedupeReservedRootMenuSections(menu) {
   const reserved = new Set(
     [
       getAgentKitFolder(),
+      "awn-agent-kit",
       getAgentSharedFolder(),
+      "awn-shared",
+      "awn-topics/shared",
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
       AWN_DATA_ROOT_FOLDER,
@@ -9877,7 +10034,14 @@ function dedupeReservedRootMenuSections(menu) {
 
 function dedupeGitRepoReservedSections(sections, gitRootRel) {
   const reserved = new Set(
-    [getAgentKitFolder(), getAgentSharedFolder(), getAgentContainerFolder()]
+    [
+      getAgentKitFolder(),
+      "awn-agent-kit",
+      getAgentSharedFolder(),
+      "awn-shared",
+      "awn-topics/shared",
+      getAgentContainerFolder()
+    ]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
   );
@@ -10315,7 +10479,7 @@ async function moveNodeManifest(relPath, parentPathRaw) {
       // target does not exist
     }
 
-    await fs.rename(currentFolderAbsolute, targetFolderAbsolute);
+    await renamePathCaseAware(currentFolderAbsolute, targetFolderAbsolute);
 
     const sortSlug = getMenuSortSlugFromFolderRel(folderRelPath);
     await removeMenuSortOrderEntry(path.dirname(currentFolderAbsolute), sortSlug);
@@ -10353,7 +10517,7 @@ async function moveNodeManifest(relPath, parentPathRaw) {
     const oldConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(normalized));
     const newConfigAbsolute = normalizeWorkspacePath(toNodeConfigFilePath(targetRelPath));
 
-    await fs.rename(absolute, targetAbsolute);
+    await renamePathCaseAware(absolute, targetAbsolute);
     if (oldContentAbsolute && newContentAbsolute) await renameIfExists(oldContentAbsolute, newContentAbsolute);
     if (oldTodoAbsolute && newTodoAbsolute) await renameIfExists(oldTodoAbsolute, newTodoAbsolute);
     if (oldConfigAbsolute && newConfigAbsolute) await renameIfExists(oldConfigAbsolute, newConfigAbsolute);
@@ -10817,15 +10981,11 @@ function isContainerFolderName(name) {
 }
 
 function isSharedFolderName(name) {
-  const configured = getAgentSharedFolder();
-  if (!configured) return false;
-  return String(name || "").toLowerCase() === String(configured).toLowerCase();
+  return isSharedFolderEntryName(name);
 }
 
 function isKitFolderName(name) {
-  const configured = getAgentKitFolder();
-  if (!configured) return false;
-  return String(name || "").toLowerCase() === String(configured).toLowerCase();
+  return isAgentKitFolderEntryName(name);
 }
 
 function isServiceFolderName(name) {
@@ -11913,7 +12073,11 @@ async function loadSessionPlatformDocItems(platformSettings, entries, { entityKi
     try {
       const platformRoot = getAppRoot();
       const docRoot =
-        entry.root === "project" ? platformRoot : getPlatformAgentRootAbsolute(platformRoot);
+        entry.root === "project"
+          ? platformRoot
+          : entry.root === "global-md"
+            ? getGlobalPlatformMdDirAbs(platformRoot)
+            : getPlatformAgentRootAbsolute(platformRoot);
       const docAbsolute = path.join(docRoot, entry.file);
       if (!(await fileExists(docAbsolute))) continue;
       const content = await fs.readFile(docAbsolute, "utf-8");
@@ -11924,7 +12088,11 @@ async function loadSessionPlatformDocItems(platformSettings, entries, { entityKi
         ref: entry.file,
         label: entry.file,
         displayPath:
-          entry.root === "project" ? entry.file : `workspaces/agent-cms-core/${entry.file}`,
+          entry.root === "project"
+            ? entry.file
+            : entry.root === "global-md"
+              ? globalPlatformMdDisplayPath(entry.file)
+              : `workspaces/0-ws-core/${entry.file}`,
         description: entry.description,
         runtimeLoadAlways: entityKind === "platform-always",
         exists: true,
@@ -12006,7 +12174,7 @@ async function buildAgentAlwaysContextRegistry() {
     model: "always-context",
     hint:
       "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. " +
-      "Platform docs (GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+      "Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
     items,
     itemCount: items.length
   };
@@ -12034,7 +12202,7 @@ async function buildAgentSessionDocumentationRegistry(options = {}) {
     version: 1,
     model: "session-documentation",
     hint:
-      "Platform documentation on demand (not in get_session_context). Settings: always-context-global-mcp-doc, always-context-platform-readme, always-context-global-markdown-showcase.",
+      "Platform documentation on demand (not in get_session_context). Settings: always-context-platform-readme, always-context-global-markdown-showcase.",
     items,
     itemCount: items.length,
     availableDocs: SESSION_DOCUMENTATION_PLATFORM_FILES.map((e) => e.file)
@@ -12162,31 +12330,6 @@ function buildIndexExcludeEntityDisplayPath(entity) {
     return `${base} → ${entity.ref}`;
   }
   return entity.displayPath || entity.label || entity.manifestPath;
-}
-
-async function walkWorkspaceManifestFiles(dirAbsolute, dirRel, acc) {
-  let entries = [];
-  try {
-    entries = await fs.readdir(dirAbsolute, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  entries.sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  for (const entry of entries) {
-    const lower = entry.name.toLowerCase();
-    if (lower === "node_modules" || lower === ".git" || lower === "history" || entry.name.startsWith(".")) {
-      continue;
-    }
-    const abs = path.join(dirAbsolute, entry.name);
-    const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      await walkWorkspaceManifestFiles(abs, rel, acc);
-      continue;
-    }
-    if (entry.isFile() && lower === "manifest.md") {
-      acc.push(rel.replace(/\\/g, "/"));
-    }
-  }
 }
 
 async function collectIndexExcludeEntitiesFromManifest(manifestRel, entityKind, entities) {
@@ -12581,6 +12724,26 @@ async function buildPageMapSlotSummaries(manifestRelPath) {
   return slots;
 }
 
+function topicHubPinnedSectionSortKey(row) {
+  if (!row?.pinned) return 1000;
+  const manifestRel = String(row.path || row.linkPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/manifest\.md$/i, "");
+  const dir = rewriteLegacyTopicPathsInRelPath(manifestRel).toLowerCase();
+  if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) return 0;
+  if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) return 1;
+  return 500;
+}
+
+function compareTopicHubCatalogRows(a, b, pathLabelFn) {
+  const rankA = topicHubPinnedSectionSortKey(a);
+  const rankB = topicHubPinnedSectionSortKey(b);
+  if (rankA !== rankB) return rankA - rankB;
+  const da = pathLabelFn(a);
+  const db = pathLabelFn(b);
+  return da.localeCompare(db, "ru");
+}
+
 async function buildAgentPageMap(options = {}) {
   const includeSlots = options.includeSlots !== false;
   const agentRoot = getAgentRoot();
@@ -12602,12 +12765,14 @@ async function buildAgentPageMap(options = {}) {
     const awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
     const title = String(getYamlScalar(frontmatter, "awn-name") || label || "").trim();
     const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+    const isHubSection = isTopicHubSectionManifestRel(normalized);
     const entry = {
       path: normalized,
       title,
       description,
       awnType,
-      kind,
+      kind: isHubSection ? "section" : kind,
+      pinned: isHubSection,
       hasManifest: true,
       parentPath,
       properties: frontmatterPropsToObject(frontmatter)
@@ -12679,17 +12844,13 @@ async function buildAgentPageMap(options = {}) {
   if (menu.sharedTree) await walkTree(menu.sharedTree, null, "area");
   if (menu.serviceTree) await walkTree(menu.serviceTree, null, "area");
 
-  pages.sort((a, b) => {
-    const da =
-      a.kind === "folder"
-        ? stripAgentContentPrefixFromRelPath(a.path) || a.path
-        : getManifestDisplayPathForTable(a.path, a.title, a.kind);
-    const db =
-      b.kind === "folder"
-        ? stripAgentContentPrefixFromRelPath(b.path) || b.path
-        : getManifestDisplayPathForTable(b.path, b.title, b.kind);
-    return da.localeCompare(db, "ru");
-  });
+  pages.sort((a, b) =>
+    compareTopicHubCatalogRows(a, b, (row) =>
+      row.kind === "folder"
+        ? stripAgentContentPrefixFromRelPath(row.path) || row.path
+        : getManifestDisplayPathForTable(row.path, row.title, row.kind)
+    )
+  );
 
   const manifestCount = pages.filter((row) => row.hasManifest !== false).length;
   const folderCount = pages.filter((row) => row.kind === "folder").length;
@@ -12698,8 +12859,14 @@ async function buildAgentPageMap(options = {}) {
     version: 1,
     model: "page-map",
     hint:
-      "Карта workspace: manifest-узлы (hasManifest:true) + папки без manifest (kind:folder, hasManifest:false). " +
-      "Темы: read/write_topic_*; папки: list_folder/read_file/upload_file; усыновить → create_topic.",
+      "Legacy page-map (MCP get_topic_map deprecated). Prefer read_topic_index_toc + list_folder. " +
+      "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
+    whenToUse: {
+      list_topics: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
+      read_topic_index_toc: `Канон: обзор страниц workspace (${AWN_TOPICS_INDEX_REL}, без обхода папок без manifest).`,
+      list_folder: "Папки без manifest.md и произвольные пути.",
+      get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на list_topics + read_topic_index_toc + list_folder."
+    },
     pages,
     nodeCount: pages.length,
     pageCount: manifestCount,
@@ -12707,9 +12874,228 @@ async function buildAgentPageMap(options = {}) {
   };
 }
 
+async function normalizeTopicsListParentManifest(relPath) {
+  const trimmed = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!trimmed) return null;
+  const resolved = await resolveExistingWorkspaceRelPath(trimmed);
+  if (!resolved) return null;
+  if (/\/manifest\.md$/i.test(resolved)) return resolved;
+  const withManifest = `${resolved.replace(/\/+$/, "")}/manifest.md`;
+  if (await workspaceRelFileExists(withManifest)) return withManifest;
+  return /\/manifest\.md$/i.test(trimmed) ? resolved : null;
+}
+
+function slimTopicListEntry(row) {
+  const props = row?.properties && typeof row.properties === "object" ? row.properties : {};
+  const awnId = String(props["awn-id"] || props.awnId || "").trim();
+  const entry = {
+    path: row.path,
+    title: row.title || "",
+    description: row.description || "",
+    awnType: row.awnType || "",
+    kind: row.kind,
+    parentPath: row.parentPath || null,
+    hasManifest: row.hasManifest !== false
+  };
+  if (awnId) entry.awnId = awnId;
+  if (row.pinned) entry.pinned = true;
+  if (row.kind === "section") entry.kind = "section";
+  if (row.kind === "folder") {
+    entry.adoptable = row.adoptable !== false;
+    entry.empty = Boolean(row.empty);
+  }
+  return entry;
+}
+
+async function buildAgentTopicsList(options = {}) {
+  const includeFolders = options.includeFolders === true;
+  const scopeRaw = String(options.scope || "children").trim().toLowerCase();
+  const scope = scopeRaw === "subtree" ? "subtree" : "children";
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  let rows = (pageMap.pages || []).filter((row) => {
+    if (row.kind === "folder") return includeFolders;
+    return row.kind === "ws" || row.kind === "area" || row.kind === "section" || row.kind === "topic";
+  });
+
+  const parentPath = options.parentPath
+    ? await normalizeTopicsListParentManifest(options.parentPath)
+    : null;
+  if (options.parentPath && !parentPath) {
+    return {
+      error: "Parent topic/area not found",
+      status: 404,
+      parentPath: String(options.parentPath || "").trim()
+    };
+  }
+
+  if (parentPath) {
+    const parentDir = parentPath.replace(/\/manifest\.md$/i, "");
+    if (scope === "children") {
+      rows = rows.filter((row) => row.parentPath === parentPath);
+    } else {
+      rows = rows.filter((row) => {
+        if (row.path === parentPath) return true;
+        const rowDir = String(row.path || "").replace(/\/manifest\.md$/i, "");
+        return rowDir === parentDir || rowDir.startsWith(`${parentDir}/`);
+      });
+    }
+  }
+
+  const topics = rows.map(slimTopicListEntry);
+  topics.sort((a, b) => compareTopicHubCatalogRows(a, b, (row) => String(row.path || "")));
+
+  const pinnedSections = topics
+    .filter((entry) => entry.pinned)
+    .map((entry) => {
+      const dir = rewriteLegacyTopicPathsInRelPath(
+        String(entry.path || "").replace(/\/manifest\.md$/i, "")
+      ).toLowerCase();
+      let role = "section";
+      if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) role = "agent-kit";
+      else if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) role = "shared";
+      return { role, path: entry.path, title: entry.title, awnType: entry.awnType };
+    })
+    .sort(
+      (a, b) =>
+        (a.role === "agent-kit" ? 0 : a.role === "shared" ? 1 : 2) -
+        (b.role === "agent-kit" ? 0 : b.role === "shared" ? 1 : 2)
+    );
+
+  return {
+    version: 1,
+    model: "topics-list",
+    hint:
+      "Список узлов дерева тем (ws / area / section / topic): path, type, title, parentPath — без body и без INDEX.md. " +
+      "Секции hub (0-agent-kit, 0-shared) — pinned вверху flat-списка и в INDEX. " +
+      "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
+    whenToUse: {
+      list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
+      read_topic_index_toc: `Таблица ${AWN_TOPICS_INDEX_REL} (комментарии, конфигурации, stats).`,
+      list_folder: "Папки без manifest.md (не входят в list_topics по умолчанию)."
+    },
+    parentPath,
+    scope: parentPath ? scope : "flat",
+    includeFolders,
+    topics,
+    topicCount: topics.length,
+    pinnedSections,
+    pinnedSectionOrder: ["agent-kit", "shared"]
+  };
+}
+
+const NON_TOPIC_HUB_MANIFEST_PREFIXES = [
+  "awn-channels/",
+  "awn-databases/",
+  "awn-media/",
+  "awn-repositories/"
+];
+
+function isTopicTreeManifestRel(manifestRel) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  if (!/\/manifest\.md$|_registration\.md$/i.test(normalized)) return false;
+  const lower = normalized.toLowerCase();
+  return !NON_TOPIC_HUB_MANIFEST_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
+async function getAgentTopicCard(inputPath) {
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (use get_channel / get_database / … for other hubs)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const absolute = normalizeWorkspacePath(manifestRel);
+  if (!absolute || !isManifestMdAbsolute(absolute)) {
+    return { error: "Path must be manifest.md", status: 400, path: manifestRel };
+  }
+  try {
+    await fs.access(absolute);
+  } catch {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const { frontmatter, body } = await readNodeFrontmatterContent(manifestRel);
+  const folderPath = path.posix.dirname(manifestRel.replace(/\\/g, "/"));
+  return {
+    version: 1,
+    model: "awn-topic",
+    topic: {
+      path: manifestRel,
+      folderPath: folderPath === "." ? "" : folderPath,
+      name: String(getYamlScalar(frontmatter, "awn-name") || "").trim(),
+      description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+      awnType: String(getYamlScalar(frontmatter, "awn-type") || "").trim(),
+      awnId: String(getYamlScalar(frontmatter, "awn-id") || "").trim(),
+      body: String(body || "").trim(),
+      properties: String(frontmatter || "").trim()
+    },
+    hint:
+      "Topic hub card (like get_channel). Slots → list_slots + *_content_*; schema/config/env → read_topic_*."
+  };
+}
+
+async function updateAgentTopicCard(inputPath, options = {}) {
+  const hasName = options.name !== undefined;
+  const hasDescription = options.description !== undefined;
+  const hasBody = options.body !== undefined;
+  if (!hasName && !hasDescription && !hasBody) {
+    return { error: "Provide name, description, and/or body", status: 400 };
+  }
+
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(manifestRel);
+  if (!nodeAbsolute) {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
+  const parts = splitNodeFrontmatter(raw);
+  let nextFrontmatter = parts.frontmatter;
+  if (hasName) {
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-name", options.name);
+  }
+  if (hasDescription) {
+    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-description", options.description);
+  }
+  if (hasName || hasDescription) {
+    nextFrontmatter = applyAwnTimestampsToFrontmatter(nextFrontmatter, { diskFrontmatter: parts.frontmatter });
+  }
+  const nextBody = hasBody ? String(options.body ?? "") : parts.body;
+  const nextContent = joinNodeFrontmatter(nextFrontmatter, nextBody);
+  await writeWorkspaceTextFileWithHistory(manifestRel, manifestRel, nextContent);
+  await invalidateNodeReadStateForManifest(manifestRel);
+
+  const card = await getAgentTopicCard(manifestRel);
+  if (card.error) return card;
+
+  return {
+    version: 1,
+    model: "awn-topic-update",
+    updated: true,
+    path: manifestRel,
+    topic: card.topic,
+    hint: card.hint
+  };
+}
+
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["discussion", "dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
-const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
 const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./lib/config/storage-slot-routing");
 
 const BUNDLE_SLOT_INDEX_LABELS = {
@@ -12888,10 +13274,6 @@ function getTopicStorageIndexRelPath(manifestRelPath) {
   return normalized ? `${normalized}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
 }
 
-function getWorkspacePageIndexRelPath() {
-  return WORKSPACE_PAGE_INDEX_FILE;
-}
-
 async function resolveWorkspacePageIndexManifestRel() {
   const menu = await buildAgentMenu(getAgentRoot());
   return String(menu?.indexPath || MANIFEST_FILE).replace(/\\/g, "/");
@@ -12914,6 +13296,7 @@ function pageMapRowToWorkspaceIndexEntry(page) {
     description: String(page?.description || "").trim(),
     slotsMode,
     slotsFlexible: Boolean(page?.slotsFlexible),
+    pinned: Boolean(page?.pinned),
     awnId,
     properties,
     importance: parseImportanceFromProperties(properties)
@@ -12924,7 +13307,9 @@ function mapPageMapToWorkspaceIndexEntries(pages = []) {
   return (pages || [])
     .map(pageMapRowToWorkspaceIndexEntry)
     .filter((entry) => entry.path || entry.title)
-    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+    .sort((a, b) =>
+      compareTopicHubCatalogRows(a, b, (row) => String(row.path || ""))
+    );
 }
 
 async function buildWorkspacePageIndexMarkdown({ pages }) {
@@ -12943,36 +13328,68 @@ async function buildWorkspacePageIndexMarkdown({ pages }) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+async function resolveWorkspacePageIndexHistoryManifestRel() {
+  const hubManifest = getWorkspacePageIndexHistoryManifestRel();
+  if (await workspaceRelFileExists(hubManifest)) return hubManifest;
+  return resolveWorkspacePageIndexManifestRel();
+}
+
 async function buildAgentWorkspacePageIndex() {
   const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const indexOnDisk = await resolveWorkspacePageIndexFileOnDisk(workspaceRelFileExists);
   const indexPath = getWorkspacePageIndexRelPath();
-  const indexExists = await workspaceRelFileExists(indexPath);
+  const indexExists = indexOnDisk.exists;
   const entries = await enrichWorkspaceIndexEntries(
     await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pageMap.pages)),
     pageMap.pages
   );
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
+  const pinnedSections = entries
+    .filter((entry) => entry.pinned)
+    .map((entry) => {
+      const dir = rewriteLegacyTopicPathsInRelPath(
+        String(entry.linkPath || entry.path || "").replace(/\/manifest\.md$/i, "")
+      ).toLowerCase();
+      let role = "section";
+      if (dir === AWN_TOPICS_AGENT_KIT_REL.toLowerCase()) role = "agent-kit";
+      else if (dir === AWN_TOPICS_SHARED_REL.toLowerCase()) role = "shared";
+      return {
+        role,
+        path: entry.linkPath || entry.path,
+        title: entry.title,
+        type: entry.type
+      };
+    })
+    .sort(
+      (a, b) =>
+        (a.role === "agent-kit" ? 0 : a.role === "shared" ? 1 : 2) -
+        (b.role === "agent-kit" ? 0 : b.role === "shared" ? 1 : 2)
+    );
 
   return {
     version: 1,
     model: "workspace-page-index",
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
-      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_topic_map.",
+      "Секции hub (0-agent-kit, 0-shared) — pinned вверху таблицы. " +
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Папки без manifest → list_folder (legacy get_topic_map deprecated).",
     whenToUse: {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
       refresh_topic_index_toc:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
+        `Обновить (пересобрать и сохранить) ${AWN_TOPICS_INDEX_REL} (таблица awn-id/type/path/title/комментарии/конфигурации).`
     },
     path: manifestPath,
     indexFile: {
       path: indexPath,
       exists: indexExists,
-      source: indexExists ? "file" : "generated"
+      source: indexExists ? "file" : "generated",
+      ...(indexOnDisk.legacy ? { legacyPath: indexOnDisk.path } : {})
     },
     entries,
     entryCount: entries.length,
+    pinnedSections,
+    pinnedSectionOrder: ["agent-kit", "shared"],
     pageCount: pageMap.pageCount,
     folderCount: pageMap.folderCount
   };
@@ -12981,7 +13398,7 @@ async function buildAgentWorkspacePageIndex() {
 async function writeAgentWorkspacePageIndex(options = {}) {
   const overwrite = options.overwrite !== false;
   const payload = await buildAgentWorkspacePageIndex();
-  const indexPath = payload.indexFile.path;
+  const indexPath = getWorkspacePageIndexRelPath();
   if (payload.indexFile.exists && !overwrite) {
     return {
       error: "Workspace index file already exists",
@@ -12990,14 +13407,28 @@ async function writeAgentWorkspacePageIndex(options = {}) {
       indexFile: { path: indexPath, exists: true }
     };
   }
-  const manifestRel = await resolveWorkspacePageIndexManifestRel();
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) {
+    return { error: "Agent not selected", status: 400 };
+  }
+  const manifestRel = await resolveWorkspacePageIndexHistoryManifestRel();
   const pageMap = await buildAgentPageMap({ includeSlots: false });
   const markdown = await buildWorkspacePageIndexMarkdown({ pages: pageMap.pages });
+  const indexAbs = path.join(agentRoot, indexPath);
+  await fs.mkdir(path.dirname(indexAbs), { recursive: true });
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  for (const legacyPath of getWorkspacePageIndexLegacyRelPaths()) {
+    if (isSameWorkspaceIndexPath(legacyPath, indexPath)) continue;
+    const legacyAbs = normalizeWorkspacePath(legacyPath);
+    if (legacyAbs && legacyAbs !== indexAbs && (await workspaceRelFileExists(legacyPath))) {
+      await fs.rm(legacyAbs, { force: true }).catch(() => {});
+    }
+  }
+  queueWorkspaceIndexFileSync(indexPath);
   return {
     version: 1,
     model: "workspace-page-index-write",
-    hint: "INDEX.md обновлён в корне workspace. Просмотр без записи → GET /api/agent/workspace-page-index.",
+    hint: `${AWN_TOPICS_INDEX_REL} обновлён. Просмотр без записи → GET /api/agent/workspace-page-index.`,
     whenToUse: payload.whenToUse,
     path: payload.path,
     overwrite,
@@ -13017,26 +13448,89 @@ function getWorkspaceWsmapRelPath() {
   return WORKSPACE_WS_MAP_FILE;
 }
 
-async function readWorkspaceIndexFileContent(relPath) {
-  const data = await readWorkspaceTextFile(relPath);
-  return String(data?.content || "");
+function resolveWsmapManifestDisplayPath(manifestRel) {
+  const linkPath = String(manifestRel || "").replace(/\\/g, "/").trim();
+  if (!linkPath) return "—";
+  if (/^manifest\.md$/i.test(linkPath)) return ".";
+  return stripAgentContentPrefixFromRelPath(linkPath) || linkPath;
+}
+
+async function manifestRelToWorkspaceWsmapEntry(manifestRel, catalog) {
+  const linkPath = String(manifestRel || "").replace(/\\/g, "/").trim();
+  let frontmatter = "";
+  try {
+    ({ frontmatter } = await readNodeFrontmatterContent(linkPath));
+  } catch {
+    frontmatter = "";
+  }
+  const properties = frontmatterPropsToObject(frontmatter);
+  const rawType = getYamlScalar(frontmatter, "awn-type") || "";
+  let awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
+  if (!awnType) {
+    awnType = String(inferAwnTypeFromRelPath(linkPath) || "").trim();
+  }
+  const containerDir = getManifestContainerDirRel(linkPath);
+  const displayPath = resolveWsmapManifestDisplayPath(linkPath);
+  const title = String(
+    getYamlScalar(frontmatter, "awn-name") ||
+      (containerDir ? path.posix.basename(containerDir) : "") ||
+      "Workspace"
+  ).trim();
+  const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+  return {
+    path: String(displayPath || "").trim(),
+    linkPath,
+    type: awnType || "—",
+    title,
+    description,
+    awnId: parseAwnId(properties["awn-id"]) || null,
+    properties,
+    importance: parseImportanceFromProperties(properties)
+  };
+}
+
+async function buildWorkspaceManifestWsmapEntries() {
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) return [];
+  const projectRoot = getProjectRoot();
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const manifestRels = await collectAllWorkspaceManifestRels(agentRoot);
+  const entries = await Promise.all(
+    manifestRels.map((rel) => manifestRelToWorkspaceWsmapEntry(rel, catalog))
+  );
+  return entries
+    .filter((entry) => entry.path || entry.title || entry.linkPath)
+    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+}
+
+async function buildWorkspaceWsmapMarkdown() {
+  const entries = await buildWorkspaceManifestWsmapEntries();
+  return buildWsmapMarkdown({
+    entries,
+    formatEntriesTable: (rows) =>
+      formatContentIndexEntriesMarkdown(rows, {
+        emptyHint: "_В workspace не найдено manifest-узлов._",
+        tableVariant: "wsmap"
+      })
+  });
 }
 
 async function buildAgentWorkspaceWsmap() {
-  const agentRoot = getAgentRoot();
   const indexPath = getWorkspaceWsmapRelPath();
-  const sources = await collectWorkspaceIndexMdPaths(collectSearchableFiles, agentRoot);
   const indexExists = await workspaceRelFileExists(indexPath);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
+  const entries = await buildWorkspaceManifestWsmapEntries();
+  const entryCount = entries.length;
 
   return {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Сводка всех index.md / INDEX.md в workspace в одном WS-MAP.md. Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap.",
+      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …). " +
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
     whenToUse: {
-      read_workspace_wsmap: "Список источников и метаданные WS-MAP без записи на диск.",
-      refresh_workspace_wsmap: "Пересобрать и сохранить WS-MAP.md в корне workspace."
+      read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      refresh_workspace_map: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {
@@ -13044,8 +13538,9 @@ async function buildAgentWorkspaceWsmap() {
       exists: indexExists,
       source: indexExists ? "file" : "generated"
     },
-    sources,
-    sourceCount: sources.length
+    entries,
+    entryCount,
+    sourceCount: entryCount
   };
 }
 
@@ -13061,10 +13556,7 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       indexFile: { path: indexPath, exists: true }
     };
   }
-  const markdown = await buildWsmapMarkdown({
-    sources: payload.sources,
-    readFileContent: readWorkspaceIndexFileContent
-  });
+  const markdown = await buildWorkspaceWsmapMarkdown();
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
   const legacyPath = WORKSPACE_WSMAP_LEGACY_FILE;
@@ -13090,10 +13582,12 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       path: indexPath,
       created: !payload.indexFile.exists,
       overwritten: Boolean(payload.indexFile.exists),
-      sourceCount: payload.sourceCount
+      entryCount: payload.entryCount,
+      sourceCount: payload.entryCount
     },
     indexFile: { path: indexPath, exists: true, source: "file" },
-    sourceCount: payload.sourceCount
+    entryCount: payload.entryCount,
+    sourceCount: payload.entryCount
   };
 }
 
@@ -13223,7 +13717,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
   ];
   for (const entry of entries) {
     const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
-    const titleCell = formatContentIndexTitleCell(entry, { linkTitle: true });
+    const titleCell = formatContentIndexTitleCell(entry);
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
@@ -13286,7 +13780,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → read_database_frame_index_toc / database_frame_list."
+      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / list_databases."
     };
   }
 
@@ -13303,7 +13797,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → read_database_frame_index_toc; детали store → database_frame_get / database_frame_list.",
+      "Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -13350,10 +13844,12 @@ async function buildAgentAwnDataIndex() {
       "Оглавление накопителей awn-databases (ID, kind, path, title, description, размер, строки, важность, записей, подразделы, хранение, типы файлов) без body и properties. " +
       "Полный каталог → GET /api/awn-databases.",
     whenToUse: {
-      read_database_frame_index_toc:
+      read_databases_index_toc:
         "Быстрый обзор всех накопителей awn-databases без погружения в каждый store.",
-      refresh_database_frame_index_toc:
-        "Обновить (пересобрать и сохранить) index.md в корне awn-databases (таблица ID/тип/путь/название/описание/размер/строки/важность/записей/подразделы/хранение/типы файлов)."
+      refresh_databases_index_toc:
+        "Обновить (пересобрать и сохранить) index.md в корне awn-databases.",
+      read_database_frame_index_toc: "Deprecated alias → read_databases_index_toc.",
+      refresh_database_frame_index_toc: "Deprecated alias → refresh_databases_index_toc."
     },
     path: manifestPath,
     indexFile: {
@@ -13418,7 +13914,7 @@ async function writeAgentAwnDataIndex(options = {}) {
   return {
     version: 1,
     model: "awn-databases-index-write",
-    hint: "index.md обновлён в awn-databases/. Просмотр без записи → read_database_frame_index_toc / GET /api/agent/awn-databases-index.",
+    hint: "index.md обновлён в awn-databases/. Просмотр → read_databases_index_toc / GET /api/agent/awn-databases-index.",
     whenToUse: payload.whenToUse,
     path: indexPath,
     overwrite,
@@ -13484,7 +13980,7 @@ function encodeContentIndexLinkTarget(value) {
   return encodeURI(raw).replace(/#/g, "%23");
 }
 
-function formatContentIndexTitleCell(entry, { linkTitle = true } = {}) {
+function formatContentIndexTitleCell(entry, { linkTitle = false } = {}) {
   const titleRaw = String(entry.title || entry.path || "").trim();
   const title = escapeContentIndexTableCell(titleRaw) || "—";
   if (!linkTitle) return title;
@@ -13805,26 +14301,33 @@ function resolveContentIndexEntrySlotLabel(slotKey) {
 
 function formatContentIndexEntriesMarkdown(
   entries,
-  { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
+  { emptyHint = "_Нет записей._", linkTitle = false, tableVariant = "content" } = {}
 ) {
   if (!entries?.length) return emptyHint;
+  const includeWsmap = tableVariant === "wsmap";
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
-  const header = includeSlotsMode
-    ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
-    : includeSlotLabel
-      ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
-      : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
-  const divider = includeSlotsMode
-    ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
-    : includeSlotLabel
-      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
-      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
+  const header = includeWsmap
+    ? "| ID | Статус | Тип | Путь | Название | Описание |"
+    : includeSlotsMode
+      ? "| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
+      : includeSlotLabel
+        ? "| ID | Статус | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+        : "| ID | Статус | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
+  const divider = includeWsmap
+    ? "| ---: | --- | --- | --- | --- | --- |"
+    : includeSlotsMode
+      ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
+      : includeSlotLabel
+        ? "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+        : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
     const slotLabelCell = escapeContentIndexTableCell(entry.slotLabel) || "—";
-    const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
+    const pathLabelRaw = String(entry.path || entry.linkPath || "").trim();
+    const pathLabel = pathLabelRaw || "—";
+    const pathCell = `\`${escapeContentIndexTableCell(pathLabel)}\``;
     const titleCell = formatContentIndexTitleCell(entry, { linkTitle });
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
@@ -13833,6 +14336,13 @@ function formatContentIndexEntriesMarkdown(
     const statusCell = formatContentIndexStatusCell(entry);
     const commentsCell = formatContentIndexCommentCountCell(entry.commentCount);
     const importanceCell = formatContentIndexImportanceCell(entry.importance);
+
+    if (includeWsmap) {
+      lines.push(
+        `| ${idCell} | ${statusCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} |`
+      );
+      continue;
+    }
 
     if (includeSlotsMode) {
       const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
@@ -14018,16 +14528,17 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
       "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии, важность) без body. " +
       "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
-      "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
-      "Общий index.md темы — рядом с manifest.md.",
+      "Properties/tags — read_content (part=properties|meta) по записи; legacy get_content_map deprecated. " +
+      "Текст записи → read_content (part=body). Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
       read_content_index_toc:
-        "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
+        "Канон: быстрый обзор темы/слота (index.md: id, путь, тип, название, комментарии).",
       refresh_content_index_toc:
         "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала read_content_index_toc для preview.",
+      read_content:
+        "Properties/tags/status одной записи: part=properties или meta; body — part=body (full=true перед replace).",
       get_content_map:
-        "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
-      read_content_body: "Когда нужен полный текст одной записи."
+        "Deprecated. Все meta по слотам одним вызовом; замена — read_content_index_toc + read_content part=properties."
     },
     path: mapPayload.path,
     awnType: mapPayload.awnType,
@@ -14451,8 +14962,13 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     version: 1,
     model: "content-map",
     hint: slotsFlexible
-      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content. Оглавление: read_content_index_toc."
-      : "Карта контента страницы: title, description, properties без body. Тело: read_content. Быстрое оглавление: read_content_index_toc. assets/materials/{awn-id} (доп. материалы записи) — record-materials* с parentRecordRef; legacy awn-materials-* тоже читаются.",
+      ? "Legacy content-map (MCP get_content_map deprecated). Flexible slot: read_content_index_toc + read_content."
+      : "Legacy content-map (MCP get_content_map deprecated). Канон: read_content_index_toc + read_content (part=properties). assets/materials/{awn-id} — record-materials* с parentRecordRef.",
+    whenToUse: {
+      read_content_index_toc: "Канон: обзор слотов без properties.",
+      read_content: "Properties/tags/status записи: part=properties|meta.",
+      get_content_map: "Deprecated. Этот endpoint; мигрируй на read_content_index_toc + read_content."
+    },
     path: canonicalRelPath,
     awnType,
     slotsFlexible,
@@ -14490,7 +15006,7 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
-  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — путь записи по awn-id",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: find_by_id / resolve_workspace_id)",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
   workspaceSlugGenerate:
     "GET|POST /api/workspace-slug/generate — generate_workspace_slug MCP (text, preset?, slug?, stripExtension?)",
@@ -14504,7 +15020,7 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
-    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP.md",
+    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
@@ -14520,9 +15036,9 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-DOC-MCP/README); MCP: list_workspace_always_context",
+  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: list_workspace_always_context",
   sessionDocumentation:
-    "GET /api/agent/session-documentation?docs= — GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
+    "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -14532,22 +15048,25 @@ const SESSION_CONTEXT_API_MAP = {
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
-  siteMap: "GET /api/agent/site-map — legacy; MCP: get_topic_map",
+  siteMap: "GET /api/agent/site-map — legacy; MCP: read_topic_index_toc (get_topic_map deprecated)",
   pageMap:
-    "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
-  contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
+    "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: list_topics / read_topic_index_toc + list_folder",
+  listTopics:
+    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP list_topics (дерево тем, без INDEX.md)",
+  contentMap:
+    "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
   contentIndex:
     "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (id, path, type, title, комментарии; без body)",
   contentIndexWrite:
     "POST /api/agent/content-index — обновить index.md (body: path, slot?, overwrite?)",
   workspacePageIndex:
-    "GET /api/agent/workspace-page-index — оглавление INDEX.md (awn-id, path, type, комментарии, конфигурации; страницы workspace)",
+    `GET /api/agent/workspace-page-index — оглавление ${AWN_TOPICS_INDEX_REL} (awn-id, path, type, комментарии, конфигурации; страницы workspace)`,
   workspacePageIndexWrite:
-    "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
+    `POST /api/agent/workspace-page-index — обновить ${AWN_TOPICS_INDEX_REL} (body: overwrite?)`,
   workspaceWsmap:
-    "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (список всех index.md / INDEX.md)",
+    "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (реестр manifest-узлов, без body)",
   workspaceWsmapWrite:
-    "POST /api/agent/workspace-wsmap — собрать и сохранить WS-MAP.md в корне workspace (body: overwrite?)",
+    "POST /api/agent/workspace-wsmap — собрать WS-MAP.md из manifest.md в корне workspace (body: overwrite?)",
   awnDataIndex:
     "GET /api/agent/awn-databases-index — оглавление awn-databases/index.md (kind, group, path, title, description; инфоблоки)",
   awnDataIndexWrite: "POST /api/agent/awn-databases-index — обновить awn-databases/index.md (body: overwrite?)",
@@ -14557,10 +15076,11 @@ const SESSION_CONTEXT_API_MAP = {
   dataStoreSchemaRead: "GET /api/awn-databases/store-schema?store= — schema.yml полей записей",
   dataStoreSchemaWrite: "POST /api/awn-databases/store-schema — сохранить schema.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
-  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-databases/ui/*)",
+  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-databases/0-ui/*)",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
+  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP get_topic; PUT /api/agent/topic — update_topic",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -14631,9 +15151,9 @@ const SESSION_CONTEXT_API_MAP = {
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-agent-kit/agent/)",
+    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — get_user_identity MCP (awn-agent-kit/user/)",
+    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/0-agent-kit/0-user/)",
   activity:
     "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
   sidecarResolve:
@@ -14648,15 +15168,16 @@ const SESSION_CONTEXT_API_MAP = {
 
 const SESSION_PATH_HINTS = {
   topicManifest:
-    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
+    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot:
-    "Internal-слот: read_content_body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
-  agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
+    "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
+  agentKit:
+    "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
   storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
   adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
-  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
+  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
   adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
 };
 
@@ -14707,14 +15228,14 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: "CMS-модель: GLOBAL-DOC-MCP.md + awn-system/types/slots/_base.yml (slot-categories)"
+    hint: `CMS-модель: ${GLOBAL_PLATFORM_MD_REL}/GLOBAL-SKILL-1-BASE.md + awn-system/types/slots/_base.yml (slot-categories)`
   };
 }
 
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
-  const kitFolder = getAgentKitFolder() || "awn-agent-kit";
+  const kitFolder = getAgentKitFolder() || "awn-topics/0-agent-kit";
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
   const serviceDocs = [];
@@ -14754,6 +15275,7 @@ async function buildAgentSessionContext() {
   return {
     version: "0.0.4",
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
+    workspaceId: agentId,
     agentId,
     agentRootRel,
     kitFolder,
@@ -16082,14 +16604,14 @@ const AGENT_SLIDER_FOLDER_REF = getMediaLibrarySliderFilesRel();
 const AGENT_SLIDER_MANIFEST_REF = getMediaLibrarySliderManifestRel();
 
 function resolveAgentSliderWorkspacePath(url, payload = null) {
-  const agentId = String(url.searchParams.get("agent") || "").trim();
-  if (agentId) {
-    const agent = resolveAgent(agentId);
+  const workspaceId = resolveWorkspaceIdFromSearchParams(url.searchParams);
+  if (workspaceId) {
+    const agent = resolveAgent(workspaceId);
     if (!agent) {
-      throw Object.assign(new Error(`Unknown agent: ${agentId}`), { status: 400 });
+      throw Object.assign(new Error(`Unknown workspace: ${workspaceId}`), { status: 400 });
     }
     if (agent.folderExists === false) {
-      throw Object.assign(new Error(`Workspace not found for agent «${agent.name || agentId}»`), {
+      throw Object.assign(new Error(`Workspace not found for «${agent.name || workspaceId}»`), {
         status: 400
       });
     }
@@ -16098,7 +16620,7 @@ function resolveAgentSliderWorkspacePath(url, payload = null) {
 
   const workspacePath = String(url.searchParams.get("path") || payload?.path || "").trim();
   if (!workspacePath) {
-    throw Object.assign(new Error("Missing agent query parameter"), { status: 400 });
+    throw Object.assign(new Error("Missing workspace query parameter (legacy: agent)"), { status: 400 });
   }
   return assertSafeAgentPath(workspacePath);
 }
@@ -17130,10 +17652,12 @@ async function buildAgentWorkspaceStats() {
 
 function buildAgentMcpPing() {
   const agentRoot = getAgentRoot();
+  const workspaceId = getActiveAgentId();
   return {
     ok: true,
     serverTime: new Date().toISOString(),
-    agentId: getActiveAgentId(),
+    workspaceId,
+    agentId: workspaceId,
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./lib/version/product-version").getProductVersion(),
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
@@ -17724,6 +18248,14 @@ function isGitRepoRootServiceLooseFile(name) {
   return true;
 }
 
+/** Корень workspace: loose-файлы уже в sidebar как system-file (GET /api/system-files). */
+function isWorkspaceRootRepoServiceDuplicate(menuPrefixRel, looseFileRelPath) {
+  const prefix = String(menuPrefixRel || "").replace(/\\/g, "/").trim();
+  if (prefix && prefix !== ".") return false;
+  const rel = String(looseFileRelPath || "").replace(/\\/g, "/").trim();
+  return Boolean(rel && !rel.includes("/"));
+}
+
 async function isGitRepoLooseFileRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   if (!normalized || normalized === ".") return false;
@@ -18003,6 +18535,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
 
     if (entry.isFile() && isGitRepoRootMenu && isGitRepoRootServiceLooseFile(entry.name)) {
       const nodeRelPath = relativePath.replace(/\\/g, "/");
+      if (isWorkspaceRootRepoServiceDuplicate(prefix, nodeRelPath)) continue;
       const menuItem = {
         label: await readNodeDisplayLabelForManifestRel(nodeRelPath),
         path: nodeRelPath,
@@ -18956,7 +19489,7 @@ async function resolveMarkdownLinkAwnType(relPath, meta) {
       containerRootRel &&
         normalized.toLowerCase() === containerRootRel.toLowerCase()
     ),
-    containerFolder: containerFolder || "container"
+    containerFolder: containerFolder || "awn-topics"
   });
 
   let awnType = explicitType || inferred;
@@ -20918,6 +21451,164 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/entity-index/status") {
+    try {
+      return sendJson(res, 200, await getEntityIndexService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/reindex") {
+    try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "entity");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
+      const payload = await getEntityIndexService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild entity index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/query") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().query(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status =
+        message.includes("is required") || message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to query entity index",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/alias") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().mergeEntityAlias(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to save entity alias",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/reject") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().rejectEntity(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to reject entity",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entity-index/registry") {
+    try {
+      const registry = await getEntityIndexService().loadEntityRegistry();
+      return sendJson(res, 200, { ok: true, registry });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/entity-index/registry") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().putRegistry(payload?.registry || payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save entity registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/seed") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().seedEntity(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, { error: "Failed to add entity seed", details: message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/type") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().putEntityType(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, { error: "Failed to save entity type", details: message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entity-index/explain") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getEntityIndexService().explainEntityFilter(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to explain entity search filter",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entity-index/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getEntityIndexService().catalog({
+        limit,
+        offset,
+        pathPrefix: url.searchParams.get("pathPrefix") || "",
+        q: url.searchParams.get("q") || "",
+        type: url.searchParams.get("type") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read entity index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/workspace-id/status") {
     try {
       return sendJson(res, 200, await getWorkspaceIdService().getStatus());
@@ -20933,7 +21624,7 @@ async function handleApiForAgent(req, res, url) {
     const idRaw = url.searchParams.get("id");
     try {
       const data = await getWorkspaceIdService().resolveId(idRaw);
-      return sendJson(res, data.ok ? 200 : 404, data);
+      return sendJson(res, 200, data);
     } catch (error) {
       const message = String(error.message || error);
       const status = message.includes("must be a positive integer") ? 400 : 500;
@@ -21065,6 +21756,65 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to query storage index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const { listDqlViews } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await listDqlViews(agentRoot));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list DQL views",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const { upsertDqlView } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await upsertDqlView(agentRoot, payload));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save DQL view",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/storage-index/dql-views") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const { deleteDqlView } = require("./lib/workspace/dql-views");
+      return sendJson(res, 200, await deleteDqlView(agentRoot, payload?.id));
+    } catch (error) {
+      const status = /Unknown dql view/i.test(String(error.message || error)) ? 404 : 500;
+      return sendJson(res, status, {
+        error: "Failed to delete DQL view",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/dql-build") {
+    try {
+      const payload = await readJsonBody(req);
+      const { buildDqlFromBuilder } = require("./lib/indexes/storage-index/dql/build-query");
+      const dql = buildDqlFromBuilder(payload || {});
+      return sendJson(res, 200, { ok: true, dql });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build DQL",
         details: String(error.message || error)
       });
     }
@@ -21959,6 +22709,41 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/topic") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const result = await getAgentTopicCard(relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/topic") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await updateAgentTopicCard(relPath, {
+        name: payload?.name,
+        description: payload?.description,
+        body: payload?.body
+      });
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update topic",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/content/exists") {
     const relPath = url.searchParams.get("path");
     const slot = url.searchParams.get("slot");
@@ -22077,6 +22862,26 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/topics") {
+    try {
+      const parentPath = String(url.searchParams.get("parentPath") || url.searchParams.get("parent") || "").trim();
+      const scope = String(url.searchParams.get("scope") || "children").trim();
+      const includeFolders = url.searchParams.get("includeFolders") === "true";
+      const payload = await buildAgentTopicsList({
+        ...(parentPath ? { parentPath } : {}),
+        scope,
+        includeFolders
+      });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list topics",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/content-map") {
     const relPath = url.searchParams.get("path") || "";
     const slot = url.searchParams.get("slot") || "";
@@ -22122,6 +22927,25 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan iblock outside structure",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/hub-outside-structure") {
+    const hubRel = url.searchParams.get("path") || url.searchParams.get("hub") || "";
+    if (!hubRel) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = buildHubWorkspaceOutsideStructureReport(
+        getAgentRoot(),
+        getProjectRoot(),
+        hubRel
+      );
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan hub outside structure",
         details: String(error.message || error)
       });
     }
@@ -22336,6 +23160,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/agent/repository") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteRepository(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/repositories/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || payload?.to || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameRepository(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/dependencies") {
     try {
       const agentRoot = getAgentRoot();
@@ -22461,6 +23322,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "DELETE" && url.pathname === "/api/agent/media-library") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteMediaLibrary(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/media-libraries/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameMediaLibrary(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename media library",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/media-libraries/store-schema") {
     try {
       const agentRoot = getAgentRoot();
@@ -22558,6 +23456,43 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/agent/channel") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteAwnChannel(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to delete channel",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/channels/rename") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const slug = String(payload?.slug || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slug) return sendJson(res, 400, { error: "Missing slug" });
+      const result = await renameAwnChannel(agentRoot, relPath, slug);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rename channel",
         details: String(error.message || error)
       });
     }
@@ -22953,7 +23888,7 @@ async function handleApiForAgent(req, res, url) {
       const platformSettings = await getPlatformSettings(getProjectRoot());
       const catalog = await loadRegistryQueriesCatalog(agentRoot);
       const entry = catalog.queries.find((q) => q.id === registryId);
-      if (entry?.source === "storage-index") {
+      if (entry?.source === "storage-index" || entry?.source === "dql") {
         const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
         if (disabled) return sendJson(res, disabled.status, disabled.body);
       }
@@ -23499,8 +24434,11 @@ async function handleApiForAgent(req, res, url) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
     const payload = await readAgentUiContext(agentRoot);
+    const workspaceId = getActiveAgentId();
     return sendJson(res, 200, {
       ...payload,
+      workspaceId,
+      agentId: workspaceId,
       maxAgeMs: UI_CONTEXT_MAX_AGE_MS,
       hint: payload.context
         ? "focus.entity: page|slot|content|system|browse|home|none; mcp — готовые args для read/write_*; aliases.path/slot/ref — shortcuts; stale=true если UI давно не обновлялся"
@@ -24037,6 +24975,9 @@ async function handleApiForAgent(req, res, url) {
         query,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         where: payload?.where,
+        entityIds: payload?.entityIds,
+        entityWhere: payload?.entityWhere || payload?.entityFilter,
+        allowedPaths: payload?.allowedPaths,
         extensions: payload?.extensions,
         scopes: payload?.scopes,
         limit: payload?.limit,
@@ -24112,6 +25053,9 @@ async function handleApiForAgent(req, res, url) {
       const link = steps.link
         ? await getLinkIndexService().rebuildIndex()
         : { ok: false, skipped: true, reason: "step_disabled" };
+      const entity = steps.entity
+        ? await getEntityIndexService().rebuildIndex()
+        : { ok: false, skipped: true, reason: "step_disabled" };
       const workspaceId = steps["workspace-id"]
         ? await getWorkspaceIdService().syncCounterWithAssigned()
         : { ok: false, skipped: true, reason: "step_disabled" };
@@ -24137,19 +25081,20 @@ async function handleApiForAgent(req, res, url) {
         finishedAt: new Date().toISOString(),
         files: indexedFiles,
         enabledSteps: steps,
-        steps: { ocr, fulltext, semantic, storage, link, workspaceId, wsmap }
+        steps: { ocr, fulltext, semantic, storage, link, entity, workspaceId, wsmap }
       });
       finishWorkspaceIndexProgress(agentRoot);
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR → fulltext → semantic → storage fields → link graph → awn-id counter → WS-MAP.md",
+        hint: "OCR → fulltext → semantic → storage fields → link graph → entities → awn-id counter → WS-MAP (manifest-реестр)",
         steps,
         ocr,
         fulltext,
         semantic,
         storage,
         link,
+        entity,
         workspaceId,
         wsmap,
         runLog
@@ -24170,6 +25115,8 @@ async function handleApiForAgent(req, res, url) {
         queries: payload?.queries || payload?.questions,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
         where: payload?.where,
+        entityIds: payload?.entityIds,
+        entityWhere: payload?.entityWhere || payload?.entityFilter,
         extensions: payload?.extensions,
         scopes: payload?.scopes,
         limitPerQuery: payload?.limitPerQuery ?? payload?.limit,
@@ -24422,6 +25369,30 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/chpu/canonical-path") {
+    const rawPath = String(url.searchParams.get("path") || "").trim();
+    const workspaceId = resolveWorkspaceIdFromArgs({
+      workspaceId: url.searchParams.get("workspaceId") || url.searchParams.get("workspace"),
+      agentId: url.searchParams.get("agentId")
+    });
+    try {
+      const path = canonicalizeChpuWorkspacePath(rawPath);
+      const payload = { path, changed: path !== rawPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "") };
+      if (workspaceId) {
+        const canonicalWorkspaceId = canonicalizeChpuWorkspaceAgentId(workspaceId);
+        payload.workspaceId = canonicalWorkspaceId;
+        payload.agentId = canonicalWorkspaceId;
+        payload.agentChanged = canonicalWorkspaceId !== workspaceId;
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to canonicalize CHPU path",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/system-files") {
     try {
       const files = await listAgentRootSystemFiles();
@@ -24612,7 +25583,8 @@ async function handleApiForAgent(req, res, url) {
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
     const isDocumentationTopic = docsRegistry.isDocumentationTopicMdRelPath(canonicalRelPath);
-    if (!isManifestMdAbsolute(absolute) && !isDocumentationTopic) {
+    const isTocMarkdown = isWorkspaceTocMarkdownRel(canonicalRelPath);
+    if (!isManifestMdAbsolute(absolute) && !isDocumentationTopic && !isTocMarkdown) {
       return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
     }
 
@@ -25663,6 +26635,27 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "PUT" && url.pathname === "/api/awn-databases/stores") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      const result = updateAwnDataStore(agentRoot, getProjectRoot(), storeRel, {
+        name: payload?.name,
+        description: payload?.description,
+        body: payload?.body
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to update awn-databases store",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/awn-databases/stores") {
     try {
       const agentRoot = getAgentRoot();
@@ -25711,7 +26704,11 @@ async function handleApiForAgent(req, res, url) {
         description: resolvePayloadDescription(payload)
       });
       const storeRel = String(payload?.store || "").replace(/\\/g, "/");
-      if (storeRel.includes("awn-taxonomies/") || storeRel.includes("taxonomies/")) {
+      if (
+        storeRel.includes("0-taxonomies/") ||
+        storeRel.includes("awn-taxonomies/") ||
+        storeRel.includes("taxonomies/")
+      ) {
         const { invalidatePlatformTaxonomyCache } = require("./lib/awn/awn-data-taxonomies-bridge");
         const { invalidateWorkspaceTaxonomiesPayloadCache } = require("./lib/awn/awn-taxonomy-service");
         invalidatePlatformTaxonomyCache(getProjectRoot());
@@ -26265,7 +27262,7 @@ async function handleApiForAgent(req, res, url) {
       if (!/^awn-system\/renderers\/[A-Za-z0-9_-]+\.js$/.test(norm)) {
         return sendJson(res, 400, { error: "Invalid renderer path" });
       }
-      const payload = await readAgentSystemFile(agentRoot, relPath);
+      const payload = await readAgentSystemRendererFile(agentRoot, relPath);
       if (!payload.exists) return sendJson(res, 404, { error: "Renderer not found", path: relPath });
       res.writeHead(200, {
         "Content-Type": "application/javascript; charset=utf-8",
@@ -30580,7 +31577,8 @@ async function handleApiForAgent(req, res, url) {
 }
 
 const PLATFORM_GLOBAL_DOC_FILES = new Set([
-  GLOBAL_DOC_MCP_FILE,
+  GLOBAL_DOC_WELCOME_FILE,
+  GLOBAL_DOC_BASE_FILE,
   GLOBAL_RESPONSE_STYLE_FILE,
   GLOBAL_RULES_FILE,
   GLOBAL_DOC_MARKDOWN_FILE
@@ -30617,11 +31615,14 @@ async function readPlatformGlobalDocPayload(fileName = "") {
   if (!PLATFORM_GLOBAL_DOC_FILES.has(normalized)) {
     return { error: "Unsupported platform global document", file: normalized };
   }
-  const docAbsolute = path.join(getAppRoot(), normalized);
+  const docAbsolute = resolveGlobalPlatformMdAbs(getAppRoot(), normalized);
+  if (!docAbsolute) {
+    return { error: "Unsupported platform global document", file: normalized };
+  }
   try {
     const content = await fs.readFile(docAbsolute, "utf-8");
     return {
-      path: normalized,
+      path: globalPlatformMdDisplayPath(normalized),
       file: normalized,
       content,
       exists: true
@@ -31047,9 +32048,9 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/platform/default-workspace") {
     try {
       const payload = await readJsonBody(req);
-      const workspaceId = String(payload?.workspaceId ?? payload?.agentId ?? "").trim();
+      const workspaceId = resolveWorkspaceIdFromPayload(payload);
       if (!workspaceId) {
-        return sendJson(res, 400, { error: "workspaceId is required" });
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
       }
       if (!getAgentsPublicList().some((agent) => agent.id === workspaceId && agent.active !== false)) {
         return sendJson(res, 400, { error: "Unknown or inactive workspace", workspaceId });
@@ -31208,7 +32209,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/focus") {
-    const agentId = String(url.searchParams.get("agent") || "").trim();
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
     try {
       const items = await listNavFocusItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
@@ -31221,7 +32226,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/main") {
-    const agentId = String(url.searchParams.get("agent") || "").trim();
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
     try {
       const items = await listNavMainItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
@@ -31345,8 +32354,10 @@ async function handleApi(req, res, url) {
   if (req.method === "PATCH" && url.pathname === "/api/agents/workspace") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = updateAgentWorkspace(agentId, payload);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -31360,8 +32371,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/workspace/default") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = setDefaultAgentWorkspace(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -31375,8 +32388,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/workspace/orchestrator") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || payload?.id || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = setOrchestratorAgentWorkspace(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -31432,9 +32447,11 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/groups/assign") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || "").trim();
+      const agentId = resolveWorkspaceIdFromPayload(payload);
       const groupId = String(payload?.groupId || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       if (!groupId) return sendJson(res, 400, { error: "groupId is required" });
       const data = assignWorkspaceToGroup(agentId, groupId);
       return sendJson(res, 200, data);
@@ -31449,8 +32466,10 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/groups/unassign") {
     try {
       const payload = await readJsonBody(req);
-      const agentId = String(payload?.agentId || "").trim();
-      if (!agentId) return sendJson(res, 400, { error: "agentId is required" });
+      const agentId = resolveWorkspaceIdFromPayload(payload);
+      if (!agentId) {
+        return sendJson(res, 400, { error: "workspaceId is required (legacy: agentId)" });
+      }
       const data = removeWorkspaceFromGroup(agentId);
       return sendJson(res, 200, data);
     } catch (error) {
@@ -31476,9 +32495,10 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/agents/preview") {
-    const agentId = url.searchParams.get("agent") || getDefaultAgentId();
+    const agentId =
+      resolveWorkspaceIdFromSearchParams(url.searchParams) || getDefaultAgentId();
     const agent = resolveAgent(agentId);
-    if (!agent) return sendJson(res, 400, { error: "Unknown agent", agentId });
+    if (!agent) return sendJson(res, 400, { error: "Unknown agent", agentId, workspaceId: agentId });
 
     const previewAbsolute = getAgentManifestPreviewAbsolute(agent);
     if (!previewAbsolute) return sendJson(res, 404, { error: "Agent preview not found" });
@@ -31627,9 +32647,9 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agents/slider") {
     try {
       const payload = await readJsonBody(req, 12_000_000);
-      const agentId = String(url.searchParams.get("agent") || "").trim();
-      if (!agentId) {
-        return sendJson(res, 400, { error: "Missing agent query parameter" });
+      const workspaceId = resolveWorkspaceIdFromSearchParams(url.searchParams);
+      if (!workspaceId && !String(url.searchParams.get("path") || payload?.path || "").trim()) {
+        return sendJson(res, 400, { error: "Missing workspace query parameter (legacy: agent)" });
       }
       const agentPath = resolveAgentSliderWorkspacePath(url, payload);
       const manifestAbsolute = resolveAgentWorkspaceManifestAbsoluteSync(agentPath);
@@ -31907,10 +32927,15 @@ async function handleApi(req, res, url) {
     }
   }
 
-  const agentId = url.searchParams.get("agent") || getDefaultAgentId();
-  const agent = resolveAgent(agentId);
+  const scopedId =
+    resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    }) || getDefaultAgentId();
+  const agent = resolveAgent(scopedId);
   if (!agent) {
-    return sendJson(res, 400, { error: "Unknown agent", agentId });
+    return sendJson(res, 400, { error: "Unknown agent", agentId: scopedId, workspaceId: scopedId });
   }
 
   return runWithAgent(agent.id, () => withWorkspaceActivityContext(req, url, () => handleApiForAgent(req, res, url)));

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "agent-cms-docker": {
+      "command": "node",
+      "args": ["/Users/macbook/Desktop/YamlCMS/mcp-server/index.js"],
+      "env": {
+        "AGENT_CMS_BASE_URL": "http://localhost:3001"
+      }
+    }
+  }
+}

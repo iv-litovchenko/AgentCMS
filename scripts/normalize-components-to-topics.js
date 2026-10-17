@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.join(__dirname, "..");
-const componentsRoot = path.join(repoRoot, "workspaces/agent-cms-core/components");
+const componentsRoot = path.join(repoRoot, "workspaces/0-ws-core/components");
 
 const STATUS_TO_AWN = {
   active: "🟢 Открыта",

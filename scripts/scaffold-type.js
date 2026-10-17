@@ -65,16 +65,16 @@ description: ${title}
 `
   },
   page: {
-    folder: "pages",
-    id: (s) => `awn.${s}`,
-    extends: "awn.base",
+    folder: "hubs",
+    id: (s) => `awn.hub.${s}`,
+    extends: "awn.hub.base",
     kind: "type",
     body: (id, title) => `id: ${id}
 name: ${title}
 kind: type
-domain: pages
+domain: hubs
 status: draft
-extends: awn.base
+extends: awn.hub.base
 description: ${title}
 fields: {}
 `
@@ -98,7 +98,7 @@ const title = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const runtimeId = meta.id(slug);
 const dest = path.join(
   repoRoot,
-  "workspaces/agent-cms-core",
+  "workspaces/0-ws-core",
   meta.destRel || path.join(meta.folder, "awn-storage/configuration/types"),
   `${slug}.yml`
 );

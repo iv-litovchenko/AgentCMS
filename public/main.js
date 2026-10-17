@@ -87,12 +87,29 @@ let menuMediaLibrariesCachedAgentId = "";
 let menuMediaLibrariesSearchQuery = "";
 /** Заготовки медиатек — порядок и slug синхронны с lib/config/media-library-presets.js */
 const MEDIA_LIBRARY_BUILTIN_PRESETS = [
-  { slug: "documents", name: "Документы" },
-  { slug: "market", name: "Барахолка" },
-  { slug: "scripts", name: "Скрипты" },
-  { slug: "slider", name: "Слайдер" }
+  { slug: "0-documents", name: "Документы" },
+  { slug: "0-market", name: "Барахолка" },
+  { slug: "0-scripts", name: "Скрипты" },
+  { slug: "0-slider", name: "Слайдер" }
 ];
+const MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON = {
+  documents: "0-documents",
+  market: "0-market",
+  scripts: "0-scripts",
+  slider: "0-slider"
+};
 const MEDIA_LIBRARY_BUILTIN_SLUGS = new Set(MEDIA_LIBRARY_BUILTIN_PRESETS.map((entry) => entry.slug));
+
+function resolveMediaLibraryCanonicalSlug(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (MEDIA_LIBRARY_BUILTIN_SLUGS.has(normalized)) return normalized;
+  return MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+}
+
+function isMediaLibraryBuiltinSlug(slug) {
+  return MEDIA_LIBRARY_BUILTIN_SLUGS.has(resolveMediaLibraryCanonicalSlug(slug));
+}
 const menuAwnScriptsBandNode = document.getElementById("menu-awn-scripts-band");
 const menuAwnScriptsBandToggleBtn = document.getElementById("menu-awn-scripts-band-toggle");
 const menuAwnScriptsBandBodyNode = document.getElementById("menu-awn-scripts-band-body");
@@ -284,6 +301,7 @@ let awnDataUploadInputNode = null;
 let awnDataUploadBtnNode = null;
 let awnDataUploadHintNode = null;
 let awnDataAddRecordBtn = null;
+let awnDataAddGoToEditInputNode = null;
 let awnDataCreateMainCsvFormNode = null;
 let awnDataCreateMainCsvBtn = null;
 let awnDataViewStorePanelNode = null;
@@ -295,6 +313,7 @@ let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
 let awnDataViewColumnsWrapNode = null;
+let awnDataViewSortWrapNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_MEDIA_LIBRARY_BAND_OPEN_KEY = "yamlcms.menuMediaLibraryBandOpen.v1";
 const MENU_AWN_SCRIPTS_BAND_OPEN_KEY = "yamlcms.menuAwnScriptsBandOpen.v1";
@@ -316,273 +335,348 @@ const MENU_AWN_CHANNELS_BAND_HELP_TEXT = `${MENU_AWN_CHANNELS_BAND_HELP_INTRO}
 /** Заготовки каналов — порядок и slug синхронны с lib/config/channel-presets.js */
 const CHANNEL_BUILTIN_PRESETS = [
   {
-    slug: "forum",
-    icon: "💬",
-    name: "Форум",
-    hintTitle: "Дискуссии и обсуждения, где люди могут обсуждать свои идеи"
+    slug: '0-forum',
+    icon: '💬',
+    name: 'Форум',
+    hintTitle: 'Дискуссии и обсуждения, где люди могут обсуждать свои идеи'
   },
   {
-    slug: "blog",
-    icon: "📝",
-    name: "Блог",
-    hintTitle:
-      "Аккумуляция постов на интересующие темы по запросам; агент может собирать по расписанию и публиковать информацию в данном канале"
+    slug: '0-blog',
+    icon: '📝',
+    name: 'Блог',
+    hintTitle: 'Аккумуляция постов на интересующие темы по запросам; агент может собирать по расписанию и публиковать информацию в данном канале'
   },
   {
-    slug: "digest",
-    icon: "📰",
-    name: "Дайджесты",
-    hintTitle:
-      "Сводки и подборки, которые агент собирает сюда. Различные сводки и подборки собираются в данном месте"
+    slug: '0-digest',
+    icon: '📰',
+    name: 'Дайджесты',
+    hintTitle: 'Сводки и подборки, которые агент собирает сюда. Различные сводки и подборки собираются в данном месте'
   },
   {
-    slug: "youtube",
-    icon: "▶️",
-    name: "YouTube",
-    hintTitle: "Выгрузка видео и тем из YouTube. Входящий поток из YouTube"
+    slug: '0-youtube',
+    icon: '▶️',
+    name: 'YouTube',
+    hintTitle: 'Выгрузка видео и тем из YouTube. Входящий поток из YouTube'
   },
   {
-    slug: "telegram",
-    icon: "✈️",
-    name: "Telegram",
-    hintTitle: "Выгрузка тем и сообщений из Telegram. Входящий поток из Телеграмм"
+    slug: '0-telegram',
+    icon: '✈️',
+    name: 'Telegram',
+    hintTitle: 'Выгрузка тем и сообщений из Telegram. Входящий поток из Телеграмм'
   },
   {
-    slug: "whatsapp",
-    icon: "💬",
-    name: "WhatsApp",
-    hintTitle: "Входящий поток из WhatsApp"
+    slug: '0-whatsapp',
+    icon: '💬',
+    name: 'WhatsApp',
+    hintTitle: 'Входящий поток из WhatsApp'
   },
   {
-    slug: "instagram",
-    icon: "📷",
-    name: "Instagram",
-    hintTitle: "Посты, stories и DM из Instagram. Входящий поток из Instagram до triage"
+    slug: '0-instagram',
+    icon: '📷',
+    name: 'Instagram',
+    hintTitle: 'Посты, stories и DM из Instagram. Входящий поток из Instagram до triage'
   },
   {
-    slug: "web",
-    icon: "🌐",
-    name: "Интернет",
-    hintTitle: "Страницы, ссылки и материалы из сети"
+    slug: '0-web',
+    icon: '🌐',
+    name: 'Интернет',
+    hintTitle: 'Страницы, ссылки и материалы из сети'
   },
   {
-    slug: "bookmarks",
-    icon: "🔖",
-    name: "Закладки",
-    hintTitle: "Сохранённые ссылки и закладки до triage"
+    slug: '0-bookmarks',
+    icon: '🔖',
+    name: 'Закладки',
+    hintTitle: 'Сохранённые ссылки и закладки до triage'
   },
   {
-    slug: "downloads",
-    icon: "📥",
-    name: "Загрузки",
-    hintTitle: "Файлы из загрузок браузера"
+    slug: '0-downloads',
+    icon: '📥',
+    name: 'Загрузки',
+    hintTitle: 'Файлы из загрузок браузера'
   },
   {
-    slug: "rss",
-    icon: "📡",
-    name: "RSS / ленты",
-    hintTitle: "RSS и Atom-ленты, подписки и новые элементы фидов до triage"
+    slug: '0-rss',
+    icon: '📡',
+    name: 'RSS / ленты',
+    hintTitle: 'RSS и Atom-ленты, подписки и новые элементы фидов до triage'
   },
   {
-    slug: "mailbox",
-    icon: "📧",
-    name: "Почта",
-    hintTitle: "Входящая почта: письма, вложения и уведомления до triage"
+    slug: '0-mailbox',
+    icon: '📧',
+    name: 'Почта',
+    hintTitle: 'Входящая почта: письма, вложения и уведомления до triage'
   },
   {
-    slug: "webhook",
-    icon: "🔗",
-    name: "Webhook",
-    hintTitle: "HTTP webhook и автоматизации (n8n, Zapier, CI, API callbacks) — события в ingress"
+    slug: '0-webhook',
+    icon: '🔗',
+    name: 'Webhook',
+    hintTitle: 'HTTP webhook и автоматизации (n8n, Zapier, CI, API callbacks) — события в ingress'
   },
   {
-    slug: "cloud-inbox",
-    icon: "☁️",
-    name: "Облачный inbox",
-    hintTitle: "Файлы и события из облака: Google Drive, Dropbox, OneDrive и аналоги"
+    slug: '0-cloud-inbox',
+    icon: '☁️',
+    name: 'Облачный inbox',
+    hintTitle: 'Файлы и события из облака: Google Drive, Dropbox, OneDrive и аналоги'
   },
   {
-    slug: "notebooks",
-    icon: "📓",
-    name: "Печатные тетради и рукописи",
-    hintTitle: "Скан и фото тетрадей, блокнотов и рукописных записей до triage"
+    slug: '0-notebooks',
+    icon: '📓',
+    name: 'Печатные тетради и рукописи',
+    hintTitle: 'Скан и фото тетрадей, блокнотов и рукописных записей до triage'
   },
   {
-    slug: "ocr",
-    icon: "🔍",
-    name: "OCR",
-    hintTitle: "Сканы и фото документов, распознавание текста до triage"
+    slug: '0-ocr',
+    icon: '🔍',
+    name: 'OCR',
+    hintTitle: 'Сканы и фото документов, распознавание текста до triage'
   },
   {
-    slug: "voice",
-    icon: "🎙️",
-    name: "Голос",
-    hintTitle: "STT, аудиозаписи и расшифровки до разбора"
+    slug: '0-voice',
+    icon: '🎙️',
+    name: 'Голос',
+    hintTitle: 'STT, аудиозаписи и расшифровки до разбора'
   },
   {
-    slug: "clipboard",
-    icon: "📋",
-    name: "Буфер обмена",
-    hintTitle: "Содержимое буфера обмена и быстрые вставки до triage"
+    slug: '0-clipboard',
+    icon: '📋',
+    name: 'Буфер обмена',
+    hintTitle: 'Содержимое буфера обмена и быстрые вставки до triage'
   },
   {
-    slug: "photo-archive",
-    icon: "🖼️",
-    name: "Фотоархив",
-    hintTitle: "Общий фотоархив — входящие снимки"
+    slug: '0-photo-archive',
+    icon: '🖼️',
+    name: 'Фотоархив',
+    hintTitle: 'Общий фотоархив — входящие снимки'
   },
   {
-    slug: "photo-phone",
-    icon: "📱",
-    name: "Фото (телефон)",
-    hintTitle: "Фото с телефона до разбора"
+    slug: '0-photo-phone',
+    icon: '📱',
+    name: 'Фото (телефон)',
+    hintTitle: 'Фото с телефона до разбора'
   },
   {
-    slug: "news",
-    icon: "📰",
-    name: "Новости",
-    hintTitle: "Новостные ленты, статьи и публикации СМИ до triage"
+    slug: '0-news',
+    icon: '📰',
+    name: 'Новости',
+    hintTitle: 'Новостные ленты, статьи и публикации СМИ до triage'
   },
   {
-    slug: "analytics",
-    icon: "📊",
-    name: "Аналитика",
-    hintTitle: "Метрики, отчёты и дашборды"
+    slug: '0-analytics',
+    icon: '📊',
+    name: 'Аналитика',
+    hintTitle: 'Метрики, отчёты и дашборды'
   },
   {
-    slug: "real-world",
-    icon: "🌍",
-    name: "Реальный мир",
-    hintTitle: "Объекты и факты из офлайн-мира"
+    slug: '0-real-world',
+    icon: '🌍',
+    name: 'Реальный мир',
+    hintTitle: 'Объекты и факты из офлайн-мира'
   },
   {
-    slug: "capabilities",
-    icon: "💡",
-    name: "Поиск фишек для ИИ",
-    hintTitle:
-      "Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage"
+    slug: '0-capabilities',
+    icon: '💡',
+    name: 'Поиск фишек для ИИ',
+    hintTitle: 'Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage'
   },
   {
-    slug: "market",
-    icon: "🛒",
-    name: "Барахолка",
-    hintTitle: "Объявления о покупке и продаже, личные сделки"
+    slug: '0-computer',
+    icon: '💻',
+    name: 'Компьютер',
+    hintTitle: 'Персональный ПК: локальная среда, Shell, файлы и события с рабочей машины до triage'
   },
   {
-    slug: "announcements",
-    icon: "📢",
-    name: "Объявления",
-    hintTitle: "Объявления и информационные публикации"
+    slug: '0-server',
+    icon: '🖥️',
+    name: 'Сервер',
+    hintTitle: 'Удалённый сервер, VPS или хост: деплой, логи, cron и сервисы агента до triage'
   },
   {
-    slug: "github",
-    icon: "🐙",
-    name: "GitHub",
-    hintTitle: "Issues, pull requests, discussions, Actions и прочие события репозитория"
+    slug: '0-market',
+    icon: '🛒',
+    name: 'Барахолка',
+    hintTitle: 'Объявления о покупке и продаже, личные сделки'
   },
   {
-    slug: "gitlab",
-    icon: "🦊",
-    name: "GitLab",
-    hintTitle: "Merge requests, issues, pipelines и активность проекта в GitLab"
+    slug: '0-announcements',
+    icon: '📢',
+    name: 'Объявления',
+    hintTitle: 'Объявления и информационные публикации'
   },
   {
-    slug: "bitbucket",
-    icon: "🪣",
-    name: "Bitbucket",
-    hintTitle: "Pull requests, issues и события репозиториев Atlassian Bitbucket"
+    slug: '0-github',
+    icon: '🐙',
+    name: 'GitHub',
+    hintTitle: 'Issues, pull requests, discussions, Actions и прочие события репозитория'
   },
   {
-    slug: "gitea",
-    icon: "🍵",
-    name: "Gitea / Forgejo",
-    hintTitle: "Self-hosted Git: issues и PR из Gitea, Forgejo и совместимых forge"
+    slug: '0-gitlab',
+    icon: '🦊',
+    name: 'GitLab',
+    hintTitle: 'Merge requests, issues, pipelines и активность проекта в GitLab'
   },
   {
-    slug: "jira",
-    icon: "📋",
-    name: "Jira",
-    hintTitle: "Задачи, спринты, комментарии и изменения статусов из Jira"
+    slug: '0-bitbucket',
+    icon: '🪣',
+    name: 'Bitbucket',
+    hintTitle: 'Pull requests, issues и события репозиториев Atlassian Bitbucket'
   },
   {
-    slug: "sentry",
-    icon: "🐛",
-    name: "Sentry",
-    hintTitle: "Ошибки, алерты и события мониторинга из Sentry"
+    slug: '0-gitea',
+    icon: '🍵',
+    name: 'Gitea / Forgejo',
+    hintTitle: 'Self-hosted Git: issues и PR из Gitea, Forgejo и совместимых forge'
   },
   {
-    slug: "notes",
-    icon: "📒",
-    name: "Заметки",
-    hintTitle: "Разрозненные заметки до разбора"
+    slug: '0-jira',
+    icon: '📋',
+    name: 'Jira',
+    hintTitle: 'Задачи, спринты, комментарии и изменения статусов из Jira'
   },
   {
-    slug: "screenshots",
-    icon: "🖥️",
-    name: "Скриншоты",
-    hintTitle: "Снимки экрана, ingress до triage"
+    slug: '0-sentry',
+    icon: '🐛',
+    name: 'Sentry',
+    hintTitle: 'Ошибки, алерты и события мониторинга из Sentry'
   },
   {
-    slug: "other",
-    icon: "📦",
-    name: "Другое",
-    hintTitle: "Временный вход — не знаю куда деть"
+    slug: '0-notes',
+    icon: '📒',
+    name: 'Заметки',
+    hintTitle: 'Разрозненные заметки до разбора'
+  },
+  {
+    slug: '0-screenshots',
+    icon: '🖥️',
+    name: 'Скриншоты',
+    hintTitle: 'Снимки экрана, ingress до triage'
+  },
+  {
+    slug: '0-other',
+    icon: '📦',
+    name: 'Другое',
+    hintTitle: 'Временный вход — не знаю куда деть'
   }
 ];
 /** Базовые группы каталога — синхронны с lib/config/channel-presets.js (CHANNEL_BUILTIN_PRESET_GROUPS) */
 const CHANNEL_BUILTIN_PRESET_GROUPS = [
   {
-    id: "agent-capabilities",
-    title: "Агент",
-    slugs: ["capabilities"]
+    id: 'agent-capabilities',
+    title: 'Агент и устройства',
+    slugs: [ '0-capabilities', '0-computer', '0-server' ]
   },
   {
-    id: "content-modes",
-    title: "Режимы контента",
-    slugs: ["forum", "blog", "digest"]
+    id: 'content-modes',
+    title: 'Режимы контента и свободное общение',
+    slugs: [ '0-forum', '0-blog', '0-digest' ]
   },
   {
-    id: "messengers-video",
-    title: "Мессенджеры и видео",
-    slugs: ["youtube", "telegram", "whatsapp", "instagram"]
+    id: 'messengers-video',
+    title: 'Мессенджеры и видео',
+    slugs: [ '0-youtube', '0-telegram', '0-whatsapp', '0-instagram' ]
   },
   {
-    id: "web-links-files",
-    title: "Веб, ссылки, файлы",
-    slugs: ["web", "bookmarks", "downloads", "rss"]
+    id: 'web-links-files',
+    title: 'Веб, ссылки, файлы',
+    slugs: [ '0-web', '0-bookmarks', '0-downloads', '0-rss' ]
   },
   {
-    id: "mail-automation",
-    title: "Почта и автоматизация",
-    slugs: ["mailbox", "webhook", "cloud-inbox"]
+    id: 'mail-automation',
+    title: 'Почта и автоматизация',
+    slugs: [ '0-mailbox', '0-webhook', '0-cloud-inbox' ]
   },
   {
-    id: "media-digitization",
-    title: "Медиа и оцифровка",
-    slugs: ["screenshots", "photo-archive", "photo-phone", "notebooks", "ocr", "voice", "clipboard"]
+    id: 'media-digitization',
+    title: 'Медиа и оцифровка',
+    slugs: [
+      '0-screenshots',
+      '0-photo-archive',
+      '0-photo-phone',
+      '0-notebooks',
+      '0-ocr',
+      '0-voice',
+      '0-clipboard'
+    ]
   },
   {
-    id: "news-context",
-    title: "Новости и контекст",
-    slugs: ["news", "analytics", "real-world"]
+    id: 'news-context',
+    title: 'Новости и контекст',
+    slugs: [ '0-news', '0-analytics', '0-real-world' ]
   },
   {
-    id: "publications",
-    title: "Публикации и рынок",
-    slugs: ["announcements", "market"]
+    id: 'publications',
+    title: 'Публикации и рынок',
+    slugs: [ '0-announcements', '0-market' ]
   },
   {
-    id: "development",
-    title: "Разработка",
-    slugs: ["github", "gitlab", "bitbucket", "gitea", "jira", "sentry"]
+    id: 'development',
+    title: 'Разработка',
+    slugs: [
+      '0-github',
+      '0-gitlab',
+      '0-bitbucket',
+      '0-gitea',
+      '0-jira',
+      '0-sentry'
+    ]
   },
   {
-    id: "drafts",
-    title: "Черновики и прочее",
-    slugs: ["notes", "other"]
+    id: 'drafts',
+    title: 'Черновики и прочее',
+    slugs: [ '0-notes', '0-other' ]
   }
 ];
 const CHANNEL_BUILTIN_SLUGS = new Set(CHANNEL_BUILTIN_PRESETS.map((entry) => entry.slug));
+const CHANNEL_LEGACY_SLUG_TO_CANON = {
+  forum: "0-forum",
+  blog: "0-blog",
+  digest: "0-digest",
+  youtube: "0-youtube",
+  telegram: "0-telegram",
+  whatsapp: "0-whatsapp",
+  instagram: "0-instagram",
+  web: "0-web",
+  bookmarks: "0-bookmarks",
+  downloads: "0-downloads",
+  rss: "0-rss",
+  mailbox: "0-mailbox",
+  webhook: "0-webhook",
+  "cloud-inbox": "0-cloud-inbox",
+  notebooks: "0-notebooks",
+  ocr: "0-ocr",
+  voice: "0-voice",
+  clipboard: "0-clipboard",
+  "photo-archive": "0-photo-archive",
+  "photo-phone": "0-photo-phone",
+  news: "0-news",
+  analytics: "0-analytics",
+  "real-world": "0-real-world",
+  capabilities: "0-capabilities",
+  computer: "0-computer",
+  server: "0-server",
+  market: "0-market",
+  announcements: "0-announcements",
+  github: "0-github",
+  gitlab: "0-gitlab",
+  bitbucket: "0-bitbucket",
+  gitea: "0-gitea",
+  jira: "0-jira",
+  sentry: "0-sentry",
+  notes: "0-notes",
+  screenshots: "0-screenshots",
+  other: "0-other"
+};
+
+function resolveChannelCanonicalSlug(slug) {
+  const normalized = String(slug || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (CHANNEL_BUILTIN_SLUGS.has(normalized)) return normalized;
+  return CHANNEL_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+}
+
+function isChannelBuiltinSlug(slug) {
+  return CHANNEL_BUILTIN_SLUGS.has(resolveChannelCanonicalSlug(slug));
+}
+
 const CHANNEL_CUSTOM_ICON_KEY = "_custom";
 
 function groupChannelBuiltinPresets(presets) {
@@ -608,13 +702,15 @@ function groupChannelBuiltinPresets(presets) {
 function getChannelPresetIconSvgMarkup(slug) {
   const map = typeof CHANNEL_PRESET_ICON_SVG !== "undefined" ? CHANNEL_PRESET_ICON_SVG : null;
   if (!map) return "";
-  const key = String(slug || "").trim();
+  const key = resolveChannelCanonicalSlug(slug);
   if (key && map[key]) return String(map[key]).trim();
+  const legacy = String(slug || "").trim();
+  if (legacy && map[legacy]) return String(map[legacy]).trim();
   return String(map[CHANNEL_CUSTOM_ICON_KEY] || "").trim();
 }
 
 function resolveChannelBuiltinPreset(slug) {
-  const key = String(slug || "").trim();
+  const key = resolveChannelCanonicalSlug(slug);
   if (!key) return null;
   return CHANNEL_BUILTIN_PRESETS.find((entry) => entry.slug === key) || null;
 }
@@ -1350,6 +1446,9 @@ const headerWelcomeBtn = document.getElementById("header-welcome-btn");
 const headerWelcomePopoverNode = document.getElementById("header-welcome-popover");
 const headerWelcomeCloseBtn = document.getElementById("header-welcome-close-btn");
 const headerWelcomeCreateBtn = document.getElementById("header-welcome-create-btn");
+const headerWelcomeDesktopSection = document.getElementById("header-welcome-desktop-section");
+const headerWelcomeDesktopWarn = document.getElementById("header-welcome-desktop-warn");
+const headerProfileDesktopHintSection = document.getElementById("header-profile-desktop-hint-section");
 const headerConnectWrapNode = document.getElementById("header-connect-wrap");
 const headerConnectBtn = document.getElementById("header-connect-btn");
 const headerConnectPopoverNode = document.getElementById("header-connect-popover");
@@ -1467,6 +1566,15 @@ const contentSearchHelpPopoverNode = document.getElementById("content-search-hel
 const contentSearchModeTextBtn = document.getElementById("content-search-mode-text-btn");
 const contentSearchModeSemanticBtn = document.getElementById("content-search-mode-semantic-btn");
 const contentSearchModeIdBtn = document.getElementById("content-search-mode-id-btn");
+const contentSearchModeDqlBtn = document.getElementById("content-search-mode-dql-btn");
+const contentSearchDqlModalNode = document.getElementById("content-search-dql-modal");
+const contentSearchDqlInputNode = document.getElementById("content-search-dql-input");
+const contentSearchDqlFieldListNode = document.getElementById("content-search-dql-field-list");
+const contentSearchDqlRunBtnNode = document.getElementById("content-search-dql-run-btn");
+const contentSearchDqlCancelBtnNode = document.getElementById("content-search-dql-cancel-btn");
+const contentSearchDqlCloseBtnNode = document.getElementById("content-search-dql-close-btn");
+const contentSearchDqlResetBtnNode = document.getElementById("content-search-dql-reset-btn");
+const CONTENT_SEARCH_DQL_STORAGE_KEY = "content-search-dql-draft-v1";
 const contentSearchFiltersBtnNode = document.getElementById("content-search-filters-btn");
 const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
 const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
@@ -1808,8 +1916,7 @@ description: Работа с Agent CMS через MCP. Используй при
 
 ## Зоны workspace
 - \`awn-system/\` — модель CMS
-- \`awn-container/\` — контент
-- \`awn-agent-kit/\` — runtime агента
+- \`awn-topics/\` — контент (+ секции \`agent-kit/\`, \`shared/\`)
 
 ## MCP (часто)
 | Задача | Tool |
@@ -2356,7 +2463,7 @@ let renderDocLinksLibraryRequestId = 0;
 const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.topic", label: "Темы", hint: "awn.topic — темы из меню", icon: "📄" },
   { id: "awn.area", label: "Области", hint: "awn.area — папки с manifest.md", icon: "🗂" },
-  { id: "awn.workspace", label: "Workspace", hint: "awn.page.ws — корень агента", icon: "🏠" },
+  { id: "awn.workspace", label: "Workspace", hint: "awn.hub.topic.ws — корень агента", icon: "🏠" },
   { id: "awn.record", label: "Записи", hint: "awn.record — markdown в Content", icon: "📝" },
   { id: "awn.record.category", label: "Разделы Content", hint: "awn.record.category", icon: "📁" },
   { id: "awn.media.category", label: "Разделы Media", hint: "awn.media.category", icon: "🖼" },
@@ -2564,7 +2671,7 @@ function normalizeDocVersionClient(version, fallback = DEFAULT_DOC_VERSION) {
   const value = String(version ?? fallback).trim();
   return DOC_VERSION_IDS.has(value) ? value : fallback;
 }
-const DOCUMENTATION_AGENT_ID = "agent-cms-core";
+const DOCUMENTATION_AGENT_ID = "0-ws-core";
 const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
 const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
 const USER_GUIDE_STORAGE_KEY = "yamlcms.userGuidePath";
@@ -2622,7 +2729,8 @@ const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
-const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
+const WORKSPACE_PAGE_INDEX_REL_PATH = "awn-topics/index.md";
+const WORKSPACE_PAGE_INDEX_LEGACY_FILE = "INDEX.md";
 const WORKSPACE_WSMAP_FILE = "WS-MAP.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
@@ -2708,10 +2816,14 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
 };
 const CORE_SYSTEM_FILES = new Set([
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "README.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  WORKSPACE_WSMAP_FILE,
   ".env",
   ".gitignore"
 ]);
@@ -2738,11 +2850,30 @@ const SYSTEM_FILE_GROUP_LABELS = {
 };
 const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
-const AGENT_KIT_FOLDER_DEFAULT = "awn-agent-kit";
+const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/0-agent-kit";
+const LEGACY_A0_TOPICS_AGENT_KIT_BASENAME = "a0-agent-kit";
+const LEGACY_AWN_AGENT_KIT_FOLDER = "awn-agent-kit";
 const LEGACY_AGENT_KIT_FOLDER = "agent-kit";
-const CONTAINER_FOLDER_DEFAULT = "awn-container";
+const LEGACY_AWN_TOPICS_AGENT_KIT_BASENAME = "agent-kit";
+const CONTAINER_FOLDER_DEFAULT = "awn-topics";
+const LEGACY_AWN_CONTAINER_FOLDER = "awn-container";
 const LEGACY_CONTAINER_FOLDER = "container";
 const PLATFORM_AGENT_ID = "platform";
+/** REFACTOR-9 — legacy ws id в закладках CHPU */
+const LEGACY_CHPU_WORKSPACE_AGENT_IDS = {
+  "agent-cms-core": "0-ws-core",
+  "agent-cms-test": "0-ws-test"
+};
+
+function canonicalChpuWorkspaceId(workspaceId) {
+  const id = String(workspaceId || "").trim();
+  return LEGACY_CHPU_WORKSPACE_AGENT_IDS[id] || id;
+}
+
+/** @deprecated REFACTOR-10 — use canonicalChpuWorkspaceId */
+function canonicalChpuWorkspaceAgentId(agentId) {
+  return canonicalChpuWorkspaceId(agentId);
+}
 
 function isPlatformAgentId(agentId) {
   return String(agentId || "").trim() === PLATFORM_AGENT_ID;
@@ -2755,7 +2886,94 @@ function isPlatformAgent(agent) {
 const SERVICE_AREA_NAME = "Агентские темы и ресурсы";
 const SERVICE_SECTION_LABEL = "Агентские темы и ресурсы";
 const CONTAINER_SECTION_LABEL = "Контейнер";
-const SHARED_FOLDER_DEFAULT = "awn-shared";
+const SHARED_FOLDER_DEFAULT = "awn-topics/0-shared";
+const LEGACY_AWN_SHARED_FOLDER = "awn-shared";
+const LEGACY_AWN_TOPICS_SHARED_FOLDER = "awn-topics/shared";
+const SHARED_THEME_LEGACY_SLUG_TO_CANON = {
+  inbox: "0-inbox",
+  notes: "0-notes",
+  references: "0-references",
+  artefacts: "0-artefacts",
+  scripts: "0-scripts",
+  media: "0-media",
+  downloads: "0-downloads",
+  context: "0-context"
+};
+
+/** Sync CHPU path → canonical 0-* (same rules as lib/config/chpu-topic-canonical.js). */
+const AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON = {
+  agent: "0-agent",
+  "a0-agent": "0-agent",
+  user: "0-user",
+  "a0-user": "0-user",
+  users: "0-users",
+  "a0-users": "0-users",
+  devices: "0-devices",
+  "a0-devices": "0-devices",
+  taxonomies: "0-taxonomies",
+  "a0-taxonomies": "0-taxonomies",
+  catalog: "0-taxonomies",
+  "agent-rules": "0-agent-rules",
+  "a0-agent-rules": "0-agent-rules",
+  "agent.rules": "0-agent-rules",
+  "agent-voice-tts": "0-agent-voice-tts",
+  "a0-agent-voice-tts": "0-agent-voice-tts",
+  "agent.voice.tts": "0-agent-voice-tts",
+  "agent-voice-stt": "0-agent-voice-stt",
+  "a0-agent-voice-stt": "0-agent-voice-stt",
+  "agent.voice.stt": "0-agent-voice-stt"
+};
+
+function rewriteLegacyTopicPathsInRelPathClient(relPath) {
+  let p = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!p) return p;
+
+  p = p.replace(/^awn-container\b/i, "awn-topics");
+
+  const rootRewrites = [
+    ["awn-topics/shared", "awn-topics/0-shared"],
+    ["awn-shared", "awn-topics/0-shared"],
+    ["awn-topics/agent-kit", "awn-topics/0-agent-kit"],
+    ["awn-topics/a0-agent-kit", "awn-topics/0-agent-kit"],
+    ["awn-agent-kit", "awn-topics/0-agent-kit"],
+    ["agent-kit", "awn-topics/0-agent-kit"]
+  ];
+  for (const [from, to] of rootRewrites) {
+    const fromLower = from.toLowerCase();
+    if (p.toLowerCase() === fromLower) {
+      p = to;
+      break;
+    }
+    const prefix = `${from}/`;
+    if (p.toLowerCase().startsWith(prefix.toLowerCase())) {
+      p = `${to}/${p.slice(prefix.length)}`;
+      break;
+    }
+  }
+
+  const kitPrefix = "awn-topics/0-agent-kit/";
+  if (p.toLowerCase().startsWith(kitPrefix.toLowerCase())) {
+    const rest = p.slice(kitPrefix.length);
+    const slashIdx = rest.indexOf("/");
+    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+    const canon = AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
+    p = `${kitPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
+  }
+
+  const sharedPrefix = "awn-topics/0-shared/";
+  if (p.toLowerCase().startsWith(sharedPrefix.toLowerCase())) {
+    const rest = p.slice(sharedPrefix.length);
+    const slashIdx = rest.indexOf("/");
+    const seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+    const canon = SHARED_THEME_LEGACY_SLUG_TO_CANON[seg.toLowerCase()] || seg;
+    p = `${sharedPrefix}${canon}${slashIdx === -1 ? "" : rest.slice(slashIdx)}`;
+  }
+
+  p = p.replace(/^awn-data\b/i, "awn-databases");
+  return p;
+}
 const SHARED_SECTION_LABEL = "Общие темы и ресурсы";
 const SHARED_SECTION_TITLE = SHARED_SECTION_LABEL;
 const SHARED_ROOT_HINT =
@@ -2833,10 +3051,15 @@ function normalizeAgentEnvironmentDraft(raw) {
   const value = String(raw || "local").trim().toLowerCase();
   return AGENT_ENVIRONMENT_OPTIONS.some((item) => item.value === value) ? value : "local";
 }
-let activeAgentId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+/** Selected workspace registry id (REFACTOR-10; not persona 0-agent / agent-kit). */
+let activeWorkspaceId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+
+function getActiveWorkspaceId() {
+  return activeWorkspaceId || "main";
+}
 
 function nodeStorageKey(agentId, nodePath) {
-  const id = agentId || activeAgentId || "main";
+  const id = agentId || activeWorkspaceId || "main";
   const relPath = nodePath || ".";
   return `${id}:${relPath}`;
 }
@@ -2847,8 +3070,14 @@ function normalizeStorageKey(key) {
   return nodeStorageKey("main", key);
 }
 
+function getWorkspaceIdFromUrl() {
+  const params = new URLSearchParams(location.search);
+  return params.get("workspace") || params.get("workspaceId") || params.get("agent");
+}
+
+/** @deprecated REFACTOR-10 — use getWorkspaceIdFromUrl */
 function getAgentIdFromUrl() {
-  return new URLSearchParams(location.search).get("agent");
+  return getWorkspaceIdFromUrl();
 }
 
 /** Режимы, допустимые в сегменте /v/{mode} ЧПУ. */
@@ -3078,6 +3307,195 @@ function getWorkspaceModuleChpuFromViews(views) {
   return null;
 }
 
+const AWN_DATA_STORAGE_DATA_PREFIX = "awn-storage/data";
+
+function buildAgentWorkspaceChpuUrl(agentId, workspaceChpuPath) {
+  const agent = encodeURIComponent(agentId);
+  const tail = String(workspaceChpuPath || "")
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return tail ? `/${agent}/${tail}` : `/${agent}`;
+}
+
+function encodeAwnDataChpuTail(tail) {
+  return String(tail || "")
+    .replace(/^\/+|\/+$/g, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function findAwnDataSectionIdByDataPath(store, dataPath) {
+  const norm = String(dataPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!norm) return null;
+  const sections = getAwnDataStoreSections(store);
+  for (const section of sections) {
+    const sectionPath = resolveAwnDataSectionDataRelPath(section);
+    if (sectionPath && sectionPath === norm) return String(section.id || "").trim();
+    if (String(section.id || "").trim() === norm) return String(section.id || "").trim();
+  }
+  return null;
+}
+
+function findAwnDataRecordByDataInnerPath(records, innerPath) {
+  const norm = String(innerPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!norm) return null;
+  for (const record of records) {
+    if (isAwnDataSectionRecord(record)) continue;
+    const relPath = String(record?.relPath || "").replace(/\\/g, "/");
+    const marker = `/${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+    const markerIndex = relPath.indexOf(marker);
+    const inner =
+      markerIndex >= 0
+        ? relPath.slice(markerIndex + marker.length).replace(/\.(md|csv)$/i, "")
+        : String(record.id || "").trim();
+    if (inner === norm || String(record.id || "").trim() === norm) return record;
+  }
+  return null;
+}
+
+function normalizeAwnDataSectionFilterId(sectionRef, store) {
+  const ref = String(sectionRef || "").trim();
+  if (!ref || ref === "__all__") return "__all__";
+  if (ref === "__root__" || ref === "~root") return "__root__";
+  if (store) {
+    const byPath = findAwnDataSectionIdByDataPath(store, ref);
+    if (byPath) return byPath;
+    const sections = getAwnDataStoreSections(store);
+    if (sections.some((section) => String(section.id || "").trim() === ref)) return ref;
+  }
+  const parts = ref.split("/").filter(Boolean);
+  return parts[parts.length - 1] || ref;
+}
+
+function buildAwnDataRecordChpuDataTail(recordId, store) {
+  const id = String(recordId || "").trim();
+  if (!id) return "";
+  const viewStore = normalizeAwnDataStoreView(store || awnDataViewStoreCache || {});
+  const record = getAwnDataStoreAllRecords(viewStore).find((item) => String(item.id || "").trim() === id);
+  if (record) {
+    const relPath = String(record?.relPath || "").replace(/\\/g, "/");
+    const marker = `/${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+    const markerIndex = relPath.indexOf(marker);
+    if (markerIndex >= 0) {
+      return relPath
+        .slice(markerIndex + marker.length)
+        .replace(/\.(md|csv)$/i, "")
+        .replace(/^\/+|\/+$/g, "");
+    }
+  }
+  return id;
+}
+
+function buildAwnDataSectionChpuDataTail(sectionId, store) {
+  const sid = String(sectionId || "").trim();
+  if (!sid || sid === "__all__") return "";
+  if (sid === "__root__") return "~root";
+  const viewStore = normalizeAwnDataStoreView(store || awnDataViewStoreCache || {});
+  const section = getAwnDataStoreSections(viewStore).find((item) => String(item.id || "").trim() === sid);
+  const sectionPath = section ? resolveAwnDataSectionDataRelPath(section) : sid;
+  return String(sectionPath || sid).replace(/^\/+|\/+$/g, "");
+}
+
+function buildAwnDataViewStoreChpuPath(storeRel, { recordId = "", sectionId = "", store = null } = {}) {
+  const storePath = String(storeRel || "").replace(/^\/+|\/+$/g, "");
+  let path = `awn-databases/${storePath}`;
+  const viewStore = store || awnDataViewStoreCache;
+  const record = String(recordId || "").trim();
+  if (record) {
+    const dataTail = buildAwnDataRecordChpuDataTail(record, viewStore);
+    path += `/${AWN_DATA_STORAGE_DATA_PREFIX}/${encodeAwnDataChpuTail(dataTail)}`;
+    return path;
+  }
+  const section = String(sectionId || "").trim();
+  if (section && section !== "__all__") {
+    const dataTail = buildAwnDataSectionChpuDataTail(section, viewStore);
+    path += `/${AWN_DATA_STORAGE_DATA_PREFIX}/${encodeAwnDataChpuTail(dataTail)}`;
+  }
+  return path;
+}
+
+function buildAwnDataViewSectionTreeHref(sectionId, agentId = awnDataViewCatalogAgentId || activeWorkspaceId) {
+  const storeRel = awnDataViewStoreRel;
+  if (!storeRel || !agentId) return "#";
+  return buildAgentWorkspaceChpuUrl(
+    agentId,
+    buildAwnDataViewStoreChpuPath(storeRel, { sectionId })
+  );
+}
+
+function decodeAwnDataChpuTailSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function parseAwnDataStoreTailFromWorkspacePath(recordPart) {
+  const part = String(recordPart || "").replace(/^\/+/, "");
+  if (!part) return { kind: "store" };
+  if (/^section\//i.test(part)) {
+    const sectionRef = part
+      .slice("section/".length)
+      .split("/")
+      .map(decodeAwnDataChpuTailSegment)
+      .join("/");
+    return { kind: "section", sectionRef };
+  }
+  const lower = part.toLowerCase();
+  const dataRoot = AWN_DATA_STORAGE_DATA_PREFIX;
+  if (lower === dataRoot || lower === `${dataRoot}/~root` || lower === `${dataRoot}/__root__`) {
+    return { kind: "section", sectionRef: "__root__" };
+  }
+  const dataPrefix = `${AWN_DATA_STORAGE_DATA_PREFIX}/`;
+  if (lower.startsWith(dataPrefix)) {
+    const innerPath = part
+      .slice(dataPrefix.length)
+      .split("/")
+      .map(decodeAwnDataChpuTailSegment)
+      .join("/");
+    if (innerPath === "~root" || innerPath === "__root__") {
+      return { kind: "section", sectionRef: "__root__" };
+    }
+    return { kind: "dataPath", innerPath };
+  }
+  return { kind: "record", recordId: part.replace(/\.md$/i, "") };
+}
+
+function resolveAwnDataRouteTailTarget(store, parsed) {
+  const viewStore = normalizeAwnDataStoreView(store || {});
+  if (parsed.kind === "store") return { view: "store", sectionId: "__all__" };
+  if (parsed.kind === "section") {
+    return {
+      view: "store",
+      sectionId: normalizeAwnDataSectionFilterId(parsed.sectionRef, viewStore)
+    };
+  }
+  if (parsed.kind === "dataPath") {
+    const innerPath = String(parsed.innerPath || "").trim();
+    const sectionId = findAwnDataSectionIdByDataPath(viewStore, innerPath);
+    if (sectionId) return { view: "store", sectionId };
+    const record = findAwnDataRecordByDataInnerPath(getAwnDataStoreAllRecords(viewStore), innerPath);
+    if (record) return { view: "record", recordId: String(record.id || "").trim() };
+    const fallbackId = innerPath.split("/").filter(Boolean).pop() || innerPath;
+    return { view: "store", sectionId: normalizeAwnDataSectionFilterId(fallbackId, viewStore) };
+  }
+  if (parsed.kind === "record") {
+    const recordId = String(parsed.recordId || "").trim();
+    const record = getAwnDataStoreAllRecords(viewStore).find((item) => String(item.id || "").trim() === recordId);
+    if (record && isAwnDataSectionRecord(record)) {
+      return { view: "store", sectionId: normalizeAwnDataSectionFilterId(recordId, viewStore) };
+    }
+    return { view: "record", recordId };
+  }
+  return { view: "store", sectionId: "__all__" };
+}
+
 function buildAgentModuleChpuPath(agentId, moduleChpu) {
   const id = String(agentId || "").trim();
   const module = String(moduleChpu || "").trim();
@@ -3093,7 +3511,7 @@ function extractMediaFilterFromChpuViews(uiViews) {
 }
 
 function getMediaViewModeStorageKey(nodePath = getActiveNodeApiPath()) {
-  const agentId = activeAgentId || "main";
+  const agentId = activeWorkspaceId || "main";
   const manifestPath = String(nodePath || "").replace(/\\/g, "/");
   return `${MEDIA_VIEW_MODE_STORAGE_KEY}:${agentId}:${manifestPath}`;
 }
@@ -3380,12 +3798,13 @@ function appendChpuViewToWorkspacePath(basePath, view, { force = false } = {}) {
 }
 
 function workspaceRelToChpuPath(relPath) {
-  return String(relPath || "")
+  const stripped = String(relPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/manifest\.md$/i, "")
     .replace(/\.md$/i, "")
     .replace(/\.sidecar\.md$/i, "");
+  return rewriteLegacyTopicPathsInRelPathClient(stripped);
 }
 
 const CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES = new Set([
@@ -3425,10 +3844,10 @@ function normalizeChpuPathBeforeResolve(rawPath) {
     path = `${path.replace(/\/main$/i, "")}/awn-storage/main`;
   }
 
-  return path.replace(/\/+$/, "");
+  return rewriteLegacyTopicPathsInRelPathClient(path.replace(/\/+$/, ""));
 }
 
-async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
+async function fetchChpuResolveRaw(chpuPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
   const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
@@ -3438,7 +3857,7 @@ async function fetchChpuResolveRaw(chpuPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function tryResolveMalformedChpuPath(rawPath, agentId = activeAgentId) {
+async function tryResolveMalformedChpuPath(rawPath, agentId = activeWorkspaceId) {
   const path = String(rawPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
@@ -3472,7 +3891,7 @@ async function tryResolveMalformedChpuPath(rawPath, agentId = activeAgentId) {
   return null;
 }
 
-async function fetchChpuResolve(chpuPath, agentId = activeAgentId) {
+async function fetchChpuResolve(chpuPath, agentId = activeWorkspaceId) {
   const resolved = await fetchChpuResolveRaw(chpuPath, agentId);
   if (resolved?.kind !== "unknown") return resolved;
   const fallback = await tryResolveMalformedChpuPath(chpuPath, agentId);
@@ -3480,7 +3899,7 @@ async function fetchChpuResolve(chpuPath, agentId = activeAgentId) {
 }
 
 function parseLegacyAppRouteParts(parts) {
-  const agentId = decodeURIComponent(parts[1]);
+  const agentId = canonicalChpuWorkspaceAgentId(decodeURIComponent(parts[1]));
   let rest = parts.slice(2).map((segment) => decodeURIComponent(segment));
 
   if (rest[0] === "sys") {
@@ -3536,7 +3955,7 @@ function parseLegacyAppRouteParts(parts) {
 }
 
 function parseChpuAppRouteParts(parts) {
-  const agentId = decodeURIComponent(parts[0]);
+  const agentId = canonicalChpuWorkspaceAgentId(decodeURIComponent(parts[0]));
   const chpuPath = parts
     .slice(1)
     .map((segment) => decodeURIComponent(segment))
@@ -3678,7 +4097,7 @@ async function applyChpuResolvedRoute(resolved) {
       showAgentHomeView();
       return;
     }
-    const configView = await readAgentWorkspaceViewFromWorkspaceConfig(resolved?.agentId || activeAgentId);
+    const configView = await readAgentWorkspaceViewFromWorkspaceConfig(resolved?.agentId || activeWorkspaceId);
     agentWorkspaceView = normalizeVisibleAgentWorkspaceView(configView || loadAgentWorkspaceView());
     saveAgentWorkspaceView(agentWorkspaceView);
     showAgentHomeView();
@@ -3731,7 +4150,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -3762,7 +4181,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)\//i.test(filePath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         filePath.replace(/\.md$/i, ""),
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -3780,13 +4199,13 @@ async function applyChpuResolvedRoute(resolved) {
     if (resolved?.kind === "awnDataStore" && uiViews.includes("edit")) {
       const openedEdit = await openAwnDatabaseEditorFromRoute(
         resolved,
-        resolved.agentId || activeAgentId
+        resolved.agentId || activeWorkspaceId
       );
       if (openedEdit) return;
     }
     const opened = await openAwnDataRouteFromWorkspacePath(
       resolved.workspacePath || "awn-databases",
-      resolved.agentId || activeAgentId,
+      resolved.agentId || activeWorkspaceId,
       { skipRouteSync: true }
     );
     if (opened) return;
@@ -3805,7 +4224,7 @@ async function applyChpuResolvedRoute(resolved) {
       hideHomeView();
       const opened = await openAwnDataRouteFromWorkspacePath(
         topicPath,
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -3909,7 +4328,7 @@ async function applyChpuResolvedRoute(resolved) {
     if (/^(?:awn-databases|awn-data)\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
-        resolved.agentId || activeAgentId,
+        resolved.agentId || activeWorkspaceId,
         { skipRouteSync: true }
       );
       if (opened) return;
@@ -4120,6 +4539,9 @@ function resolveSystemFileEditorViewMode(name, { edit = false } = {}) {
 }
 
 function getChpuWorkspacePathFromState() {
+  if (activeWorkspaceTocRelPath) {
+    return workspaceRelToChpuPath(activeWorkspaceTocRelPath);
+  }
   if (activeSystemFile) {
     let chpuPath = systemFileToChpuPath(activeSystemFile);
     if (isSystemFileEditing()) {
@@ -4135,19 +4557,19 @@ function getChpuWorkspacePathFromState() {
     return appendChpuViewToWorkspacePath(folderPath, "folder", { force: true });
   }
   if (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE) {
-    let routePath = `awn-databases/${String(awnDataViewStoreRel).replace(/^\/+/, "")}`;
-    const recordId = String(awnDataViewRecordId || "").trim();
-    if (recordId) routePath += `/${recordId}`;
-    return routePath;
+    return buildAwnDataViewStoreChpuPath(awnDataViewStoreRel, {
+      recordId: awnDataViewRecordId,
+      sectionId: awnDataViewSectionId
+    });
   }
   if (
     activeContentMode === "description" &&
     awnDataManifestEditReturnRel &&
     isAwnDatabaseManifestEditing()
   ) {
-    let routePath = `awn-databases/${String(awnDataManifestEditReturnRel).replace(/^\/+|\/+$/g, "")}`;
-    const recordId = String(awnDataManifestEditReturnRecordId || "").trim();
-    if (recordId) routePath += `/${recordId}`;
+    const routePath = buildAwnDataViewStoreChpuPath(awnDataManifestEditReturnRel, {
+      recordId: awnDataManifestEditReturnRecordId
+    });
     return appendChpuViewToWorkspacePath(routePath, "edit", { force: true });
   }
   if (!activePath) return "";
@@ -4263,7 +4685,7 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  const agentId = activeAgentId;
+  const agentId = canonicalChpuWorkspaceAgentId(activeWorkspaceId);
   if (!agentId) {
     return "/";
   }
@@ -4303,7 +4725,13 @@ function buildAppPathFromState() {
     return `/${encodeURIComponent(agentId)}`;
   }
 
-  if (!activePath && !activeSystemFile && !activeFolderBrowsePath && !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)) {
+  if (
+    !activePath &&
+    !activeSystemFile &&
+    !activeWorkspaceTocRelPath &&
+    !activeFolderBrowsePath &&
+    !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)
+  ) {
     return `/${encodeURIComponent(agentId)}`;
   }
 
@@ -4371,7 +4799,7 @@ function canonicalContentTypeFromAwnType(awnType) {
   if (normalized === "awn.content.record") return "record";
   if (normalized === "awn.content.category") return "record.category";
   if (normalized === "awn.annotation.sidecar") return "sidecar";
-  if (normalized.startsWith("awn.page.")) return "page";
+  if (normalized.startsWith("awn.page.") || normalized.startsWith("awn.hub.")) return "page";
   return null;
 }
 
@@ -4492,7 +4920,7 @@ function resolveActivePageRefFromState() {
 
 function buildActiveFocusFromState() {
   const inWorkspace =
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("home-view") &&
     Boolean(activePath || activeSystemFile || activeFolderBrowsePath);
 
@@ -4580,7 +5008,7 @@ function buildActivePageContextPayload() {
   const focus = buildActiveFocusFromState();
   return {
     version: 1,
-    agentId: activeAgentId || null,
+    agentId: activeWorkspaceId || null,
     route,
     contentMode: activeContentMode || null,
     label: activeLabel || null,
@@ -4592,7 +5020,7 @@ function scheduleActivePageContextSync() {
   if (activePageContextSyncTimer) clearTimeout(activePageContextSyncTimer);
   activePageContextSyncTimer = setTimeout(async () => {
     activePageContextSyncTimer = null;
-    if (!activeAgentId) return;
+    if (!activeWorkspaceId) return;
     try {
       await fetch(buildApiUrl("/api/agent/active-page"), {
         method: "POST",
@@ -4608,7 +5036,7 @@ function scheduleActivePageContextSync() {
 const WORKSPACE_SHARE_ACTIONS_ENABLED = true;
 
 function updateWorkspaceShareLinkButton() {
-  const hasAgent = Boolean(activeAgentId && agentsCache.some((agent) => agent.id === activeAgentId));
+  const hasAgent = Boolean(activeWorkspaceId && agentsCache.some((agent) => agent.id === activeWorkspaceId));
   const inWorkspace =
     hasAgent &&
     !appRootNode?.classList.contains("home-view") &&
@@ -4917,14 +5345,14 @@ async function copyWorkspaceRootRelativePath() {
 }
 
 async function ensureMenuLoadedForRoute(route) {
-  if (!route?.agentId || route.agentId !== activeAgentId || currentMenuData) return;
+  if (!route?.agentId || route.agentId !== activeWorkspaceId || currentMenuData) return;
   await refreshMenu({ agentId: route.agentId });
 }
 
 async function applyAppRouteFromUrl() {
   const route = parseAppRoute(location.pathname);
   if (route.type === "root" || route.type === "legacy") {
-    activeAgentId = null;
+    activeWorkspaceId = null;
     renderAgentSelect();
     showAppLandingView();
     showMenuNoAgentPlaceholder();
@@ -4932,14 +5360,17 @@ async function applyAppRouteFromUrl() {
     return true;
   }
 
+  const routeAgentId = canonicalChpuWorkspaceAgentId(route.agentId);
+  route.agentId = routeAgentId;
+
   const selectable = getSelectableAgents();
-  if (!selectable.some((agent) => agent.id === route.agentId)) {
-    showToast(`Агент «${route.agentId}» не найден`, "error");
+  if (!selectable.some((agent) => agent.id === routeAgentId)) {
+    showToast(`Агент «${routeAgentId}» не найден`, "error");
     return false;
   }
 
-  if (route.agentId !== activeAgentId) {
-    await switchActiveAgent(route.agentId);
+  if (routeAgentId !== activeWorkspaceId) {
+    await switchActiveAgent(routeAgentId);
   }
 
   if (route.type === "systemFile") {
@@ -5134,12 +5565,13 @@ async function applyAppRouteResourceFromUrl(route) {
 
 /** @deprecated use syncAppRouteToUrl */
 function syncAgentToUrl(agentId) {
-  if (agentId && agentId !== activeAgentId) return;
+  if (agentId && agentId !== activeWorkspaceId) return;
   syncAppRouteToUrl({ replace: true });
 }
 
-function buildApiUrl(apiPath, params = {}, agentId = activeAgentId) {
-  const search = new URLSearchParams({ agent: agentId || activeAgentId || "main" });
+function buildApiUrl(apiPath, params = {}, workspaceId = activeWorkspaceId) {
+  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  const search = new URLSearchParams({ agent: id, workspace: id });
   for (const [key, value] of Object.entries(params)) {
     if (value != null && value !== "") search.set(key, String(value));
   }
@@ -5155,6 +5587,27 @@ function resolveDocumentationTopicPath(relPath) {
   if (!rel) return `${DOCUMENTATION_TOPIC_DIR}/${DOCUMENTATION_MAIN_SLOT}`;
   if (rel.startsWith(`${DOCUMENTATION_TOPIC_DIR}/`)) return rel;
   return `${DOCUMENTATION_TOPIC_DIR}/${DOCUMENTATION_MAIN_SLOT}/${rel}`;
+}
+
+const PLATFORM_GLOBAL_USER_GUIDE_PREFIX = "platform-global:";
+
+/** Markdown preview context for user-docs / header modals (images live under dokumentatsii storage). */
+function resolveUserGuidePreviewNodePath(guideRelPath = "") {
+  const rel = String(guideRelPath || "").trim().replace(/\\/g, "/");
+  if (rel.startsWith(PLATFORM_GLOBAL_USER_GUIDE_PREFIX)) {
+    return resolveDocumentationTopicPath("opisanie-sistemy-agent-cms.md");
+  }
+  if (rel) return resolveDocumentationTopicPath(rel);
+  return resolveDocumentationTopicPath("opisanie-sistemy-agent-cms.md");
+}
+
+function buildDocumentationMarkdownPreviewOptions(guideRelPath = "") {
+  const nodePath = resolveUserGuidePreviewNodePath(guideRelPath);
+  return {
+    hideFrontmatter: true,
+    linkBasePath: nodePath,
+    nodePath
+  };
 }
 
 async function fetchDocumentationTopicMarkdown(topicPath) {
@@ -5173,18 +5626,25 @@ async function fetchPlatformGlobalMarkdown(fileName) {
   return String(data.content || "");
 }
 
-function appendAgentToApiUrl(url, agentId = activeAgentId) {
+function appendWorkspaceToApiUrl(url, workspaceId = activeWorkspaceId) {
   if (!url || typeof url !== "string" || !url.startsWith("/api/")) return url;
   const parsed = new URL(url, window.location.origin);
-  parsed.searchParams.set("agent", agentId || activeAgentId || "main");
+  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  parsed.searchParams.set("agent", id);
+  parsed.searchParams.set("workspace", id);
   return `${parsed.pathname}?${parsed.searchParams.toString()}`;
 }
 
-function getActiveAgentMeta() {
-  return agentsCache.find((agent) => agent.id === activeAgentId) || null;
+/** @deprecated REFACTOR-10 — use appendWorkspaceToApiUrl */
+function appendAgentToApiUrl(url, workspaceId = activeWorkspaceId) {
+  return appendWorkspaceToApiUrl(url, workspaceId);
 }
 
-function getAgentTreeTitle(agentId = activeAgentId) {
+function getActiveAgentMeta() {
+  return agentsCache.find((agent) => agent.id === activeWorkspaceId) || null;
+}
+
+function getAgentTreeTitle(agentId = activeWorkspaceId) {
   return agentsCache.find((agent) => agent.id === agentId)?.name || "Workspaces";
 }
 
@@ -5202,13 +5662,13 @@ async function loadAgents() {
   const isAppLandingRoute = route.type === "root" || route.type === "legacy";
   const urlAgentId = getAgentIdFromAppLocation();
   if (urlAgentId && selectableAgents.some((agent) => agent.id === urlAgentId)) {
-    activeAgentId = urlAgentId;
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    activeWorkspaceId = urlAgentId;
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   } else if (isAppLandingRoute) {
-    activeAgentId = null;
-  } else if (!selectableAgents.some((agent) => agent.id === activeAgentId)) {
-    activeAgentId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    activeWorkspaceId = null;
+  } else if (!selectableAgents.some((agent) => agent.id === activeWorkspaceId)) {
+    activeWorkspaceId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   }
   const deferRouteSync = route.type === "node" || route.type === "systemFile" || route.type === "chpu";
   if (!deferRouteSync && !isAppLandingRoute) {
@@ -5310,32 +5770,43 @@ function getFolderPathFromManifest(nodePath) {
   return parts.join("/");
 }
 
-function getAgentMeta(agentId = activeAgentId) {
+function getAgentMeta(agentId = activeWorkspaceId) {
   return agentsCache.find((agent) => agent.id === agentId) || null;
 }
 
-function getActiveAgentKitFolder(agentId = activeAgentId) {
+function getActiveAgentKitFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return AGENT_KIT_FOLDER_DEFAULT;
 }
 
-function getActiveAgentContainerFolder(agentId = activeAgentId) {
+function getActiveAgentContainerFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return CONTAINER_FOLDER_DEFAULT;
 }
 
-function getActiveAgentSharedFolder(agentId = activeAgentId) {
+function getActiveAgentSharedFolder(agentId = activeWorkspaceId) {
   if (isPlatformAgentId(agentId)) return null;
   return SHARED_FOLDER_DEFAULT;
 }
 
 function getCreateModalAgentId() {
-  return createModalAgentId || activeAgentId;
+  return createModalAgentId || activeWorkspaceId;
+}
+
+function getAgentKitFolderBasename() {
+  const parts = String(AGENT_KIT_FOLDER_DEFAULT || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  return parts[parts.length - 1] || AGENT_KIT_FOLDER_DEFAULT;
 }
 
 function isKitFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
-  if (lower === AGENT_KIT_FOLDER_DEFAULT.toLowerCase()) return true;
+  if (lower === getAgentKitFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_TOPICS_AGENT_KIT_BASENAME.toLowerCase()) return true;
+  if (lower === LEGACY_A0_TOPICS_AGENT_KIT_BASENAME.toLowerCase()) return true;
+  if (lower === LEGACY_AWN_AGENT_KIT_FOLDER.toLowerCase()) return true;
   if (lower === LEGACY_AGENT_KIT_FOLDER.toLowerCase()) return true;
   return false;
 }
@@ -5344,13 +5815,25 @@ function isContainerFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
   return (
     lower === CONTAINER_FOLDER_DEFAULT.toLowerCase() ||
+    lower === LEGACY_AWN_CONTAINER_FOLDER.toLowerCase() ||
     lower === LEGACY_CONTAINER_FOLDER.toLowerCase()
   );
 }
 
+function getSharedFolderBasename() {
+  const parts = String(SHARED_FOLDER_DEFAULT || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  return parts[parts.length - 1] || SHARED_FOLDER_DEFAULT;
+}
+
 function isSharedFolderEntryName(name) {
   const lower = String(name || "").toLowerCase();
-  return lower === SHARED_FOLDER_DEFAULT.toLowerCase();
+  if (lower === getSharedFolderBasename().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_TOPICS_SHARED_FOLDER.split("/").pop().toLowerCase()) return true;
+  if (lower === LEGACY_AWN_SHARED_FOLDER.toLowerCase()) return true;
+  return false;
 }
 
 function stripVaultPrefixFromRelPath(relPath) {
@@ -5365,22 +5848,22 @@ function stripAgentContentPrefixFromRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/");
 }
 
-function getServiceRootManifestPath(agentId = activeAgentId) {
+function getServiceRootManifestPath(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   return serviceFolder ? `${serviceFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getContainerRootManifestPath(agentId = activeAgentId) {
+function getContainerRootManifestPath(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   return containerFolder ? `${containerFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getSharedRootManifestPath(agentId = activeAgentId) {
+function getSharedRootManifestPath(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   return sharedFolder ? `${sharedFolder}/${AREA_MANIFEST_FILE}` : null;
 }
 
-function getContainerRootMenuTitle(agentId = activeAgentId) {
+function getContainerRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getContainerRootManifestPath(agentId);
   if (!manifestPath) return CONTAINER_SECTION_LABEL;
 
@@ -5391,7 +5874,7 @@ function getContainerRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.containerTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -5402,7 +5885,7 @@ function getContainerRootMenuTitle(agentId = activeAgentId) {
   return CONTAINER_SECTION_LABEL;
 }
 
-function getSharedRootMenuTitle(agentId = activeAgentId) {
+function getSharedRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getSharedRootManifestPath(agentId);
   if (!manifestPath) return SHARED_SECTION_LABEL;
 
@@ -5413,7 +5896,7 @@ function getSharedRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.sharedTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -5424,7 +5907,7 @@ function getSharedRootMenuTitle(agentId = activeAgentId) {
   return SHARED_SECTION_LABEL;
 }
 
-function getServiceRootMenuTitle(agentId = activeAgentId) {
+function getServiceRootMenuTitle(agentId = activeWorkspaceId) {
   const manifestPath = getServiceRootManifestPath(agentId);
   if (!manifestPath) return SERVICE_SECTION_LABEL;
 
@@ -5435,7 +5918,7 @@ function getServiceRootMenuTitle(agentId = activeAgentId) {
     if (liveTitle) return liveTitle;
   }
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const cachedTitle = String(menu?.serviceTree?.title || "").trim();
   if (cachedTitle) return cachedTitle;
 
@@ -5457,7 +5940,10 @@ function isAgentSystemRootIndexPath(nodePath) {
 function isServiceNodePath(nodePath) {
   if (!getActiveAgentKitFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefixes = [getActiveAgentKitFolder()].filter(Boolean);
+  const prefixes = [
+    getActiveAgentKitFolder(),
+    LEGACY_AWN_AGENT_KIT_FOLDER
+  ].filter(Boolean);
   return prefixes.some(
     (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
   );
@@ -5489,8 +5975,14 @@ function isAgentContainerNodePath(nodePath) {
 function isAgentSharedNodePath(nodePath) {
   if (!getActiveAgentSharedFolder() || !nodePath) return false;
   const normalized = String(nodePath || "").replace(/\\/g, "/");
-  const prefix = getActiveAgentSharedFolder();
-  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  const prefixes = [
+    getActiveAgentSharedFolder(),
+    LEGACY_AWN_TOPICS_SHARED_FOLDER,
+    LEGACY_AWN_SHARED_FOLDER
+  ].filter(Boolean);
+  return prefixes.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  );
 }
 
 function isFilePartNodePath(nodePath) {
@@ -5635,21 +6127,26 @@ function getLinkTargetFileRelPath(nodePath) {
 }
 
 function getCurrentEditorLinkBasePath() {
+  if (activeWorkspaceTocRelPath) return activeWorkspaceTocRelPath;
   if (activeSystemFile) {
     const normalized = normalizeSystemFileName(activeSystemFile);
-    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    if (isWorkspacePageIndexRelPath(normalized)) return normalized;
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE) return "";
     return normalized;
   }
+  if (isWorkspacePageIndexRelPath(activePath)) return getWorkspacePageIndexRelPath();
   return getPropsContextPath(activePath) || getResolvedNodePath(activePath) || "";
 }
 
 function resolveMarkdownPreviewNodePath() {
   if (activeSystemFile) {
     const normalized = normalizeSystemFileName(activeSystemFile);
-    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE) return "";
     return normalized;
   }
-  return getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  const apiPath = getActiveNodeApiPath() || activePath || "";
+  if (isWorkspacePageIndexRelPath(apiPath)) return getWorkspacePageIndexRelPath();
+  return getPropsContextPath() || getActiveTitleEditorPath() || apiPath;
 }
 
 function joinWorkspaceRelativePath(baseRel, hrefRel) {
@@ -5678,7 +6175,7 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (parseStorageLayerRef(normalizedPart)) {
     return normalizedPart;
   }
-  if (/^(?:awn-container|awn-repositories|awn-media|awn-databases|awn-data|awn-media-cloud|awn-google-drive)\//i.test(normalizedPart)) {
+  if (/^(?:awn-topics|awn-container|awn-repositories|awn-media|awn-databases|awn-data|awn-media-cloud|awn-google-drive)\//i.test(normalizedPart)) {
     return normalizedPart;
   }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
@@ -6701,7 +7198,7 @@ function resolveHubWorkspaceStoreFromManifest(manifestPath) {
   return null;
 }
 
-async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeAgentId) {
+async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeWorkspaceId) {
   const hub = resolveHubWorkspaceStoreFromManifest(manifestPath);
   if (!hub?.slug) return null;
   const response = await fetch(buildApiUrl(hub.schemaUrl, { slug: hub.slug }, agentId));
@@ -6730,7 +7227,7 @@ async function loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId = activeA
   return cache;
 }
 
-async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeAgentId) {
+async function loadMediaLibraryStoreSchemaEditor(slug, agentId = activeWorkspaceId) {
   const manifestPath = getMediaLibraryManifestPathFromFolder(`awn-media/${String(slug || "").trim()}`);
   return loadHubWorkspaceStoreSchemaEditor(manifestPath, agentId);
 }
@@ -6767,6 +7264,7 @@ async function mountHubWorkspaceStoreSchema(layout, manifestPath) {
   } catch (error) {
     if (baseFieldsNode) baseFieldsNode.textContent = `Ошибка: ${error.message}`;
   }
+  mountHubWorkspaceOutsideStructureWarning(manifestPath, layout);
 }
 
 function getRepositoryFolderPathFromManifest(manifestPath) {
@@ -6885,7 +7383,8 @@ async function openMediaLibraryWorkspaceEntry(entry, options = {}) {
   }
 
   const mediaLibrarySlug = getMediaLibrarySlugFromWorkspacePath(manifestPath);
-  const openSliderAssetsSlot = Boolean(options.openAssetsSlot) && mediaLibrarySlug !== "slider";
+  const openSliderAssetsSlot =
+    Boolean(options.openAssetsSlot) && resolveMediaLibraryCanonicalSlug(mediaLibrarySlug) !== "0-slider";
 
   suspendAppRouteSync();
   try {
@@ -7191,7 +7690,7 @@ async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
     if (resolved?.kind === "awnDataStore" || resolved?.kind === "awnDataRoot") {
       const opened = await openAwnDataRouteFromWorkspacePath(
         resolved.workspacePath || normalized,
-        activeAgentId,
+        activeWorkspaceId,
         options
       );
       if (opened) {
@@ -7226,7 +7725,7 @@ function resolveMarkdownLinkToNodePath(href, options = {}) {
   const targetRel = resolveMarkdownHrefToWorkspaceRel(href, sourceRel);
   if (!targetRel) return null;
 
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (menu) {
     const baseTree = { title: getAgentTreeTitle(), ...menu };
     const paths = collectMenuNodePaths(baseTree);
@@ -7322,7 +7821,7 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
     } else if (/\.md$/i.test(routePath)) {
       routePath = routePath.replace(/\.md$/i, "");
     }
-    return openAwnDataRouteFromWorkspacePath(routePath, activeAgentId, options);
+    return openAwnDataRouteFromWorkspacePath(routePath, activeWorkspaceId, options);
   }
 
   const parsed = parseStorageLayerRef(normalized);
@@ -7392,7 +7891,7 @@ async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
   }
 
   if (/manifest\.md$/i.test(normalized)) {
-    const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+    const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
     if (menu) {
       const paths = collectMenuNodePaths({ title: getAgentTreeTitle(), ...menu });
       const exact = paths.find(
@@ -7424,7 +7923,7 @@ async function tryOpenSameOriginAppUrl(href) {
   if (route.agentId) {
     const selectable = getSelectableAgents();
     if (!selectable.some((agent) => agent.id === route.agentId)) return false;
-    if (route.agentId !== activeAgentId) {
+    if (route.agentId !== activeWorkspaceId) {
       await switchActiveAgent(route.agentId);
     }
   }
@@ -7539,7 +8038,7 @@ function resolveWikilinkToNodePath(target, alias) {
   const slug = String(target || "").replace(/\\/g, "/").trim();
   if (!slug) return null;
 
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu) return null;
   const baseTree = { title: getAgentTreeTitle(), ...menu };
   const paths = collectMenuNodePaths(baseTree);
@@ -8003,14 +8502,33 @@ function getWorkspaceStorageManifestApiPath(nodePath = activePath) {
   return resolveManifestPathForNodeApi(resolved) || resolved;
 }
 
+/** Путь manifest для /api/storage/* (не путь записи в todo/outbox и не readme раздела). */
+function isStorageSlotApiManifestRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+  if (isAwnChannelManifestPath(normalized)) return true;
+  if (isMediaLibraryManifestPath(normalized)) return true;
+  if (findStorageRootMarkerIndex(normalized) >= 0) return false;
+  if (/\/todo\//i.test(normalized)) return false;
+  if (isTopicManifestPath(normalized)) return true;
+  return normalized.toLowerCase() === MANIFEST_FILE.toLowerCase();
+}
+
+function pickStorageSlotApiManifestRelPath(...candidates) {
+  for (const candidate of candidates) {
+    const normalized = String(candidate || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    if (normalized && isStorageSlotApiManifestRelPath(normalized)) return normalized;
+  }
+  return "";
+}
+
 /** Manifest для POST /api/storage/file/create и слотов hub (files/inbox/…). */
 function getSlotRecordCreateManifestApiPath() {
-  const fromRail = navigationHubRailSlotCreateState?.entryOverviewContext?.relPath;
-  if (fromRail) return fromRail;
-  if (activeEntryOverviewContext?.relPath) {
-    return activeEntryOverviewContext.relPath;
-  }
-  return getWorkspaceStorageManifestApiPath();
+  const picked = pickStorageSlotApiManifestRelPath(
+    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath,
+    activeEntryOverviewContext?.relPath
+  );
+  return picked || getWorkspaceStorageManifestApiPath();
 }
 
 const READ_STATE_FILE_NAME = "read.json";
@@ -8172,7 +8690,7 @@ function collectMenuManifestPaths(node, acc = []) {
   return acc;
 }
 
-async function prefetchMenuReadStates(menu, agentId = activeAgentId) {
+async function prefetchMenuReadStates(menu, agentId = activeWorkspaceId) {
   if (!menu) return;
   const paths = [...new Set(collectMenuManifestPaths({ title: getAgentTreeTitle(agentId), ...menu }))];
   await Promise.all(paths.map((manifestPath) => fetchNodeReadState(manifestPath)));
@@ -8208,7 +8726,7 @@ function upsertHostUnreadBadge(host, unread) {
   host.classList.add("has-menu-unread-badge");
 }
 
-function syncMenuReadBadges(agentId = activeAgentId) {
+function syncMenuReadBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
   for (const host of root.querySelectorAll(
@@ -8225,7 +8743,7 @@ function syncMenuReadBadges(agentId = activeAgentId) {
   }
 }
 
-function refreshMenuReadBadges(agentId = activeAgentId) {
+function refreshMenuReadBadges(agentId = activeWorkspaceId) {
   if (menuSearchQuery.trim()) return;
   syncMenuReadBadges(agentId);
 }
@@ -8262,7 +8780,7 @@ function refreshEntryOverviewReadBadges() {
 }
 
 function refreshNodeReadStateUi(manifestPath) {
-  refreshMenuReadBadges(activeAgentId);
+  refreshMenuReadBadges(activeWorkspaceId);
   if (normalizeMenuNodePath(getActiveNodeApiPath()) !== normalizeMenuNodePath(manifestPath)) return;
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
     refreshEntryOverviewReadBadges();
@@ -8350,7 +8868,7 @@ function isAgentRootIndexPath(nodePath) {
 }
 
 function updateAgentPreviewCache(previewMeta) {
-  const index = agentsCache.findIndex((agent) => agent.id === activeAgentId);
+  const index = agentsCache.findIndex((agent) => agent.id === activeWorkspaceId);
   if (index === -1) return;
   agentsCache[index] = {
     ...agentsCache[index],
@@ -8511,7 +9029,7 @@ function syncNodeDescriptionHintUi() {
   if (isAgentContainerRootIndexPath(resolvedPath)) {
     titleNode.textContent = "Контейнер — назначение области";
     textNode.innerHTML =
-      "Корневая область контентных папок агента: области и темы внутри <code>awn-container/</code>. " +
+      "Корневая область контентных папок агента: области и темы внутри <code>awn-topics/</code>. " +
       "Пути в markdown — GitHub-ссылки `[название](путь/к/файлу.md)`; относительный путь считается от текущего файла. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
@@ -8519,7 +9037,7 @@ function syncNodeDescriptionHintUi() {
   if (isAgentSharedRootIndexPath(resolvedPath)) {
     titleNode.textContent = "Общие темы и ресурсы — назначение области";
     textNode.innerHTML =
-      "Общие темы и ресурсы для всех тем агента внутри <code>awn-shared/</code>: скрипты, источники, медиа и другие накопители. " +
+      "Общие темы и ресурсы для всех тем агента внутри <code>awn-topics/0-shared/</code>: скрипты, источники, медиа и другие накопители. " +
       "Создайте файл один раз — используйте из любой темы через ссылки или mount. " +
       "Строка <code>---</code> ограничивает краткий фрагмент в обзоре.";
     return;
@@ -8530,7 +9048,7 @@ function syncNodeDescriptionHintUi() {
 }
 
 function openSelectedAgentWorkspaceView() {
-  if (!activeAgentId || !agentViewSelect) return;
+  if (!activeWorkspaceId || !agentViewSelect) return;
   const view = normalizeVisibleAgentWorkspaceView(
     String(agentViewSelect.value || agentWorkspaceView || "").trim()
   );
@@ -8542,7 +9060,7 @@ function openSelectedAgentWorkspaceView() {
 
 function syncAgentPreviewOpenUi() {
   const agent = getActiveAgentMeta();
-  const canOpen = Boolean(activeAgentId && agent?.path);
+  const canOpen = Boolean(activeWorkspaceId && agent?.path);
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
   const sliderHint = "Слайдер вдохновения";
   const hasSlider = Boolean(
@@ -8675,7 +9193,7 @@ function syncAgentPreviewSlideCounter() {
 }
 
 function buildAgentSliderLightboxGallery() {
-  const agentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
+  const agentId = agentSliderCatalog.loadedForAgentId || activeWorkspaceId;
   const files = getAgentSliderPlaybackSourceSlides();
   if (!files.length) return null;
   const images = files.map((file) => {
@@ -8862,7 +9380,7 @@ function syncAgentNotePreviewStatusIndicator(rawContent = "") {
 }
 
 function showAgentNotePreviewShell() {
-  if (!agentTodoPreviewWrapNode || !activeAgentId) {
+  if (!agentTodoPreviewWrapNode || !activeWorkspaceId) {
     hideAgentTodoPreview();
     return false;
   }
@@ -9100,19 +9618,18 @@ async function fetchAgentSidebarNoteMarkdown() {
 }
 
 function syncAgentTodoPreviewFromEditor() {
-  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) return;
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeWorkspaceId) return;
   if (activeSystemFile !== ROOT_SYSTEM_NOTE_FILE) return;
   applyAgentNotePreviewMarkdown(fileContentInputNode?.value || "", { fileName: ROOT_SYSTEM_NOTE_FILE });
 }
 
 async function syncAgentTodoPreview() {
-  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) {
+  if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeWorkspaceId) {
     hideAgentTodoPreview();
     return;
   }
 
   const seq = ++agentTodoPreviewSeq;
-  clearAgentNotePreviewBody();
   showAgentNotePreviewShell();
 
   try {
@@ -9578,12 +10095,13 @@ async function removeAgentPreviewFile(agentPath) {
   return response.json();
 }
 
-const AGENT_SLIDER_FOLDER_REF = "awn-media/slider/awn-storage/files";
-const AGENT_SLIDER_MANIFEST_REF = "awn-media/slider/manifest.md";
+const AGENT_SLIDER_FOLDER_REF = "awn-media/0-slider/awn-storage/files";
+const AGENT_SLIDER_MANIFEST_REF = "awn-media/0-slider/manifest.md";
 const LEGACY_AGENT_SLIDER_FOLDER_REFS = new Set([
   "awn-storage/assets/slider",
   "storage/assets/slider",
-  "awn-media/slider/awn-storage/assets"
+  "awn-media/slider/awn-storage/assets",
+  "awn-media/slider/awn-storage/files"
 ]);
 const AGENT_SLIDER_ROTATE_MS = 12000;
 
@@ -9595,7 +10113,7 @@ function normalizeAgentSliderFolderPath(folderPath) {
   if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
     return AGENT_SLIDER_FOLDER_REF;
   }
-  if (/^awn-media\/slider\/awn-storage\/(?:assets|files)$/i.test(normalized)) {
+  if (/^awn-media\/(?:0-slider|slider)\/awn-storage\/(?:assets|files)$/i.test(normalized)) {
     return AGENT_SLIDER_FOLDER_REF;
   }
   return normalized;
@@ -9609,7 +10127,7 @@ function normalizeAgentSliderManifestPath(manifestPath) {
   if (!normalized || LEGACY_AGENT_SLIDER_FOLDER_REFS.has(normalized.toLowerCase())) {
     return AGENT_SLIDER_MANIFEST_REF;
   }
-  if (/^awn-media\/slider\/manifest\.md$/i.test(normalized)) {
+  if (/^awn-media\/(?:0-slider|slider)\/manifest\.md$/i.test(normalized)) {
     return AGENT_SLIDER_MANIFEST_REF;
   }
   return normalized || AGENT_SLIDER_MANIFEST_REF;
@@ -9697,7 +10215,7 @@ function rebuildAgentSliderPlaybackOrder({ resetIndex = true } = {}) {
   }
 }
 
-function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeAgentId) {
+function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeWorkspaceId) {
   let relFile = String(mediaFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relFile) return "";
   relFile = relFile.replace(/^slider\//i, "");
@@ -9778,7 +10296,7 @@ async function refreshAgentSliderCatalog(force = false) {
   return agentSliderCatalog;
 }
 
-async function uploadAgentSliderFile(agentPath, file, agentId = activeAgentId) {
+async function uploadAgentSliderFile(agentPath, file, agentId = activeWorkspaceId) {
   if (!agentPath) throw new Error("Workspace не задан");
   if (!agentId) throw new Error("Workspace не выбран");
   const data = await readFileAsBase64(file);
@@ -9799,7 +10317,7 @@ async function uploadAgentSliderFile(agentPath, file, agentId = activeAgentId) {
   return response.json();
 }
 
-async function deleteAgentSliderFile(agentPath, fileName, agentId = activeAgentId) {
+async function deleteAgentSliderFile(agentPath, fileName, agentId = activeWorkspaceId) {
   if (!agentPath) throw new Error("Workspace не задан");
   const response = await fetch(
     buildApiUrl("/api/agents/slider", { file: fileName }, agentId),
@@ -9819,7 +10337,7 @@ function renderAgentSliderModalGrid() {
 
   const files = agentSliderCatalog.files || [];
   agentSliderEmptyNoteNode?.classList.toggle("hidden", files.length > 0);
-  const sliderAgentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
+  const sliderAgentId = agentSliderCatalog.loadedForAgentId || activeWorkspaceId;
 
   for (const file of files) {
     const item = document.createElement("article");
@@ -9917,8 +10435,8 @@ async function openAgentSliderMediaLibrary() {
   const manifestPath = normalizeAgentSliderManifestPath(AGENT_SLIDER_MANIFEST_REF);
   const entry =
     resolveMediaLibraryEntryFromWorkspaceRel(manifestPath) || {
-      slug: "slider",
-      folderPath: "awn-media/slider",
+      slug: "0-slider",
+      folderPath: "awn-media/0-slider",
       manifestPath,
       name: "Слайдер",
       registered: true
@@ -10205,7 +10723,7 @@ function resolveCoreCatalogAgentId() {
 function openCoreCatalogAgentFromLanding() {
   const agentId = resolveCoreCatalogAgentId();
   if (!agentsCache.some((agent) => agent.id === agentId)) {
-    showToast("Агент agent-cms-core не найден в реестре", "error");
+    showToast("Агент 0-ws-core не найден в реестре", "error");
     return;
   }
   selectAgentOption(agentId);
@@ -10887,8 +11405,8 @@ function renderHomeFocusGraph(listNode, items) {
   listNode.replaceChildren();
   listNode.className = "home-focus-graph";
 
-  const agent = agentsCache.find((entry) => entry.id === activeAgentId);
-  const hubLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Agent";
+  const agent = agentsCache.find((entry) => entry.id === activeWorkspaceId);
+  const hubLabel = agent?.name || getActiveAgentLabel() || activeWorkspaceId || "Agent";
 
   const hub = document.createElement("div");
   hub.className = "home-focus-graph-hub";
@@ -11180,7 +11698,7 @@ async function openFocusItem(focusItem) {
   const label = focusItem?.name || getLabelFromPath(nodePath) || agent.name || agent.id;
 
   try {
-    if (activeAgentId !== agent.id) {
+    if (activeWorkspaceId !== agent.id) {
       await switchActiveAgent(agent.id);
     } else if (!appLandingPaneNode?.classList.contains("hidden")) {
       hideAppLandingView();
@@ -11606,7 +12124,7 @@ function renderGlobalFocusPanel() {
 function renderSidebarFocusPanel(panelNode, listNode, items) {
   if (!panelNode || !listNode) return;
   listNode.replaceChildren();
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     panelNode.classList.add("hidden");
     syncHeaderFocusCount();
     closeHeaderFocusPopover();
@@ -11704,7 +12222,7 @@ async function loadGlobalFlowItems({ showLoading = false } = {}) {
   }
 }
 
-async function loadAgentFocusItems(agentId = activeAgentId) {
+async function loadAgentFocusItems(agentId = activeWorkspaceId) {
   if (!agentId) {
     agentFocusItemsCache = [];
     renderAgentFocusPanels();
@@ -11729,8 +12247,8 @@ async function refreshAllFocusPanels() {
   const tasks = [];
   if (isAppLandingViewActive()) {
     tasks.push(loadGlobalMainItems(), loadGlobalFlowItems());
-  } else if (activeAgentId) {
-    tasks.push(loadAgentFocusItems(activeAgentId), loadGlobalMainItems());
+  } else if (activeWorkspaceId) {
+    tasks.push(loadAgentFocusItems(activeWorkspaceId), loadGlobalMainItems());
   }
   if (tasks.length) await Promise.all(tasks);
 }
@@ -11767,7 +12285,7 @@ function createAgentPickerAgentButton(agent, avatarSize = 42) {
   const btn = document.createElement("button");
   btn.type = "button";
   const registryActive = isAgentRegistryActive(agent);
-  const isCurrent = agent.id === activeAgentId;
+  const isCurrent = agent.id === activeWorkspaceId;
   btn.className = "agents-picker-agent-btn";
   if (isCurrent) btn.classList.add("is-active");
   if (!registryActive) btn.classList.add("is-registry-off");
@@ -11842,7 +12360,7 @@ function createAgentPickerFallback(agent, avatarSize) {
 function syncAgentViewPickerMenuState() {
   if (!agentViewSelect) return;
   if (sidebarAgentAvatarBtn) {
-    const agent = getAgentMeta(activeAgentId);
+    const agent = getAgentMeta(activeWorkspaceId);
     const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
     const viewLabel = agentViewSelect.selectedOptions[0]?.textContent?.trim() || "Главная";
     const workspaceViewHint = "Открыть выбранный вид workspace";
@@ -11921,6 +12439,66 @@ if (typeof window !== "undefined") {
   window.agentCmsCloseHeaderWelcomePopover = closeHeaderWelcomePopover;
 }
 
+function isAgentCmsDesktopShell() {
+  if (Boolean(window.desktopApp?.isDesktop)) return true;
+  if (document.documentElement.classList.contains("is-agent-cms-desktop")) return true;
+  try {
+    if (new URLSearchParams(window.location.search).get("desktop") === "1") return true;
+  } catch {
+    // ignore
+  }
+  const ua = String(typeof navigator !== "undefined" ? navigator.userAgent || "" : "");
+  return /\bElectron\//i.test(ua) || /\bElectron\b/i.test(ua);
+}
+
+function markAgentCmsDesktopShell() {
+  if (!isAgentCmsDesktopShell()) return;
+  document.documentElement.classList.add("is-agent-cms-desktop");
+}
+
+function setHeaderWelcomeDesktopWarnVisible(visible) {
+  if (!headerWelcomeDesktopWarn) return;
+  headerWelcomeDesktopWarn.classList.toggle("hidden", !visible);
+  headerWelcomeDesktopWarn.hidden = !visible;
+}
+
+function agentRegistryPathLooksLikeWrongDesktopRoot(agentPath) {
+  const normalized = String(agentPath || "").replace(/\\/g, "/");
+  return normalized.includes("/Desktop/") && normalized.split("/").filter(Boolean).includes("..");
+}
+
+async function syncHeaderWelcomeDesktopHint() {
+  markAgentCmsDesktopShell();
+  const isDesktop = isAgentCmsDesktopShell();
+  if (!isDesktop || !headerWelcomeDesktopSection) return;
+
+  let showWarn = false;
+  try {
+    const [settingsRes, agentsRes] = await Promise.all([
+      fetch("/api/platform/settings-global"),
+      fetch("/api/agents")
+    ]);
+    if (settingsRes.ok) {
+      const settingsPayload = await settingsRes.json();
+      if (!settingsPayload?.exists) showWarn = true;
+    }
+    if (agentsRes.ok) {
+      const agentsPayload = await agentsRes.json();
+      const agents = Array.isArray(agentsPayload?.agents) ? agentsPayload.agents : [];
+      if (agents.some((agent) => agentRegistryPathLooksLikeWrongDesktopRoot(agent.path))) {
+        showWarn = true;
+      }
+    }
+  } catch {
+    // ignore — static hint still visible
+  }
+
+  headerWelcomeDesktopSection.classList.toggle("is-warning", showWarn);
+  headerProfileDesktopHintSection?.classList.toggle("is-warning", showWarn);
+  document.documentElement.classList.toggle("has-desktop-workspace-warn", showWarn);
+  setHeaderWelcomeDesktopWarnVisible(showWarn);
+}
+
 function openHeaderWelcomePopover() {
   if (!headerWelcomePopoverNode || !headerWelcomeBtn) return;
   if (headerWelcomeOpen) {
@@ -11938,6 +12516,7 @@ function openHeaderWelcomePopover() {
   headerWelcomeOpen = true;
   headerWelcomePopoverNode.classList.remove("hidden");
   syncHeaderWelcomeState();
+  void syncHeaderWelcomeDesktopHint();
 }
 
 let headerConnectOpen = false;
@@ -12224,24 +12803,27 @@ function renderHeaderGlobalSettingsModal(cache = headerGlobalSettingsCache) {
 async function loadPlatformSettingsSchemaBundle(options = {}) {
   const force = Boolean(options.force);
   if (!force && agentSettingsSchemaCacheByScope.has("global")) {
-    return agentSettingsSchemaCacheByScope.get("global");
+    const cached = agentSettingsSchemaCacheByScope.get("global");
+    if (Object.keys(cached?.settingsFields || {}).length) return cached;
+    agentSettingsSchemaCacheByScope.delete("global");
   }
 
   const response = await fetch("/api/platform/settings-schema");
   if (response.ok) {
     const data = await response.json();
-    const payload = {
-      scope: "global",
-      typeId: data.type || "awn.settings.platform",
-      settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
-      settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
-    };
-    agentSettingsSchemaCacheByScope.set("global", payload);
-    return payload;
+    const settingsFields = mergeAgentSettingsSchemaFields(data.fields || {});
+    if (Object.keys(settingsFields).length) {
+      return storeAgentSettingsSchemaCacheEntry("global", {
+        scope: "global",
+        typeId: data.type || "awn.settings.platform",
+        settingsFields,
+        settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
+      });
+    }
   }
 
-  if (activeAgentId) {
-    await loadAwnTypes(activeAgentId).catch(() => {});
+  if (activeWorkspaceId) {
+    await loadAwnTypes(activeWorkspaceId).catch(() => {});
   }
   return loadAgentSettingsSchemaBundle({ scope: "global", force });
 }
@@ -12409,6 +12991,7 @@ function openHeaderProfileMenu() {
   headerProfileMenuOpen = true;
   headerProfileMenuNode.classList.remove("hidden");
   syncHeaderProfileMenuState();
+  void syncHeaderWelcomeDesktopHint();
 }
 
 function openAgentsPickerPopover() {
@@ -12573,14 +13156,14 @@ function renderAgentSelect() {
 
   agentSelectNode.disabled = false;
   const nextValue =
-    activeAgentId && selectableAgents.some((agent) => agent.id === activeAgentId)
-      ? activeAgentId
+    activeWorkspaceId && selectableAgents.some((agent) => agent.id === activeWorkspaceId)
+      ? activeWorkspaceId
       : previousValue && selectableAgents.some((agent) => agent.id === previousValue)
         ? previousValue
         : "";
   agentSelectNode.value = nextValue;
   void refreshAgentSliderCatalog(true).then(() => syncAgentPreview());
-  syncIdentityToolbarAvatars(nextValue || activeAgentId);
+  syncIdentityToolbarAvatars(nextValue || activeWorkspaceId);
   refreshAgentsPickerIfOpen();
 }
 
@@ -12770,7 +13353,7 @@ async function runPlatformCatalogMigration(preset = "") {
         .map(([key, result]) => `${key} +${result.addedCount}`);
       showToast(parts.length ? parts.join(" · ") : "Новых значений не найдено", "success");
     }
-    if (activeAgentId) await loadAgentTaxonomies(activeAgentId, { force: true });
+    if (activeWorkspaceId) await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(message ? `Миграция: ${message}` : "Ошибка миграции", "error");
@@ -13448,7 +14031,7 @@ function createAppLandingPlatformHero(platform) {
   const copy = document.createElement("div");
   copy.className = "app-landing-platform-hero-copy";
 
-  const platformLabel = String(platform?.id || "agent-cms-core").trim();
+  const platformLabel = String(platform?.id || "0-ws-core").trim();
 
   const eyebrow = document.createElement("span");
   eyebrow.className = "app-landing-platform-hero-eyebrow";
@@ -17072,7 +17655,7 @@ function setAppLandingHint(message = "", { alert = false } = {}) {
 }
 
 function selectAgentOption(agentId) {
-  if (!agentId || agentId === activeAgentId) return;
+  if (!agentId || agentId === activeWorkspaceId) return;
   if (agentSelectNode) agentSelectNode.value = agentId;
   switchActiveAgent(agentId).catch((error) => {
     if (isMaintenanceErrorMessage(error?.message)) {
@@ -17085,16 +17668,16 @@ function selectAgentOption(agentId) {
 }
 
 async function switchActiveAgent(nextAgentId) {
-  if (!nextAgentId || nextAgentId === activeAgentId) return;
+  if (!nextAgentId || nextAgentId === activeWorkspaceId) return;
   if (!agentsCache.some((agent) => agent.id === nextAgentId)) return;
 
   try {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
-    activeAgentId = nextAgentId;
+    activeWorkspaceId = nextAgentId;
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
-    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
+    localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
     workspaceNotificationsEvents = [];
     workspaceNotificationsLatestId = 0;
     workspaceNotificationsTruncated = false;
@@ -17113,7 +17696,7 @@ async function switchActiveAgent(nextAgentId) {
     syncWorkspaceNotificationsAvailability();
     syncAppFooterJournalAvailability();
     hideMenuNoAgentPlaceholder();
-    activateMenuAgentPane(activeAgentId);
+    activateMenuAgentPane(activeWorkspaceId);
     activePath = null;
     activeLabel = null;
     clearActiveSystemFile();
@@ -17121,8 +17704,8 @@ async function switchActiveAgent(nextAgentId) {
     resetGitWorkspaceViewToDefault();
     syncAppRouteToUrl({ replace: true });
 
-    const cachedMenu = menuCacheByAgent.get(activeAgentId);
-    const cachedPane = menuAgentPanes.get(activeAgentId);
+    const cachedMenu = menuCacheByAgent.get(activeWorkspaceId);
+    const cachedPane = menuAgentPanes.get(activeWorkspaceId);
     const hasCachedView = Boolean(cachedMenu && cachedPane && cachedPane.childElementCount > 0);
     if (hasCachedView) {
       currentMenuData = cachedMenu;
@@ -17134,7 +17717,7 @@ async function switchActiveAgent(nextAgentId) {
 
     showHomeView();
     renderAgentSelect();
-    syncIdentityToolbarAvatars(activeAgentId);
+    syncIdentityToolbarAvatars(activeWorkspaceId);
     await loadUserSettingsForAgent(nextAgentId).catch(() => {});
     reloadWorkspaceIdleScreensaverSettings(nextAgentId);
     syncWorkspaceIdleScreensaverEligibility();
@@ -17145,7 +17728,7 @@ async function switchActiveAgent(nextAgentId) {
     closeMenuSettingsPopover();
     setMenuLoading(true, `Загрузка: ${getActiveAgentLabel() || nextAgentId}`);
 
-    const switchedAgentId = activeAgentId;
+    const switchedAgentId = activeWorkspaceId;
     try {
       if (hasCachedView) {
         activateMenuAgentPane(switchedAgentId);
@@ -17153,7 +17736,7 @@ async function switchActiveAgent(nextAgentId) {
       }
       await refreshMenu({ agentId: switchedAgentId });
     } finally {
-      if (switchedAgentId === activeAgentId) {
+      if (switchedAgentId === activeWorkspaceId) {
         setMenuLoading(false);
       }
     }
@@ -17161,12 +17744,13 @@ async function switchActiveAgent(nextAgentId) {
     void (async () => {
       try {
         await Promise.all([loadSystemFiles(), loadAwnTypes(switchedAgentId)]);
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
         }
+        void syncAgentTodoPreview();
         await refreshAgentSliderCatalog(true);
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         syncAgentPreview();
         ensureSidebarWorkspacePageIndexRow();
         if (isAgentWorkspaceCanvasVisible()) {
@@ -17175,7 +17759,7 @@ async function switchActiveAgent(nextAgentId) {
         if (!isAppLandingViewActive()) {
           void loadAgentFocusItems(switchedAgentId);
         }
-        if (switchedAgentId !== activeAgentId) return;
+        if (switchedAgentId !== activeWorkspaceId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
         void loadAppFooterIdeasPreview();
@@ -17224,8 +17808,8 @@ function syncMenuRefreshButtonState() {
   menuRefreshBtn.disabled = menuBusy || menuRefreshInFlight;
 }
 
-function ensureMenuAgentPane(agentId = activeAgentId) {
-  const id = agentId || activeAgentId || "main";
+function ensureMenuAgentPane(agentId = activeWorkspaceId) {
+  const id = agentId || activeWorkspaceId || "main";
   let pane = menuAgentPanes.get(id);
   if (!pane) {
     pane = document.createElement("div");
@@ -17237,7 +17821,7 @@ function ensureMenuAgentPane(agentId = activeAgentId) {
   return pane;
 }
 
-function activateMenuAgentPane(agentId = activeAgentId) {
+function activateMenuAgentPane(agentId = activeWorkspaceId) {
   for (const [id, pane] of menuAgentPanes.entries()) {
     pane.classList.toggle("hidden", id !== agentId);
   }
@@ -17246,10 +17830,10 @@ function activateMenuAgentPane(agentId = activeAgentId) {
 }
 
 function getMenuQueryRoot() {
-  return menuAgentPanes.get(activeAgentId) || menuNode;
+  return menuAgentPanes.get(activeWorkspaceId) || menuNode;
 }
 
-function invalidateMenuAgentCache(agentId = activeAgentId) {
+function invalidateMenuAgentCache(agentId = activeWorkspaceId) {
   menuCacheByAgent.delete(agentId);
   menuRuntimeFlagsByAgent.delete(agentId);
 }
@@ -17675,15 +18259,15 @@ function updateAgentsRegistryPathStatusNode(node, result) {
   }
   if (result.manifestFound) {
     node.dataset.state = "manifest";
-    node.title = result.absolute ? `manifest.md (awn.page.ws) найден:\n${result.absolute}` : "manifest.md (awn.page.ws) найден";
+    node.title = result.absolute ? `manifest.md (awn.hub.topic.ws) найден:\n${result.absolute}` : "manifest.md (awn.hub.topic.ws) найден";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "manifest");
     return;
   }
   if (result.exists) {
     node.dataset.state = "missing";
     node.title = result.absolute
-      ? `Папка есть, но нет manifest.md (awn.page.ws):\n${result.absolute}`
-      : "Папка есть, но нет manifest.md (awn.page.ws)";
+      ? `Папка есть, но нет manifest.md (awn.hub.topic.ws):\n${result.absolute}`
+      : "Папка есть, но нет manifest.md (awn.hub.topic.ws)";
     syncRegistryRowActions(node.closest(".agents-registry-row"), "missing");
     return;
   }
@@ -17752,14 +18336,14 @@ function applyManifestToRegistryDraft(index, result) {
   }
 }
 
-function getAgentKitTopicManifestRel(kind = "agent", agentId = activeAgentId) {
+function getAgentKitTopicManifestRel(kind = "agent", agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder) return null;
   const slot = kind === "user" ? "user" : "agent";
   return `${kitFolder}/${slot}/manifest.md`;
 }
 
-function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeAgentId) {
+function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeWorkspaceId) {
   const manifestPath = getAgentKitTopicManifestRel(kind, agentId);
   if (!manifestPath) return null;
   const url = `/api/preview/image?path=${encodeURIComponent(manifestPath)}`;
@@ -17820,7 +18404,7 @@ function mountIdentityAvatarWithFallbacks(
   mountFallback();
 }
 
-function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
+function resolveSidebarAgentToolbarPreviewUrl(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   return {
     primaryUrl: getAgentKitTopicPreviewUrl("agent", agentId),
@@ -17828,7 +18412,7 @@ function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
   };
 }
 
-function syncIdentityToolbarAvatars(agentId = activeAgentId) {
+function syncIdentityToolbarAvatars(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   const showKitAvatars = Boolean(agentId && !isPlatformAgentId(agentId));
   const showSidebarAvatar = Boolean(agentId);
@@ -18224,7 +18808,7 @@ function renderAgentsRegistryList() {
     pathStatusNode.className = "agents-registry-path-dot";
     pathStatusNode.dataset.state = "checking";
     pathStatusNode.title = "Проверка…";
-    pathStatusNode.setAttribute("aria-label", "Статус manifest.md (awn.page.ws)");
+    pathStatusNode.setAttribute("aria-label", "Статус manifest.md (awn.hub.topic.ws)");
     const pathLabelText = document.createElement("span");
     pathLabelText.textContent = "Workspace";
     pathLabelRow.append(pathStatusNode, pathLabelText);
@@ -18556,7 +19140,7 @@ function applyDiscoverAgentToDraft(discovered) {
 
 async function loadAgentDiscoverResults() {
   if (!agentsRegistryDiscoverListNode) return;
-  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование workspace с manifest.md (awn.page.ws)…</div>`;
+  agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Сканирование workspace с manifest.md (awn.hub.topic.ws)…</div>`;
   try {
     const response = await fetch("/api/agents/discover", {
       method: "POST",
@@ -18583,7 +19167,7 @@ function renderAgentDiscoverResults(items) {
   if (!agentsRegistryDiscoverListNode) return;
   agentsRegistryDiscoverListNode.innerHTML = "";
   if (items.length === 0) {
-    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Папки agent-* с manifest.md (awn.page.ws) не найдены</div>`;
+    agentsRegistryDiscoverListNode.innerHTML = `<div class="agents-registry-discover-status">Папки agent-* с manifest.md (awn.hub.topic.ws) не найдены</div>`;
     return;
   }
 
@@ -18680,16 +19264,16 @@ async function saveAgentsRegistryDraft() {
     const data = await response.json();
     await loadAgents();
     const wasOnLanding = appRootNode?.classList.contains("app-landing-view");
-    const previousAgentId = activeAgentId;
+    const previousAgentId = activeWorkspaceId;
     if (
       !wasOnLanding &&
-      activeAgentId &&
-      (!agentsCache.some((agent) => agent.id === activeAgentId) ||
-        !getSelectableAgents().some((agent) => agent.id === activeAgentId))
+      activeWorkspaceId &&
+      (!agentsCache.some((agent) => agent.id === activeWorkspaceId) ||
+        !getSelectableAgents().some((agent) => agent.id === activeWorkspaceId))
     ) {
-      activeAgentId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
-      localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeAgentId);
-      syncAgentToUrl(activeAgentId);
+      activeWorkspaceId = data.defaultAgentId || getSelectableAgents()[0]?.id || agentsCache[0]?.id || "main";
+      localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
+      syncAgentToUrl(activeWorkspaceId);
     }
     renderAgentSelect();
     syncAgentPreview();
@@ -18698,7 +19282,7 @@ async function saveAgentsRegistryDraft() {
     if (wasOnLanding) {
       renderAppLandingAgents();
       renderLandingSearchAgents();
-    } else if (previousAgentId !== activeAgentId) {
+    } else if (previousAgentId !== activeWorkspaceId) {
       activePath = null;
       activeLabel = null;
       clearActiveSystemFile();
@@ -18706,7 +19290,7 @@ async function saveAgentsRegistryDraft() {
       showAgentHomeView();
       await loadSystemFiles();
     }
-    if (!wasOnLanding && activeAgentId) {
+    if (!wasOnLanding && activeWorkspaceId) {
       await refreshMenu();
     }
     showToast("Список агентов сохранён", "success");
@@ -19049,6 +19633,8 @@ const OVERVIEW_META_PROP_KEYS = [
 ];
 
 let activeSystemFile = null;
+/** Hub/workspace TOC markdown (e.g. awn-topics/index.md) — not a topic manifest path. */
+let activeWorkspaceTocRelPath = null;
 let systemFileEditActive = false;
 let systemFileFrontmatterCache = "";
 let activePath = null;
@@ -19065,6 +19651,10 @@ function clearActiveSystemFile() {
   activeSystemFile = null;
   systemFileFrontmatterCache = "";
   systemFileEditActive = false;
+}
+
+function clearActiveWorkspaceTocView() {
+  activeWorkspaceTocRelPath = null;
 }
 
 let toastTimer = null;
@@ -19099,7 +19689,7 @@ function normalizeDeclaredManifestTreeType(typeRaw) {
   if (
     raw === "awn.topic" ||
     raw === "topic" ||
-    raw === "awn.page.topic" ||
+    raw === "awn.hub.topic" ||
     raw.endsWith(".topic")
   ) {
     return "topic";
@@ -19107,7 +19697,7 @@ function normalizeDeclaredManifestTreeType(typeRaw) {
   if (
     raw === "awn.workspace" ||
     raw === "workspace" ||
-    raw === "awn.page.ws" ||
+    raw === "awn.hub.topic.ws" ||
     raw.endsWith(".ws")
   ) {
     return "workspace";
@@ -19115,7 +19705,7 @@ function normalizeDeclaredManifestTreeType(typeRaw) {
   if (
     raw === "awn.area" ||
     raw === "area" ||
-    raw === "awn.page.area" ||
+    raw === "awn.hub.topic.area" ||
     raw.endsWith(".area")
   ) {
     return "area";
@@ -19223,7 +19813,7 @@ const IBLOCK_INSTRUCTION_ACCORDION_TITLE = AGENT_INSTRUCTION_ACCORDION_TITLE;
 const PAGE_BRIEF_HINT_TITLE = "Бриф, контекст, инструкция и договорённости";
 const PAGE_BRIEF_HINT_TEXT =
   "Назначение, описание, инструкции, правила, документация, промпт, роль — как работать с этой темой. Основной текст для агента в теле <code>manifest.md</code>.";
-const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
+const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["0-ws-core"]);
 const TYPE_CATALOG_DOMAIN_LABELS = {
   fields: "Поля",
   "md-blocks": "Блоки Markdown",
@@ -19353,7 +19943,7 @@ const WORKSPACE_TOOL_MODULE_META = {
   },
   [`awn-databases/${AWN_CONTENTS_FACTS_STORE}`]: {
     title: "Банк фактов",
-    lead: "Коллекция contents/facts — create / search_workspace_facts."
+    lead: "Коллекция 0-contents/0-facts — create / search_workspace_facts."
   },
   [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач",
@@ -19796,8 +20386,8 @@ function resolveStorageSlotSchemaTargetId(slotKey, options = {}) {
 
 function getTopicSchemaTargetSpecs() {
   return [
-    { id: "workspace", label: "Workspace", typeName: "awn.page.ws", group: "core" },
-    { id: "area", label: "Область", typeName: "awn.page.area", group: "core" },
+    { id: "workspace", label: "Workspace", typeName: "awn.hub.topic.ws", group: "core" },
+    { id: "area", label: "Область", typeName: "awn.hub.topic.area", group: "core" },
     { id: "topic", label: "Тема", typeName: "awn.topic", group: "core" },
     ...TOPIC_SCHEMA_STORAGE_SLOT_UI_SPECS.map((item) => ({
       id: item.id,
@@ -19818,8 +20408,8 @@ function getTopicSchemaTargetSpecs() {
 }
 
 function getTopicSchemaTargetTypeName(targetId) {
-  if (targetId === "workspace") return "awn.page.ws";
-  if (targetId === "area") return "awn.page.area";
+  if (targetId === "workspace") return "awn.hub.topic.ws";
+  if (targetId === "area") return "awn.hub.topic.area";
   if (targetId === "topic") return "awn.topic";
   if (targetId === "sidecar") return "awn.sidecar";
   if (targetId === "settings") return "awn.settings";
@@ -20373,7 +20963,7 @@ function resolveHeroRecordAssignPath(nodePath, options = {}) {
 
 async function refreshUiAfterWorkspaceRecordIdAssign() {
   if (activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewStoreRel) {
-    const agentId = awnDataViewCatalogAgentId || activeAgentId;
+    const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
     const recordId = String(awnDataViewRecordId || "").trim();
     await refreshMenuAwnDataStores(agentId);
     if (recordId) {
@@ -20727,7 +21317,7 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       }
 
       try {
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // ignore
       }
@@ -20751,7 +21341,7 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       const sectionId = String(issue.sectionId || "").trim();
       if (!storeRel || !sectionId) throw new Error("Раздел не найден");
       const response = await fetch(
-        buildApiUrl("/api/awn-databases/records/rename", {}, awnDataViewCatalogAgentId || activeAgentId),
+        buildApiUrl("/api/awn-databases/records/rename", {}, awnDataViewCatalogAgentId || activeWorkspaceId),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -20769,8 +21359,8 @@ async function applyDataHubSlugFix(issue, triggerBtn = null) {
       }
       const nextId = String(data.record || issue.suggested || sectionId).trim();
       if (nextId) awnDataViewSectionId = nextId;
-      await refreshMenuAwnDataStores(awnDataViewCatalogAgentId || activeAgentId);
-      await loadAwnDataViewStore(awnDataViewCatalogAgentId || activeAgentId);
+      await refreshMenuAwnDataStores(awnDataViewCatalogAgentId || activeWorkspaceId);
+      await loadAwnDataViewStore(awnDataViewCatalogAgentId || activeWorkspaceId);
       showToast(`Раздел переименован в «${issue.suggested}»`, "success");
       return;
     }
@@ -21562,6 +22152,20 @@ const FLAT_STORAGE_SECTION_MODES = new Set(
     (spec) => spec.defaultMode
   )
 );
+
+function isNavigationListSortScope(scope) {
+  const key = String(scope || "").trim();
+  if (!key) return false;
+  if (NAVIGATION_LIST_SORT_SCOPES.has(key)) return true;
+  return FLAT_STORAGE_SECTION_MODES.has(key);
+}
+
+function forEachNavigationListSortScope(fn) {
+  if (typeof fn !== "function") return;
+  for (const scope of NAVIGATION_LIST_SORT_SCOPES) fn(scope);
+  for (const scope of FLAT_STORAGE_SECTION_MODES) fn(scope);
+}
+
 const activeFlatStorageSectionFolder = Object.fromEntries(
   [...FLAT_STORAGE_SECTION_MODES].map((mode) => [mode, null])
 );
@@ -22980,7 +23584,7 @@ function saveSidebarWidth() {
   } catch {
     // Ignore storage write issues (private mode, quota, etc.)
   }
-  scheduleUserSettingsPersist(activeAgentId);
+  scheduleUserSettingsPersist(activeWorkspaceId);
 }
 
 function syncSidebarWidthControls() {
@@ -23016,15 +23620,15 @@ function resolveSectionFolderPath(node, parentSectionPath = "", depth = 0) {
   return normalizeFolderPath(getSectionFolderPath(node, parentSectionPath));
 }
 
-function getAgentCollapsedFolders(agentId = activeAgentId) {
-  const id = agentId || activeAgentId || "main";
+function getAgentCollapsedFolders(agentId = activeWorkspaceId) {
+  const id = agentId || activeWorkspaceId || "main";
   if (!collapsedFoldersByAgent[id]) {
     collapsedFoldersByAgent[id] = new Set();
   }
   return collapsedFoldersByAgent[id];
 }
 
-function isFolderCollapsed(folderPath, agentId = activeAgentId) {
+function isFolderCollapsed(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath);
   if (!normalized || normalized === ".") return false;
   return getAgentCollapsedFolders(agentId).has(normalized);
@@ -23112,7 +23716,7 @@ function saveAgentSystemDomainCollapsedByAgent() {
   }
 }
 
-function getAgentSystemDomainCollapsedSet(agentId = activeAgentId) {
+function getAgentSystemDomainCollapsedSet(agentId = activeWorkspaceId) {
   const id = String(agentId || "main").trim() || "main";
   if (!agentSystemDomainCollapsedByAgent[id]) {
     agentSystemDomainCollapsedByAgent[id] = new Set();
@@ -23124,23 +23728,23 @@ function getAgentSystemDomainCollapseKey(section) {
   return normalizeFolderPath(section?.folderPath || section?.title || "");
 }
 
-function isAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+function isAgentSystemDomainCollapsed(section, agentId = activeWorkspaceId) {
   const key = getAgentSystemDomainCollapseKey(section);
   if (!key) return false;
   return getAgentSystemDomainCollapsedSet(agentId).has(key);
 }
 
-function toggleAgentSystemDomainCollapsed(section, agentId = activeAgentId) {
+function toggleAgentSystemDomainCollapsed(section, agentId = activeWorkspaceId) {
   const key = getAgentSystemDomainCollapseKey(section);
   if (!key) return;
   const collapsed = getAgentSystemDomainCollapsedSet(agentId);
   if (collapsed.has(key)) collapsed.delete(key);
   else collapsed.add(key);
   saveAgentSystemDomainCollapsedByAgent();
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
-    if (agentId === activeAgentId) updateActiveButton();
+    if (agentId === activeWorkspaceId) updateActiveButton();
   }
 }
 
@@ -23176,11 +23780,11 @@ function savePinnedMenuFoldersByAgent() {
   }
 }
 
-function getPinnedMenuFolder(agentId = activeAgentId) {
+function getPinnedMenuFolder(agentId = activeWorkspaceId) {
   return pinnedMenuFolderByAgent[agentId] || null;
 }
 
-function setPinnedMenuFolder(folderPath, agentId = activeAgentId, options = {}) {
+function setPinnedMenuFolder(folderPath, agentId = activeWorkspaceId, options = {}) {
   const normalized = folderPath ? normalizeFolderPath(folderPath) : null;
   if (normalized) pinnedMenuFolderByAgent[agentId] = normalized;
   else delete pinnedMenuFolderByAgent[agentId];
@@ -23200,7 +23804,7 @@ function isFolderInPinnedBranch(folderPath, pinnedPath) {
   return false;
 }
 
-function getPinnedMenuFolderForTree(agentId = activeAgentId) {
+function getPinnedMenuFolderForTree(agentId = activeWorkspaceId) {
   if (menuSearchQuery.trim()) return null;
   return getPinnedMenuFolder(agentId);
 }
@@ -23214,7 +23818,7 @@ function isMenuItemInPinnedBranch(itemPath, pinnedPath) {
   return false;
 }
 
-function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
+function expandPinnedFolderPathChain(folderPath, agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   const normalized = normalizeFolderPath(folderPath || ".");
   collapsed.delete(".");
@@ -23227,8 +23831,8 @@ function expandPinnedFolderPathChain(folderPath, agentId = activeAgentId) {
   }
 }
 
-function getActiveMenuFolderPath(agentId = activeAgentId) {
-  if (!activePath || agentId !== activeAgentId) return null;
+function getActiveMenuFolderPath(agentId = activeWorkspaceId) {
+  if (!activePath || agentId !== activeWorkspaceId) return null;
   const normalized = normalizeMenuNodePath(activePath);
   if (isNodeManifestPath(normalized)) {
     return normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
@@ -23238,13 +23842,13 @@ function getActiveMenuFolderPath(agentId = activeAgentId) {
   return normalizeFolderPath(parts.join("/") || ".");
 }
 
-function formatPinnedBranchLabel(folderPath, agentId = activeAgentId) {
+function formatPinnedBranchLabel(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   if (normalized === ".") return getAgentTreeTitle(agentId);
   return formatCreateParentLabel(normalized);
 }
 
-function applyPinnedBranchCollapse(agentId = activeAgentId) {
+function applyPinnedBranchCollapse(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   if (!pinned || menuSearchQuery.trim()) return;
 
@@ -23282,39 +23886,39 @@ function applyPinnedBranchCollapse(agentId = activeAgentId) {
   saveCollapsedFoldersByAgent();
 }
 
-function pinMenuBranch(folderPath, agentId = activeAgentId) {
+function pinMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   setPinnedMenuFolder(normalized, agentId);
   applyPinnedBranchCollapse(agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
-    if (agentId === activeAgentId) updateActiveButton();
+    if (agentId === activeWorkspaceId) updateActiveButton();
   }
   syncMenuPinBranchUi(agentId);
-  if (agentId === activeAgentId) scrollPinnedFolderIntoView(agentId);
+  if (agentId === activeWorkspaceId) scrollPinnedFolderIntoView(agentId);
   showToast(`Ветка «${formatPinnedBranchLabel(normalized, agentId)}» закреплена`, "success");
 }
 
-function unpinMenuBranch(agentId = activeAgentId) {
+function unpinMenuBranch(agentId = activeWorkspaceId) {
   if (!getPinnedMenuFolder(agentId)) return;
   setPinnedMenuFolder(null, agentId);
   syncMenuPinBranchUi(agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
-  if (menu && agentId === activeAgentId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
+  if (menu && agentId === activeWorkspaceId) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
     updateActiveButton();
   }
   showToast("Ветка откреплена", "success");
 }
 
-function togglePinMenuBranch(folderPath, agentId = activeAgentId) {
+function togglePinMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   if (getPinnedMenuFolder(agentId) === normalized) unpinMenuBranch(agentId);
   else pinMenuBranch(normalized, agentId);
 }
 
-function scrollPinnedFolderIntoView(agentId = activeAgentId) {
+function scrollPinnedFolderIntoView(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   if (!pinned || !menuNode) return;
   requestAnimationFrame(() => {
@@ -23324,10 +23928,10 @@ function scrollPinnedFolderIntoView(agentId = activeAgentId) {
   });
 }
 
-function syncMenuPinBranchUi(agentId = activeAgentId) {
+function syncMenuPinBranchUi(agentId = activeWorkspaceId) {
   const pinned = getPinnedMenuFolder(agentId);
   const canPin =
-    agentId === activeAgentId &&
+    agentId === activeWorkspaceId &&
     menuViewMode === "tree" &&
     !menuSearchQuery.trim() &&
     Boolean(currentMenuData);
@@ -23347,7 +23951,7 @@ function syncMenuPinBranchUi(agentId = activeAgentId) {
   }
 
   if (menuPinnedBannerNode) {
-    menuPinnedBannerNode.classList.toggle("hidden", !pinned || agentId !== activeAgentId);
+    menuPinnedBannerNode.classList.toggle("hidden", !pinned || agentId !== activeWorkspaceId);
   }
   if (menuPinnedBannerPathNode) {
     menuPinnedBannerPathNode.textContent = pinnedLabel;
@@ -23366,11 +23970,11 @@ function syncMenuPinBranchUi(agentId = activeAgentId) {
   }
 
   if (menuNode) {
-    menuNode.classList.toggle("menu-has-pinned-branch", Boolean(pinned && agentId === activeAgentId));
+    menuNode.classList.toggle("menu-has-pinned-branch", Boolean(pinned && agentId === activeWorkspaceId));
   }
 }
 
-function createMenuPinBranchButton(folderPath, agentId = activeAgentId) {
+function createMenuPinBranchButton(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeFolderPath(folderPath || ".");
   const pinned = getPinnedMenuFolder(agentId);
   const isPinned = pinned === normalized;
@@ -23469,16 +24073,16 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
   return false;
 }
 
-function getNodeConfigCacheKey(nodePath, agentId = activeAgentId) {
+function getNodeConfigCacheKey(nodePath, agentId = activeWorkspaceId) {
   return nodeStorageKey(agentId, nodePath);
 }
 
-function getCachedNodeConfig(nodePath, agentId = activeAgentId) {
+function getCachedNodeConfig(nodePath, agentId = activeWorkspaceId) {
   if (!nodePath) return null;
   return nodeConfigCacheByPath.get(getNodeConfigCacheKey(nodePath, agentId)) || null;
 }
 
-function setCachedNodeConfig(nodePath, payload, agentId = activeAgentId) {
+function setCachedNodeConfig(nodePath, payload, agentId = activeWorkspaceId) {
   if (!nodePath) return;
   nodeConfigCacheByPath.set(getNodeConfigCacheKey(nodePath, agentId), {
     path: payload?.path || "",
@@ -23490,7 +24094,7 @@ function setCachedNodeConfig(nodePath, payload, agentId = activeAgentId) {
   hydrateNavigationMediaImagesLayoutFromNodeConfig(nodePath, payload?.content || "");
 }
 
-function invalidateNodeConfigCache(nodePath, agentId = activeAgentId) {
+function invalidateNodeConfigCache(nodePath, agentId = activeWorkspaceId) {
   if (!nodePath) return;
   nodeConfigCacheByPath.delete(getNodeConfigCacheKey(nodePath, agentId));
 }
@@ -23519,7 +24123,7 @@ async function loadNodeConfig(nodePath, options = {}) {
     return { path: "", content: "", exists: false, defaultLandingMode: null };
   }
 
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   if (!options.force) {
     const cached = getCachedNodeConfig(nodePath, agentId);
     if (cached) return cached;
@@ -23543,7 +24147,7 @@ async function loadNodeConfig(nodePath, options = {}) {
   return payload;
 }
 
-async function saveNodeConfigContent(nodePath, content, agentId = activeAgentId) {
+async function saveNodeConfigContent(nodePath, content, agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/file/node-config", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23569,7 +24173,7 @@ async function saveNodeConfigContent(nodePath, content, agentId = activeAgentId)
 }
 
 async function saveNodeConfigDefaultLanding(nodePath, mode, options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const current = options.skipMigration
     ? { content: "" }
     : await loadNodeConfig(nodePath, { agentId, force: true });
@@ -23593,13 +24197,13 @@ function getNodeDefaultView(nodePath) {
 async function setNodeDefaultView(nodePath, mode) {
   if (!nodePath || !isValidNodeDefaultLandingMode(mode)) return;
   await saveNodeConfigDefaultLanding(nodePath, mode);
-  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeAgentId, nodePath));
+  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 async function clearNodeDefaultView(nodePath) {
   if (!nodePath) return;
   await saveNodeConfigDefaultLanding(nodePath, null);
-  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeAgentId, nodePath));
+  removeLegacyNodeDefaultViewFromStorage(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 function getContentModeLabel(mode) {
@@ -23752,10 +24356,10 @@ function userAwnSettingsFromMenuTreeSettings(settings = {}) {
   };
 }
 
-function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
+function getUserAwnSettingsSnapshot(agentId = activeWorkspaceId) {
   const hideSensitive =
     hideSensitiveDataByAgent[agentId] ??
-    (agentId === activeAgentId && window.AgentCmsPrivacyMode?.isEnabled?.()) ??
+    (agentId === activeWorkspaceId && window.AgentCmsPrivacyMode?.isEnabled?.()) ??
     false;
   return {
     ...userAwnSettingsFromMenuTreeSettings(getMenuTreeSettings(agentId)),
@@ -23765,7 +24369,7 @@ function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
   };
 }
 
-function getMenuTreeSettings(agentId = activeAgentId) {
+function getMenuTreeSettings(agentId = activeWorkspaceId) {
   const stored = menuTreeSettingsByAgent[agentId] || {};
   return {
     showEmptyFolders: stored.showEmptyFolders !== false,
@@ -23786,7 +24390,7 @@ function normalizeUserHideSensitiveSetting(value) {
   return Boolean(value);
 }
 
-async function loadUserSettingsForAgent(agentId = activeAgentId) {
+async function loadUserSettingsForAgent(agentId = activeWorkspaceId) {
   if (!agentId) return null;
   try {
     const response = await fetch(buildApiUrl("/api/user/settings"));
@@ -23799,7 +24403,7 @@ async function loadUserSettingsForAgent(agentId = activeAgentId) {
   }
 }
 
-async function persistUserSettingsToFile(agentId = activeAgentId) {
+async function persistUserSettingsToFile(agentId = activeWorkspaceId) {
   if (!agentId) return;
   const snapshot = getUserAwnSettingsSnapshot(agentId);
   const content = buildSettingsYamlFromState({
@@ -23817,7 +24421,7 @@ async function persistUserSettingsToFile(agentId = activeAgentId) {
   });
 }
 
-function scheduleUserSettingsPersist(agentId = activeAgentId) {
+function scheduleUserSettingsPersist(agentId = activeWorkspaceId) {
   clearTimeout(userSettingsPersistTimer);
   userSettingsPersistTimer = setTimeout(() => {
     void persistUserSettingsToFile(agentId).catch(() => {});
@@ -23826,12 +24430,12 @@ function scheduleUserSettingsPersist(agentId = activeAgentId) {
 
 window.addEventListener("agent-cms:privacy-mode-change", (event) => {
   const enabled = Boolean(event?.detail?.enabled);
-  if (!activeAgentId) return;
-  hideSensitiveDataByAgent[activeAgentId] = enabled;
-  scheduleUserSettingsPersist(activeAgentId);
+  if (!activeWorkspaceId) return;
+  hideSensitiveDataByAgent[activeWorkspaceId] = enabled;
+  scheduleUserSettingsPersist(activeWorkspaceId);
 });
 
-function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId) {
+function applyUserSettingsFromNormalized(settings = {}, agentId = activeWorkspaceId) {
   menuTreeSettingsByAgent[agentId] = menuTreeSettingsFromUserAwnSettings(settings);
   const width = Number(settings["sidebar-width"]);
   if (Number.isFinite(width) && width > 0) {
@@ -23846,7 +24450,7 @@ function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId)
   setPinnedMenuFolder(pinned || null, agentId, { skipPersist: true });
   if (Object.prototype.hasOwnProperty.call(settings, "hide-sensitive-data")) {
     hideSensitiveDataByAgent[agentId] = normalizeUserHideSensitiveSetting(settings["hide-sensitive-data"]);
-    if (agentId === activeAgentId && window.AgentCmsPrivacyMode) {
+    if (agentId === activeWorkspaceId && window.AgentCmsPrivacyMode) {
       const want = hideSensitiveDataByAgent[agentId];
       if (window.AgentCmsPrivacyMode.isEnabled() !== want) {
         window.AgentCmsPrivacyMode.setEnabled(want);
@@ -23860,7 +24464,7 @@ function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId)
     // ignore storage errors
   }
   applyMenuTreeSettingsUi(agentId);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     const menu = menuCacheByAgent.get(agentId) || currentMenuData;
     if (menu) {
       withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
@@ -23989,7 +24593,7 @@ let workspaceIdleScreensaverReady = false;
 
 function isWorkspaceIdleScreensaverEligible() {
   return (
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("app-landing-view") &&
     !platformMaintenanceViewActive
   );
@@ -23999,7 +24603,7 @@ let workspacePomodoroReady = false;
 
 function isWorkspacePomodoroEligible() {
   return (
-    Boolean(activeAgentId) &&
+    Boolean(activeWorkspaceId) &&
     !appRootNode?.classList.contains("app-landing-view") &&
     !platformMaintenanceViewActive
   );
@@ -24010,11 +24614,11 @@ function setupWorkspacePomodoro() {
   workspacePomodoroReady = true;
   window.WorkspacePomodoro.init({
     isEligible: isWorkspacePomodoroEligible,
-    getAgentId: () => activeAgentId || "main"
+    getAgentId: () => activeWorkspaceId || "main"
   });
 }
 
-function reloadWorkspacePomodoroForAgent(agentId = activeAgentId) {
+function reloadWorkspacePomodoroForAgent(agentId = activeWorkspaceId) {
   setupWorkspacePomodoro();
   if (!agentId || !window.WorkspacePomodoro?.reloadForAgent) return;
   window.WorkspacePomodoro.reloadForAgent(agentId);
@@ -24029,11 +24633,11 @@ function setupWorkspaceIdleScreensaver() {
   workspaceIdleScreensaverReady = true;
   window.WorkspaceIdleScreensaver.init({
     isEligible: isWorkspaceIdleScreensaverEligible,
-    getAgentId: () => activeAgentId || "main"
+    getAgentId: () => activeWorkspaceId || "main"
   });
 }
 
-function reloadWorkspaceIdleScreensaverSettings(agentId = activeAgentId) {
+function reloadWorkspaceIdleScreensaverSettings(agentId = activeWorkspaceId) {
   setupWorkspaceIdleScreensaver();
   if (!agentId || !window.WorkspaceIdleScreensaver?.reloadForAgent) return;
   void window.WorkspaceIdleScreensaver.reloadForAgent(agentId);
@@ -24072,7 +24676,7 @@ function setupMaintenancePaneUi() {
           if (settings?.maintenanceMode) return;
           hideMaintenanceView();
           showHomeView();
-          if (activeAgentId) {
+          if (activeWorkspaceId) {
             void refreshMenu().catch((error) => {
               if (isMaintenanceErrorMessage(error?.message)) showMaintenanceView();
             });
@@ -24091,7 +24695,7 @@ function applyUserSettingsFromCache(cache = getNodeSettingsCache()) {
     if (!entry?.key) continue;
     awnSettings[entry.key] = entry.value;
   }
-  applyUserSettingsFromNormalized(awnSettings, activeAgentId);
+  applyUserSettingsFromNormalized(awnSettings, activeWorkspaceId);
 }
 
 function loadAgentGraphSettingsByAgent() {
@@ -24104,7 +24708,7 @@ function loadAgentGraphSettingsByAgent() {
   }
 }
 
-function getAgentGraphSettings(agentId = activeAgentId) {
+function getAgentGraphSettings(agentId = activeWorkspaceId) {
   const stored = agentGraphSettingsByAgent[agentId] || {};
   return {
     showPreviews: stored.showPreviews !== false,
@@ -24122,7 +24726,7 @@ function saveAgentGraphSettings(agentId, patch) {
   }
 }
 
-function applyAgentGraphSettingsUi(agentId = activeAgentId) {
+function applyAgentGraphSettingsUi(agentId = activeWorkspaceId) {
   const settings = getAgentGraphSettings(agentId);
   if (agentGraphShowPreviewsNode) {
     agentGraphShowPreviewsNode.checked = settings.showPreviews;
@@ -24144,7 +24748,7 @@ function applyAgentGraphCanvasThemeUi(theme = getAgentGraphSettings().canvasThem
 
 function setAgentGraphCanvasTheme(theme) {
   const resolved = theme === "light" ? "light" : "dark";
-  saveAgentGraphSettings(activeAgentId, { canvasTheme: resolved });
+  saveAgentGraphSettings(activeWorkspaceId, { canvasTheme: resolved });
   applyAgentGraphCanvasThemeUi(resolved);
   document.querySelectorAll(".external-graph-wrap").forEach((wrap) => {
     wrap.classList.toggle("is-light", resolved === "light");
@@ -24158,13 +24762,13 @@ function setAgentGraphCanvasTheme(theme) {
 }
 
 function saveAgentGraphShowPreviewsFromUi(checked) {
-  saveAgentGraphSettings(activeAgentId, { showPreviews: Boolean(checked) });
-  applyAgentGraphSettingsUi(activeAgentId);
+  saveAgentGraphSettings(activeWorkspaceId, { showPreviews: Boolean(checked) });
+  applyAgentGraphSettingsUi(activeWorkspaceId);
   if (agentWorkspaceView === "graph") renderAgentGraphView();
   if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
 }
 
-function applyMenuTreeSettingsUi(agentId = activeAgentId) {
+function applyMenuTreeSettingsUi(agentId = activeWorkspaceId) {
   const settings = getMenuTreeSettings(agentId);
   if (menuTreeShowEmptyFoldersNode) {
     menuTreeShowEmptyFoldersNode.checked = settings.showEmptyFolders;
@@ -24225,7 +24829,7 @@ function toggleMenuSettingsPopover() {
   }
 }
 
-function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, agentId = activeAgentId) {
+function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, agentId = activeWorkspaceId) {
   const label = displayLabel ?? sortKey ?? "";
   const key = String(sortKey || "").trim();
   const settings = getMenuTreeSettings(agentId);
@@ -24238,7 +24842,7 @@ function formatMenuTreeSortLabel(sortKey, parentNode, displayLabel = sortKey, ag
   return `${String(sortIndex + 1).padStart(width, "0")} ${label}`;
 }
 
-function formatMenuTreeItemLabel(item, parentNode, agentId = activeAgentId) {
+function formatMenuTreeItemLabel(item, parentNode, agentId = activeWorkspaceId) {
   return formatMenuTreeSortLabel(item?.label, parentNode, item?.label, agentId);
 }
 
@@ -24594,7 +25198,7 @@ function resolveAwnStatusFromPropEntries(entries = []) {
   return String(getPropsEntryValueByKey(entries, "awn-status") || "").trim();
 }
 
-function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeAgentId) {
+function setMenuTreeItemLabel(btn, item, parentNode, agentId = activeWorkspaceId) {
   setMenuLabelWithMarkers(
     btn,
     formatMenuTreeItemLabel(item, parentNode, agentId),
@@ -24662,7 +25266,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
       path,
       label: state.label || path.split("/").pop() || path,
       isDirectory: true,
-      agentId: activeAgentId
+      agentId: activeWorkspaceId
     };
   }
   if (state.kind === "workspaceItem") {
@@ -24674,7 +25278,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
       path,
       label: state.label || path.split("/").pop() || path,
       isDirectory: Boolean(state.isDirectory),
-      agentId: activeAgentId
+      agentId: activeWorkspaceId
     };
   }
   const path = normalizeMenuNodePath(state.path);
@@ -24685,7 +25289,7 @@ function buildWorkspaceTreeClipboardEntry(state, op) {
     kind,
     path,
     label: state.label || getLabelFromPath(path),
-    agentId: activeAgentId
+    agentId: activeWorkspaceId
   };
 }
 
@@ -24746,7 +25350,7 @@ function canPasteWorkspaceTreeItem(item, targetState) {
 function canPasteWorkspaceTreeClipboard(targetState) {
   const items = getWorkspaceTreeClipboardItems();
   if (!items.length || !targetState) return false;
-  if (workspaceTreeClipboard?.agentId !== activeAgentId) return false;
+  if (workspaceTreeClipboard?.agentId !== activeWorkspaceId) return false;
   return items.some((item) => canPasteWorkspaceTreeItem(item, targetState));
 }
 
@@ -24825,7 +25429,7 @@ function setWorkspaceTreeClipboard(state, op) {
   if (selectedEntries.length) {
     workspaceTreeClipboard = {
       op,
-      agentId: activeAgentId,
+      agentId: activeWorkspaceId,
       items: selectedEntries.map((entry) => ({ ...entry, op }))
     };
     workspaceTreeSelection.clear();
@@ -24847,7 +25451,7 @@ function setWorkspaceTreeClipboard(state, op) {
   }
   workspaceTreeClipboard = {
     op,
-    agentId: activeAgentId,
+    agentId: activeWorkspaceId,
     items: [entry]
   };
   syncWorkspaceTreeCutMarkers();
@@ -24880,7 +25484,7 @@ function setWorkspaceTreeClipboardFromFolderBrowseSelection(op = "cut") {
     showToast("Не удалось положить элементы в буфер", "error");
     return false;
   }
-  workspaceTreeClipboard = { op, agentId: activeAgentId, items };
+  workspaceTreeClipboard = { op, agentId: activeWorkspaceId, items };
   workspaceTreeSelection.clear();
   syncWorkspaceTreeSelectionMarkers();
   syncWorkspaceTreeCutMarkers();
@@ -24907,7 +25511,7 @@ async function executeWorkspaceTreeItemPaste(item, targetState, op = "cut") {
 }
 
 async function refreshAfterWorkspaceTreePaste() {
-  invalidateMenuAgentCache(activeAgentId);
+  invalidateMenuAgentCache(activeWorkspaceId);
   await refreshMenu();
   if (
     activeFolderBrowsePath &&
@@ -25080,10 +25684,10 @@ function canShowMenuContextStatusPicker(nodePath) {
   return Boolean(path && isNodeMdPath(path) && !isPartNodePath(path));
 }
 
-function resolveMenuNodeStatus(nodePath, agentId = activeAgentId) {
+function resolveMenuNodeStatus(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   if (!normalized) return "";
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return "";
   const entry = collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }).find(
     (item) => normalizeMenuNodePath(item.path) === normalized
@@ -25147,7 +25751,7 @@ function upsertAwnMainInPropsYaml(content, enabled) {
 
 async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
   const {
-    agentId = activeAgentId,
+    agentId = activeWorkspaceId,
     confirmRemove = true,
     removeTitle,
     removeMessage,
@@ -25158,7 +25762,7 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
   } = options;
   const nodePathRaw = String(nodePath || "").trim();
   const label = getLabelFromPath(nodePathRaw) || nodePathRaw;
-  const agentIdResolved = agentId || activeAgentId;
+  const agentIdResolved = agentId || activeWorkspaceId;
 
   if (!enabled && confirmRemove) {
     const confirmed = await askConfirm(removeMessage || `Убрать «${label}»?`, {
@@ -25291,8 +25895,9 @@ function isContentRecordOverviewEntry(contextOrKind) {
   if (!normalized) return false;
   return (
     normalized === normalizeAwnTypeName("awn.content.record") ||
-    normalized === normalizeAwnTypeName("awn.record") ||
-    normalized === normalizeAwnTypeName("awn.database.element.record")
+    normalized === normalizeAwnTypeName("awn.content.record-lite") ||
+    normalized === normalizeAwnTypeName("awn.content.record-csv") ||
+    normalized === normalizeAwnTypeName("awn.record")
   );
 }
 
@@ -25352,11 +25957,11 @@ async function toggleTopicSharedSlot(nodePath, propEntries = null) {
 
 async function removeNodeFromFocus(focusItem) {
   const nodePath = String(focusItem?.nodePath || "").trim();
-  const agentId = focusItem?.agentId || activeAgentId;
+  const agentId = focusItem?.agentId || activeWorkspaceId;
   await setNodeFocusState(nodePath, false, { agentId, confirmRemove: true });
 }
 
-async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
+async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeWorkspaceId) {
   const apiPath = getResolvedNodePath(nodePath);
   if (!apiPath) return;
 
@@ -25381,7 +25986,7 @@ async function saveNodeAwnName(nodePath, nextAwnName, agentId = activeAgentId) {
   }
 }
 
-async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgentId) {
+async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeWorkspaceId) {
   const apiPath = getResolvedNodePath(nodePath);
   if (!apiPath || !canShowMenuContextStatusPicker(apiPath)) return;
 
@@ -25430,7 +26035,7 @@ async function applyMenuNodeAwnStatus(nodePath, nextStatus, agentId = activeAgen
   void refreshAllFocusPanels();
 }
 
-function getMenuContextMenuActions(kind, nodePath, agentId = activeAgentId) {
+function getMenuContextMenuActions(kind, nodePath, agentId = activeWorkspaceId) {
   const actions = MENU_CONTEXT_MENU_ACTIONS[kind] || [];
   if (kind !== "area") return actions;
   const folderPath = getFolderPathFromManifest(normalizeMenuNodePath(nodePath));
@@ -25487,7 +26092,7 @@ function appendMenuContextMenuPickerSections(
   nodePath,
   currentStatus,
   currentTool = "",
-  agentId = activeAgentId
+  agentId = activeWorkspaceId
 ) {
   if (!menuContextMenuListNode) return false;
   let hadAny = false;
@@ -25504,7 +26109,7 @@ function appendMenuContextMenuPickerSections(
 function renderMenuContextMenuItems(
   kind,
   nodePath,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   currentStatus = "",
   currentTool = ""
 ) {
@@ -25563,7 +26168,7 @@ function handleMenuContextMenuAction(actionId) {
   if (actionId === "container") {
     const folderPath = getFolderPathFromManifest(state.path);
     const containerManifest = folderPath
-      ? getNestedContainerManifestPathForFolder(folderPath, activeAgentId)
+      ? getNestedContainerManifestPathForFolder(folderPath, activeWorkspaceId)
       : null;
     if (containerManifest) {
       void openNodeFromMenu(getLabelFromPath(containerManifest), containerManifest);
@@ -25992,14 +26597,19 @@ function resolveResourceStateMemoryKind(state) {
 }
 
 function resolveFlatStorageRecordManifestApiPath(state = null) {
-  const fromState =
-    state?.manifestPath ||
-    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath ||
-    activeEntryOverviewContext?.relPath ||
-    "";
-  const normalized = String(fromState || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  if (normalized) return normalized;
-  return getWorkspaceStorageManifestApiPath(getResolvedNodePath(activePath));
+  const topicPath = getResolvedNodePath(state?.nodePath || activePath);
+  const hubManifest = resolveHubStorageManifestApiPath(topicPath);
+  if (hubManifest) return hubManifest;
+
+  const fromState = String(state?.manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (fromState && isStorageSlotApiManifestRelPath(fromState)) return fromState;
+
+  const picked = pickStorageSlotApiManifestRelPath(
+    navigationHubRailSlotCreateState?.entryOverviewContext?.relPath,
+    activeEntryOverviewContext?.relPath
+  );
+  if (picked) return picked;
+  return getWorkspaceStorageManifestApiPath(topicPath);
 }
 
 function appendResourceClipboardMenuItems(kind) {
@@ -26260,7 +26870,7 @@ async function fetchAwnDataRecordMenuStatus(state) {
   const storeRel = String(state?.storeRel || "").trim();
   const recordId = String(state?.recordId || "").trim();
   if (!storeRel || !recordId) return "";
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(
       buildApiUrl(
@@ -26281,7 +26891,7 @@ async function updateAwnDataRecordMenuStatusApi(state, nextStatus) {
   const storeRel = String(state?.storeRel || "").trim();
   const recordId = String(state?.recordId || "").trim();
   if (!storeRel || !recordId) throw new Error("Не удалось определить запись");
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   const response = await fetch(buildApiUrl("/api/awn-databases/record-property", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -26300,7 +26910,7 @@ async function updateAwnDataRecordMenuStatusApi(state, nextStatus) {
 }
 
 async function refreshAwnDataRecordMenuViews(state = resourceContextMenuState) {
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   await refreshMenuAwnDataStores(agentId);
   await loadAwnDataViewStore(agentId);
   if (state?.recordId && String(awnDataViewRecordId || "") === String(state.recordId)) {
@@ -26322,20 +26932,22 @@ async function fetchResourceFileStatus(state) {
   const cached = String(state.status || "").trim();
   if (cached) return cached;
 
-  const manifestPath = getActiveNodeApiPath();
   const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifestPath || !filePath) return "";
+  if (!filePath) return "";
 
   try {
     if (state.kind === "externalFile") {
+      const manifestPath = getActiveNodeApiPath();
+      if (!manifestPath) return "";
       const response = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
       if (!response.ok) return "";
       const data = await response.json();
       return readAwnStatusFromMarkdownContent(data.content || "");
     }
     if (state.kind === "flatStorageFile" && state.mode) {
+      const manifestPath = resolveFlatStorageRecordManifestApiPath(state);
       const folder = getFlatStorageSectionFolderName(state.mode);
-      if (!folder) return "";
+      if (!folder || !manifestPath) return "";
       const response = await fetch(
         buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
       );
@@ -26358,11 +26970,12 @@ async function fetchResourceFileStatus(state) {
 async function updateResourceFileStatusApi(state, nextStatus) {
   if (!state?.filePath) throw new Error("Не удалось определить файл");
 
-  const manifestPath = getActiveNodeApiPath();
   const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!manifestPath || !filePath) throw new Error("Не удалось определить файл");
+  if (!filePath) throw new Error("Не удалось определить файл");
 
   if (state.kind === "externalFile") {
+    const manifestPath = getActiveNodeApiPath();
+    if (!manifestPath) throw new Error("Не удалось определить файл");
     const getResponse = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
     if (!getResponse.ok) {
       const errorData = await getResponse.json().catch(() => ({}));
@@ -26383,8 +26996,9 @@ async function updateResourceFileStatusApi(state, nextStatus) {
   }
 
   if (state.kind === "flatStorageFile" && state.mode) {
+    const manifestPath = resolveFlatStorageRecordManifestApiPath(state);
     const folder = getFlatStorageSectionFolderName(state.mode);
-    if (!folder) throw new Error("Не удалось определить слот");
+    if (!folder || !manifestPath) throw new Error("Не удалось определить слот");
     const getResponse = await fetch(
       buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
     );
@@ -26407,6 +27021,8 @@ async function updateResourceFileStatusApi(state, nextStatus) {
   }
 
   if (state.kind === "mediaFile") {
+    const manifestPath = getWorkspaceStorageManifestApiPath() || getActiveNodeApiPath();
+    if (!manifestPath) throw new Error("Не удалось определить файл");
     const getResponse = await fetch(buildApiUrl("/api/media/markdown", { path: manifestPath, file: filePath }));
     if (!getResponse.ok) {
       const errorData = await getResponse.json().catch(() => ({}));
@@ -26831,7 +27447,7 @@ async function submitRenameMenuNode() {
 
     closeCreateSectionModal();
     try {
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
     } catch {
       // menu will resync on next open
     }
@@ -27018,7 +27634,7 @@ async function submitRenameAwnDataRecord() {
     return;
   }
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   createSectionOkBtn.disabled = true;
   createSectionOkBtn.textContent = "Сохраняю...";
   try {
@@ -27068,7 +27684,7 @@ async function promptMoveAwnDataRecord(state) {
   });
   if (moveData == null) return;
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(buildApiUrl("/api/awn-databases/records/rename", {}, agentId), {
       method: "POST",
@@ -27105,7 +27721,7 @@ async function deleteAwnDataRecordFromMenu(state) {
   const confirmed = await askConfirm(`Удалить запись «${label}»?`, { okLabel: "Удалить" });
   if (!confirmed) return;
 
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   try {
     const response = await fetch(
       buildApiUrl(
@@ -27410,7 +28026,7 @@ async function handleMenuContextMenuStatusAction(nextStatus) {
   if (normalizedStatus === currentStatus) return;
 
   try {
-    await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeAgentId);
+    await applyMenuNodeAwnStatus(state.path, normalizedStatus, activeWorkspaceId);
     const api = awnEnumOptionsApi();
     const label =
       typeof api.resolveEnumDisplayName === "function"
@@ -27451,7 +28067,7 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
   event.stopPropagation();
   closeMenuSettingsPopover();
 
-  const status = resolveMenuNodeStatus(path, activeAgentId);
+  const status = resolveMenuNodeStatus(path, activeWorkspaceId);
   const currentTool = String(menuContextMenuState?.tool || "").trim();
   menuContextMenuState = {
     path,
@@ -27461,7 +28077,7 @@ function openMenuContextMenuForPath(event, nodePath, target = null) {
     tool: currentTool,
     target
   };
-  renderMenuContextMenuItems(kind, path, activeAgentId, status, currentTool);
+  renderMenuContextMenuItems(kind, path, activeWorkspaceId, status, currentTool);
   positionMenuContextMenu(event.clientX, event.clientY);
   return true;
 }
@@ -27575,7 +28191,7 @@ function isMenuTopicActiveStatus(status) {
   return getAwnStatusTone(status) === "open";
 }
 
-function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId) {
+function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeWorkspaceId) {
   if (!node) return false;
   if (node.menuDepthLimited) return true;
   if (node.empty) return false;
@@ -27591,7 +28207,7 @@ function menuNodeHasVisibleTopicsAfterActiveFilter(node, agentId = activeAgentId
   return false;
 }
 
-function pruneMenuTreeByActiveTopics(node, agentId = activeAgentId) {
+function pruneMenuTreeByActiveTopics(node, agentId = activeWorkspaceId) {
   if (!node || !getMenuTreeSettings(agentId).showActiveTopicsOnly) return node;
 
   const keepItem = (item) => isMenuTopicActiveStatus(item?.status);
@@ -27701,12 +28317,12 @@ function stripPlatformDataFoldersFromMenu(menu) {
   return menu ? stripPlatformDataFoldersFromMenuNode(menu) : menu;
 }
 
-function pruneMenuTreeForDisplay(node, agentId = activeAgentId) {
+function pruneMenuTreeForDisplay(node, agentId = activeWorkspaceId) {
   if (!node) return node;
   return pruneMenuTreeByFolderVisibility(pruneMenuTreeByActiveTopics(node, agentId), agentId);
 }
 
-function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
+function pruneMenuTreeByFolderVisibility(node, agentId = activeWorkspaceId) {
   if (!node || getMenuTreeSettings(agentId).showEmptyFolders) return node;
 
   const sections = (node.sections || [])
@@ -27728,11 +28344,11 @@ function pruneMenuTreeByFolderVisibility(node, agentId = activeAgentId) {
   };
 }
 
-function isMenuTreeDepthAtLimit(depth, agentId = activeAgentId) {
+function isMenuTreeDepthAtLimit(depth, agentId = activeWorkspaceId) {
   return depth >= getMenuTreeSettings(agentId).maxDepth;
 }
 
-function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
+function shouldShowMenuTreeFolder(node, agentId = activeWorkspaceId) {
   if (!node) return false;
   if (isPlatformDataMenuFolderPath(node.folderPath || node.indexPath)) return false;
   const settings = getMenuTreeSettings(agentId);
@@ -27743,7 +28359,7 @@ function shouldShowMenuTreeFolder(node, agentId = activeAgentId) {
   return !isMenuFolderWithoutTopics(node);
 }
 
-function getVisibleMenuChildren(node, agentId = activeAgentId, parentSectionPath = ".", depth = 0) {
+function getVisibleMenuChildren(node, agentId = activeWorkspaceId, parentSectionPath = ".", depth = 0) {
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   return getOrderedMenuChildren(node).filter((child) => {
     if (!child?.entry) return false;
@@ -27784,11 +28400,11 @@ function saveBookmarks() {
 }
 
 function isBookmarked(nodePath) {
-  return bookmarkedPaths.has(nodeStorageKey(activeAgentId, nodePath));
+  return bookmarkedPaths.has(nodeStorageKey(activeWorkspaceId, nodePath));
 }
 
 function toggleBookmark(nodePath) {
-  const key = nodeStorageKey(activeAgentId, nodePath);
+  const key = nodeStorageKey(activeWorkspaceId, nodePath);
   if (!nodePath) return;
   if (bookmarkedPaths.has(key)) {
     bookmarkedPaths.delete(key);
@@ -27797,7 +28413,7 @@ function toggleBookmark(nodePath) {
   }
   saveBookmarks();
   if (menuViewMode === "bookmarks" && currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
     updateActiveButton();
   } else {
     updateBookmarkButtonStates();
@@ -28287,6 +28903,32 @@ function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
   }
   const fields = cached?.settingsFields || {};
   return buildSettingsFieldGroupsFromFields(fields);
+}
+
+function storeAgentSettingsSchemaCacheEntry(scope, payload) {
+  const fieldCount = Object.keys(payload?.settingsFields || {}).length;
+  if (!fieldCount) {
+    agentSettingsSchemaCacheByScope.delete(scope);
+    return payload;
+  }
+  agentSettingsSchemaCacheByScope.set(scope, payload);
+  return payload;
+}
+
+function hydrateNodeSettingsCacheFromAgentSchemaCache(cache) {
+  if (!cache?.manifestPath || !isProjectSettingsAgentSettingsScope(cache.manifestPath)) return cache;
+  if (Object.keys(cache.settingsFields || {}).length) return cache;
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(cache.manifestPath);
+  const schemaBundle = agentSettingsSchemaCacheByScope.get(scopeKey);
+  const fields = schemaBundle?.settingsFields || {};
+  if (!Object.keys(fields).length) return cache;
+  cache.settingsFields = { ...fields };
+  if (Array.isArray(schemaBundle?.settingsFieldGroups) && schemaBundle.settingsFieldGroups.length) {
+    cache.settingsFieldGroups = schemaBundle.settingsFieldGroups;
+  }
+  cache.entries = buildNodeSettingsEntriesFromSchema(cache.entries || [], cache.settingsFields);
+  nodeSettingsCacheByManifest.set(cache.manifestPath, cache);
+  return cache;
 }
 
 const PROJECT_SETTINGS_UNGROUPED_GROUP_ID = "content";
@@ -29658,7 +30300,7 @@ function resolveMenuRuntimeBadgeTitle(kind, source) {
   return "Heartbeat включён";
 }
 
-function resolveMenuRuntimeSource(source, agentId = activeAgentId) {
+function resolveMenuRuntimeSource(source, agentId = activeWorkspaceId) {
   if (!source) return source;
   const path = normalizeMenuNodePath(source.path || source.indexPath || "");
   const cached = path ? menuRuntimeFlagsByAgent.get(agentId)?.get(path) : null;
@@ -29725,7 +30367,7 @@ function createSchemaMenuMarkerSvg() {
   return svg;
 }
 
-function createMenuRuntimeBadges(source, agentId = activeAgentId) {
+function createMenuRuntimeBadges(source, agentId = activeWorkspaceId) {
   const resolved = resolveMenuRuntimeSource(source, agentId);
   const hasContextAlways = Boolean(resolved?.runtimeLoadAlways);
   const hasCron = Boolean(resolved?.runtimeCron);
@@ -29815,7 +30457,7 @@ function createFolderMarkers(source, { skipAgent = false } = {}) {
   if (hasAgent) {
     const agent = document.createElement("span");
     agent.className = "menu-marker menu-marker-agent";
-    agent.title = "AWN workspace (manifest.md, awn.page.ws)";
+    agent.title = "AWN workspace (manifest.md, awn.hub.topic.ws)";
     agent.setAttribute("aria-label", "Agent");
     agent.appendChild(createAgentMarkerIcon());
     wrap.appendChild(agent);
@@ -29986,7 +30628,7 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
   host.appendChild(labelWrap);
 }
 
-function pruneBookmarks(validPaths, agentId = activeAgentId) {
+function pruneBookmarks(validPaths, agentId = activeWorkspaceId) {
   const agentPrefix = `${agentId}:`;
   let changed = false;
   for (const path of Array.from(bookmarkedPaths)) {
@@ -29999,7 +30641,7 @@ function pruneBookmarks(validPaths, agentId = activeAgentId) {
   if (changed) saveBookmarks();
 }
 
-function pruneNodeConfigCache(validPaths, agentId = activeAgentId) {
+function pruneNodeConfigCache(validPaths, agentId = activeWorkspaceId) {
   const agentPrefix = `${agentId}:`;
   for (const key of Array.from(nodeConfigCacheByPath.keys())) {
     if (!key.startsWith(agentPrefix)) continue;
@@ -30009,7 +30651,7 @@ function pruneNodeConfigCache(validPaths, agentId = activeAgentId) {
   }
 }
 
-function pruneCollapsedFolders(validFolderPaths, agentId = activeAgentId) {
+function pruneCollapsedFolders(validFolderPaths, agentId = activeWorkspaceId) {
   if (!validFolderPaths || validFolderPaths.size === 0) return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   let changed = false;
@@ -30108,7 +30750,7 @@ function applyClassicMenuTreeBranchClasses(root) {
   });
 }
 
-function refreshClassicMenuTreeLines(agentId = activeAgentId) {
+function refreshClassicMenuTreeLines(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   const host = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   applyClassicMenuTreeBranchClasses(host);
@@ -30140,10 +30782,10 @@ function menuTreeChildrenNodeHasRenderedContent(childrenNode) {
   );
 }
 
-function resolveMenuSectionExpandMeta(sectionEl, agentId = activeAgentId) {
+function resolveMenuSectionExpandMeta(sectionEl, agentId = activeWorkspaceId) {
   const folderPath = String(sectionEl?.dataset?.menuFolder || "").trim();
   if (!folderPath) return null;
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const branch = getMenuBranchForFolder(menu, folderPath, agentId);
   if (!branch?.node) return null;
@@ -30156,7 +30798,7 @@ function resolveMenuSectionExpandMeta(sectionEl, agentId = activeAgentId) {
   );
 }
 
-function resolveMenuSectionHasContent(sectionEl, agentId = activeAgentId) {
+function resolveMenuSectionHasContent(sectionEl, agentId = activeWorkspaceId) {
   const expandMeta = resolveMenuSectionExpandMeta(sectionEl, agentId);
   if (expandMeta) return expandMeta.hasContent;
   return menuTreeChildrenNodeHasRenderedContent(sectionEl?.querySelector(":scope > .tree-children"));
@@ -30231,7 +30873,7 @@ function setLoading(message) {
 
 function getContentSearchMode() {
   const mode = String(contentSearchModeNode?.value || "text");
-  if (mode === "semantic" || mode === "id") return mode;
+  if (mode === "semantic" || mode === "id" || mode === "dql") return mode;
   return "text";
 }
 
@@ -30243,8 +30885,231 @@ function isContentSearchIdMode() {
   return getContentSearchMode() === "id";
 }
 
+function isContentSearchDqlMode() {
+  return getContentSearchMode() === "dql";
+}
+
 function isContentSearchAlternateMode() {
-  return isContentSearchSemantic() || isContentSearchIdMode();
+  return isContentSearchSemantic() || isContentSearchIdMode() || isContentSearchDqlMode();
+}
+
+function loadContentSearchDqlDraft() {
+  try {
+    return localStorage.getItem(CONTENT_SEARCH_DQL_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveContentSearchDqlDraft(text) {
+  try {
+    localStorage.setItem(CONTENT_SEARCH_DQL_STORAGE_KEY, String(text || ""));
+  } catch {
+    // ignore
+  }
+}
+
+function getContentSearchDqlText() {
+  const fromModal = String(contentSearchDqlInputNode?.value || "").trim();
+  if (fromModal) return fromModal;
+  return loadContentSearchDqlDraft().trim();
+}
+
+function syncContentSearchDqlFieldList(catalog = contentSearchFieldCatalogCache) {
+  if (!contentSearchDqlFieldListNode) return;
+  contentSearchDqlFieldListNode.replaceChildren();
+  for (const key of catalog?.fieldCatalog || []) {
+    const opt = document.createElement("option");
+    opt.value = key;
+    contentSearchDqlFieldListNode.appendChild(opt);
+  }
+}
+
+function openContentSearchDqlModal() {
+  if (!contentSearchDqlModalNode) return;
+  void ensureContentSearchFieldCatalog().then((catalog) => {
+    syncContentSearchDqlFieldList(catalog);
+  });
+  if (contentSearchDqlInputNode && !contentSearchDqlInputNode.value) {
+    contentSearchDqlInputNode.value = loadContentSearchDqlDraft();
+  }
+  if (contentSearchDqlBuilderRows && !contentSearchDqlBuilderRows.childElementCount) {
+    addContentSearchDqlBuilderRow("awn-type", "eq", "awn.content.record");
+  }
+  const scopePath = getContentSearchPathPrefix();
+  if (contentSearchDqlBuilderFrom && !contentSearchDqlBuilderFrom.value && scopePath) {
+    contentSearchDqlBuilderFrom.value = scopePath;
+  }
+  setContentSearchDqlTab("text");
+  contentSearchDqlModalNode.classList.remove("hidden");
+}
+
+function closeContentSearchDqlModal() {
+  contentSearchDqlModalNode?.classList.add("hidden");
+}
+
+const contentSearchDqlTabTextBtn = document.getElementById("content-search-dql-tab-text");
+const contentSearchDqlTabBuilderBtn = document.getElementById("content-search-dql-tab-builder");
+const contentSearchDqlTabViewsBtn = document.getElementById("content-search-dql-tab-views");
+const contentSearchDqlPanelText = document.getElementById("content-search-dql-panel-text");
+const contentSearchDqlPanelBuilder = document.getElementById("content-search-dql-panel-builder");
+const contentSearchDqlPanelViews = document.getElementById("content-search-dql-panel-views");
+const contentSearchDqlBuilderRows = document.getElementById("content-search-dql-builder-rows");
+const contentSearchDqlBuilderFrom = document.getElementById("content-search-dql-builder-from");
+const contentSearchDqlBuilderWithText = document.getElementById("content-search-dql-builder-with-text");
+const contentSearchDqlBuilderLimit = document.getElementById("content-search-dql-builder-limit");
+const contentSearchDqlBuilderAddBtn = document.getElementById("content-search-dql-builder-add");
+const contentSearchDqlBuilderApplyBtn = document.getElementById("content-search-dql-builder-apply");
+const contentSearchDqlBuilderSourceKind = document.getElementById("content-search-dql-builder-source-kind");
+const contentSearchDqlViewsSelect = document.getElementById("content-search-dql-views-select");
+const contentSearchDqlViewNameInput = document.getElementById("content-search-dql-view-name");
+const contentSearchDqlViewSaveBtn = document.getElementById("content-search-dql-view-save");
+const contentSearchDqlViewLoadBtn = document.getElementById("content-search-dql-view-load");
+const contentSearchDqlViewParamFrom = document.getElementById("content-search-dql-view-param-from");
+const contentSearchDqlViewParamLimit = document.getElementById("content-search-dql-view-param-limit");
+const contentSearchDqlViewDeleteBtn = document.getElementById("content-search-dql-view-delete");
+
+function setContentSearchDqlTab(tab) {
+  const name = tab === "builder" || tab === "views" ? tab : "text";
+  contentSearchDqlTabTextBtn?.classList.toggle("is-active", name === "text");
+  contentSearchDqlTabBuilderBtn?.classList.toggle("is-active", name === "builder");
+  contentSearchDqlTabViewsBtn?.classList.toggle("is-active", name === "views");
+  contentSearchDqlPanelText?.classList.toggle("hidden", name !== "text");
+  contentSearchDqlPanelBuilder?.classList.toggle("hidden", name !== "builder");
+  contentSearchDqlPanelViews?.classList.toggle("hidden", name !== "views");
+  if (name === "views") void refreshContentSearchDqlViewsSelect();
+}
+
+function addContentSearchDqlBuilderRow(field = "", op = "eq", value = "") {
+  if (!contentSearchDqlBuilderRows) return;
+  const row = document.createElement("div");
+  row.className = "content-search-dql-builder-row";
+  row.innerHTML = `
+    <input type="text" class="content-search-dql-field-input dql-b-field" list="content-search-dql-field-list" value="${escapeHtml(field)}" placeholder="поле" />
+    <select class="content-search-dql-field-input dql-b-op">
+      <option value="eq">=</option>
+      <option value="contains">contains</option>
+      <option value="gte">≥</option>
+      <option value="lte">≤</option>
+      <option value="lastDays">last N days</option>
+    </select>
+    <input type="text" class="content-search-dql-field-input dql-b-value" value="${escapeHtml(String(value))}" placeholder="значение" />
+    <button type="button" class="content-search-advanced-btn content-search-advanced-btn--ghost dql-b-remove">×</button>
+  `;
+  row.querySelector(".dql-b-op").value = op;
+  row.querySelector(".dql-b-remove")?.addEventListener("click", () => row.remove());
+  contentSearchDqlBuilderRows.appendChild(row);
+}
+
+async function buildDqlFromBuilderUi() {
+  const conditions = [];
+  contentSearchDqlBuilderRows?.querySelectorAll(".content-search-dql-builder-row").forEach((row) => {
+    const field = row.querySelector(".dql-b-field")?.value?.trim();
+    const op = row.querySelector(".dql-b-op")?.value || "eq";
+    const value = row.querySelector(".dql-b-value")?.value ?? "";
+    if (!field) return;
+    conditions.push({ field, op, value });
+  });
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-build"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: contentSearchDqlBuilderFrom?.value?.trim() || "",
+      sourceKind: contentSearchDqlBuilderSourceKind?.value?.trim() || "",
+      conditions,
+      withText: contentSearchDqlBuilderWithText?.value?.trim() || "",
+      limit: Number(contentSearchDqlBuilderLimit?.value) || 50
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || "build failed");
+  if (contentSearchDqlInputNode) contentSearchDqlInputNode.value = data.dql || "";
+  saveContentSearchDqlDraft(data.dql || "");
+  setContentSearchDqlTab("text");
+}
+
+async function refreshContentSearchDqlViewsSelect() {
+  if (!contentSearchDqlViewsSelect) return;
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return;
+  const views = Array.isArray(data.views) ? data.views : [];
+  contentSearchDqlViewsSelect.replaceChildren();
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = views.length ? "— выберите view —" : "нет сохранённых views";
+  contentSearchDqlViewsSelect.appendChild(empty);
+  for (const view of views) {
+    const opt = document.createElement("option");
+    opt.value = view.id;
+    opt.textContent = view.name || view.id;
+    opt.dataset.dql = view.dql || "";
+    contentSearchDqlViewsSelect.appendChild(opt);
+  }
+}
+
+async function saveContentSearchDqlView() {
+  const dql = String(contentSearchDqlInputNode?.value || getContentSearchDqlText()).trim();
+  if (!dql) return;
+  const name = String(contentSearchDqlViewNameInput?.value || "").trim() || "DQL view";
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, dql })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || "save failed");
+  await refreshContentSearchDqlViewsSelect();
+  if (contentSearchDqlViewNameInput) contentSearchDqlViewNameInput.value = data.view?.name || name;
+}
+
+function applyDqlViewParamsClient(dql, params = {}) {
+  let out = String(dql || "");
+  if (params.limit != null && params.limit !== "") {
+    const limitNum = Math.min(500, Math.max(1, Math.floor(Number(params.limit) || 50)));
+    out = out.replace(/\bLIMIT\s+\$limit\b/gi, `LIMIT ${limitNum}`);
+  }
+  for (const [key, rawValue] of Object.entries(params)) {
+    if (rawValue == null || rawValue === "") continue;
+    if (key === "limit") continue;
+    const value = String(rawValue);
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\$${escaped}\\b`, "g"), value);
+    out = out.replace(new RegExp(`\\{\\{\\s*${escaped}\\s*\\}\\}`, "g"), value);
+  }
+  return out.trim();
+}
+
+function loadSelectedContentSearchDqlView() {
+  const opt = contentSearchDqlViewsSelect?.selectedOptions?.[0];
+  let dql = opt?.dataset?.dql || "";
+  const fromParam = contentSearchDqlViewParamFrom?.value?.trim() || "";
+  const limitParam = contentSearchDqlViewParamLimit?.value?.trim() || "";
+  if (fromParam || limitParam) {
+    dql = applyDqlViewParamsClient(dql, {
+      ...(fromParam ? { from: fromParam } : {}),
+      ...(limitParam ? { limit: limitParam } : {})
+    });
+  }
+  if (!dql || !contentSearchDqlInputNode) return;
+  contentSearchDqlInputNode.value = dql;
+  saveContentSearchDqlDraft(dql);
+  setContentSearchDqlTab("text");
+}
+
+async function deleteSelectedContentSearchDqlView() {
+  const id = contentSearchDqlViewsSelect?.value;
+  if (!id) return;
+  const response = await fetch(buildApiUrl("/api/storage-index/dql-views"), {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || data.details || "delete failed");
+  }
+  await refreshContentSearchDqlViewsSelect();
 }
 
 const CONTENT_SEARCH_DEFAULT_SCOPE = "all";
@@ -30301,9 +31166,11 @@ function syncContentSearchModeToggleUi() {
   contentSearchModeTextBtn?.classList.toggle("is-active", mode === "text");
   contentSearchModeSemanticBtn?.classList.toggle("is-active", mode === "semantic");
   contentSearchModeIdBtn?.classList.toggle("is-active", mode === "id");
+  contentSearchModeDqlBtn?.classList.toggle("is-active", mode === "dql");
   contentSearchModeTextBtn?.setAttribute("aria-pressed", mode === "text" ? "true" : "false");
   contentSearchModeSemanticBtn?.setAttribute("aria-pressed", mode === "semantic" ? "true" : "false");
   contentSearchModeIdBtn?.setAttribute("aria-pressed", mode === "id" ? "true" : "false");
+  contentSearchModeDqlBtn?.setAttribute("aria-pressed", mode === "dql" ? "true" : "false");
 }
 
 function isContentSearchSemanticLayerEnabled() {
@@ -31306,6 +32173,7 @@ function toggleContentSearchHelp() {
 }
 
 function getContentSearchMinLength(scope = getContentSearchScope()) {
+  if (isContentSearchDqlMode()) return 0;
   if (isContentSearchSemantic()) return 2;
   if (isContentSearchIdMode()) return 1;
   return scope === "filename" || scope === "all" ? 1 : 2;
@@ -31330,6 +32198,12 @@ function updateContentSearchPlaceholder() {
       : "awn-id записи: 1847 или #1847…";
     return;
   }
+  if (isContentSearchDqlMode()) {
+    contentSearchInputNode.placeholder = "DQL — кнопка DQL или Enter открывает редактор…";
+    contentSearchInputNode.readOnly = true;
+    return;
+  }
+  contentSearchInputNode.readOnly = false;
   if (isContentSearchSemantic()) {
     contentSearchInputNode.placeholder = pathPrefix
       ? `Поиск по смыслу в «${scopeLabel}»…`
@@ -31579,6 +32453,15 @@ function renderContentSearchResults(data) {
     return;
   }
 
+  if (data?.notFound && isContentSearchIdMode()) {
+    const agentLabel = getActiveAgentMeta()?.name || activeWorkspaceId || "текущем";
+    const idLabel = data?.id != null ? `#${data.id}` : query;
+    contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">Запись с awn-id <code>${escapeHtml(String(idLabel))}</code> не найдена в workspace «${escapeHtml(agentLabel)}». Проверьте выбранное хранилище в шапке: id привязан к файлу с полем <code>awn-id</code> в frontmatter (не к номеру в списке каналов, если он другой).</div>`;
+    contentSearchResultsNode.classList.remove("hidden");
+    contentSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
   if (data?.policyError) {
     contentSearchResultsNode.innerHTML = `<div class="content-search-hint is-warning">${escapeHtml(data.policyError)}</div>`;
     contentSearchResultsNode.classList.remove("hidden");
@@ -31764,6 +32647,82 @@ async function fetchContentSearchHybrid(
   return mapHybridSearchResults(data, query);
 }
 
+function mapDqlSearchResults(data, dql) {
+  const mode = String(data?.mode || "dql-query");
+  if (mode === "dql-hybrid" && Array.isArray(data?.hybrid?.hits)) {
+    return {
+      query: dql,
+      mode: "dql-hybrid",
+      scope: "dql",
+      results: data.hybrid.hits.map((hit) => ({
+        filePath: hit.path,
+        canonicalPath: hit.path,
+        displayName: hit.title || hit.path,
+        snippet: hit.snippet || "",
+        matchKindLabel: (hit.sources || []).join("+") || "hybrid",
+        kindLabel: "DQL+TEXT"
+      })),
+      total: data.hybrid.hitCount ?? data.hybrid.hits.length,
+      dqlMeta: { engine: data.engine, filterTotal: data.total }
+    };
+  }
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  return {
+    query: dql,
+    mode: mode === "dql-group" ? "dql-group" : "dql",
+    scope: "dql",
+    results: rows.map((row) => {
+      if (row.groupKey != null) {
+        return {
+          filePath: row.samplePath || "",
+          displayName: `${row.groupField}=${row.groupKey}`,
+          snippet: `${row.aggregate || "count"}: ${row.value} (${row.count})`,
+          matchKindLabel: "group",
+          kindLabel: "DQL"
+        };
+      }
+      const name = row.fields?.["awn-name"]?.value ?? row.fields?.["awn-name"] ?? row.path;
+      return {
+        filePath: row.path,
+        canonicalPath: row.path,
+        displayName: String(name || row.path || ""),
+        snippet: row.path || "",
+        matchKindLabel: data.engine || "dql",
+        kindLabel: "DQL"
+      };
+    }),
+    total: data?.total ?? rows.length
+  };
+}
+
+function getContentSearchDqlParams() {
+  const params = {};
+  const from = contentSearchDqlViewParamFrom?.value?.trim();
+  const limit = contentSearchDqlViewParamLimit?.value?.trim();
+  if (from) params.from = from;
+  if (limit) params.limit = limit;
+  return params;
+}
+
+async function fetchContentSearchDql(dql, pathPrefix = getContentSearchPathPrefix()) {
+  const scope = pathPrefix ? String(pathPrefix).replace(/\\/g, "/").replace(/^\/+/, "") : "";
+  const response = await fetch(buildApiUrl("/api/storage-index/query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dql,
+      pathPrefix: scope || undefined,
+      scopePrefix: scope || undefined,
+      enforceScope: Boolean(scope),
+      dqlParams: getContentSearchDqlParams(),
+      limit: 100
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+  return mapDqlSearchResults(data, dql);
+}
+
 async function fetchContentSearchByFields(
   where,
   pathPrefix = getContentSearchPathPrefix(),
@@ -31783,7 +32742,7 @@ async function fetchContentSearchByFields(
   return mapStorageFieldSearchResults(data, where);
 }
 
-async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPrefix()) {
+async function fetchContentSearchById(query) {
   const id = parseContentSearchIdQuery(query);
   if (!id) {
     return { query, mode: "id", scope: "id", results: [], total: 0, invalidId: true };
@@ -31793,16 +32752,18 @@ async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPr
   if (!response.ok) {
     throw new Error(data.error || data.details || `Request failed with ${response.status}`);
   }
-  let paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.path ? [data.path] : [];
-  if (pathPrefix) {
-    const norm = String(pathPrefix).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
-    if (norm) {
-      paths = paths.filter((filePath) => {
-        const value = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-        return value === norm || value.startsWith(`${norm}/`);
-      });
-    }
+  if (data.ok === false && !data.path && !(Array.isArray(data.paths) && data.paths.length)) {
+    return {
+      query,
+      mode: "id",
+      scope: "id",
+      id,
+      results: [],
+      total: 0,
+      notFound: true
+    };
   }
+  const paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.path ? [data.path] : [];
   return {
     query,
     mode: "id",
@@ -31843,7 +32804,8 @@ function scheduleContentSearch() {
   clearTimeout(contentSearchTimer);
   const requestId = ++contentSearchRequestId;
 
-  if (!query && !hasFieldFilter) {
+  const dqlText = isContentSearchDqlMode() ? getContentSearchDqlText() : "";
+  if (!query && !hasFieldFilter && !dqlText) {
     setContentSearchLoading(false);
     hideContentSearchResults();
     return;
@@ -31851,6 +32813,26 @@ function scheduleContentSearch() {
 
   setContentSearchLoading(false);
   contentSearchTimer = setTimeout(async () => {
+    if (isContentSearchDqlMode()) {
+      if (!dqlText) {
+        hideContentSearchResults();
+        return;
+      }
+      setContentSearchLoading(true);
+      renderContentSearchLoading();
+      try {
+        const data = await fetchContentSearchDql(dqlText);
+        if (requestId !== contentSearchRequestId) return;
+        renderContentSearchResults(data);
+      } catch (error) {
+        if (requestId !== contentSearchRequestId) return;
+        setContentSearchLoading(false);
+        contentSearchResultsNode.innerHTML = `<div class="content-search-empty">${escapeHtml(formatContentSearchPolicyError(error))}</div>`;
+        contentSearchResultsNode.classList.remove("hidden");
+      }
+      return;
+    }
+
     if (!hasFieldFilter && query.length < minLength) {
       renderContentSearchResults({ query, scope, fileType, match, results: [] });
       return;
@@ -32130,7 +33112,7 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
 async function openContentSearchResult(result, { agentId = null } = {}) {
   if (!result) return;
 
-  if (agentId && agentId !== activeAgentId) {
+  if (agentId && agentId !== activeWorkspaceId) {
     await switchActiveAgent(agentId);
   }
 
@@ -32533,7 +33515,7 @@ function isMenuRenderInServiceTree(parentEl) {
   );
 }
 
-function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveServiceTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isServiceNodePath(raw)) return raw;
@@ -32542,7 +33524,7 @@ function resolveServiceTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${serviceFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
-function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveContainerTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isAgentContainerNodePath(raw)) return raw;
@@ -32553,7 +33535,7 @@ function resolveContainerTreeFolderPath(folderPath, agentId = activeAgentId) {
   return `${containerFolder}/${raw}`.replace(/\/+/g, "/");
 }
 
-function resolveSharedTreeFolderPath(folderPath, agentId = activeAgentId) {
+function resolveSharedTreeFolderPath(folderPath, agentId = activeWorkspaceId) {
   const raw = String(folderPath || "").replace(/\\/g, "/").trim();
   if (!raw || raw === ".") return ".";
   if (isAgentSharedNodePath(raw)) return raw;
@@ -32635,7 +33617,7 @@ function validateCreateAdoptType(type, folderPath, agentId = getCreateModalAgent
   return null;
 }
 
-async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentId) {
+async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeWorkspaceId) {
   const normalized = resolveAdoptValidationFolderPath(folderPath, agentId);
   if (!normalized || normalized === ".") return false;
   try {
@@ -32650,7 +33632,7 @@ async function adoptTargetFolderHasSubfolders(folderPath, agentId = activeAgentI
   }
 }
 
-function shouldOfferAreaAdopt(node, agentId = activeAgentId) {
+function shouldOfferAreaAdopt(node, agentId = activeWorkspaceId) {
   if (!node || node.indexPath) return false;
   const folderPath = String(node.folderPath || "").trim();
   if (!folderPath) return false;
@@ -32674,7 +33656,7 @@ function resolveCreateModalParentPath(parentPath, options = {}) {
 }
 
 function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const normalized = normalizeCreateParentPath(folderPath || ".");
   if (normalized === ".") {
@@ -32710,7 +33692,7 @@ function getMenuTreeNodeByFolderPath(folderPath, agentId = getCreateModalAgentId
   return null;
 }
 
-function hasNestedContainerInFolder(folderPath, agentId = activeAgentId) {
+function hasNestedContainerInFolder(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeCreateParentPath(folderPath || ".");
   if (!normalized || normalized === ".") {
     return isAgentContainerFolderPresent(agentId);
@@ -32719,7 +33701,7 @@ function hasNestedContainerInFolder(folderPath, agentId = activeAgentId) {
   return Boolean(node?.containerTree);
 }
 
-function getNestedContainerManifestPathForFolder(folderPath, agentId = activeAgentId) {
+function getNestedContainerManifestPathForFolder(folderPath, agentId = activeWorkspaceId) {
   if (!hasNestedContainerInFolder(folderPath, agentId)) return null;
   const normalized = normalizeCreateParentPath(folderPath || ".");
   const node = getMenuTreeNodeByFolderPath(normalized, agentId);
@@ -32744,7 +33726,7 @@ function getGitRepoRootForMenuPath(folderPath, agentId = getCreateModalAgentId()
   return null;
 }
 
-function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
+function isGitRepoLooseFilePath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized) return false;
   const base = normalized.split("/").filter(Boolean).pop() || "";
@@ -32758,7 +33740,7 @@ function isGitRepoLooseFilePath(nodePath, agentId = activeAgentId) {
   return isGitRepoMenuFolder(parentFolder, agentId);
 }
 
-function isGitRepoLooseMdPath(nodePath, agentId = activeAgentId) {
+function isGitRepoLooseMdPath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !/\.md$/i.test(normalized)) return false;
   return isGitRepoLooseFilePath(normalized, agentId);
@@ -32770,6 +33752,7 @@ function isGitRepoLooseMdEditing() {
 
 function isPlainServiceStyleOpen() {
   if (activeSystemFile) return true;
+  if (activeWorkspaceTocRelPath) return true;
   if (isAgentSystemFileEditing()) return true;
   return isGitRepoLooseFilePath(activePath) && !isGitRepoLooseMdEditing();
 }
@@ -32780,6 +33763,7 @@ function isServiceStyleContentOpen() {
 
 function getServiceStyleContentLabel() {
   if (activeSystemFile) return activeSystemFile;
+  if (activeWorkspaceTocRelPath) return activeWorkspaceTocRelPath;
   if (isAgentSystemFileEditing()) {
     return activePath.split("/").filter(Boolean).pop() || activePath;
   }
@@ -32824,26 +33808,26 @@ function isMenuPathInsideGitRepoContainer(relPath, gitRepoRootRel = ".", agentId
 }
 
 function isAgentKitFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.serviceTree);
 }
 
 function isAgentContainerFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.containerTree);
 }
 
 function isAgentSharedFolderPresent(agentId = getCreateModalAgentId()) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return Boolean(menu?.sharedTree);
 }
 
-function getContainerRootHint(agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function getContainerRootHint(agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   return menu?.hasGitSelf ? CONTAINER_ROOT_HINT_GIT : CONTAINER_ROOT_HINT;
 }
 
-function getWorkspaceRootAddButtonTitle(agentId = activeAgentId) {
+function getWorkspaceRootAddButtonTitle(agentId = activeWorkspaceId) {
   const lines = ["Создать область, тему или свободную память."];
   if (!isAgentKitFolderPresent(agentId)) {
     lines.push(`${AGENT_KIT_FOLDER_DEFAULT}: ${KIT_ROOT_HINT}`);
@@ -33185,7 +34169,7 @@ const SERVICE_DOC_PRESET_LABELS = {
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   if (!agentId) return null;
-  return menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  return menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
 }
 
 function collectServicePathLookupVariants(agentId, relPath) {
@@ -33280,8 +34264,8 @@ function isSharedTaxonomiesAreaPresent(agentId = getCreateModalAgentId()) {
   );
 }
 
-function isAwnTaxonomiesGroupPresent(agentId = activeAgentId) {
-  const resolvedAgentId = String(agentId || activeAgentId || "").trim();
+function isAwnTaxonomiesGroupPresent(agentId = activeWorkspaceId) {
+  const resolvedAgentId = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgentId) return false;
   const cache = getAgentTaxonomiesCache(resolvedAgentId);
   if (cache?.groupExists) return true;
@@ -33348,7 +34332,12 @@ function isSharedManifestCandidatePresent(agentId, candidatePaths) {
 
 function getSharedThemeManifestCandidates(sharedFolder, slug) {
   if (!sharedFolder || !slug) return [];
-  return [`${sharedFolder}/${slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")];
+  const normalized = String(slug || "").trim().toLowerCase();
+  const canonical = SHARED_THEME_LEGACY_SLUG_TO_CANON[normalized] || normalized;
+  const folderSlugs = new Set([normalized, canonical]);
+  return [...folderSlugs].map(
+    (folderSlug) => `${sharedFolder}/${folderSlug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/")
+  );
 }
 
 function isSharedThemePresetPresent(agentId, slug) {
@@ -33888,7 +34877,7 @@ function closeCreateNodeModal() {
 }
 
 function openCreateNodeModal(parentPath, options = {}) {
-  createModalAgentId = options.agentId || activeAgentId;
+  createModalAgentId = options.agentId || activeWorkspaceId;
   createModalBaseParentPath = resolveCreateModalParentPath(parentPath, options);
   createModalEmptyFolder = Boolean(options.emptyFolder);
   createModalAdoptFolder = Boolean(options.adoptFolder ?? options.emptyFolder);
@@ -33910,7 +34899,7 @@ function openCreateNodeModal(parentPath, options = {}) {
   syncDisplayNameLengthHint(createNameInputNode);
 }
 
-function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
+function toggleFolderCollapsed(folderPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeFolderPath(folderPath);
   if (!normalizedPath || normalizedPath === ".") return;
   const collapsedFolders = getAgentCollapsedFolders(agentId);
@@ -33923,8 +34912,8 @@ function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
   applyMenuFolderCollapsedUi(normalizedPath, agentId);
 }
 
-function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId, options = {}) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeWorkspaceId, options = {}) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuTreePreviews(agentId, () =>
         withPreservedMenuScroll(() => patchFolderCollapsedState(normalizedPath, agentId, options))
@@ -33933,13 +34922,13 @@ function applyMenuFolderCollapsedUi(normalizedPath, agentId = activeAgentId, opt
   if (!patched && menu) {
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
   }
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
   }
 }
 
-async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId) {
+async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeWorkspaceId) {
   const normalizedPath = normalizeFolderPath(folderPath);
   if (!normalizedPath || normalizedPath === ".") return;
   try {
@@ -33953,7 +34942,7 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
   collapsedFolders.delete(normalizedPath);
   saveCollapsedFoldersByAgent();
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const patched = menu
     ? withPreservedMenuTreePreviews(agentId, () =>
         withPreservedMenuScroll(() => {
@@ -33971,13 +34960,13 @@ async function expandMenuFolderWithLazyLoad(folderPath, agentId = activeAgentId)
     withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     syncMenuCollapseAllButton();
   }
 }
 
-function getMenuBranchLoadInFlight(agentId = activeAgentId) {
+function getMenuBranchLoadInFlight(agentId = activeWorkspaceId) {
   let map = menuBranchLoadInFlightByAgent.get(agentId);
   if (!map) {
     map = new Map();
@@ -33992,14 +34981,14 @@ function isMenuFolderLazyExpandable(node) {
 
 function getMenuFolderExpandMeta(
   node,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   parentSectionPath = ".",
   depth = 0,
   sectionFolderPath = null
 ) {
   const folderPath = sectionFolderPath ?? resolveSectionFolderPath(node, parentSectionPath, depth);
   const visibleChildren = getVisibleMenuChildren(node, agentId, parentSectionPath, depth);
-  const repoServiceItems = getMenuRepoServiceItems(node);
+  const repoServiceItems = filterRepoServiceItemsForMenuSection(getMenuRepoServiceItems(node), folderPath);
   const isGitRepoMenuNode = Boolean(node.hasGitSelf && depth > 0);
   const nestedContainerTree =
     !isGitRepoMenuNode && depth > 0 && node.containerTree ? node.containerTree : null;
@@ -34039,7 +35028,7 @@ function getMenuFolderExpandMeta(
   };
 }
 
-function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = false) {
+function setMenuBranchLoading(folderPath, agentId = activeWorkspaceId, isLoading = false) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
   const section = findMenuSectionByFolderPath(normalized, agentId);
   if (!section) return;
@@ -34048,7 +35037,7 @@ function setMenuBranchLoading(folderPath, agentId = activeAgentId, isLoading = f
   if (toggleBtn) toggleBtn.disabled = isLoading;
 }
 
-function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentId) {
+function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeWorkspaceId) {
   const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   if (!menu || !target || target === ".") return null;
   const hit = findMenuTreeNodeByFolderPath(
@@ -34060,7 +35049,7 @@ function findMenuBranchNodeByFolderPath(menu, folderPath, agentId = activeAgentI
   return hit?.node ?? null;
 }
 
-function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeAgentId) {
+function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
   const node = findMenuBranchNodeByFolderPath(menu, normalized, agentId);
   if (!node || !branchPayload) return false;
@@ -34078,7 +35067,7 @@ function applyMenuBranchPayload(menu, folderPath, branchPayload, agentId = activ
   return true;
 }
 
-async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
+async function fetchMenuBranch(folderPath, agentId = activeWorkspaceId) {
   const { maxDepth } = getMenuTreeSettings(agentId);
   const response = await fetch(
     buildApiUrl(
@@ -34098,9 +35087,9 @@ async function fetchMenuBranch(folderPath, agentId = activeAgentId) {
   return stripPlatformDataFoldersFromMenu(await response.json());
 }
 
-async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
+async function ensureMenuBranchLoaded(folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath, agentId);
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return;
   const branch = getMenuBranchForFolder(menu, normalized, agentId);
   const node = branch?.node ?? getMenuTreeNodeByFolderPath(normalized, agentId);
@@ -34127,7 +35116,7 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
       throw new Error("Не найден узел в кэше меню — обновите дерево");
     }
     menuCacheByAgent.set(agentId, menu);
-    if (agentId === activeAgentId) {
+    if (agentId === activeWorkspaceId) {
       currentMenuData = menu;
       invalidateMenuDisplayLabelMap();
     }
@@ -34141,14 +35130,14 @@ async function ensureMenuBranchLoaded(folderPath, agentId = activeAgentId) {
   }
 }
 
-function sanitizeCollapsedFolderPaths(agentId = activeAgentId) {
+function sanitizeCollapsedFolderPaths(agentId = activeWorkspaceId) {
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (collapsedFolders.delete(".")) {
     saveCollapsedFoldersByAgent();
   }
 }
 
-function getMenuTreeFolderPaths(agentId = activeAgentId) {
+function getMenuTreeFolderPaths(agentId = activeWorkspaceId) {
   if (!currentMenuData) return [];
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...currentMenuData };
@@ -34162,7 +35151,7 @@ function getMenuTreeFolderPaths(agentId = activeAgentId) {
   return Array.from(folderPaths).filter((path) => path !== ".");
 }
 
-function isMenuTreeFullyCollapsed(agentId = activeAgentId) {
+function isMenuTreeFullyCollapsed(agentId = activeWorkspaceId) {
   const paths = getMenuTreeFolderPaths(agentId);
   const collapsedFolders = getAgentCollapsedFolders(agentId);
   if (paths.length === 0) {
@@ -34193,7 +35182,7 @@ function syncMenuCollapseAllButton() {
   );
 }
 
-function expandAllMenuTreeBranches(agentId = activeAgentId) {
+function expandAllMenuTreeBranches(agentId = activeWorkspaceId) {
   if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   getAgentCollapsedFolders(agentId).clear();
@@ -34230,7 +35219,7 @@ function expandAllMenuTreeBranches(agentId = activeAgentId) {
   syncMenuCollapseAllButton();
 }
 
-function collapseAllMenuTreeBranches(agentId = activeAgentId) {
+function collapseAllMenuTreeBranches(agentId = activeWorkspaceId) {
   if (!currentMenuData || !isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
 
   const folderPaths = getMenuTreeFolderPaths(agentId);
@@ -35404,11 +36393,11 @@ function getDocumentTitlePageLabel() {
     return "Главная";
   }
 
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     return "";
   }
 
-  const agentLabel = getActiveAgentLabel() || getAgentTreeTitle() || activeAgentId;
+  const agentLabel = getActiveAgentLabel() || getAgentTreeTitle() || activeWorkspaceId;
 
   if (activeSystemFile) {
     return `${agentLabel} — ${activeSystemFile}`;
@@ -36013,14 +37002,93 @@ function expandGraphSearchHighlightIds(matchedIds, linkElements) {
 }
 
 function getObsidianGraphLayoutSize(nodeCount, containerWidth, containerHeight, fullViewport) {
-  const spread = Math.max(720, Math.sqrt(nodeCount) * 95);
+  const spread = Math.max(880, Math.sqrt(Math.max(nodeCount, 1)) * (fullViewport ? 118 : 102));
   const width = fullViewport
     ? Math.max(spread, containerWidth || 920)
-    : Math.max(920, Math.min(1600, Math.max(containerWidth || 920, spread)));
+    : Math.max(920, Math.min(1800, Math.max(containerWidth || 920, spread)));
   const height = fullViewport
-    ? Math.max(spread, containerHeight || 560)
-    : Math.max(520, Math.min(920, Math.max(380 + nodeCount * 12, spread * 0.85)));
+    ? Math.max(spread * 0.92, containerHeight || 560)
+    : Math.max(520, Math.min(980, Math.max(400 + nodeCount * 10, spread * 0.88)));
   return { width, height };
+}
+
+function getGraphLayoutSpreadScale(nodeCount, showPreviews = false) {
+  const previewBoost = showPreviews ? 1.42 : 1;
+  const densityBoost = 1 + Math.min(1.35, Math.sqrt(Math.max(nodeCount, 1)) * 0.058);
+  return previewBoost * densityBoost;
+}
+
+function estimateGraphNodeLayoutExtent(node, degrees, showPreviews = false) {
+  const layout = getGraphPreviewCardLayout(node, showPreviews);
+  const radius = getGraphNodeRadius(node, degrees, showPreviews);
+  const subLineCount = (node?.graphSubLabel ? 1 : 0) + resolveGraphNodeCardMetaLines(node).length;
+  const labelDepth = 14 + subLineCount * 11;
+  const titleLen = String(node?.label || "").trim().length;
+
+  if (layout) {
+    return {
+      rx: layout.cardW / 2 + 10,
+      ry: layout.cardH / 2 + labelDepth + 8
+    };
+  }
+
+  return {
+    rx: Math.max(radius + 6, Math.min(96, 16 + titleLen * 3.4)),
+    ry: radius + labelDepth + 4
+  };
+}
+
+function separateGraphLayoutOverlaps(sim, showPreviews = false, maxPasses = 24) {
+  const { nodes, centerIds, degrees, width, height } = sim;
+  if (nodes.length < 2) return;
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const gap = showPreviews ? 14 : 9;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let totalPush = 0;
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        if (centerIds.has(a.id) && centerIds.has(b.id)) continue;
+
+        const ea = estimateGraphNodeLayoutExtent(a, degrees, showPreviews);
+        const eb = estimateGraphNodeLayoutExtent(b, degrees, showPreviews);
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        dx /= dist;
+        dy /= dist;
+
+        const need =
+          Math.max(ea.rx + eb.rx, (ea.ry + eb.ry) * 0.92) + gap +
+          (a.isSatelliteRoot || b.isSatelliteRoot ? 6 : 0);
+        if (dist >= need) continue;
+
+        const push = ((need - dist) / 2) * 0.94;
+        totalPush += push;
+        if (!centerIds.has(a.id) && !a.pinned) {
+          a.x -= dx * push;
+          a.y -= dy * push;
+        }
+        if (!centerIds.has(b.id) && !b.pinned) {
+          b.x += dx * push;
+          b.y += dy * push;
+        }
+      }
+    }
+
+    for (const node of nodes) {
+      if (centerIds.has(node.id) || node.pinned) continue;
+      node.x += (cx - node.x) * 0.0035;
+      node.y += (cy - node.y) * 0.0035;
+    }
+
+    if (totalPush < 0.35 && pass > 5) break;
+  }
 }
 
 function computeGraphLayoutBounds(nodes, degrees, padding = 64, showPreviews = false) {
@@ -36043,28 +37111,150 @@ function computeGraphLayoutBounds(nodes, degrees, padding = 64, showPreviews = f
   };
 }
 
-function createObsidianGraphSimulation(nodes, edges, width, height) {
+const OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS = [
+  "service-root",
+  "container-root",
+  "repositories-root",
+  "awn-databases-root",
+  "media-libraries-root",
+  "channels-root"
+];
+
+function computeGraphWarmupSteps(nodeCount) {
+  return Math.min(300, Math.max(110, 64 + Math.round(Math.sqrt(Math.max(nodeCount, 1)) * 18)));
+}
+
+function assignObsidianGraphInitialLayout(sim, { showPreviews = false } = {}) {
+  const { nodes, nodeById, edges, width, height } = sim;
+  const cx = width / 2;
+  const cy = height / 2;
+  const root = nodeById.get("agent-root");
+  if (!root) return;
+
+  const spreadScale = getGraphLayoutSpreadScale(nodes.length, showPreviews);
+
+  const strongKids = new Map();
+  const weakKids = new Map();
+  for (const node of nodes) {
+    strongKids.set(node.id, []);
+    weakKids.set(node.id, []);
+  }
+  for (const edge of edges) {
+    const bucket = edge.weak ? weakKids : strongKids;
+    if (!bucket.has(edge.from)) bucket.set(edge.from, []);
+    bucket.get(edge.from).push(edge.to);
+  }
+
+  const placed = new Set();
+  const place = (node, x, y) => {
+    node.x = x;
+    node.y = y;
+    placed.add(node.id);
+  };
+
+  place(root, cx, cy);
+
+  const minDim = Math.min(width, height);
+  const satelliteRing = Math.max(280, minDim * 0.38) * spreadScale;
+
+  OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS.forEach((id, index) => {
+    const node = nodeById.get(id);
+    if (!node) return;
+    const angle = (index / OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS.length) * Math.PI * 2 - Math.PI / 2;
+    place(node, cx + Math.cos(angle) * satelliteRing, cy + Math.sin(angle) * satelliteRing);
+  });
+
+  const rootStrong = (strongKids.get(root.id) || []).filter((id) => !placed.has(id));
+  const innerRing = satelliteRing * 0.56;
+  rootStrong.forEach((id, i) => {
+    const node = nodeById.get(id);
+    if (!node) return;
+    const angle = (i / Math.max(rootStrong.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    place(node, cx + Math.cos(angle) * innerRing, cy + Math.sin(angle) * innerRing);
+  });
+
+  const layoutWeakFan = (parentId, baseDist = 108) => {
+    const parent = nodeById.get(parentId);
+    if (!parent) return;
+    const kids = (weakKids.get(parentId) || []).filter((id) => !placed.has(id));
+    if (!kids.length) return;
+    const baseAngle = Math.atan2(parent.y - cy, parent.x - cx);
+    const perRow = showPreviews ? 6 : 8;
+    const span = Math.min(Math.PI * 1.35, kids.length * (showPreviews ? 0.24 : 0.19) + 0.48);
+    const rowStep = (showPreviews ? 78 : 58) * Math.max(1, spreadScale * 0.82);
+    const scaledBase = baseDist * spreadScale;
+
+    kids.forEach((id, i) => {
+      const node = nodeById.get(id);
+      if (!node) return;
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const colsInRow = Math.min(perRow, kids.length - row * perRow);
+      const t = colsInRow === 1 ? 0.5 : col / (colsInRow - 1);
+      const angle = baseAngle - span / 2 + t * span;
+      const dist = scaledBase + row * rowStep + col * (showPreviews ? 6 : 4);
+      place(node, parent.x + Math.cos(angle) * dist, parent.y + Math.sin(angle) * dist);
+    });
+  };
+
+  for (const satId of OBSIDIAN_GRAPH_SATELLITE_ROOT_IDS) layoutWeakFan(satId, 112);
+
+  const queue = [root.id];
+  while (queue.length) {
+    const parentId = queue.shift();
+    const parent = nodeById.get(parentId);
+    if (!parent) continue;
+    const kids = (strongKids.get(parentId) || []).filter((id) => !placed.has(id));
+    if (!kids.length) continue;
+
+    const parentAngle = Math.atan2(parent.y - cy, parent.x - cx);
+    const span = Math.min(Math.PI * 1.28, kids.length * (showPreviews ? 0.44 : 0.38) + 0.36);
+    const siblingBoost = kids.length * (showPreviews ? 16 : 11);
+    const linkLen =
+      (parentId === root.id ? 124 : 88 + Math.min(kids.length * 4, 56) + siblingBoost * 0.35) *
+      spreadScale;
+
+    kids.forEach((id, i) => {
+      const node = nodeById.get(id);
+      if (!node) return;
+      const t = kids.length === 1 ? 0.5 : i / (kids.length - 1);
+      const angle = parentAngle - span / 2 + t * span;
+      const stagger = (i % 2) * (showPreviews ? 18 : 12);
+      place(
+        node,
+        parent.x + Math.cos(angle) * (linkLen + stagger),
+        parent.y + Math.sin(angle) * (linkLen + stagger)
+      );
+      queue.push(id);
+    });
+  }
+
+  for (const node of nodes) {
+    if (placed.has(node.id)) continue;
+    const angle = (node.depth || 0) * 0.85 + placed.size * 0.11;
+    const r = satelliteRing * (1.08 + (placed.size % 6) * 0.035);
+    place(node, cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  }
+}
+
+function createObsidianGraphSimulation(nodes, edges, width, height, options = {}) {
+  const showPreviews = Boolean(options.showPreviews);
   const centerIds = new Set(["root", "agent-root"]);
   const degrees = computeGraphNodeDegrees(edges);
-  const spread = Math.min(width, height) * 0.36;
-  const positioned = nodes.map((node, index) => {
-    const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-    const ring = centerIds.has(node.id) ? 0 : spread * (0.88 + (index % 4) * 0.04);
-    return {
-      ...node,
-      x: width / 2 + Math.cos(angle) * ring,
-      y: height / 2 + Math.sin(angle) * ring,
-      vx: 0,
-      vy: 0,
-      pinned: centerIds.has(node.id),
-      floatPhase: Math.random() * Math.PI * 2,
-      floatRadius: 0.75 + Math.random() * 0.55
-    };
-  });
+  const positioned = nodes.map((node) => ({
+    ...node,
+    x: width / 2,
+    y: height / 2,
+    vx: 0,
+    vy: 0,
+    pinned: centerIds.has(node.id),
+    floatPhase: Math.random() * Math.PI * 2,
+    floatRadius: 0.75 + Math.random() * 0.55
+  }));
 
   const nodeById = new Map(positioned.map((node) => [node.id, node]));
 
-  return {
+  const sim = {
     nodes: positioned,
     nodeById,
     edges,
@@ -36076,6 +37266,9 @@ function createObsidianGraphSimulation(nodes, edges, width, height) {
     alpha: 1,
     floatTime: 0
   };
+  assignObsidianGraphInitialLayout(sim, { showPreviews });
+  separateGraphLayoutOverlaps(sim, showPreviews, showPreviews ? 28 : 22);
+  return sim;
 }
 
 function clampGraphNodeVelocity(node, maxSpeed) {
@@ -36086,18 +37279,25 @@ function clampGraphNodeVelocity(node, maxSpeed) {
   node.vy *= scale;
 }
 
-function warmUpObsidianGraphSimulation(sim, steps = 96) {
+function warmUpObsidianGraphSimulation(sim, steps) {
+  const total = steps ?? computeGraphWarmupSteps(sim.nodes.length);
   sim.phase = "settling";
-  for (let step = 0; step < steps; step += 1) {
-    sim.alpha = Math.max(0.05, 1 - step / (steps - 1));
+  for (let step = 0; step < total; step += 1) {
+    sim.alpha = Math.max(0.07, 1 - step / Math.max(total - 1, 1));
     tickObsidianGraphSimulation(sim);
+  }
+  sim.alpha = 0.38;
+  sim.phase = "settling";
+  for (let polish = 0; polish < 48; polish += 1) {
+    tickObsidianGraphSimulation(sim);
+    if (sim.phase === "idle") break;
   }
   for (const node of sim.nodes) {
     node.vx = 0;
     node.vy = 0;
   }
   sim.phase = "idle";
-  sim.alpha = 0.052;
+  sim.alpha = 0.11;
   sim.floatTime = 0;
 }
 
@@ -36105,24 +37305,31 @@ function tickObsidianGraphSimulation(sim) {
   const { nodes, nodeById, edges, width, height, centerIds, degrees } = sim;
 
   if (sim.phase === "settling") {
-    sim.alpha *= 0.972;
-    if (sim.alpha < 0.035) {
+    sim.alpha *= 0.968;
+    if (sim.alpha < 0.04) {
       sim.phase = "idle";
-      sim.alpha = 0.052;
+      sim.alpha = 0.11;
       sim.floatTime = 0;
     }
-  }
-
-  if (sim.phase === "idle") {
+  } else {
     sim.floatTime += 1;
   }
 
-  const forceAlpha = sim.phase === "idle" ? sim.alpha * 0.62 : sim.alpha;
+  const forceAlpha = sim.phase === "idle" ? 0.17 : sim.alpha;
   if (forceAlpha < 0.0004 && sim.phase !== "idle") return false;
 
-  const repulsionStrength = (3200 + nodes.length * 12) * forceAlpha;
-  const maxVelocity = sim.phase === "idle" ? 0.82 : 2.4;
+  sim._forceTick = (sim._forceTick || 0) + 1;
+  const skipRepulse =
+    sim.phase === "idle" && nodes.length > 90 && sim._forceTick % 2 === 0;
 
+  const repulsionStrength = (3200 + nodes.length * 12) * forceAlpha;
+  const maxVelocity = sim.phase === "idle" ? 1.08 : 2.55;
+  const repulseCutoff =
+    nodes.length > 45
+      ? Math.min(360, Math.max(200, 170 + Math.sqrt(nodes.length) * 9))
+      : Infinity;
+
+  if (!skipRepulse) {
   for (let i = 0; i < nodes.length; i += 1) {
     for (let j = i + 1; j < nodes.length; j += 1) {
       const a = nodes[i];
@@ -36130,6 +37337,7 @@ function tickObsidianGraphSimulation(sim) {
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       let dist = Math.hypot(dx, dy) || 0.01;
+      if (dist > repulseCutoff) continue;
       const weight = (degrees.get(a.id) || 1) + (degrees.get(b.id) || 1);
       const repulse = (repulsionStrength * weight) / (dist * dist);
       dx = (dx / dist) * repulse;
@@ -36143,6 +37351,7 @@ function tickObsidianGraphSimulation(sim) {
         b.vy += dy;
       }
     }
+  }
   }
 
   for (const edge of edges) {
@@ -36181,18 +37390,18 @@ function tickObsidianGraphSimulation(sim) {
       node.vy = 0;
       continue;
     }
-    node.vx += (width / 2 - node.x) * 0.0012 * forceAlpha;
-    node.vy += (height / 2 - node.y) * 0.0012 * forceAlpha;
+    node.vx += (width / 2 - node.x) * 0.0011 * forceAlpha;
+    node.vy += (height / 2 - node.y) * 0.0011 * forceAlpha;
 
     if (sim.phase === "idle") {
       const drift = node.floatRadius || 1;
       const t = sim.floatTime * 0.014;
-      node.vx += Math.cos(t * drift + node.floatPhase) * 0.016;
-      node.vy += Math.sin(t * drift * 1.08 + node.floatPhase * 1.17) * 0.016;
+      node.vx += Math.cos(t * drift + node.floatPhase) * 0.014;
+      node.vy += Math.sin(t * drift * 1.08 + node.floatPhase * 1.17) * 0.014;
     }
 
-    node.vx *= sim.phase === "idle" ? 0.945 : 0.78;
-    node.vy *= sim.phase === "idle" ? 0.945 : 0.78;
+    node.vx *= sim.phase === "idle" ? 0.88 : 0.76;
+    node.vy *= sim.phase === "idle" ? 0.88 : 0.76;
     clampGraphNodeVelocity(node, maxVelocity);
     node.x += node.vx;
     node.y += node.vy;
@@ -36201,9 +37410,10 @@ function tickObsidianGraphSimulation(sim) {
   return true;
 }
 
-function reheatObsidianGraphSimulation(sim, alpha = 0.22) {
+function reheatObsidianGraphSimulation(sim, alpha = 0.42) {
   sim.phase = "settling";
   sim.alpha = Math.max(sim.alpha, alpha);
+  sim.floatTime = 0;
 }
 
 function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
@@ -36459,13 +37669,13 @@ function attachObsidianGraphViewport(
   };
 
   const fitToView = () => {
-    layoutBounds = computeGraphLayoutBounds(positioned, degrees, 64, showPreviews);
+    layoutBounds = computeGraphLayoutBounds(positioned, degrees, 72, showPreviews);
     const rect = svg.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const padding = 48;
+    const padding = 56;
     const scaleX = (rect.width - padding * 2) / layoutBounds.width;
     const scaleY = (rect.height - padding * 2) / layoutBounds.height;
-    state.scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.65);
+    state.scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.22), 1.55);
     state.tx = (rect.width - layoutBounds.width * state.scale) / 2 - layoutBounds.minX * state.scale;
     state.ty = (rect.height - layoutBounds.height * state.scale) / 2 - layoutBounds.minY * state.scale;
     applyTransform();
@@ -36488,21 +37698,25 @@ function attachObsidianGraphViewport(
     tickObsidianGraphSimulation(sim);
     refreshGraphVisuals();
 
-    if (!hasAutoFitted && sim.alpha < 0.05) {
+    if (!hasAutoFitted && sim.phase === "idle") {
       fitToView();
       hasAutoFitted = true;
-      wrap.classList.remove("is-entering");
+      wrap.classList.remove("is-entering", "is-simulating");
       wrap.classList.add("is-settled");
     }
 
     rafId = requestAnimationFrame(runSimulationFrame);
   };
 
-  wrap.classList.add("is-simulating");
+  wrap.classList.add("is-simulating", "is-entering");
   warmUpObsidianGraphSimulation(sim);
+  sim.phase = "settling";
+  sim.alpha = 0.48;
+  sim.floatTime = 0;
   refreshGraphVisuals();
   fitToView();
   hasAutoFitted = true;
+  wrap.classList.remove("is-entering");
   wrap.classList.add("is-settled");
   rafId = requestAnimationFrame(runSimulationFrame);
 
@@ -36863,7 +38077,7 @@ function renderGraphCanvas(container, graph, options = {}) {
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "100%");
 
-  const sim = createObsidianGraphSimulation(graph.nodes, graph.edges, width, height);
+  const sim = createObsidianGraphSimulation(graph.nodes, graph.edges, width, height, { showPreviews });
   const positioned = sim.nodes;
   const degrees = sim.degrees;
   const nodeById = sim.nodeById;
@@ -40928,7 +42142,7 @@ function buildMenuDisplayLabelMap(menu = currentMenuData) {
 }
 
 function getMenuDisplayLabelMap() {
-  const agentId = activeAgentId || "";
+  const agentId = activeWorkspaceId || "";
   if (!menuDisplayLabelMapCache || menuDisplayLabelMapAgentId !== agentId) {
     const menu = menuCacheByAgent.get(agentId) || currentMenuData;
     menuDisplayLabelMapCache = buildMenuDisplayLabelMap(menu);
@@ -41074,7 +42288,7 @@ async function buildSectionReadmeContentWithSchema(
     return buildSectionReadmeContent(safeTitle, awnType, folderSlug);
   }
   try {
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
     const normalizedContentPath = String(contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     const cache = await loadTopicSchemaForManifest(
       manifestPath,
@@ -42560,8 +43774,7 @@ function resolveNavigationItemPreviewUi(item, nodePath = activePath) {
   return imageUrl ? { imageUrl, previewPath: path } : null;
 }
 
-function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
-  const preview = resolveExternalItemPreviewUi(item);
+function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
   if (!preview) return false;
 
   if (preview.broken) {
@@ -42601,6 +43814,10 @@ function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
   img.src = imageUrl;
   lifecycle.checkAlreadyLoaded();
   return true;
+}
+
+function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
+  return appendPreviewUiThumb(parent, resolveExternalItemPreviewUi(item), { className });
 }
 
 function getExternalMdItems() {
@@ -42714,7 +43931,7 @@ function getExternalListSchemaManifestPath(nodePath = getResolvedNodePath(active
 
 function getExternalListColumnsStorageKey() {
   const manifest = getExternalListSchemaManifestPath() || activePath || "";
-  return `${EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX}${activeAgentId || "main"}:${manifest}`;
+  return `${EXTERNAL_LIST_COLUMNS_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${manifest}`;
 }
 
 function mergeExternalListVisibleColumnKeys(storedKeys, allKeys) {
@@ -43060,14 +44277,14 @@ function ensureExternalListColumnsPicker(toolbar) {
 
 async function ensureExternalListSchemaReady() {
   const manifestPath = getExternalListSchemaManifestPath();
-  const key = `${activeAgentId || ""}:${manifestPath || ""}`;
+  const key = `${activeWorkspaceId || ""}:${manifestPath || ""}`;
   if (externalListSchemaReadyKey !== key) {
     externalListSchemaReadyKey = key;
     externalListSchemaReadyPromise = null;
   }
   if (!externalListSchemaReadyPromise) {
     externalListSchemaReadyPromise = (async () => {
-      if (!awnTypesCache) await loadAwnTypes(activeAgentId);
+      if (!awnTypesCache) await loadAwnTypes(activeWorkspaceId);
       if (manifestPath && !getTopicSchemaCache(manifestPath)) {
         await loadTopicSchemaForManifest(manifestPath).catch(() => null);
       }
@@ -45508,7 +46725,7 @@ async function revealMediaFileInExplorer(mediaFilePath) {
   if (!activePath || !mediaFilePath) return;
   try {
     if (window.desktopApp?.revealFile) {
-      await window.desktopApp.revealFile(getResolvedNodePath(activePath), mediaFilePath, activeAgentId);
+      await window.desktopApp.revealFile(getResolvedNodePath(activePath), mediaFilePath, activeWorkspaceId);
       return;
     }
 
@@ -46753,7 +47970,7 @@ async function refreshWorkspaceContent() {
       (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE) &&
       activeFolderBrowsePath
     ) {
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
       if (activeContentMode === FOLDER_BROWSE_FILE_MODE && activeFolderBrowseFilePath) {
         await renderFolderBrowseFileView();
       } else {
@@ -46765,8 +47982,8 @@ async function refreshWorkspaceContent() {
     if (activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewStoreRel) {
       awnDataViewStoreCache = null;
       awnDataViewRecordCache = null;
-      await refreshMenuAwnDataStores(activeAgentId);
-      await loadAwnDataViewStore(activeAgentId);
+      await refreshMenuAwnDataStores(activeWorkspaceId);
+      await loadAwnDataViewStore(activeWorkspaceId);
       return;
     }
 
@@ -46812,7 +48029,7 @@ async function refreshWorkspaceContent() {
         invalidateTopicSchemaCacheForManifest(schemaManifestPath);
         const contentPath = resolveOverviewSchemaContentPath(activeEntryOverviewContext);
         try {
-          if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+          if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
           await loadTopicSchemaForManifest(schemaManifestPath, {
             contentPath: contentPath || undefined,
             force: true
@@ -47450,7 +48667,7 @@ function isReservedRootManifestPath(nodePath) {
   );
 }
 
-function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
+function getSystemReferenceManifestRelPaths(agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder) return [];
   const paths = [];
@@ -47469,13 +48686,13 @@ function getSystemReferenceManifestRelPaths(agentId = activeAgentId) {
   return paths.map((item) => normalizeMenuNodePath(item));
 }
 
-function isSystemReferenceManifestPath(nodePath, agentId = activeAgentId) {
+function isSystemReferenceManifestPath(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !isServiceNodePath(normalized)) return false;
   return getSystemReferenceManifestRelPaths(agentId).includes(normalized);
 }
 
-function isSlugLockedManifestPath(nodePath, agentId = activeAgentId) {
+function isSlugLockedManifestPath(nodePath, agentId = activeWorkspaceId) {
   return isReservedRootManifestPath(nodePath) || isSystemReferenceManifestPath(nodePath, agentId);
 }
 
@@ -47886,7 +49103,7 @@ let awnTypesLoadPromise = null;
 let awnTypeKindManifestById = null;
 let typeCatalogCacheByAgent = new Map();
 let typeCatalogLoadPromiseByAgent = new Map();
-function invalidateTypeCatalogCache(agentId = activeAgentId) {
+function invalidateTypeCatalogCache(agentId = activeWorkspaceId) {
   const cacheKey = String(agentId || "default");
   typeCatalogCacheByAgent.delete(cacheKey);
   typeCatalogLoadPromiseByAgent.delete(cacheKey);
@@ -47910,7 +49127,7 @@ function isAgentSystemFileEditing() {
 }
 
 function agentHasTypeCatalogOverview(nodePath = activePath) {
-  if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return true;
+  if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeWorkspaceId || ""))) return true;
   return isAgentSystemRelPath(nodePath);
 }
 
@@ -48098,7 +49315,7 @@ function getStandardPropsFieldKeys() {
 const PROPS_FIELD_META = {
   "awn-type": {
     label: "Тип",
-    hint: "Идентификатор типа (awn.page.ws, awn.record, awn.record.category, awn.media.category, …)"
+    hint: "Идентификатор типа (awn.hub.topic.ws, awn.record, awn.record.category, awn.media.category, …)"
   },
   "awn-name": {
     label: "Имя",
@@ -48222,7 +49439,7 @@ const PROPS_FIELD_META = {
   }
 };
 
-async function loadAwnTypes(agentId = activeAgentId) {
+async function loadAwnTypes(agentId = activeWorkspaceId) {
   if (!agentId) {
     awnTypesCache = null;
     awnTypesLoadPromise = null;
@@ -48256,14 +49473,14 @@ async function loadAwnTypes(agentId = activeAgentId) {
   return awnTypesLoadPromise;
 }
 
-async function loadAgentCatalogs(agentId = activeAgentId) {
+async function loadAgentCatalogs(agentId = activeWorkspaceId) {
   return loadAgentTaxonomies(agentId);
 }
 
 const agentTaxonomiesCacheByAgent = new Map();
 const agentTaxonomiesLoadPromiseByAgent = new Map();
 
-function invalidateAgentTaxonomiesCache(agentId = activeAgentId) {
+function invalidateAgentTaxonomiesCache(agentId = activeWorkspaceId) {
   const key = String(agentId || "").trim();
   if (!key) {
     agentTaxonomiesCacheByAgent.clear();
@@ -48274,12 +49491,12 @@ function invalidateAgentTaxonomiesCache(agentId = activeAgentId) {
   agentTaxonomiesLoadPromiseByAgent.delete(key);
 }
 
-function getAgentTaxonomiesCache(agentId = activeAgentId) {
+function getAgentTaxonomiesCache(agentId = activeWorkspaceId) {
   const key = String(agentId || "").trim();
   return key ? agentTaxonomiesCacheByAgent.get(key) || null : null;
 }
 
-async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = {}) {
+async function loadAgentTaxonomies(agentId = activeWorkspaceId, { force = false } = {}) {
   const key = String(agentId || "").trim();
   if (!key) {
     invalidateAgentTaxonomiesCache();
@@ -48298,7 +49515,7 @@ async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = 
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const payload = await response.json();
       agentTaxonomiesCacheByAgent.set(key, payload);
-      if (key === activeAgentId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
+      if (key === activeWorkspaceId && getDocAsideTab() === "props" && !propsRawYamlVisible) {
         renderPropsForm();
       }
       return payload;
@@ -48314,16 +49531,16 @@ async function loadAgentTaxonomies(agentId = activeAgentId, { force = false } = 
   return promise;
 }
 
-function getAgentTaxonomyDefinitions(agentId = activeAgentId) {
+function getAgentTaxonomyDefinitions(agentId = activeWorkspaceId) {
   return getAgentTaxonomiesCache(agentId)?.taxonomies || [];
 }
 
-function getAgentTaxonomiesEmptyMessage(agentId = activeAgentId) {
+function getAgentTaxonomiesEmptyMessage(agentId = activeWorkspaceId) {
   const cache = getAgentTaxonomiesCache(agentId);
   if (cache?.groupExists) {
-    return "В awn-databases/taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
+    return "В awn-databases/0-taxonomies/ пока нет справочников — добавьте коллекцию внутри группы";
   }
-  return "Создайте группу awn-databases/taxonomies/ через + Группа → Таксономии";
+  return "Создайте группу awn-databases/0-taxonomies/ через + Группа → Таксономии";
 }
 
 function getAgentTaxonomyDefinition(key) {
@@ -48515,7 +49732,7 @@ const PROPS_FIELD_CATALOG_PRESET = {
 };
 
 function getPropsCatalogAddScopeLabel() {
-  return activeAgentId === PLATFORM_AGENT_ID ? "глобальный справочник" : "локальный справочник агента";
+  return activeWorkspaceId === PLATFORM_AGENT_ID ? "глобальный справочник" : "локальный справочник агента";
 }
 
 function applyCatalogItemToPropsEntry(fieldKey, preset, itemId) {
@@ -48541,7 +49758,7 @@ function applyCatalogItemToPropsEntry(fieldKey, preset, itemId) {
 }
 
 async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
-  const response = await fetch(buildApiUrl("/api/agent/catalogs/items", {}, activeAgentId), {
+  const response = await fetch(buildApiUrl("/api/agent/catalogs/items", {}, activeWorkspaceId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -48559,8 +49776,8 @@ async function submitPropsCatalogAdd(preset, fieldKey, values = {}) {
 
   applyCatalogItemToPropsEntry(fieldKey, preset, data.item?.id);
   syncYamlFromPropsForm();
-  invalidateAgentTaxonomiesCache(activeAgentId);
-  await loadAgentTaxonomies(activeAgentId, { force: true });
+  invalidateAgentTaxonomiesCache(activeWorkspaceId);
+  await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   showToast(`Добавлено в ${getPropsCatalogAddScopeLabel()}: ${data.item?.label || data.item?.id}`, "success");
   return data;
 }
@@ -48926,8 +50143,8 @@ function nodeManifestHasOwnCustomSchema(nodePath = getResolvedNodePath(activePat
   return topicSchemaStateHasCustomFields(cache.topicAwnSchema);
 }
 
-function nodeHasCustomSchemaFromMenu(nodePath = getResolvedNodePath(activePath), agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function nodeHasCustomSchemaFromMenu(nodePath = getResolvedNodePath(activePath), agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return false;
 
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
@@ -49089,51 +50306,56 @@ function resolveAgentSettingsSchemaScope(manifestPath = getNodeSettingsManifestP
 async function loadAgentSettingsSchemaBundle(options = {}) {
   const scope = options.scope || resolveAgentSettingsSchemaScope(options.manifestPath);
   if (!options.force && agentSettingsSchemaCacheByScope.has(scope)) {
-    return agentSettingsSchemaCacheByScope.get(scope);
+    const cached = agentSettingsSchemaCacheByScope.get(scope);
+    if (Object.keys(cached?.settingsFields || {}).length) return cached;
+    agentSettingsSchemaCacheByScope.delete(scope);
   }
   if (!options.force && agentSettingsSchemaLoadPromises.has(scope)) {
     return agentSettingsSchemaLoadPromises.get(scope);
   }
 
   const loadPromise = (async () => {
+    const resolveFallbackAgentSettingsSchemaPayload = async () => {
+      if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
+      const typeId =
+        scope === "global"
+          ? "awn.settings.platform"
+          : scope === "user"
+            ? "awn.settings.user"
+            : scope === "integrations"
+              ? "awn.settings.integrations"
+              : "awn.settings.workspace";
+      const typeDef = mergeClientTypeDefinition(typeId);
+      return {
+        scope,
+        typeId: typeDef?.id || typeId,
+        settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
+        settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(typeDef?.fieldGroups || [])
+      };
+    };
+
     const response = await fetch(buildApiUrl("/api/agent/settings-schema", { scope }));
     if (response.ok) {
       const data = await response.json();
-      const payload = {
-        scope,
-        typeId:
-          data.type ||
-          (scope === "global"
-            ? "awn.settings.platform"
-            : scope === "user"
-              ? "awn.settings.user"
-              : scope === "integrations"
-                ? "awn.settings.integrations"
-                : "awn.settings.workspace"),
-        settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
-        settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(data.fieldGroups || [])
-      };
-      agentSettingsSchemaCacheByScope.set(scope, payload);
-      return payload;
+      const settingsFields = mergeAgentSettingsSchemaFields(data.fields || {});
+      if (Object.keys(settingsFields).length) {
+        return storeAgentSettingsSchemaCacheEntry(scope, {
+          scope,
+          typeId:
+            data.type ||
+            (scope === "global"
+              ? "awn.settings.platform"
+              : scope === "user"
+                ? "awn.settings.user"
+                : scope === "integrations"
+                  ? "awn.settings.integrations"
+                  : "awn.settings.workspace"),
+          settingsFields,
+          settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(data.fieldGroups || [])
+        });
+      }
     }
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    const typeId =
-      scope === "global"
-        ? "awn.settings.platform"
-        : scope === "user"
-          ? "awn.settings.user"
-          : scope === "integrations"
-            ? "awn.settings.integrations"
-            : "awn.settings.workspace";
-    const typeDef = mergeClientTypeDefinition(typeId);
-    const payload = {
-      scope,
-      typeId: typeDef?.id || typeId,
-      settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
-      settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(typeDef?.fieldGroups || [])
-    };
-    agentSettingsSchemaCacheByScope.set(scope, payload);
-    return payload;
+    return storeAgentSettingsSchemaCacheEntry(scope, await resolveFallbackAgentSettingsSchemaPayload());
   })();
 
   agentSettingsSchemaLoadPromises.set(scope, loadPromise);
@@ -50028,7 +51250,7 @@ function projectSettingsScopeSearchHaystack(scope) {
     : [];
   const levelLabel =
     scope?.level === "global"
-      ? "платформа глобальные agent-cms-core"
+      ? "платформа глобальные 0-ws-core"
       : scope?.level === "settings-local"
         ? "локальные workspace settings.yml"
         : scope?.level === "settings-integrations"
@@ -50543,7 +51765,7 @@ function renderProjectSettingsScopeList() {
       btn.classList.toggle("has-env-values", hasEnvFile);
       btn.classList.toggle("is-empty-scope", isEmptyScope);
       btn.title = [
-        scope.level === "global" ? "agent-cms-core" : scope.label,
+        scope.level === "global" ? "0-ws-core" : scope.label,
         scope.level === "global"
           ? hasConfigValues
             ? `${valuesFileLabel}: ${configCount} знач.`
@@ -51055,6 +52277,8 @@ function hideProjectSettingsPageUi() {
 
 function leaveProjectSettingsMode() {
   projectSettingsBootstrapped = false;
+  agentSettingsSchemaCacheByScope.clear();
+  agentSettingsSchemaLoadPromises.clear();
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
@@ -51224,14 +52448,14 @@ async function saveProjectSettingsEnvFormContent() {
 
 async function bootstrapProjectSettingsData(options = {}) {
   const force = Boolean(options.force);
-  await loadAwnTypes(activeAgentId);
-  await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
+  await loadAwnTypes(activeWorkspaceId);
+  await refreshMenuAwnDataStores(activeWorkspaceId, { showLoading: false }).catch(() => {});
   await Promise.all([
     loadAgentSettingsSchemaBundle({ scope: "global", force }),
     loadAgentSettingsSchemaBundle({ scope: "local", force }),
     loadAgentSettingsSchemaBundle({ scope: "integrations", force }),
     loadAgentSettingsSchemaBundle({ scope: "user", force }),
-    loadUserSettingsForAgent(activeAgentId)
+    loadUserSettingsForAgent(activeWorkspaceId)
   ]).catch(() => {});
   await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
   projectSettingsBootstrapped = true;
@@ -51299,7 +52523,7 @@ async function loadProjectSettingsContent(options = {}) {
 }
 
 async function openProjectSettingsHub(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -51343,7 +52567,7 @@ async function openProjectSettingsHub(options = {}) {
 }
 
 async function openWorkspaceJournalModule(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -51372,7 +52596,7 @@ async function openWorkspaceJournalModule(options = {}) {
 }
 
 async function openWorkspaceRecyclerModule(options = {}) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Сначала выберите агента", "info");
     return;
   }
@@ -51422,7 +52646,7 @@ function getNodeSettingsSavePayload() {
 
 const REGISTRY_QUERY_PRESETS_SETTINGS_KEY = "registry-query-presets";
 
-async function fetchRegistryQueryCommentByIdMap(agentId = activeAgentId) {
+async function fetchRegistryQueryCommentByIdMap(agentId = activeWorkspaceId) {
   try {
     const response = await fetch(buildApiUrl("/api/agent/registry-queries", {}, agentId));
     if (!response.ok) return null;
@@ -51455,7 +52679,7 @@ function enrichRegistryQueryPresetItems(items, commentById = null) {
   });
 }
 
-async function enrichWorkspaceSettingsRegistryQueryPresets(settings, agentId = activeAgentId) {
+async function enrichWorkspaceSettingsRegistryQueryPresets(settings, agentId = activeWorkspaceId) {
   if (!settings || typeof settings !== "object") return settings;
   const presets = settings[REGISTRY_QUERY_PRESETS_SETTINGS_KEY];
   if (!Array.isArray(presets) || !presets.length) return settings;
@@ -51713,6 +52937,8 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   const emptyNode = getNodeSettingsEmptyContainer();
   if (!fieldsNode || !emptyNode) return;
 
+  cache = hydrateNodeSettingsCacheFromAgentSchemaCache(cache);
+
   fieldsNode.replaceChildren();
   fieldsNode.classList.remove("has-settings-subgroups");
 
@@ -51931,8 +53157,8 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
     typeof TopicSchemaSlotSpecs !== "undefined"
       ? TopicSchemaSlotSpecs.normalizeAwnContentTypeName(typeName)
       : typeName;
-  if (normalized === "awn.page.area" || typeName === "awn.area") return "area";
-  if (normalized === "awn.page.ws" || typeName === "awn.workspace") return "workspace";
+  if (normalized === "awn.hub.topic.area" || typeName === "awn.area") return "area";
+  if (normalized === "awn.hub.topic.ws" || typeName === "awn.workspace") return "workspace";
   if (normalized === "awn.content.category" || typeName === "awn.media.category") {
     return resolvedSlotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
@@ -51945,28 +53171,27 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
       return TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(resolvedSlotKey, { contentKind: "sidecar" });
     }
   }
-  if (
-    normalized === "awn.database.element.category" ||
-    typeName === "awn.database.category" ||
-    typeName === "awn.database.content.category"
-  ) {
+  if (normalized === normalizeAwnTypeName("awn.content.category")) {
     return "category";
   }
   if (
-    normalized === "awn.database.element.record" ||
-    typeName === "awn.database.record" ||
-    typeName === "awn.database.content.record"
+    normalized === normalizeAwnTypeName("awn.content.record") ||
+    normalized === normalizeAwnTypeName("awn.content.record-lite") ||
+    normalized === normalizeAwnTypeName("awn.content.record-csv")
   ) {
     return "record";
   }
-  if (
-    normalized === "awn.annotation.sidecar" ||
-    normalized === "awn.database.element.sidecar" ||
-    typeName === "awn.database.content.sidecar"
-  ) {
+  if (normalized === normalizeAwnTypeName("awn.annotation.sidecar")) {
     return "sidecar";
   }
-  if (String(typeName || "").startsWith("awn.database.frame.")) return "frame";
+  const dbType = String(typeName || "");
+  if (
+    dbType.startsWith("awn.database.frame.") ||
+    dbType.startsWith("awn.hub.database.frame.") ||
+    /^awn\.hub\.database\.(single|group|collection|taxonomy-collection)$/.test(dbType)
+  ) {
+    return "frame";
+  }
   return "topic";
 }
 
@@ -52149,7 +53374,7 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     if (!awnTypesCache?.types) {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
@@ -52251,7 +53476,7 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     if (!awnTypesCache?.types) {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
@@ -53251,7 +54476,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (isWorkspaceSchemaContext()) {
     topicSchemaTargetTabsNode.append(
       createTopicSchemaTargetTabButton(
-        { id: "workspace", label: "Workspace", typeName: "awn.page.ws", group: "core" },
+        { id: "workspace", label: "Workspace", typeName: "awn.hub.topic.ws", group: "core" },
         cache
       ),
       createTopicSchemaTargetTabButton(
@@ -53265,7 +54490,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
   if (isAreaSchemaContext()) {
     topicSchemaTargetTabsNode.append(
       createTopicSchemaTargetTabButton(
-        { id: "area", label: "Область", typeName: "awn.page.area", group: "core" },
+        { id: "area", label: "Область", typeName: "awn.hub.topic.area", group: "core" },
         cache
       ),
       createTopicSchemaTargetTabButton(
@@ -54288,7 +55513,7 @@ async function loadSectionSchemaForEntry(context, options = {}) {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   if (!awnTypesCache?.types) {
-    await loadAwnTypes(activeAgentId);
+    await loadAwnTypes(activeWorkspaceId);
   }
   const payload = {
     ...params,
@@ -55596,10 +56821,10 @@ function normalizeAwnTypeName(typeName) {
   const raw = String(typeName || "").trim();
   if (!raw) return "";
   const shortAliases = {
-    area: "awn.page.area",
-    topic: "awn.page.topic",
-    workspace: "awn.page.ws",
-    ws: "awn.page.ws",
+    area: "awn.hub.topic.area",
+    topic: "awn.hub.topic",
+    workspace: "awn.hub.topic.ws",
+    ws: "awn.hub.topic.ws",
     record: "awn.content.record",
     service: "service"
   };
@@ -55609,11 +56834,34 @@ function normalizeAwnTypeName(typeName) {
     "awn.record.category": "awn.content.category",
     "awn.sidecar": "awn.annotation.sidecar",
     "awn.media.category": "awn.content.category",
-    "awn.topic": "awn.page.topic",
-    "awn.area": "awn.page.area",
-    "awn.workspace": "awn.page.ws"
+    "awn.topic": "awn.hub.topic",
+    "awn.area": "awn.hub.topic.area",
+    "awn.workspace": "awn.hub.topic.ws",
+    "awn.database.record": "awn.content.record",
+    "awn.database.record-lite": "awn.content.record-lite",
+    "awn.database.record-csv": "awn.content.record-csv",
+    "awn.database.category": "awn.content.category",
+    "awn.database.content.record": "awn.content.record",
+    "awn.database.content.record-lite": "awn.content.record-lite",
+    "awn.database.content.record-csv": "awn.content.record-csv",
+    "awn.database.content.category": "awn.content.category",
+    "awn.database.element.record": "awn.content.record",
+    "awn.database.element.record-lite": "awn.content.record-lite",
+    "awn.database.element.record-csv": "awn.content.record-csv",
+    "awn.database.element.category": "awn.content.category",
+    "awn.database.element.sidecar": "awn.annotation.sidecar",
+    "awn.database.content.sidecar": "awn.annotation.sidecar",
+    "awn.page": "awn.hub.base",
+    "awn.page.base": "awn.hub.base",
+    "awn.hub.ws": "awn.hub.topic.ws",
+    "awn.hub.area": "awn.hub.topic.area",
+    "awn.hub.section": "awn.hub.topic.section"
   };
-  return legacyToCanonical[normalized] || normalized;
+  const mapped = legacyToCanonical[normalized] || normalized;
+  if (mapped.startsWith("awn.page.")) {
+    return mapped.replace(/^awn\.page\./, "awn.hub.");
+  }
+  return mapped;
 }
 
 function getPropertiesApiPath() {
@@ -55690,6 +56938,8 @@ function getManifestTreeFolderDepth(normalized) {
 
 const CONTENT_AWN_TYPE_NAMES = new Set([
   "awn.content.record",
+  "awn.content.record-lite",
+  "awn.content.record-csv",
   "awn.content.category",
   "awn.annotation.sidecar",
   "awn.content.base",
@@ -55884,8 +57134,8 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   if (/^(?:awn-databases|awn-data)\/.+\/awn-storage\/data\//i.test(normalized)) {
     const declared = getDeclaredManifestTreeType(normalized);
     if (declared) return normalizeAwnTypeName(declared);
-    if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.database.element.category");
-    return normalizeAwnTypeName("awn.database.element.record");
+    if (/\/manifest\.md$/i.test(normalized)) return normalizeAwnTypeName("awn.content.category");
+    return normalizeAwnTypeName("awn.content.record");
   }
 
   if (/^(?:awn-databases|awn-data)\/.+\/manifest\.md$/i.test(normalized)) {
@@ -55909,14 +57159,14 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   }
 
   if (isNodeManifestPath(normalized)) {
-    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.ws");
+    if (options.isAgentRoot || isAgentRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.topic.ws");
     if (options.isContainerRoot || isAgentContainerRootIndexPath(normalized)) {
-      return normalizeAwnTypeName("awn.page.area");
+      return normalizeAwnTypeName("awn.hub.topic.area");
     }
     if (options.isSharedRoot || isAgentSharedRootIndexPath(normalized)) {
-      return normalizeAwnTypeName("awn.page.area");
+      return normalizeAwnTypeName("awn.hub.topic.area");
     }
-    if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.page.area");
+    if (isAgentSystemRootIndexPath(normalized)) return normalizeAwnTypeName("awn.hub.topic.area");
     if (isSystemReferenceManifestPath(normalized)) {
       return /\/(?:awn-)?taxonomies\/[^/]+\/manifest\.md$/i.test(normalized) ||
         /\/catalog\/[^/]+\/manifest\.md$/i.test(normalized)
@@ -55925,21 +57175,21 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     }
 
     const declared = getDeclaredManifestTreeType(normalized);
-    if (declared === "topic") return normalizeAwnTypeName("awn.page.topic");
-    if (declared === "area") return normalizeAwnTypeName("awn.page.area");
+    if (declared === "topic") return normalizeAwnTypeName("awn.hub.topic");
+    if (declared === "area") return normalizeAwnTypeName("awn.hub.topic.area");
 
-    if (isTopicManifestPath(normalized)) return normalizeAwnTypeName("awn.page.topic");
-    if (isAreaNodePath(normalized)) return normalizeAwnTypeName("awn.page.area");
+    if (isTopicManifestPath(normalized)) return normalizeAwnTypeName("awn.hub.topic");
+    if (isAreaNodePath(normalized)) return normalizeAwnTypeName("awn.hub.topic.area");
     const containerFolder = options.containerFolder || getActiveAgentContainerFolder();
     const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
     if (folderDepth !== null) {
       return folderDepth >= 2
-        ? normalizeAwnTypeName("awn.page.topic")
-        : normalizeAwnTypeName("awn.page.area");
+        ? normalizeAwnTypeName("awn.hub.topic")
+        : normalizeAwnTypeName("awn.hub.topic.area");
     }
     return countManifestFolderDepthFromWorkspaceRoot(normalized) >= 2
-      ? normalizeAwnTypeName("awn.page.topic")
-      : normalizeAwnTypeName("awn.page.area");
+      ? normalizeAwnTypeName("awn.hub.topic")
+      : normalizeAwnTypeName("awn.hub.topic.area");
   }
 
   return normalizeAwnTypeName("awn.content.record");
@@ -56018,7 +57268,7 @@ function getActiveAwnTypeDef(typeName = null) {
   let resolvedType = normalizeAwnTypeName(typeName || resolveAwnTypeForContext());
 
   // When no specific typeName is requested, prefer the declared awn-type from frontmatter
-  // (path inference returns generic "awn.topic", but frontmatter may say "awn.page.topic.agent")
+  // (path inference returns generic "awn.topic", but frontmatter may say "awn.hub.topic.agent")
   if (!typeName) {
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.entryKind) {
       resolvedType =
@@ -56152,7 +57402,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
   "awn.mixin.runtime":
     "Миксин runtime — awn-runtime-load-always, cron и heartbeat для реестра агента",
-  "awn.page.ws": "Корневой манифест workspace — manifest.md в корне агента",
+  "awn.hub.topic.ws": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.workspace": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.area": "Область (категория) — папка с manifest.md",
   "awn.topic": "Тема — standalone *.md манифест",
@@ -58267,14 +59517,14 @@ function getLinkLibraryScopeLabel(nodePath) {
 
 async function loadMarkdownLinkIndex(options = {}) {
   const force = options.force === true;
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     invalidateMarkdownLinkIndexCache();
     return markdownLinkIndexCache;
   }
 
   if (
     !force &&
-    markdownLinkIndexCache.agentId === activeAgentId &&
+    markdownLinkIndexCache.agentId === activeWorkspaceId &&
     markdownLinkIndexCache.items.length
   ) {
     return markdownLinkIndexCache;
@@ -58284,12 +59534,12 @@ async function loadMarkdownLinkIndex(options = {}) {
     !force &&
     markdownLinkIndexCache.loading &&
     markdownLinkIndexCache.promise &&
-    markdownLinkIndexCache.agentId === activeAgentId
+    markdownLinkIndexCache.agentId === activeWorkspaceId
   ) {
     return markdownLinkIndexCache.promise;
   }
 
-  const agentId = activeAgentId;
+  const agentId = activeWorkspaceId;
   markdownLinkIndexCache.loading = true;
   markdownLinkIndexCache.agentId = agentId;
 
@@ -58404,7 +59654,7 @@ function getMarkdownLinkForLibraryItem(item) {
 }
 
 function sortDocLinkItemsByMenuOrder(items) {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu) {
     return [...items].sort((a, b) =>
       String(a.label || "").localeCompare(String(b.label || ""), "ru")
@@ -58413,7 +59663,7 @@ function sortDocLinkItemsByMenuOrder(items) {
 
   const order = new Map();
   let index = 0;
-  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+  for (const entry of collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })) {
     const path = normalizeMenuNodePath(entry.path);
     if (path && !order.has(path)) order.set(path, index++);
   }
@@ -58488,7 +59738,7 @@ function collectMarkdownLinkLibraryGroups() {
 
 function getFlatMarkdownLinkLibraryItems(options = {}) {
   const force = options.force === true;
-  const cacheKey = `${activeAgentId || ""}:${getCurrentEditorLinkBasePath()}:${(markdownLinkIndexCache.items || []).length}`;
+  const cacheKey = `${activeWorkspaceId || ""}:${getCurrentEditorLinkBasePath()}:${(markdownLinkIndexCache.items || []).length}`;
   if (!force && markdownLinkFlatLibraryCache && markdownLinkFlatLibraryCacheKey === cacheKey) {
     return markdownLinkFlatLibraryCache;
   }
@@ -58538,12 +59788,12 @@ function isDocLinkLibraryEntry(entry) {
 }
 
 function collectDocLinkLibraryGroups() {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (!menu || !activePath) {
     return { currentTopic: [], otherTopics: [], scopeLabel: "" };
   }
 
-  const allEntries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const allEntries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
   const activeScope = getLinkLibraryScopeFolder(activePath);
   const currentTopic = [];
@@ -58893,7 +60143,7 @@ function renderDocLinksLibraryContent(options = {}) {
       if (hasQuery && !filtered.length) continue;
       const sectionTitle =
         id === "awn.topic"
-          ? `Темы · ${getActiveAgentLabel() || activeAgentId || "агент"}`
+          ? `Темы · ${getActiveAgentLabel() || activeWorkspaceId || "агент"}`
           : label;
       const sectionHint =
         id === "awn.topic" ? "Как в меню слева — только темы агента" : hint || "";
@@ -61927,7 +63177,7 @@ const CATALOG_PRESET_TO_TAXONOMY_KEYS = {
   users: ["users"]
 };
 
-function findTaxonomyDefinitionForCatalogPreset(preset, agentId = activeAgentId) {
+function findTaxonomyDefinitionForCatalogPreset(preset, agentId = activeWorkspaceId) {
   const keys = CATALOG_PRESET_TO_TAXONOMY_KEYS[preset] || [String(preset || "").trim().toLowerCase()];
   const definitions = getAgentTaxonomyDefinitions(agentId);
   for (const definition of definitions) {
@@ -62042,7 +63292,7 @@ async function submitPropsTaxonomyAdd(definition, payload) {
   const displayName = name || id;
   const parent = String(raw.parent ?? "").trim();
 
-  const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeAgentId), {
+  const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, activeWorkspaceId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -62060,8 +63310,8 @@ async function submitPropsTaxonomyAdd(definition, payload) {
 
   applyTaxonomyItemToPropsEntry(definition.key, definition.cardinality, id);
   syncYamlFromPropsForm();
-  invalidateAgentTaxonomiesCache(activeAgentId);
-  await loadAgentTaxonomies(activeAgentId, { force: true });
+  invalidateAgentTaxonomiesCache(activeWorkspaceId);
+  await loadAgentTaxonomies(activeWorkspaceId, { force: true });
   if (getDocAsideTab() === "props" && !propsRawYamlVisible) renderPropsForm();
   showToast(`Добавлено в справочник: ${displayName}`, "success");
   return data;
@@ -65846,11 +67096,11 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
   }
 
   const needsTaxonomies =
-    activeAgentId &&
-    !getAgentTaxonomiesCache(activeAgentId) &&
+    activeWorkspaceId &&
+    !getAgentTaxonomiesCache(activeWorkspaceId) &&
     (isLookupFieldWidget(fieldWidget) || fieldWidget === "taxonomy");
   if (needsTaxonomies) {
-    void loadAgentTaxonomies(activeAgentId);
+    void loadAgentTaxonomies(activeWorkspaceId);
   }
 
   return row;
@@ -66142,7 +67392,7 @@ function applyMediaSidecarContentUi(rawContent) {
 
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
   await Promise.all([
-    loadAwnTypes(activeAgentId).catch(() => null),
+    loadAwnTypes(activeWorkspaceId).catch(() => null),
     ensureTopicSchemaForActiveContext()
   ]);
   const { frontmatter, body } = splitFrontmatter(rawContent);
@@ -67647,7 +68897,7 @@ function applySystemFileUi() {
   setTitleLockedDisplay(getServiceStyleContentLabel());
   editorViewClusterNode?.classList.remove("hidden");
   editorViewClusterNode?.classList.remove("is-line-numbers-only");
-  const readOnlyIndex = isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile);
+  const readOnlyIndex = isReadOnlyWorkspacePageIndexView();
   if (readOnlyIndex) {
     systemFileEditActive = false;
     editorViewMode = "preview";
@@ -68460,7 +69710,7 @@ async function revealNodeFolderInExplorer() {
   if (!resolvedPath) return;
   try {
     if (window.desktopApp?.revealFolder) {
-      await window.desktopApp.revealFolder(resolvedPath, activeAgentId);
+      await window.desktopApp.revealFolder(resolvedPath, activeWorkspaceId);
       return;
     }
 
@@ -69223,8 +70473,8 @@ function buildNavigationHeroRuntimeTooltip({ id, active, caption, cronSchedule =
 function buildNavigationHeroMarkerTooltip({ id, active, caption, titleActive, titleInactive }) {
   if (id === "agent") {
     return active
-      ? "Agent workspace: manifest.md (awn.page.ws) в этой папке"
-      : "Agent workspace: manifest.md (awn.page.ws) нет в этой папке";
+      ? "Agent workspace: manifest.md (awn.hub.topic.ws) в этой папке"
+      : "Agent workspace: manifest.md (awn.hub.topic.ws) нет в этой папке";
   }
   if (id === "git") {
     return active ? "Git: репозиторий (.git) в этой папке" : "Git: репозитория нет в этой папке";
@@ -70544,7 +71794,7 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
   return accordion;
 }
 
-async function loadTypeCatalog(agentId = activeAgentId) {
+async function loadTypeCatalog(agentId = activeWorkspaceId) {
   const cacheKey = String(agentId || "default");
   if (typeCatalogCacheByAgent.has(cacheKey)) return typeCatalogCacheByAgent.get(cacheKey);
   if (typeCatalogLoadPromiseByAgent.has(cacheKey)) return typeCatalogLoadPromiseByAgent.get(cacheKey);
@@ -71296,8 +72546,8 @@ function writeNodeLastViewedStore(store) {
 
 function getNodeLastViewedStorageKey(nodePath) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
-  if (!normalized || !activeAgentId) return null;
-  return `${activeAgentId}:${normalized}`;
+  if (!normalized || !activeWorkspaceId) return null;
+  return `${activeWorkspaceId}:${normalized}`;
 }
 
 function recordNodeLastViewed(nodePath) {
@@ -71693,7 +72943,7 @@ function buildNodeNavigationMemoryCounterSlots({
   });
 }
 
-async function fetchFolderViewSummary(manifestPath, folder, agentId = activeAgentId) {
+async function fetchFolderViewSummary(manifestPath, folder, agentId = activeWorkspaceId) {
   if (!manifestPath || !folder) return { exists: false, files: 0, subfolders: 0 };
   try {
     const response = await fetch(
@@ -71793,9 +73043,39 @@ function getTopicStorageIndexRelPath(topicPath) {
   return containerDir ? `${containerDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
 }
 
+function isWorkspacePageIndexRelPath(relPath) {
+  const normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return false;
+  if (normalized === WORKSPACE_PAGE_INDEX_REL_PATH.toLowerCase()) return true;
+  if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE.toLowerCase()) return true;
+  return false;
+}
+
+function isReadOnlyWorkspacePageIndexView() {
+  if (activeWorkspaceTocRelPath) return true;
+  if (activeSystemFile) {
+    const normalized = normalizeSystemFileName(activeSystemFile);
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE || normalized === WORKSPACE_WSMAP_FILE) {
+      return true;
+    }
+  }
+  const apiPath = String(getActiveNodeApiPath() || activePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return isWorkspacePageIndexRelPath(apiPath);
+}
+
 function isReadOnlyWorkspacePageIndexSystemFile(name = activeSystemFile) {
   const normalized = normalizeSystemFileName(name);
-  return normalized === WORKSPACE_PAGE_INDEX_FILE || normalized === WORKSPACE_WSMAP_FILE;
+  if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE || normalized === WORKSPACE_WSMAP_FILE) {
+    return true;
+  }
+  return isReadOnlyWorkspacePageIndexView();
 }
 
 function isStorageIndexMdEntryContext(context) {
@@ -71805,7 +73085,7 @@ function isStorageIndexMdEntryContext(context) {
     .trim();
   const baseName = (rel.split("/").pop() || rel).toLowerCase();
   if (baseName === STORAGE_SLOT_INDEX_FILE.toLowerCase()) return true;
-  if (normalizeSystemFileName(baseName) === WORKSPACE_PAGE_INDEX_FILE) return true;
+  if (isWorkspacePageIndexRelPath(rel)) return true;
   const memoryKind = String(context.memoryKind || "").trim();
   return (
     memoryKind === "topic-index" ||
@@ -72841,8 +74121,8 @@ function findMenuItemEntryInAgentMenu(menuRoot, targetPath) {
   );
 }
 
-function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function getFolderWorkspaceMarkersForNode(nodePath, agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return { hasGit: false, hasObsidian: false, hasAgent: false };
 
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
@@ -72920,8 +74200,8 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       caption: "Agent",
       active: markers.hasAgent,
       createSvg: createAgentMarkerIcon,
-      titleActive: "manifest.md (awn.page.ws): есть в этой папке",
-      titleInactive: "manifest.md (awn.page.ws): нет в этой папке"
+      titleActive: "manifest.md (awn.hub.topic.ws): есть в этой папке",
+      titleInactive: "manifest.md (awn.hub.topic.ws): нет в этой папке"
     }),
     createNavigationHeroMarkerSlot({
       id: "git",
@@ -73674,9 +74954,17 @@ function navigationListSortUiKey(scope) {
 }
 
 function getNavigationListSortTopicPath() {
-  const path = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
-  if (!path || !isNodeMdPath(path)) return "";
-  return String(path).replace(/\\/g, "/");
+  const resolved = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+  const normalized = String(resolved || "").replace(/\\/g, "/");
+  if (!normalized) return "";
+  if (isNodeMdPath(normalized)) return normalized;
+  const hubManifest = resolveHubStorageManifestApiPath(normalized);
+  if (hubManifest && isNodeMdPath(hubManifest)) return hubManifest;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    const fromOverview = getWorkspaceStorageManifestApiPath(activeEntryOverviewContext.relPath);
+    if (fromOverview && isNodeMdPath(fromOverview)) return fromOverview;
+  }
+  return "";
 }
 
 function getNavigationListSortCacheForTopic(topicPath) {
@@ -73691,10 +74979,10 @@ function getNavigationListSortCacheForTopic(topicPath) {
 function parseNavigationListSortFromAwnUi(awnUi = {}) {
   const result = {};
   if (!awnUi || typeof awnUi !== "object") return result;
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
+  forEachNavigationListSortScope((scope) => {
     const raw = awnUi[navigationListSortUiKey(scope)];
     if (raw === "created" || raw === "name") result[scope] = raw;
-  }
+  });
   return result;
 }
 
@@ -73722,13 +75010,13 @@ function hydrateNavigationListSortFromNodeConfig(topicPath, content, { migrateLe
   }
   if (hasConfig || !migrateLegacy) return;
 
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
-    if (cache[scope]) continue;
+  forEachNavigationListSortScope((scope) => {
+    if (cache[scope]) return;
     const legacy = readLegacyNavigationListSort(scope);
     if (legacy) {
       cache[scope] = legacy;
     }
-  }
+  });
 }
 
 async function persistAllNavigationListSortToNodeConfig(topicPath) {
@@ -73736,9 +75024,9 @@ async function persistAllNavigationListSortToNodeConfig(topicPath) {
   if (!path || !isNodeMdPath(path)) return;
   const cache = getNavigationListSortCacheForTopic(path);
   const patch = {};
-  for (const scope of NAVIGATION_LIST_SORT_SCOPES) {
+  forEachNavigationListSortScope((scope) => {
     if (cache[scope]) patch[navigationListSortUiKey(scope)] = cache[scope];
-  }
+  });
   if (!Object.keys(patch).length) return;
   try {
     const current = await loadNodeConfig(path, { force: true });
@@ -73752,7 +75040,7 @@ async function persistAllNavigationListSortToNodeConfig(topicPath) {
 async function persistNavigationListSortToNodeConfig(topicPath, scope, mode) {
   const path = String(topicPath || "").replace(/\\/g, "/");
   const key = String(scope || "").trim();
-  if (!path || !isNodeMdPath(path) || !key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return;
+  if (!path || !isNodeMdPath(path) || !key || !isNavigationListSortScope(key)) return;
   const normalized = mode === "created" ? "created" : "name";
   try {
     const current = await loadNodeConfig(path, { force: true });
@@ -73767,7 +75055,7 @@ async function persistNavigationListSortToNodeConfig(topicPath, scope, mode) {
 
 function loadNavigationListSort(scope) {
   const key = String(scope || "").trim();
-  if (!key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return "name";
+  if (!key || !isNavigationListSortScope(key)) return "name";
 
   const topicPath = getNavigationListSortTopicPath();
   if (topicPath) {
@@ -73799,7 +75087,7 @@ function loadNavigationListSort(scope) {
 
 function saveNavigationListSort(scope, mode) {
   const key = String(scope || "").trim();
-  if (!key || !NAVIGATION_LIST_SORT_SCOPES.has(key)) return;
+  if (!key || !isNavigationListSortScope(key)) return;
   const normalized = mode === "created" ? "created" : "name";
 
   const topicPath = getNavigationListSortTopicPath();
@@ -74069,7 +75357,20 @@ function createNavigationListSortIcon(kind) {
   return icon;
 }
 
-function createNavigationListSortSelect(scope, { onChange } = {}) {
+function syncNavigationListSortSelect(wrap, loadSort) {
+  if (!wrap || typeof loadSort !== "function") return;
+  const current = loadSort();
+  wrap._navigationListSortCurrent = current;
+  const toggle = wrap.querySelector(".node-navigation-list-sort-toggle");
+  if (!toggle) return;
+  for (const btn of toggle.querySelectorAll("[data-sort-value]")) {
+    const active = btn.dataset.sortValue === current;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function createNavigationListSortSelect(scope, { onChange, loadSort = null, saveSort = null } = {}) {
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-list-sort";
 
@@ -74078,9 +75379,15 @@ function createNavigationListSortSelect(scope, { onChange } = {}) {
   toggle.setAttribute("role", "group");
   toggle.setAttribute("aria-label", "Сортировка списка");
 
-  let current = loadNavigationListSort(scope);
+  const loadFn = typeof loadSort === "function" ? loadSort : () => loadNavigationListSort(scope);
+  const saveFn =
+    typeof saveSort === "function" ? saveSort : (mode) => saveNavigationListSort(scope, mode);
+
+  let current = loadFn();
+  wrap._navigationListSortCurrent = current;
 
   const syncActive = () => {
+    current = wrap._navigationListSortCurrent ?? current;
     for (const btn of toggle.querySelectorAll("[data-sort-value]")) {
       const active = btn.dataset.sortValue === current;
       btn.classList.toggle("is-active", active);
@@ -74108,7 +75415,8 @@ function createNavigationListSortSelect(scope, { onChange } = {}) {
       event.stopPropagation();
       if (current === spec.value) return;
       current = spec.value;
-      saveNavigationListSort(scope, current);
+      wrap._navigationListSortCurrent = current;
+      saveFn(current);
       syncActive();
       onChange?.(current);
     });
@@ -74141,7 +75449,7 @@ async function fetchExternalFilesForNavigation(nodePath) {
   }
 }
 
-async function fetchFlatStorageFilesForNavigation(manifestPath, folderName, agentId = activeAgentId) {
+async function fetchFlatStorageFilesForNavigation(manifestPath, folderName, agentId = activeWorkspaceId) {
   if (!manifestPath || !folderName) {
     return { exists: false, files: [], folders: [], nonMarkdownFiles: [] };
   }
@@ -75619,7 +76927,7 @@ function withPreservedMenuTreePreviews(agentId, work) {
 }
 
 const NAV_PREVIEW_HOVER_SELECTOR =
-  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-item:has(.menu-tree-preview-img), .menu-folder:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder))";
+  ".nav-book-toc-link:has(.nav-book-toc-link-preview-img), .nav-book-toc-link-preview:has(.nav-book-toc-link-preview-img), .menu-item:has(.menu-tree-preview-img), .menu-folder:has(.menu-tree-preview-img), .node-overview-thumb-wrap[data-has-preview='1']:has(.node-overview-thumb:not(.broken-image-placeholder)), .external-table-cover-cell:has(.external-table-cover-thumb:not(.broken-image-placeholder)), .external-table-cover-thumb:not(.broken-image-placeholder)";
 
 let navPreviewHoverPopoverNode = null;
 let navPreviewHoverPopoverImgNode = null;
@@ -75642,6 +76950,15 @@ function resolveNavPreviewHoverSourceImg(anchorNode) {
   ) {
     return anchorNode.querySelector(".menu-tree-preview-img");
   }
+  if (
+    anchorNode.classList.contains("external-table-cover-cell") ||
+    anchorNode.classList.contains("awn-databases-view-record-field-preview")
+  ) {
+    return anchorNode.querySelector(".external-table-cover-thumb:not(.broken-image-placeholder)");
+  }
+  if (anchorNode.classList.contains("external-table-cover-thumb")) {
+    return anchorNode;
+  }
   return anchorNode.querySelector(".node-overview-thumb");
 }
 
@@ -75656,13 +76973,17 @@ function positionNavPreviewHoverPopover(anchorNode) {
   const isTocPreview =
     anchorNode.classList.contains("nav-book-toc-link") ||
     anchorNode.classList.contains("nav-book-toc-link-preview");
+  const isTableCoverThumb =
+    anchorNode.classList.contains("external-table-cover-cell") ||
+    anchorNode.classList.contains("awn-databases-view-record-field-preview");
   const popSize = isHeroThumb ? 240 : 168;
   navPreviewHoverPopoverNode.classList.toggle("is-large", isHeroThumb);
   navPreviewHoverPopoverNode.style.width = `${popSize}px`;
   navPreviewHoverPopoverNode.style.height = `${popSize}px`;
 
-  // For menu items, pin the popover to the mini preview image, not the whole row.
-  const previewImg = isMenuTreePreview ? resolveNavPreviewHoverSourceImg(anchorNode) : null;
+  // Pin the popover to the mini preview image, not the whole row/cell.
+  const previewImg =
+    isMenuTreePreview || isTableCoverThumb ? resolveNavPreviewHoverSourceImg(anchorNode) : null;
   const previewWrap = previewImg?.closest?.(".menu-tree-preview");
   const rect = (previewWrap || previewImg || anchorNode).getBoundingClientRect();
 
@@ -75675,7 +76996,7 @@ function positionNavPreviewHoverPopover(anchorNode) {
     left = rect.left - 30;
     top = rect.top - popSize - 10;
     anchorSide = "bottom";
-  } else if (isTocPreview) {
+  } else if (isTocPreview || isTableCoverThumb) {
     left = rect.left - popSize - 10;
     if (left < 12) {
       left = rect.right + 10;
@@ -75736,9 +77057,12 @@ function showNavPreviewHoverPopover(anchorNode) {
   const imageUrl = String(sourceImg?.currentSrc || sourceImg?.src || "").trim();
   if (!sourceImg || !imageUrl || sourceImg.classList.contains("broken-image-placeholder")) return;
 
-  const hoverAnchor = anchorNode.classList.contains("nav-book-toc-link-preview")
-    ? anchorNode.closest(".nav-book-toc-link") || anchorNode
-    : anchorNode;
+  let hoverAnchor = anchorNode;
+  if (anchorNode.classList.contains("nav-book-toc-link-preview")) {
+    hoverAnchor = anchorNode.closest(".nav-book-toc-link") || anchorNode;
+  } else if (anchorNode.classList.contains("external-table-cover-thumb")) {
+    hoverAnchor = anchorNode.closest(".external-table-cover-cell") || anchorNode;
+  }
 
   if (!navPreviewHoverPopoverNode) {
     navPreviewHoverPopoverNode = document.createElement("div");
@@ -76392,7 +77716,7 @@ function buildNavigationSlotCounterTitle(spec, count, { intake = null } = {}) {
   return normalizedCount > 0 ? `${label}: ${normalizedCount}` : `${label}: пусто`;
 }
 
-async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeAgentId) {
+async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeWorkspaceId) {
   if (!manifestPath || !folder) return { exists: false, content: "" };
   try {
     const response = await fetch(
@@ -76409,7 +77733,7 @@ async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = act
   }
 }
 
-async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = activeAgentId) {
+async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = activeWorkspaceId) {
   const folders = getStorageFolderNamesForSlotKey(slotKey);
   if (!folders.length) return null;
 
@@ -76423,7 +77747,7 @@ async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = 
   return hasNavigationExternalPreparedContent(index) ? index : null;
 }
 
-async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) {
+async function fetchInboxNavigationIndex(manifestPath, agentId = activeWorkspaceId) {
   try {
     const data = await fetchFlatStorageFilesForNavigation(
       manifestPath,
@@ -76439,8 +77763,11 @@ async function fetchInboxNavigationIndex(manifestPath, agentId = activeAgentId) 
   }
 }
 
-async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeAgentId) {
-  const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
+async function fetchNavigationHubRailFlatIndexes(nodePath, agentId = activeWorkspaceId) {
+  const resolvedNode = nodePath || getResolvedNodePath(activePath);
+  const manifestPath =
+    getWorkspaceStorageManifestApiPath(resolvedNode) ||
+    resolveManifestPathForNodeApi(resolvedNode);
   if (!manifestPath) return {};
 
   const slotKeys = DATA_STORAGE_SLOT_SPECS.filter(
@@ -76652,7 +77979,9 @@ function buildNavigationHubRailFileContextMenuState(memoryKind, item) {
       filePath,
       label,
       status,
-      railSlotMemoryKind: memoryKind
+      railSlotMemoryKind: memoryKind,
+      manifestPath: getWorkspaceStorageManifestApiPath(getResolvedNodePath(activePath)),
+      nodePath: getResolvedNodePath(activePath)
     };
   }
 
@@ -77405,7 +78734,7 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
   try {
     const manifestPath = getTopicSchemaManifestPath();
     if (!manifestPath) return entries;
-    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    if (!awnTypesCache?.types) await loadAwnTypes(activeWorkspaceId);
     if (contentPath) {
       await loadTopicSchemaForManifest(manifestPath, { contentPath, force: false });
     }
@@ -77449,7 +78778,7 @@ async function fetchEntryOverviewBodyResult(context) {
       return { content: String(data.content || ""), ok: true };
     }
     if (context.memoryKind === "workspace-page-index-generated") {
-      const cacheKey = activeAgentId || "main";
+      const cacheKey = activeWorkspaceId || "main";
       const cached = workspaceGeneratedPageIndexCache.get(cacheKey);
       if (cached) return { content: cached, ok: true };
       const markdown = await buildWorkspacePageIndexMarkdownFromApi();
@@ -79252,7 +80581,8 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
     }
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
       const slotKey = getDataStorageSlotForMode(context.memoryKind)?.key || context.memoryKind;
-      return fetchFlatStorageNavigationIndex(topicPath, slotKey);
+      const manifestPath = getWorkspaceStorageManifestApiPath(topicPath) || topicPath;
+      return fetchFlatStorageNavigationIndex(manifestPath, slotKey);
     }
   } catch {
     return null;
@@ -80997,10 +82327,24 @@ const IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS = {
   "storage-root": "awn-storage/ (не data или assets)"
 };
 
+const HUB_OUTSIDE_STRUCTURE_SCOPE_LABELS = {
+  "channel-root": "Корень канала",
+  "media-root": "Корень медиатеки",
+  "storage-root": "awn-storage/ (не слот)"
+};
+
 async function fetchIblockOutsideStructureReport(storeRel) {
   const response = await fetch(buildApiUrl("/api/agent/iblock-outside-structure", { store: storeRel }));
   if (!response.ok) {
     throw new Error(`iblock-outside-structure ${response.status}`);
+  }
+  return response.json();
+}
+
+async function fetchHubOutsideStructureReport(hubRel) {
+  const response = await fetch(buildApiUrl("/api/agent/hub-outside-structure", { path: hubRel }));
+  if (!response.ok) {
+    throw new Error(`hub-outside-structure ${response.status}`);
   }
   return response.json();
 }
@@ -81020,15 +82364,30 @@ function renderIblockOutsideStructureWarningPanel(report) {
 
   const hint = document.createElement("p");
   hint.className = "node-navigation-outside-slots-warning-hint";
+  const hubKind = String(report?.hubKind || "").trim();
   const isGroup = String(report?.kind || "") === "group";
-  hint.textContent = isGroup
-    ? "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/."
-    : "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/, для табличной CSV-коллекции — main.csv (или record.file из schema); при плоском MD-хранении — записи и разделы в корне; в awn-storage/ — только data/ и assets/.";
+  if (hubKind === "channel") {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры канала. В корне — manifest.md, config.yml, sort.json, schema mod, awn-storage/; в awn-storage/ — слоты (inbox/, task-queue/, outbox/, files/, assets/) и служебные history/, comments/.";
+  } else if (hubKind === "media") {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры медиатеки. В корне — manifest.md, config.yml, sort.json, schema mod, awn-storage/; в awn-storage/ — files/, assets/ и служебные history/, comments/.";
+  } else if (isGroup) {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры группы. В корне — manifest, schema.yml, sort.json, awn-storage/ и папки дочерних инфоблоков; в awn-storage/ — только data/ и assets/.";
+  } else {
+    hint.textContent =
+      "Файлы и папки вне разрешённой структуры инфоблока. В корне — manifest, schema.yml, sort.json, awn-storage/, для табличной CSV-коллекции — main.csv (или record.file из schema); при плоском MD-хранении — записи и разделы в корне; в awn-storage/ — только data/ и assets/.";
+  }
 
   header.append(title, hint);
 
   const list = document.createElement("ul");
   list.className = "node-navigation-outside-slots-warning-list";
+
+  const scopeLabels = hubKind
+    ? HUB_OUTSIDE_STRUCTURE_SCOPE_LABELS
+    : IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS;
 
   for (const item of report?.items || []) {
     const row = document.createElement("li");
@@ -81036,7 +82395,7 @@ function renderIblockOutsideStructureWarningPanel(report) {
 
     const scope = document.createElement("span");
     scope.className = "node-navigation-outside-slots-warning-scope";
-    scope.textContent = IBLOCK_OUTSIDE_STRUCTURE_SCOPE_LABELS[item.scope] || item.scope || "—";
+    scope.textContent = scopeLabels[item.scope] || item.scope || "—";
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -81110,6 +82469,39 @@ function mountAwnDataViewIblockOutsideStructureWarning(store) {
   void refreshAwnDataViewIblockOutsideStructureRow(row, panel, storeRel);
 }
 
+async function refreshHubWorkspaceOutsideStructureRow(row, wrap, hubRel) {
+  if (!row || !wrap || !hubRel) return;
+  try {
+    const report = await fetchHubOutsideStructureReport(hubRel);
+    if (!row.isConnected) return;
+    applyIblockOutsideStructureWarningRow(row, wrap, report);
+  } catch {
+    if (row.isConnected) {
+      row.hidden = true;
+      wrap?.classList.remove("has-outside-structure-warning");
+    }
+  }
+}
+
+function mountHubWorkspaceOutsideStructureWarning(manifestPath, layout) {
+  const hub = resolveHubWorkspaceStoreFromManifest(manifestPath);
+  const panel = layout?.querySelector(".awn-databases-view-schema-panel");
+  if (!hub?.storeRel || !panel) return;
+  let row = panel.querySelector(":scope > .awn-databases-view-iblock-outside-structure-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "awn-databases-view-iblock-outside-structure-row";
+    row.hidden = true;
+    const anchor =
+      panel.querySelector(".awn-databases-view-schema-fields-section") ||
+      panel.querySelector(".awn-databases-view-schema-fields-accordion") ||
+      panel.lastElementChild;
+    if (anchor) anchor.insertAdjacentElement("afterend", row);
+    else panel.appendChild(row);
+  }
+  void refreshHubWorkspaceOutsideStructureRow(row, panel, hub.storeRel);
+}
+
 function createWorkspaceCounterIndexButton(slot, topicPath) {
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const btn = document.createElement("button");
@@ -81139,20 +82531,29 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
 }
 
 function getWorkspacePageIndexRelPath() {
-  return WORKSPACE_PAGE_INDEX_FILE;
+  return WORKSPACE_PAGE_INDEX_REL_PATH;
 }
 
 async function probeWorkspacePageIndexExists() {
-  return Boolean(await resolveExistingWorkspacePageIndexRelPath());
+  if (await resolveExistingWorkspacePageIndexRelPath()) return true;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"));
+    if (!response.ok) return false;
+    const payload = await response.json();
+    return Boolean(payload?.indexFile?.exists);
+  } catch {
+    return false;
+  }
 }
 
 async function resolveExistingWorkspacePageIndexRelPath() {
-  const relPath = getWorkspacePageIndexRelPath();
-  try {
-    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-    if (response.ok) return relPath;
-  } catch {
-    // ignore
+  for (const relPath of [getWorkspacePageIndexRelPath(), WORKSPACE_PAGE_INDEX_LEGACY_FILE]) {
+    try {
+      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+      if (response.ok) return relPath;
+    } catch {
+      // ignore
+    }
   }
   return null;
 }
@@ -81189,10 +82590,21 @@ async function refreshWorkspacePageIndexOverview() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ overwrite: true })
     });
-    if (!response.ok) return false;
-    workspaceGeneratedPageIndexCache.delete(activeAgentId || "main");
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = String(body?.error || body?.details || "").trim();
+      } catch {
+        // ignore
+      }
+      console.warn("workspace-page-index refresh failed", response.status, detail);
+      return false;
+    }
+    workspaceGeneratedPageIndexCache.delete(activeWorkspaceId || "main");
     return true;
-  } catch {
+  } catch (error) {
+    console.warn("workspace-page-index refresh failed", error);
     return false;
   }
 }
@@ -81210,8 +82622,52 @@ async function refreshWorkspaceWsmapOverview() {
   }
 }
 
-async function openWorkspacePageIndexOverview() {
-  await selectSystemFile(WORKSPACE_PAGE_INDEX_FILE);
+async function openWorkspacePageIndexOverview(options = {}) {
+  const relPath = getWorkspacePageIndexRelPath();
+  hideHomeView();
+  nodeOverviewRenderSeq += 1;
+  clearActiveSystemFile();
+  clearActiveWorkspaceTocView();
+  activeWorkspaceTocRelPath = relPath;
+  activePath = null;
+  activeLabel = "Оглавление тем";
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  clearMediaSidecarEditor();
+  editorViewMode = "preview";
+  systemFileEditActive = false;
+  setPropsYamlContent("");
+  showContentLoading({ variant: "default", message: "Загрузка оглавления…" });
+  fileContentInputNode.value = "";
+  updateActiveButton();
+  refreshEditorViewContent();
+
+  try {
+    let content = "";
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    if (response.ok) {
+      const data = await response.json();
+      content = String(data.content || "");
+    } else {
+      content = await buildWorkspacePageIndexMarkdownFromApi();
+      workspaceGeneratedPageIndexCache.set(activeWorkspaceId || "main", content);
+    }
+    fileContentInputNode.value = content;
+    applyModeUi();
+    refreshEditorViewContent();
+    commitEditorSaveBaseline();
+  } catch (error) {
+    fileContentInputNode.value = `Ошибка чтения оглавления: ${error.message}`;
+    applyModeUi();
+    commitEditorSaveBaseline();
+  } finally {
+    hideContentLoading({ force: true });
+    if (!options.skipRouteSync) syncAppRouteToUrl({ replace: true });
+  }
 }
 
 function ensureSidebarWorkspacePageIndexRow() {
@@ -81240,7 +82696,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     pinnedBanner.insertAdjacentElement("afterend", row);
   }
 
-  row.classList.toggle("hidden", !activeAgentId);
+  row.classList.toggle("hidden", !activeWorkspaceId);
 
   let footer = row.querySelector(".sidebar-workspace-page-index-open");
   if (!footer) {
@@ -81258,7 +82714,6 @@ function ensureSidebarWorkspacePageIndexRow() {
     refreshBtn.className =
       "sidebar-workspace-page-index-refresh node-navigation-workspace-counter-topic-index-refresh";
     refreshBtn.textContent = "⟲";
-    refreshBtn.setAttribute("aria-label", "Обновить оглавление workspace");
     row.appendChild(refreshBtn);
   }
 
@@ -81270,8 +82725,9 @@ function ensureSidebarWorkspacePageIndexRow() {
     footer.classList.toggle("is-generated", !hasIndex);
     footer.title = hasIndex
       ? `Открыть ${indexRelPath}`
-      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
-    refreshBtn.title = "Обновить INDEX.md и собрать WS-MAP.md из всех index.md в workspace";
+      : `Открыть preview оглавления (⟲ — сохранить ${indexRelPath} на диск)`;
+    refreshBtn.title = `Пересобрать и сохранить ${indexRelPath}`;
+    refreshBtn.setAttribute("aria-label", `Обновить ${indexRelPath}`);
   };
 
   const setWorkspacePageIndexRefreshLoading = (loading) => {
@@ -81307,31 +82763,19 @@ function ensureSidebarWorkspacePageIndexRow() {
     if (refreshBtn.disabled || refreshBtn.classList.contains("is-loading")) return;
     setWorkspacePageIndexRefreshLoading(true);
     void refreshWorkspacePageIndexOverview()
-      .then((indexOk) =>
-        refreshWorkspaceWsmapOverview().then((wsmapOk) => ({ indexOk, wsmapOk }))
-      )
-      .then(({ indexOk, wsmapOk }) => {
+      .then(async (indexOk) => {
         if (!row.isConnected) return;
-        if (indexOk) {
-          row.dataset.workspaceHasIndex = "1";
-          syncWorkspacePageIndexRowState();
-          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_PAGE_INDEX_FILE) {
-            void selectSystemFile(WORKSPACE_PAGE_INDEX_FILE, { skipRouteSync: true });
-          }
-          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_WSMAP_FILE && wsmapOk) {
-            void selectSystemFile(WORKSPACE_WSMAP_FILE, { skipRouteSync: true });
-          }
-          void loadSystemFiles();
-          if (indexOk && wsmapOk) {
-            showToast("INDEX.md и WS-MAP.md обновлены", "success");
-          } else if (indexOk) {
-            showToast("INDEX.md обновлён; WS-MAP.md не собран", "warning");
-          } else {
-            showToast("Не удалось обновить оглавление workspace", "error");
-          }
+        if (!indexOk) {
+          showToast("Не удалось обновить оглавление тем", "error");
           return;
         }
-        showToast("Не удалось обновить оглавление workspace", "error");
+        const exists = await probeWorkspacePageIndexExists();
+        row.dataset.workspaceHasIndex = exists ? "1" : "0";
+        syncWorkspacePageIndexRowState();
+        if (isReadOnlyWorkspacePageIndexView()) {
+          void openWorkspacePageIndexOverview({ skipRouteSync: true });
+        }
+        showToast(`${getWorkspacePageIndexRelPath()} обновлён`, "success");
       })
       .catch(() => {
         if (row.isConnected) showToast("Не удалось обновить оглавление workspace", "error");
@@ -83570,7 +85014,7 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
   const onFileClick = handlers.onFileClick || openMediaEntryOverviewFromNavigation;
   const sortMode =
     handlers.sortMode ||
-    (handlers.readMemoryKind && NAVIGATION_LIST_SORT_SCOPES.has(String(handlers.readMemoryKind))
+    (handlers.readMemoryKind && isNavigationListSortScope(String(handlers.readMemoryKind))
       ? loadNavigationListSort(handlers.readMemoryKind)
       : "name");
   const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
@@ -85324,7 +86768,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     handlers.onFileClick || ((item) => openExternalRecordOverviewFromNavigation(item));
   const sortMode =
     handlers.sortMode ||
-    (handlers.readMemoryKind && NAVIGATION_LIST_SORT_SCOPES.has(String(handlers.readMemoryKind))
+    (handlers.readMemoryKind && isNavigationListSortScope(String(handlers.readMemoryKind))
       ? loadNavigationListSort(handlers.readMemoryKind)
       : "name");
   const folderEntries = Array.from(node.folders.entries()).sort((a, b) =>
@@ -86282,7 +87726,7 @@ function slugifyCommentMentionHandle(text) {
 }
 
 function collectCommentMentionCandidates(options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const extraAuthors = Array.isArray(options.authors) ? options.authors : [];
   const candidates = new Map();
 
@@ -86292,7 +87736,7 @@ function collectCommentMentionCandidates(options = {}) {
     candidates.set(key, { handle: key, label: label || key, ...meta });
   };
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (menu) {
     for (const entry of collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })) {
       if (!entry.path) continue;
@@ -86336,7 +87780,7 @@ function commentMentionsUser(comment, userHandle) {
 
 function getCommentMentionSeenStorageKey(context) {
   const filePart = context.file ? `:${context.file}` : "";
-  return `${COMMENT_MENTION_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${context.path}:${context.mode}${filePart}`;
+  return `${COMMENT_MENTION_SEEN_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${context.path}:${context.mode}${filePart}`;
 }
 
 function getLastSeenMentionCommentId(context) {
@@ -86583,7 +88027,7 @@ function attachCommentMentionAutocomplete(textarea, getCandidates) {
   });
 }
 
-async function fetchFileComments(context, agentId = activeAgentId) {
+async function fetchFileComments(context, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/file/comments", buildFileCommentsApiParams(context), agentId)
   );
@@ -86591,7 +88035,7 @@ async function fetchFileComments(context, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postFileComment(context, body, author, agentId = activeAgentId, replyTo = null) {
+async function postFileComment(context, body, author, agentId = activeWorkspaceId, replyTo = null) {
   const response = await fetch(buildApiUrl("/api/file/comments", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86615,7 +88059,7 @@ async function postFileComment(context, body, author, agentId = activeAgentId, r
   return response.json();
 }
 
-async function patchFileComment(context, commentId, body, agentId = activeAgentId) {
+async function patchFileComment(context, commentId, body, agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/file/comment", {}, agentId), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -86638,7 +88082,7 @@ async function patchFileComment(context, commentId, body, agentId = activeAgentI
   return response.json();
 }
 
-async function deleteFileCommentApi(context, commentId, agentId = activeAgentId) {
+async function deleteFileCommentApi(context, commentId, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/file/comment", { ...buildFileCommentsApiParams(context), commentId }, agentId),
     { method: "DELETE" }
@@ -86662,7 +88106,7 @@ function commentAuthorsMatch(commentAuthor) {
   return Boolean(mine && theirs && mine === theirs);
 }
 
-async function postCommentReaction(context, commentId, author, agentId = activeAgentId, reaction = "up") {
+async function postCommentReaction(context, commentId, author, agentId = activeWorkspaceId, reaction = "up") {
   const response = await fetch(buildApiUrl("/api/file/comments/reaction", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86713,7 +88157,7 @@ function buildCommentThreadTree(comments) {
   return roots;
 }
 
-async function fetchTopicThread(context, agentId = activeAgentId) {
+async function fetchTopicThread(context, agentId = activeWorkspaceId) {
   const params =
     typeof context === "string"
       ? { path: context }
@@ -86723,7 +88167,7 @@ async function fetchTopicThread(context, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postTopicThreadMessage(context, body, options = {}, agentId = activeAgentId) {
+async function postTopicThreadMessage(context, body, options = {}, agentId = activeWorkspaceId) {
   const threadContext =
     typeof context === "string"
       ? { path: context }
@@ -86752,7 +88196,7 @@ async function postTopicThreadMessage(context, body, options = {}, agentId = act
   return response.json();
 }
 
-async function fetchInboxItems(manifestPath, agentId = activeAgentId) {
+async function fetchInboxItems(manifestPath, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/inbox", { path: manifestPath }, agentId)
   );
@@ -86760,7 +88204,7 @@ async function fetchInboxItems(manifestPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function postInboxTriage(manifestPath, file, action, status = "", agentId = activeAgentId) {
+async function postInboxTriage(manifestPath, file, action, status = "", agentId = activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/inbox/triage", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86779,7 +88223,7 @@ async function postInboxTriage(manifestPath, file, action, status = "", agentId 
   return response.json();
 }
 
-async function fetchTopicIntake(manifestPath, agentId = activeAgentId) {
+async function fetchTopicIntake(manifestPath, agentId = activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/topic/intake", { path: manifestPath }, agentId)
   );
@@ -86787,7 +88231,7 @@ async function fetchTopicIntake(manifestPath, agentId = activeAgentId) {
   return response.json();
 }
 
-async function fetchIntakeBatch(manifestPaths, agentId = activeAgentId) {
+async function fetchIntakeBatch(manifestPaths, agentId = activeWorkspaceId) {
   const mentionHandle = slugifyCommentMentionHandle(getStoredCommentAuthor());
   const mentionAfterIds = {};
   if (mentionHandle) {
@@ -86813,7 +88257,7 @@ async function fetchIntakeBatch(manifestPaths, agentId = activeAgentId) {
   return response.json();
 }
 
-function collectMenuTopicManifestApiPaths(menu, agentId = activeAgentId) {
+function collectMenuTopicManifestApiPaths(menu, agentId = activeWorkspaceId) {
   return [
     ...new Set(
       collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true })
@@ -86882,7 +88326,7 @@ function enrichMenuTreeRuntimeRollupClient(node) {
   return { runtimeCron, runtimeHeartbeat, runtimeCronSchedule: selfSchedule };
 }
 
-function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
+function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeWorkspaceId) {
   if (!node || typeof node !== "object") return;
   const map = menuRuntimeFlagsByAgent.get(agentId);
   const path = normalizeMenuNodePath(node.path || node.indexPath || "");
@@ -86904,7 +88348,7 @@ function applyRuntimeFlagsCacheToMenuTree(node, agentId = activeAgentId) {
   }
 }
 
-function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
+function enrichMenuRuntimeFromCache(menu, agentId = activeWorkspaceId) {
   if (!menu) return menu;
   applyRuntimeFlagsCacheToMenuTree(menu, agentId);
   enrichMenuTreeRuntimeRollupClient(menu);
@@ -86915,8 +88359,8 @@ function enrichMenuRuntimeFromCache(menu, agentId = activeAgentId) {
 }
 
 function patchMenuNodeRuntimeCommandsFromProps(manifestPath, propEntries) {
-  const menu = menuCacheByAgent.get(activeAgentId);
-  const node = findMenuTreeNodeByManifestPath(menu, manifestPath, activeAgentId);
+  const menu = menuCacheByAgent.get(activeWorkspaceId);
+  const node = findMenuTreeNodeByManifestPath(menu, manifestPath, activeWorkspaceId);
   if (!node) return;
   node.runtimeCommands = readPropsEntryBoolean(
     findPropsEntryByKey(normalizePropsEntries(propEntries || []), "awn-runtime-commands")
@@ -86958,7 +88402,7 @@ function mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems) {
   });
 }
 
-async function fetchRuntimeRegistrySources(agentId = activeAgentId) {
+async function fetchRuntimeRegistrySources(agentId = activeWorkspaceId) {
   const [alwaysRes, cronRes, heartbeatRes] = await Promise.all([
     fetch(buildApiUrl("/api/agent/always-context", {}, agentId)),
     fetch(buildApiUrl("/api/agent/cron-registry", {}, agentId)),
@@ -86997,7 +88441,7 @@ function buildMergedRuntimeRegistryPayload(rows) {
   };
 }
 
-async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
+async function refreshMenuRuntimeFlagsCache(agentId = activeWorkspaceId) {
   try {
     const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources(agentId);
     const rows = mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems);
@@ -87028,7 +88472,7 @@ async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
   }
 }
 
-function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
+function upsertMenuRuntimeBadges(host, source, agentId = activeWorkspaceId) {
   const nextBadges = createMenuRuntimeBadges(source, agentId);
   const badgesEl = host.querySelector(".menu-runtime-badges");
 
@@ -87048,12 +88492,12 @@ function upsertMenuRuntimeBadges(host, source, agentId = activeAgentId) {
   host.classList.add("has-menu-runtime-badges");
 }
 
-function refreshMenuTreeRuntimeBadges(agentId = activeAgentId) {
+function refreshMenuTreeRuntimeBadges(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuRuntimeBadges(agentId);
 }
 
-function syncMenuRuntimeBadges(agentId = activeAgentId) {
+function syncMenuRuntimeBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
 
@@ -87081,7 +88525,7 @@ function syncMenuRuntimeBadges(agentId = activeAgentId) {
   }
 }
 
-function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeAgentId) {
+function findMenuTreeNodeByManifestPath(menu, manifestPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(manifestPath || "");
   if (!menu || !normalized) return null;
 
@@ -87180,12 +88624,12 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
   host.classList.add("has-menu-intake-badges");
 }
 
-function refreshMenuTreeIntakeBadges(agentId = activeAgentId) {
+function refreshMenuTreeIntakeBadges(agentId = activeWorkspaceId) {
   if (!isMenuTreeLayoutMode() || menuSearchQuery.trim()) return;
   syncMenuIntakeBadges(agentId);
 }
 
-function syncMenuIntakeBadges(agentId = activeAgentId) {
+function syncMenuIntakeBadges(agentId = activeWorkspaceId) {
   const root = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   if (!root) return;
 
@@ -87204,11 +88648,11 @@ function syncMenuIntakeBadges(agentId = activeAgentId) {
   }
 }
 
-async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeAgentId) {
+async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeWorkspaceId) {
   const seq = ++menuIntakeSeq;
   const paths = collectMenuTopicManifestApiPaths(menu, agentId);
   if (!paths.length) {
-    if (agentId === activeAgentId) syncMenuIntakeBadges(agentId);
+    if (agentId === activeWorkspaceId) syncMenuIntakeBadges(agentId);
     return null;
   }
 
@@ -87220,7 +88664,7 @@ async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = active
       topicIntakeCacheByPath.set(manifestPath, intake);
     }
 
-    if (agentId === activeAgentId) {
+    if (agentId === activeWorkspaceId) {
       syncTopicIntakeDomainLabels();
       if (activeContentMode === "inbox") {
         syncListViewHead();
@@ -87312,7 +88756,7 @@ function normalizeLiveSyncPath(value) {
     .toLowerCase();
 }
 
-function getLiveSyncAckStorageKey(agentId = activeAgentId) {
+function getLiveSyncAckStorageKey(agentId = activeWorkspaceId) {
   return `${LIVE_SYNC_ACK_STORAGE_PREFIX}${agentId || "main"}`;
 }
 
@@ -87470,7 +88914,7 @@ function appendLiveSyncMediaEditorPaths(paths) {
   }
 }
 
-function getLiveSyncAckEntry(path, agentId = activeAgentId) {
+function getLiveSyncAckEntry(path, agentId = activeWorkspaceId) {
   const ackMap = loadLiveSyncAckMap(agentId);
   const raw = ackMap[normalizeLiveSyncPath(path)];
   if (typeof raw === "number") return { activity: raw, mtime: null };
@@ -87483,7 +88927,7 @@ function getLiveSyncAckEntry(path, agentId = activeAgentId) {
   return { activity: 0, mtime: null };
 }
 
-function loadLiveSyncAckMap(agentId = activeAgentId) {
+function loadLiveSyncAckMap(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getLiveSyncAckStorageKey(agentId));
     if (!raw) return {};
@@ -87494,7 +88938,7 @@ function loadLiveSyncAckMap(agentId = activeAgentId) {
   }
 }
 
-function saveLiveSyncAckMap(map, agentId = activeAgentId) {
+function saveLiveSyncAckMap(map, agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(getLiveSyncAckStorageKey(agentId), JSON.stringify(map));
   } catch {
@@ -87502,18 +88946,18 @@ function saveLiveSyncAckMap(map, agentId = activeAgentId) {
   }
 }
 
-function isLiveSyncEventAcknowledged(path, eventId, agentId = activeAgentId) {
+function isLiveSyncEventAcknowledged(path, eventId, agentId = activeWorkspaceId) {
   const ack = getLiveSyncAckEntry(path, agentId);
   return eventId > 0 && ack.activity >= eventId;
 }
 
-function isLiveSyncExternalAcknowledged(path, mtime, agentId = activeAgentId) {
+function isLiveSyncExternalAcknowledged(path, mtime, agentId = activeWorkspaceId) {
   const ackMtime = getLiveSyncAckEntry(path, agentId).mtime;
   if (!mtime || !ackMtime) return false;
   return String(ackMtime) >= String(mtime);
 }
 
-function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, agentId = activeAgentId) {
+function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, agentId = activeWorkspaceId) {
   if (!path) return;
   const ackMap = loadLiveSyncAckMap(agentId);
   const key = normalizeLiveSyncPath(path);
@@ -87529,7 +88973,7 @@ function acknowledgeLiveSyncChange(path, { eventId = 0, mtime = null } = {}, age
   saveLiveSyncAckMap(ackMap, agentId);
 }
 
-function resetLiveSyncSession(agentId = activeAgentId) {
+function resetLiveSyncSession(agentId = activeWorkspaceId) {
   liveSyncLastActivityId = Number(workspaceNotificationsLatestId) || 0;
   liveSyncBaselineReady = false;
   liveSyncMtimeBaselineReady = false;
@@ -88693,7 +90137,7 @@ async function syncLiveFileExternalRevisions(watchPaths) {
 }
 
 async function syncLiveFileUpdates() {
-  if (liveSyncInFlight || document.hidden || !activeAgentId) return;
+  if (liveSyncInFlight || document.hidden || !activeWorkspaceId) return;
   if (shouldPauseLiveSyncWhileEditing()) return;
   liveSyncInFlight = true;
   try {
@@ -88841,11 +90285,11 @@ const WORKSPACE_NOTIFICATION_SOURCE_LABELS = {
   journal: "журнал"
 };
 
-function getWorkspaceNotificationsSeenStorageKey(agentId = activeAgentId) {
+function getWorkspaceNotificationsSeenStorageKey(agentId = activeWorkspaceId) {
   return agentId ? `${WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX}.${agentId}` : WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX;
 }
 
-function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getWorkspaceNotificationsHiddenStorageKey(agentId));
     const parsed = Number(raw);
@@ -88855,7 +90299,7 @@ function loadWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
   }
 }
 
-function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
+function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(
       getWorkspaceNotificationsHiddenStorageKey(agentId),
@@ -88866,7 +90310,7 @@ function saveWorkspaceNotificationsHiddenBeforeId(agentId = activeAgentId) {
   }
 }
 
-function getWorkspaceNotificationsHiddenStorageKey(agentId = activeAgentId) {
+function getWorkspaceNotificationsHiddenStorageKey(agentId = activeWorkspaceId) {
   return agentId
     ? `${WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX}.${agentId}`
     : WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX;
@@ -88880,7 +90324,7 @@ function getWorkspaceNotificationBellEvents() {
   return workspaceNotificationsEvents.filter((event) => isWorkspaceNotificationVisibleInBell(event));
 }
 
-function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+function loadWorkspaceNotificationsSeenId(agentId = activeWorkspaceId) {
   try {
     const raw = localStorage.getItem(getWorkspaceNotificationsSeenStorageKey(agentId));
     const parsed = Number(raw);
@@ -88890,7 +90334,7 @@ function loadWorkspaceNotificationsSeenId(agentId = activeAgentId) {
   }
 }
 
-function saveWorkspaceNotificationsSeenId(agentId = activeAgentId) {
+function saveWorkspaceNotificationsSeenId(agentId = activeWorkspaceId) {
   try {
     localStorage.setItem(getWorkspaceNotificationsSeenStorageKey(agentId), String(workspaceNotificationsSeenId));
   } catch {
@@ -88933,7 +90377,7 @@ function saveWorkspaceNotificationsMuted() {
 }
 
 function isWorkspaceNotificationsContextActive() {
-  return Boolean(activeAgentId) && !appRootNode?.classList.contains("app-landing-view");
+  return Boolean(activeWorkspaceId) && !appRootNode?.classList.contains("app-landing-view");
 }
 
 function syncWorkspaceNotificationsAvailability() {
@@ -89378,7 +90822,7 @@ function renderWorkspaceNotificationsList() {
 }
 
 async function clearWorkspaceNotifications() {
-  if (!activeAgentId) return;
+  if (!activeWorkspaceId) return;
   const visible = getWorkspaceNotificationBellEvents();
   if (visible.length) {
     const confirmed = await askConfirm(
@@ -89805,13 +91249,13 @@ function initWorkspaceNotifications() {
 function syncChannelLiveUpdates() {
   stopChannelEventStream();
   stopChannelAutoPoll();
-  if (document.hidden || !activeAgentId) return;
+  if (document.hidden || !activeWorkspaceId) return;
 
   if (typeof EventSource === "undefined") {
     syncChannelAutoPoll();
     channelPollTimer = setInterval(() => {
-      if (document.hidden || !activeAgentId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (document.hidden || !activeWorkspaceId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
@@ -89826,8 +91270,8 @@ function syncChannelLiveUpdates() {
       window.agentCmsConnectionStatus?.reportSuccess?.();
     });
     channelEventSource.addEventListener("update", () => {
-      if (document.hidden || !activeAgentId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+      if (document.hidden || !activeWorkspaceId) return;
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
@@ -89835,15 +91279,15 @@ function syncChannelLiveUpdates() {
     });
     channelEventSource.addEventListener("reconnect", () => {
       stopChannelEventStream();
-      if (!document.hidden && activeAgentId) syncChannelLiveUpdates();
+      if (!document.hidden && activeWorkspaceId) syncChannelLiveUpdates();
     });
     channelEventSource.onerror = () => {
       window.agentCmsConnectionStatus?.reportFailure?.();
       stopChannelEventStream();
       syncChannelAutoPoll();
       channelPollTimer = setInterval(() => {
-        if (document.hidden || !activeAgentId) return;
-        void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
+        if (document.hidden || !activeWorkspaceId) return;
+        void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
         if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
         void refreshWorkspaceNotifications(true);
@@ -89878,7 +91322,7 @@ async function syncMediaFileCommentsBlock() {
   host.replaceChildren();
 }
 
-async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
+async function refreshTopicIntakeForActivePath(agentId = activeWorkspaceId) {
   if (!activePath) return null;
   const manifestPath = getActiveNodeApiPath();
   if (!manifestPath) return null;
@@ -89898,7 +91342,7 @@ async function refreshTopicIntakeForActivePath(agentId = activeAgentId) {
 }
 
 function getThreadLastSeenStorageKey(manifestPath) {
-  return `${THREAD_LAST_SEEN_STORAGE_PREFIX}${activeAgentId || "main"}:${manifestPath}`;
+  return `${THREAD_LAST_SEEN_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${manifestPath}`;
 }
 
 function getThreadLastSeenId(manifestPath) {
@@ -89928,7 +91372,7 @@ function getThreadUnreadCount(manifestPath, intake) {
   return discussion.lastMessageId !== lastSeen ? 1 : 0;
 }
 
-async function postInboxCreate(manifestPath, payload = {}, agentId = activeAgentId) {
+async function postInboxCreate(manifestPath, payload = {}, agentId = activeWorkspaceId) {
   const title = String(payload.title || "Входящее").trim() || "Входящее";
   const body = String(payload.body || "").trim() || `# ${title}\n`;
   const response = await fetch(buildApiUrl("/api/storage/file/create", {}, agentId), {
@@ -90650,7 +92094,7 @@ async function mountWorkspaceJournalPanel(container, options = {}) {
     try {
       const params = { limit };
       if (topic) params.topic = topic;
-      const response = await fetch(buildApiUrl("/api/agent/workspace-journal/list", params, activeAgentId));
+      const response = await fetch(buildApiUrl("/api/agent/workspace-journal/list", params, activeWorkspaceId));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (isStale()) return;
@@ -90694,7 +92138,7 @@ async function mountWorkspaceJournalPanel(container, options = {}) {
       composerSubmit.disabled = true;
       void (async () => {
         try {
-          const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+          const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeWorkspaceId), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -91192,7 +92636,7 @@ function getNodeCommentsScrollRoot(section) {
 
 async function createNodeCommentsBlock(options = {}) {
   const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const commentsDisabled = options.disabled === true;
   const context = {
     mode: options.mode || "description",
@@ -92304,7 +93748,7 @@ function initFolderBrowseFancybox(container, items = []) {
   });
 }
 
-async function fetchWorkspaceFolderBrowse(folderPath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderBrowse(folderPath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(
     buildApiUrl("/api/workspace/folder/browse", { folderPath: normalizeCreateParentPath(folderPath) }, agentId)
   );
@@ -92351,13 +93795,13 @@ async function tryOpenUnknownPathAsAdoptFile(workspacePath) {
   return true;
 }
 
-async function fetchWorkspaceFolderPage(filePath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderPage(filePath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/page", { file: filePath }, agentId));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
 
-async function fetchWorkspaceFolderText(filePath, agentId = activeFolderBrowseAgentId || activeAgentId) {
+async function fetchWorkspaceFolderText(filePath, agentId = activeFolderBrowseAgentId || activeWorkspaceId) {
   const response = await fetch(buildApiUrl("/api/workspace/folder/text", { file: filePath }, agentId));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
@@ -92947,7 +94391,7 @@ async function promptRenameWorkspaceFolderItem({ path, label, isDirectory = fals
   if (!trimmed || trimmed === currentName) return;
   try {
     const data = await renameWorkspaceFolderItem(path, trimmed);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (activeFolderBrowseFilePath === path && data.path) {
       await openFolderBrowseFile(trimmed, data.path, { folderPath: activeFolderBrowsePath, skipRouteSync: true });
@@ -92975,7 +94419,7 @@ async function promptMoveWorkspaceFolderItem(path) {
   if (parentPath == null || parentPath === "") return;
   try {
     const data = await moveWorkspaceFolderItem(path, parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (activeFolderBrowseFilePath === path && data.path) {
       await openFolderBrowseFile(getLabelFromPath(data.path), data.path, {
@@ -93007,7 +94451,7 @@ async function deleteWorkspaceFolderSelection(paths = null) {
   if (!confirmed) return;
   try {
     await deleteWorkspaceFolderItems(targets);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     clearFolderBrowseSelection();
     if (activeFolderBrowseFilePath && targets.includes(activeFolderBrowseFilePath)) {
       activeFolderBrowseFilePath = null;
@@ -93027,7 +94471,7 @@ async function deleteWorkspaceFolderItemByPath(path, label) {
   if (!confirmed) return;
   try {
     await deleteWorkspaceFolderItems([path]);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     if (activeFolderBrowseFilePath === path) {
       activeFolderBrowseFilePath = null;
       applyContentModeState(FOLDER_BROWSE_MODE);
@@ -95649,7 +97093,7 @@ async function renderNodeOverview() {
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
   if (isStale()) return;
 
-  // Type-specific custom fields form (only for specific sub-types, not generic awn.page.topic)
+  // Type-specific custom fields form (only for specific sub-types, not generic awn.hub.topic)
   if (typeLabel && awnTypesCache?.types) {
     const typeFieldsSection = renderNodeTypeFieldsSection(typeLabel, entries);
     if (typeFieldsSection) {
@@ -96136,7 +97580,7 @@ function applyModeUi(options = {}) {
         awnDataViewStoreRelMatches(awnDataViewStoreCache.relPath, awnDataViewStoreRel) &&
         (!awnDataViewRecordId || awnDataViewRecordCache?.id === awnDataViewRecordId);
       if (cacheOk) {
-        refreshAwnDataViewFromCache(awnDataViewCatalogAgentId || activeAgentId);
+        refreshAwnDataViewFromCache(awnDataViewCatalogAgentId || activeWorkspaceId);
         void mountAwnDataViewComments(
           awnDataViewStoreCache,
           awnDataViewRecordId ? awnDataViewRecordCache : null
@@ -96480,13 +97924,14 @@ function getMarkdownIt() {
     }
     const fenceBlock = getAwnFenceRenderer(language);
     if (fenceBlock) {
+      const isDqlFence = String(fenceBlock.renderer || "").includes("dql-table");
       // Экранируем в <template> — читаем обратно через .content.textContent.
       const escaped = String(token.content)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
       return (
-        `<div class="awn-fence-block" data-awn-fence="${language}"` +
+        `<div class="awn-fence-block${isDqlFence ? " awn-fence-block--dql" : ""}" data-awn-fence="${language}"` +
         (fenceBlock.renderer ? ` data-awn-renderer="${fenceBlock.renderer}"` : "") +
         (fenceBlock.id ? ` data-awn-block="${fenceBlock.id}"` : "") +
         `><template class="awn-fence-src">${escaped}</template>` +
@@ -97289,7 +98734,7 @@ function getAwnFenceRenderer(fenceTag) {
 async function loadAwnRendererModule(rendererPath) {
   if (!rendererPath) return null;
   if (awnRendererModuleCache.has(rendererPath)) return awnRendererModuleCache.get(rendererPath);
-  const url = buildApiUrl("/api/agent-system/renderer", { path: rendererPath }, activeAgentId);
+  const url = buildApiUrl("/api/agent-system/renderer", { path: rendererPath }, activeWorkspaceId);
   const promise = import(/* webpackIgnore: true */ url).catch((err) => {
     console.warn("Не удалось загрузить рендер блока:", rendererPath, err);
     awnRendererModuleCache.delete(rendererPath);
@@ -97318,10 +98763,13 @@ async function hydrateAwnFenceBlocks(rootNode) {
     }
     try {
       const mod = await loadAwnRendererModule(rendererPath);
-      const fn = mod && (mod.default || mod.render);
+      if (!mod) {
+        throw new Error(`Не удалось загрузить рендер ${rendererPath} (404 или сеть)`);
+      }
+      const fn = mod.default || mod.render;
       if (typeof fn !== "function") throw new Error("Рендер не экспортирует функцию (default/render)");
       await fn(target, source, {
-        agentId: activeAgentId,
+        agentId: activeWorkspaceId,
         blockId: el.getAttribute("data-awn-block") || "",
         fenceTag: el.getAttribute("data-awn-fence") || ""
       });
@@ -97758,7 +99206,6 @@ function enhanceMarkdownPreviewImages(root) {
 function renderPreviewFromEditor() {
   const nodePath = resolveMarkdownPreviewNodePath();
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, { nodePath });
-  syncAgentTodoPreviewFromEditor();
   syncAppFooterIdeasFromEditor();
   if (getDocAsideTab() === "outline") {
     renderDocOutline();
@@ -99333,7 +100780,7 @@ function applyEditorViewMode() {
 function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
-  if (activeSystemFile && isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile) && mode !== "preview") {
+  if (isReadOnlyWorkspacePageIndexView() && mode !== "preview") {
     return;
   }
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
@@ -99997,18 +101444,22 @@ function getNodeDisplayPath(nodePath) {
     return stripAgentContentPrefixFromRelPath(folderPath || getAgentTreeTitle());
   }
 
-  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
+  return rewriteLegacyTopicPathsInRelPathClient(
+    stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""))
+  );
 }
 
 function getNodeRoutePath(nodePath) {
   const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
   if (!normalized) return "";
 
+  const toRoutePath = (rel) => rewriteLegacyTopicPathsInRelPathClient(stripAgentContentPrefixFromRelPath(rel));
+
   const filePartMatch = normalized.match(/^(.*)\/_Parts\/([^/]+)\.node\.md$/i);
   if (filePartMatch) {
     const parentPath = filePartMatch[1];
     const partName = filePartMatch[2];
-    return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+    return toRoutePath(parentPath ? `${parentPath}/${partName}` : partName);
   }
 
   if (isPartNodePath(normalized)) {
@@ -100017,16 +101468,16 @@ function getNodeRoutePath(nodePath) {
     if (partsMatch) {
       const parentPath = partsMatch[1];
       const partName = partsMatch[2];
-      return stripAgentContentPrefixFromRelPath(parentPath ? `${parentPath}/${partName}` : partName);
+      return toRoutePath(parentPath ? `${parentPath}/${partName}` : partName);
     }
   }
 
   if (isNodeManifestPath(normalized) || isTopicManifestPath(normalized)) {
     const folderPath = getFolderPathFromManifest(normalized);
-    return stripAgentContentPrefixFromRelPath(folderPath || "");
+    return toRoutePath(folderPath || "");
   }
 
-  return stripAgentContentPrefixFromRelPath(normalized.replace(MANIFEST_MD_RE, ""));
+  return toRoutePath(normalized.replace(MANIFEST_MD_RE, ""));
 }
 
 function normalizeBreadcrumbPath(nodePath) {
@@ -100039,7 +101490,7 @@ function normalizeBreadcrumbPath(nodePath) {
 }
 
 function collectAllMenuFlatEntries(menu = currentMenuData) {
-  return collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  return collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
 }
 
 function resolveMenuEntryByDisplayPath(displayPath) {
@@ -100449,7 +101900,7 @@ function nodeMatchesQuery(value, queryLower) {
   return String(value || "").toLowerCase().includes(queryLower);
 }
 
-function filterMenuTree(node, queryLower, agentId = activeAgentId) {
+function filterMenuTree(node, queryLower, agentId = activeWorkspaceId) {
   if (!node) return null;
 
   if (!queryLower) {
@@ -100713,8 +102164,25 @@ function menuNodeHasChildren(node) {
   );
 }
 
-function appendRepoServiceMenuItems(container, repoServiceItems, parentMenuNode, agentId = activeAgentId) {
-  const items = (repoServiceItems || []).filter(Boolean);
+function filterRepoServiceItemsForMenuSection(items, sectionFolderPath = ".") {
+  if (normalizeFolderPath(sectionFolderPath || ".") !== ".") {
+    return (items || []).filter(Boolean);
+  }
+  return (items || []).filter((item) => {
+    const path = normalizeMenuNodePath(item?.path);
+    if (!path) return true;
+    return path.includes("/");
+  });
+}
+
+function appendRepoServiceMenuItems(
+  container,
+  repoServiceItems,
+  parentMenuNode,
+  agentId = activeWorkspaceId,
+  sectionFolderPath = "."
+) {
+  const items = filterRepoServiceItemsForMenuSection(repoServiceItems, sectionFolderPath);
   if (!items.length) return;
 
   for (const item of items) {
@@ -100863,7 +102331,7 @@ function collectDirectChildNodeEntries(menuNode) {
   return entries;
 }
 
-function collectRepoRootFlatEntries(node, acc, agentId = activeAgentId) {
+function collectRepoRootFlatEntries(node, acc, agentId = activeWorkspaceId) {
   const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
   for (const item of getMenuRepoServiceItems(node)) {
     if (activeOnly && !isMenuTopicActiveStatus(item?.status)) continue;
@@ -100885,7 +102353,7 @@ function collectRepoRootFlatEntries(node, acc, agentId = activeAgentId) {
 
 function collectFlatMenuEntries(node, acc = [], options = {}) {
   const includeRepoRoot = options.includeRepoRoot !== false;
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   const activeOnly = getMenuTreeSettings(agentId).showActiveTopicsOnly;
 
   if (node.indexPath) {
@@ -100959,7 +102427,7 @@ function collectFlatMenuEntries(node, acc = [], options = {}) {
   return acc;
 }
 
-function collectAgentMenuFlatEntries(menu, agentId = activeAgentId, options = {}) {
+function collectAgentMenuFlatEntries(menu, agentId = activeWorkspaceId, options = {}) {
   if (!menu) return [];
   const includeHiddenSections = options.includeHiddenSections === true;
   const childOptions = { includeRepoRoot: false, agentId };
@@ -101076,7 +102544,7 @@ function collectSystemFileMenuEntries(files) {
     const systemFile = normalizeSystemFileName(file.name);
     const exists = Boolean(file.exists);
     const group = file.group || classifySystemFileGroup(systemFile);
-    const openMode = file.openMode || resolveSystemFileOpenMode(systemFile, exists);
+    const openMode = resolveSystemFileOpenMode(systemFile, exists);
     return {
       path: null,
       systemFile,
@@ -101148,7 +102616,7 @@ function entryMatchesMenuQuery(entry, queryLower) {
   return false;
 }
 
-function collectMenuSearchEntries(menu, agentId = activeAgentId) {
+function collectMenuSearchEntries(menu, agentId = activeWorkspaceId) {
   if (!menu) return [];
   const entries = [
     ...collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }),
@@ -101174,7 +102642,7 @@ function collectMenuSearchEntries(menu, agentId = activeAgentId) {
   });
 }
 
-function getMenuSearchResultEntries(menu, agentId = activeAgentId) {
+function getMenuSearchResultEntries(menu, agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   if (!queryLower) return [];
   return collectMenuSearchEntries(menu, agentId).filter((entry) => entryMatchesMenuQuery(entry, queryLower));
@@ -101185,7 +102653,7 @@ function filterMenuEntriesByQuery(entries, queryLower) {
   return entries.filter((entry) => entryMatchesMenuQuery(entry, queryLower));
 }
 
-function menuSearchHasResults(menu, agentId = activeAgentId) {
+function menuSearchHasResults(menu, agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   if (!queryLower) return true;
   return getMenuSearchResultEntries(menu, agentId).length > 0;
@@ -101198,15 +102666,15 @@ function isServiceTreeCollapsed() {
 function toggleServiceTreeCollapsed() {
   localStorage.setItem("agentcms.serviceTree.collapsed.v1", isServiceTreeCollapsed() ? "0" : "1");
   if (currentMenuData && canIncrementalMenuPatch()) {
-    withPreservedMenuTreePreviews(activeAgentId, () => {
+    withPreservedMenuTreePreviews(activeWorkspaceId, () => {
       withPreservedMenuScroll(() => {
-        syncServiceSectionCollapsedUi(activeAgentId, currentMenuData);
+        syncServiceSectionCollapsedUi(activeWorkspaceId, currentMenuData);
       });
     });
     syncMenuCollapseAllButton();
     return;
   }
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
 function isContainerTreeCollapsed() {
@@ -101215,10 +102683,10 @@ function isContainerTreeCollapsed() {
 
 function toggleContainerTreeCollapsed() {
   localStorage.setItem("agentcms.containerTree.collapsed.v1", isContainerTreeCollapsed() ? "0" : "1");
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
-function isPinnedInsideServiceFolder(agentId = activeAgentId) {
+function isPinnedInsideServiceFolder(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!serviceFolder || !pinnedPath) return false;
@@ -101228,7 +102696,7 @@ function isPinnedInsideServiceFolder(agentId = activeAgentId) {
   return pinned === service || pinned.startsWith(`${service}/`);
 }
 
-function isPinnedInsideContainerFolder(agentId = activeAgentId) {
+function isPinnedInsideContainerFolder(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!containerFolder || !pinnedPath) return false;
@@ -101238,7 +102706,7 @@ function isPinnedInsideContainerFolder(agentId = activeAgentId) {
   return pinned === container || pinned.startsWith(`${container}/`);
 }
 
-function isPinnedInsideSharedFolder(agentId = activeAgentId) {
+function isPinnedInsideSharedFolder(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!sharedFolder || !pinnedPath) return false;
@@ -101248,7 +102716,7 @@ function isPinnedInsideSharedFolder(agentId = activeAgentId) {
   return pinned === shared || pinned.startsWith(`${shared}/`);
 }
 
-function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
+function shouldShowServiceSectionInMenu(agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -101257,7 +102725,7 @@ function shouldShowServiceSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideServiceFolder(agentId);
 }
 
-function shouldShowContainerSectionInMenu(agentId = activeAgentId) {
+function shouldShowContainerSectionInMenu(agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -101266,7 +102734,7 @@ function shouldShowContainerSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideContainerFolder(agentId);
 }
 
-function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
+function shouldShowSharedSectionInMenu(agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder) return false;
   if (menuSearchQuery.trim()) return true;
@@ -101275,7 +102743,7 @@ function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
   return isPinnedInsideSharedFolder(agentId);
 }
 
-function shouldShowAgentSystemSectionInMenu(agentId = activeAgentId) {
+function shouldShowAgentSystemSectionInMenu(agentId = activeWorkspaceId) {
   return TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(agentId || "").trim());
 }
 
@@ -101298,15 +102766,15 @@ function isSharedTreeCollapsed() {
 function toggleSharedTreeCollapsed() {
   localStorage.setItem("agentcms.sharedTree.collapsed.v1", isSharedTreeCollapsed() ? "0" : "1");
   if (currentMenuData && canIncrementalMenuPatch()) {
-    withPreservedMenuTreePreviews(activeAgentId, () => {
+    withPreservedMenuTreePreviews(activeWorkspaceId, () => {
       withPreservedMenuScroll(() => {
-        syncSharedSectionCollapsedUi(activeAgentId, currentMenuData);
+        syncSharedSectionCollapsedUi(activeWorkspaceId, currentMenuData);
       });
     });
     syncMenuCollapseAllButton();
     return;
   }
-  if (currentMenuData) renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+  if (currentMenuData) renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
 }
 
 function clearMenuAgentSystemSection(parentEl) {
@@ -101321,11 +102789,11 @@ function toggleAgentSystemTreeCollapsed() {
   const next = !isAgentSystemTreeCollapsed();
   localStorage.setItem("agentcms.agentSystemTree.collapsed.v1", next ? "1" : "0");
   if (currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
   }
 }
 
-function sanitizeAgentSystemFolderCollapseState(agentId = activeAgentId) {
+function sanitizeAgentSystemFolderCollapseState(agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   let changed = false;
   for (const path of [...collapsed]) {
@@ -101416,6 +102884,7 @@ const AWN_DATA_TYPE_STORE = {
 
 const AGENT_SYSTEM_DOMAIN_KIND = {
   base: "base",
+  hubs: "type",
   pages: "type",
   content: "type",
   slots: "slot",
@@ -101428,7 +102897,8 @@ const AGENT_SYSTEM_DOMAIN_KIND = {
 };
 
 const AGENT_SYSTEM_DOMAIN_EXTENDS = {
-  pages: "awn.page.base",
+  hubs: "awn.hub.base",
+  pages: "awn.hub.base",
   content: "awn.base",
   slots: "awn.slot",
   fields: "awn.field.base",
@@ -101438,7 +102908,8 @@ const AGENT_SYSTEM_DOMAIN_EXTENDS = {
 
 const AGENT_SYSTEM_DOMAIN_PREFIX = {
   // Platform-level types (extend the CMS platform)
-  pages: "awn.page",
+  hubs: "awn.hub",
+  pages: "awn.hub",
   content: "awn.content",
   slots: "awn.slot",
   fields: "awn.field",
@@ -101518,7 +102989,7 @@ function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
   if (domain === "taxonomies") {
     body.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
     body.push(`props-field: awn-${slug}`);
-    body.push(`data-path: awn-agent-kit/taxonomies/${slug}/main.csv`);
+    body.push(`data-path: ${AGENT_KIT_FOLDER_DEFAULT}/0-taxonomies/${slug}/main.csv`);
     body.push(`create-node-group: taxonomy`);
     body.push(`create-node-label: ${displayName}`);
     body.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);
@@ -101682,7 +103153,7 @@ function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
         return;
       }
       form.remove();
-      await refreshMenu({ agentId: activeAgentId });
+      await refreshMenu({ agentId: activeWorkspaceId });
       await selectAgentSystemFile(displayName, filePath);
       showToast(`Тип «${displayName}» создан`, "success");
     } catch (err) {
@@ -101710,7 +103181,7 @@ async function createNewAgentSystemType(domain, folderPath, triggerBtn, domainKi
   showNewTypeInlineForm(domain, triggerBtn, domainKind);
 }
 
-function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
+function renderAgentSystemMenuItem(item, parentEl, agentId = activeWorkspaceId) {
   if (!item?.path || !parentEl) return null;
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row menu-agent-system-item-row";
@@ -101739,7 +103210,7 @@ function renderAgentSystemMenuItem(item, parentEl, agentId = activeAgentId) {
   return itemRow;
 }
 
-function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeAgentId) {
+function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeWorkspaceId) {
   if (!subGroup?.items?.length || !parentEl) return null;
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const visibleItems = (subGroup.items || []).filter((item) => {
@@ -101782,7 +103253,7 @@ function renderAgentSystemSubGroup(subGroup, parentEl, agentId = activeAgentId) 
   return wrap;
 }
 
-function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgentId) {
+function renderAgentSystemDomainSection(section, parentEl, agentId = activeWorkspaceId) {
   const hasDirectItems = Array.isArray(section?.items) && section.items.length > 0;
   const hasSubGroups = Array.isArray(section?.subGroups) && section.subGroups.length > 0;
   if ((!hasDirectItems && !hasSubGroups) || !parentEl) return null;
@@ -101858,7 +103329,7 @@ function renderAgentSystemDomainSection(section, parentEl, agentId = activeAgent
   return wrap;
 }
 
-function renderAgentSystemTreeBody(systemTree, body, agentId = activeAgentId) {
+function renderAgentSystemTreeBody(systemTree, body, agentId = activeWorkspaceId) {
   if (!systemTree || !body) return;
   const queryLower = menuSearchQuery.trim().toLowerCase();
 
@@ -101874,7 +103345,7 @@ function renderAgentSystemTreeBody(systemTree, body, agentId = activeAgentId) {
   }
 }
 
-function renderAgentSystemSection(systemTree, parentEl, agentId = activeAgentId) {
+function renderAgentSystemSection(systemTree, parentEl, agentId = activeWorkspaceId) {
   if (!systemTree || !parentEl) return;
   sanitizeAgentSystemFolderCollapseState(agentId);
   clearMenuAgentSystemSection(parentEl);
@@ -101985,10 +103456,10 @@ function isConfigurationTreeCollapsed() {
 function toggleConfigurationTreeCollapsed() {
   const next = !isConfigurationTreeCollapsed();
   localStorage.setItem("agentcms.configurationTree.collapsed.v1", next ? "1" : "0");
-  renderMenuTree(activeAgentId);
+  renderMenuTree(activeWorkspaceId);
 }
 
-function renderConfigurationTreeBody(configurationTree, body, agentId = activeAgentId) {
+function renderConfigurationTreeBody(configurationTree, body, agentId = activeWorkspaceId) {
   if (!configurationTree || !body) return;
   const parentNode = { title: CONFIGURATION_SECTION_LABEL, ...configurationTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, CONFIGURATION_ROOT_FOLDER, 0);
@@ -101997,7 +103468,7 @@ function renderConfigurationTreeBody(configurationTree, body, agentId = activeAg
   }
 }
 
-function renderConfigurationSection(configurationTree, parentEl, agentId = activeAgentId) {
+function renderConfigurationSection(configurationTree, parentEl, agentId = activeWorkspaceId) {
   if (!configurationTree || !parentEl) return;
   clearMenuConfigurationSection(parentEl);
 
@@ -102040,7 +103511,7 @@ function renderConfigurationSection(configurationTree, parentEl, agentId = activ
   normalizeMenuReservedSectionsOrder(parentEl);
 }
 
-function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, parentSectionPath = ".") {
+function renderServiceTreeBody(serviceTree, body, agentId = activeWorkspaceId, parentSectionPath = ".") {
   const parentNode = { title: "", ...serviceTree };
   const visibleChildren = getVisibleMenuChildren(parentNode, agentId, parentSectionPath, 0);
   for (const child of visibleChildren) {
@@ -102048,7 +103519,7 @@ function renderServiceTreeBody(serviceTree, body, agentId = activeAgentId, paren
   }
 }
 
-function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, parentSectionPath = null) {
+function renderContainerTreeBody(containerTree, body, agentId = activeWorkspaceId, parentSectionPath = null) {
   const containerFolder = parentSectionPath || getActiveAgentContainerFolder(agentId);
   if (!containerTree || !body) return;
 
@@ -102059,7 +103530,7 @@ function renderContainerTreeBody(containerTree, body, agentId = activeAgentId, p
   }
 }
 
-function renderSharedTreeBody(sharedTree, body, agentId = activeAgentId, parentSectionPath = null) {
+function renderSharedTreeBody(sharedTree, body, agentId = activeWorkspaceId, parentSectionPath = null) {
   const sharedFolder = parentSectionPath || getActiveAgentSharedFolder(agentId);
   if (!sharedTree || !body) return;
 
@@ -102070,7 +103541,7 @@ function renderSharedTreeBody(sharedTree, body, agentId = activeAgentId, parentS
   }
 }
 
-function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
+function renderServiceSection(serviceTree, parentEl, agentId = activeWorkspaceId) {
   const serviceFolder = getActiveAgentKitFolder(agentId);
   if (!serviceFolder || !serviceTree || !parentEl) return;
   if (!shouldShowServiceSectionInMenu(agentId)) {
@@ -102173,7 +103644,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   refreshClassicMenuTreeLines(agentId);
 }
 
-function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
+function renderSharedSection(sharedTree, parentEl, agentId = activeWorkspaceId) {
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder || !sharedTree || !parentEl) return;
   if (!shouldShowSharedSectionInMenu(agentId)) {
@@ -102279,7 +103750,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
   refreshClassicMenuTreeLines(agentId);
 }
 
-function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
+function getGitRepoWorkspaceMenuNode(node, agentId = activeWorkspaceId) {
   const workspaceNode = {
     title: node?.title || "",
     sections: node?.sections || [],
@@ -102294,8 +103765,11 @@ function getGitRepoWorkspaceMenuNode(node, agentId = activeAgentId) {
   return pruneMenuTreeForDisplay(workspaceNode, agentId);
 }
 
-function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
-  const repoServiceItems = getMenuRepoServiceItems(node);
+function getGitRepoMenuLayout(node, agentId = activeWorkspaceId, sectionFolderPath = "", depth = 0) {
+  const repoServiceItems = filterRepoServiceItemsForMenuSection(
+    getMenuRepoServiceItems(node),
+    sectionFolderPath || "."
+  );
   const kitFolder = getActiveAgentKitFolder(agentId);
   const containerFolder = getActiveAgentContainerFolder(agentId);
   const servicePrefix = kitFolder ? `${sectionFolderPath}/${kitFolder}`.replace(/\/+/g, "/") : "";
@@ -102332,14 +103806,14 @@ function getGitRepoMenuLayout(node, agentId = activeAgentId, sectionFolderPath =
   };
 }
 
-function getGitRepoMenuHasContent(node, agentId = activeAgentId, sectionFolderPath = "", depth = 0) {
+function getGitRepoMenuHasContent(node, agentId = activeWorkspaceId, sectionFolderPath = "", depth = 0) {
   const layout = getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth);
   return Boolean(
     layout.hasService || layout.hasContainer || layout.hasWorkspace || layout.hasRepoService
   );
 }
 
-function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId = activeAgentId) {
+function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId = activeWorkspaceId) {
   const kitFolder = getActiveAgentKitFolder(agentId);
   if (!kitFolder || !serviceTree || !parentEl) return;
 
@@ -102397,7 +103871,7 @@ function renderGitRepoServiceSection(serviceTree, parentEl, gitRootPath, agentId
   parentEl.appendChild(section);
 }
 
-function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, agentId = activeAgentId) {
+function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder || !containerTree || !parentEl) return;
 
@@ -102419,7 +103893,7 @@ function renderGitRepoContainerSection(containerTree, parentEl, gitRootPath, age
   parentEl.appendChild(wrap);
 }
 
-function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth, parentMenuNode, agentId = activeAgentId) {
+function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth, parentMenuNode, agentId = activeWorkspaceId) {
   const layout = getGitRepoMenuLayout(node, agentId, sectionFolderPath, depth);
   const hasAnyContent =
     layout.hasService ||
@@ -102466,13 +103940,13 @@ function renderGitRepoFolderContents(node, sectionNode, sectionFolderPath, depth
     if (layout.hasService || layout.hasContainer || layout.hasWorkspace) {
       childrenNode.appendChild(createMenuTreeDivider("system-files"));
     }
-    appendRepoServiceMenuItems(childrenNode, layout.repoServiceItems, node, agentId);
+    appendRepoServiceMenuItems(childrenNode, layout.repoServiceItems, node, agentId, sectionFolderPath);
   }
 
   sectionNode.appendChild(childrenNode);
 }
 
-function renderContainerSection(containerTree, parentEl, agentId = activeAgentId) {
+function renderContainerSection(containerTree, parentEl, agentId = activeWorkspaceId) {
   const containerFolder = getActiveAgentContainerFolder(agentId);
   if (!containerFolder || !containerTree || !parentEl) return;
   if (!shouldShowContainerSectionInMenu(agentId)) {
@@ -102544,11 +104018,11 @@ function createMenuTreeDivider(kind) {
   return divider;
 }
 
-function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
+function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeWorkspaceId) {
   clearMenuWorkspaceTreeDivider(parentEl);
   if (!parentEl) return;
 
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   const system = parentEl.querySelector(":scope > .menu-agent-system-section");
   const kit = parentEl.querySelector(":scope > .menu-service-section");
   const shared = parentEl.querySelector(":scope > .menu-shared-section");
@@ -102670,7 +104144,7 @@ function clearMenuReservedDivider(parentEl) {
   parentEl?.querySelectorAll(":scope > .menu-reserved-divider").forEach((node) => node.remove());
 }
 
-function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
+function getWorkspaceRootMenuTreeNode(menu, agentId = activeWorkspaceId) {
   if (!menu) {
     return { title: getAgentTreeTitle(agentId), sections: [], items: [], indexPath: null };
   }
@@ -102684,7 +104158,7 @@ function getWorkspaceRootMenuTreeNode(menu, agentId = activeAgentId) {
   return tree;
 }
 
-function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeAgentId) {
+function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeWorkspaceId) {
   if (!menu) return false;
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const filtered = filterMenuTree(getWorkspaceRootMenuTreeNode(menu, agentId), queryLower, agentId);
@@ -102694,19 +104168,19 @@ function hasVisibleWorkspaceRootTreeContent(menu, agentId = activeAgentId) {
   return visibleChildren.length > 0 || repoItems.length > 0;
 }
 
-function hasVisibleSharedSection(menu, agentId = activeAgentId) {
+function hasVisibleSharedSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.sharedTree && shouldShowSharedSectionInMenu(agentId));
 }
 
-function hasVisibleContainerSection(menu, agentId = activeAgentId) {
+function hasVisibleContainerSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.containerTree && shouldShowContainerSectionInMenu(agentId));
 }
 
-function hasVisibleKitSection(menu, agentId = activeAgentId) {
+function hasVisibleKitSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.serviceTree && shouldShowServiceSectionInMenu(agentId));
 }
 
-function hasVisibleAgentSystemSection(menu, agentId = activeAgentId) {
+function hasVisibleAgentSystemSection(menu, agentId = activeWorkspaceId) {
   return Boolean(menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId));
 }
 
@@ -102714,7 +104188,7 @@ function hasVisibleConfigurationSection(menu) {
   return Boolean(menu?.configurationTree);
 }
 
-function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId) {
+function renderRootMenuReservedSections(menu, parentEl, agentId = activeWorkspaceId) {
   if (!parentEl) return;
 
   if (menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId)) {
@@ -102929,26 +104403,26 @@ function setMenuViewMode(mode) {
   if (currentMenuData) {
     // Tree ↔ flat: keep the same DOM, only change visual layout.
     if (wasTreeLayout && isTreeLayout) {
-      syncMenuViewLayoutClass(activeAgentId);
+      syncMenuViewLayoutClass(activeWorkspaceId);
       if (mode === "flat" && previousMode !== "flat" && !menuSearchQuery.trim()) {
-        expandAllMenuTreeBranches(activeAgentId);
+        expandAllMenuTreeBranches(activeWorkspaceId);
       } else {
         syncMenuCollapseAllButton();
       }
       updateActiveButton();
       return;
     }
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     if (mode === "flat" && !menuSearchQuery.trim()) {
-      expandAllMenuTreeBranches(activeAgentId);
+      expandAllMenuTreeBranches(activeWorkspaceId);
     }
     updateActiveButton();
   } else {
-    syncMenuViewLayoutClass(activeAgentId);
+    syncMenuViewLayoutClass(activeWorkspaceId);
   }
 }
 
-function syncMenuViewLayoutClass(agentId = activeAgentId) {
+function syncMenuViewLayoutClass(agentId = activeWorkspaceId) {
   const isFlat = menuViewMode === "flat";
   const pane = menuAgentPanes.get(agentId);
   pane?.classList.toggle("is-menu-view-flat", isFlat);
@@ -102956,7 +104430,7 @@ function syncMenuViewLayoutClass(agentId = activeAgentId) {
   menuNode?.classList.toggle("is-menu-view-flat", isFlat);
 }
 
-function syncMenuSearchLayoutClass(agentId = activeAgentId) {
+function syncMenuSearchLayoutClass(agentId = activeWorkspaceId) {
   const searchActive = Boolean(menuSearchQuery.trim());
   const pane = menuAgentPanes.get(agentId);
   pane?.classList.toggle("is-menu-search-active", searchActive);
@@ -102964,7 +104438,7 @@ function syncMenuSearchLayoutClass(agentId = activeAgentId) {
   menuNode?.classList.toggle("is-menu-search-active", searchActive);
 }
 
-function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
+function appendMenuSearchResultRow(listNode, entry, agentId = activeWorkspaceId) {
   const itemRow = document.createElement("div");
   itemRow.className = "menu-item-row menu-flat-item menu-search-result-item";
 
@@ -103001,7 +104475,7 @@ function appendMenuSearchResultRow(listNode, entry, agentId = activeAgentId) {
   listNode.appendChild(itemRow);
 }
 
-function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const entries = getMenuSearchResultEntries(menu, agentId);
   entries.sort((a, b) => compareMenuPathsNatural(a.displayPath, b.displayPath));
@@ -103020,7 +104494,7 @@ function renderMenuSearchResults(menu, target = getMenuQueryRoot(), agentId = ac
   target.appendChild(sectionNode);
 }
 
-function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   const allEntries = collectAgentMenuFlatEntries(menu, agentId);
   let entries = allEntries.filter((entry) => isBookmarked(entry.path));
@@ -103080,7 +104554,7 @@ function renderBookmarksMenu(menu, target = getMenuQueryRoot(), agentId = active
   target.appendChild(sectionNode);
 }
 
-function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let entries = [
     ...collectAgentMenuFlatEntries(menu, agentId),
@@ -103145,7 +104619,7 @@ function renderFlatMenu(menu, target = getMenuQueryRoot(), agentId = activeAgent
   target.appendChild(sectionNode);
 }
 
-function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgentId) {
+function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeWorkspaceId) {
   const queryLower = menuSearchQuery.trim().toLowerCase();
   let entries = queryLower
     ? getMenuSearchResultEntries(menu, agentId)
@@ -103194,7 +104668,7 @@ function renderCardsMenu(menu, target = getMenuQueryRoot(), agentId = activeAgen
   target.appendChild(sectionNode);
 }
 
-function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeAgentId) {
+function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMenuNode = null, agentId = activeWorkspaceId) {
   if (!node || !parentEl) return;
   if (depth > 0 && !shouldShowMenuTreeFolder(node, agentId)) return;
   const searchActive = menuSearchQuery.trim().length > 0;
@@ -103491,7 +104965,7 @@ function renderTree(node, parentEl, depth = 0, parentSectionPath = "", parentMen
       if (hasNestedContainer || hasNonContainer) {
         childrenNode.appendChild(createMenuTreeDivider("system-files"));
       }
-      appendRepoServiceMenuItems(childrenNode, repoServiceItems, node, agentId);
+      appendRepoServiceMenuItems(childrenNode, repoServiceItems, node, agentId, sectionFolderPath);
     }
 
     sectionNode.appendChild(childrenNode);
@@ -103583,7 +105057,7 @@ function decorateMenuSortRows(root = getMenuQueryRoot()) {
   });
 }
 
-function refreshMenuSortDecorations(agentId = activeAgentId) {
+function refreshMenuSortDecorations(agentId = activeWorkspaceId) {
   const pane = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   decorateMenuSortRows(pane);
   enableMenuLinkDragSources(pane);
@@ -103962,7 +105436,7 @@ async function executeMenuNodeMove(move) {
   if (!confirmed) return false;
   try {
     const data = await moveNodeByPath(move.source, move.parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (data.path) {
       await openNodeFromMenu(getLabelFromPath(data.path), data.path);
@@ -103976,8 +105450,8 @@ async function executeMenuNodeMove(move) {
   }
 }
 
-function findMenuNodeInAgentMenuForPath(targetPath, agentId = activeAgentId) {
-  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+function findMenuNodeInAgentMenuForPath(targetPath, agentId = activeWorkspaceId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeWorkspaceId ? currentMenuData : null);
   if (!menu) return null;
   const menuRoot = { title: getAgentTreeTitle(agentId), ...menu };
   return (
@@ -103996,7 +105470,7 @@ function menuTreeNodeHasChildSlots(node) {
   return false;
 }
 
-function canMenuNodeAcceptChildNodes(nodePath, agentId = activeAgentId) {
+function canMenuNodeAcceptChildNodes(nodePath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuNodePath(nodePath);
   if (!normalized || !getMenuContextMenuKind(normalized)) return false;
   if (isPartNodePath(normalized) || isSystemReferenceManifestPath(normalized)) return false;
@@ -104150,16 +105624,16 @@ function setupEditorMenuLinkDrop() {
   }
 }
 
-function renderMenu(menu, agentId = activeAgentId, options = {}) {
+function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
   const menuOnly = Boolean(options.menuOnly);
   menu = stripPlatformDataFoldersFromMenu(menu);
-  if (agentId === activeAgentId && activeAgentId) {
+  if (agentId === activeWorkspaceId && activeWorkspaceId) {
     hideMenuNoAgentPlaceholder();
   }
   const target = ensureMenuAgentPane(agentId);
   menuCacheByAgent.set(agentId, menu);
   indexManifestTreeTypesFromMenu(menu);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     currentMenuData = menu;
     invalidateMenuDisplayLabelMap();
     if (!menuOnly) {
@@ -104173,7 +105647,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
   const filteredTree = filterMenuTree(baseTree, menuSearchQuery.trim().toLowerCase(), agentId);
   const treeToRender = filteredTree || { title: agentTitle, sections: [], items: [], indexPath: null };
 
-  if (agentId === activeAgentId && !menuOnly) {
+  if (agentId === activeWorkspaceId && !menuOnly) {
     sanitizeCollapsedFolderPaths(agentId);
     const allPaths = new Set(
       collectAllMenuFlatEntries(menu).map((entry) => nodeStorageKey(agentId, entry.path))
@@ -104212,7 +105686,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     void prefetchMenuReadStates(menu, agentId).then(() => refreshMenuReadBadges(agentId));
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     if (!menuOnly) {
       syncAgentPreview();
     }
@@ -104227,11 +105701,11 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 
   enableMenuLinkDragSources(target);
 
-  if (agentId === activeAgentId && getDocAsideTab() === "links") {
+  if (agentId === activeWorkspaceId && getDocAsideTab() === "links") {
     renderDocLinksLibrary();
   }
 
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     scheduleMenuAgentStatsSync(menu);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
@@ -105088,7 +106562,7 @@ function scheduleMenuAgentStatsSync(menu = currentMenuData) {
 async function syncMenuAgentStats(menu = currentMenuData) {
   if (!menuAgentStatsNode) return;
 
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     hideMenuAgentStats();
     return;
   }
@@ -105103,7 +106577,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   try {
     const [workspace, intakeTotals] = await Promise.all([
       fetchAgentWorkspaceStats().catch(() => null),
-      refreshMenuIntakeSummary(menu, activeAgentId).catch(() => null)
+      refreshMenuIntakeSummary(menu, activeWorkspaceId).catch(() => null)
     ]);
     if (seq !== menuAgentStatsSeq) return;
     renderMenuAgentStatsContent({
@@ -105118,7 +106592,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   }
 }
 
-function getWorkspacesTreeChildren(agentId = activeAgentId) {
+function getWorkspacesTreeChildren(agentId = activeWorkspaceId) {
   const rootHost = menuAgentPanes.get(agentId) || getMenuQueryRoot();
   const rootSection = rootHost?.querySelector(".menu-section");
   if (!rootSection) return null;
@@ -105236,7 +106710,7 @@ async function openRootSystemMenuFile(file) {
   const systemFile = normalizeSystemFileName(file?.systemFile || file?.name);
   if (!systemFile) return;
   const exists = Boolean(file?.exists);
-  const openMode = file?.openMode || resolveSystemFileOpenMode(systemFile, exists);
+  const openMode = resolveSystemFileOpenMode(systemFile, exists);
   if (openMode === "adopt" && exists) {
     await openFolderBrowseFile(file.label || systemFile, systemFile, { folderPath: "." });
     return;
@@ -105289,7 +106763,7 @@ function renderSystemFiles(files) {
       btn.textContent = file.label;
       btn.dataset.systemFile = file.systemFile;
       btn.dataset.systemFileGroup = group.id;
-      btn.dataset.openMode = file.openMode || "system";
+      btn.dataset.openMode = file.openMode || resolveSystemFileOpenMode(file.systemFile, file.exists);
       const hasContent = file.exists && !file.empty;
       btn.title = hasContent
         ? "Открыть служебный файл"
@@ -105360,7 +106834,7 @@ async function loadSystemFiles(options = {}) {
         exists,
         empty: Boolean(file.empty ?? !exists),
         group: file.group || classifySystemFileGroup(name),
-        openMode: file.openMode || resolveSystemFileOpenMode(name, exists)
+        openMode: resolveSystemFileOpenMode(name, exists)
       };
     });
     systemFilesCache = mergeSystemFileLists(apiFiles, SYSTEM_FILE_SCAFFOLD_FALLBACK);
@@ -105377,7 +106851,9 @@ async function loadSystemFiles(options = {}) {
     renderSystemFiles(systemFilesCache);
   }
   syncRepositoriesDependenciesButtonState();
-  void syncAgentTodoPreview();
+  if (options.refreshNotePreview) {
+    void syncAgentTodoPreview();
+  }
 }
 
 function isMenuTreeButtonActive(item, { resolvedActive, resolvedFolderBrowse } = {}) {
@@ -105428,11 +106904,20 @@ function updateActiveButton() {
   syncMenuPinBranchUi();
   syncSidebarRoadmapGlobeToolbarUi();
   syncMenuMediaLibraryActiveState();
+  const wsIndexOpen = document.querySelector(".sidebar-workspace-page-index-open");
+  if (wsIndexOpen) {
+    wsIndexOpen.classList.toggle(
+      "active",
+      Boolean(activeWorkspaceTocRelPath) &&
+        activeWorkspaceTocRelPath.toLowerCase() === getWorkspacePageIndexRelPath().toLowerCase()
+    );
+  }
 }
 
 async function selectSystemFile(name, options = {}) {
   const normalizedName = normalizeSystemFileName(name);
   if (!normalizedName) return;
+  clearActiveWorkspaceTocView();
   if (isReadOnlyWorkspacePageIndexSystemFile(normalizedName)) {
     options = { ...options, edit: false };
   }
@@ -105504,8 +106989,6 @@ async function selectSystemFile(name, options = {}) {
       syncAgentTodoPreviewFromEditor();
     } else if (normalizedName === ROOT_SYSTEM_TODO_FILE) {
       syncAppFooterIdeasFromEditor();
-    } else {
-      void syncAgentTodoPreview();
     }
     if (!options.skipRouteSync) {
       syncAppRouteToUrl({ replace: true });
@@ -106243,6 +107726,7 @@ async function selectFile(label, filePath) {
     await selectRepoLooseFile(label, filePath);
     return;
   }
+  clearActiveWorkspaceTocView();
   if (!filePath) {
     fileContentInputNode.value = "Ошибка чтения файла: пустой путь";
     return;
@@ -106250,7 +107734,6 @@ async function selectFile(label, filePath) {
 
   hideHomeView();
   clearActiveSystemFile();
-  void syncAgentTodoPreview();
   if (!isNodeSettingsTargetPath(filePath)) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -106716,7 +108199,7 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "configs") {
     try {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
       const cache = await loadNodeSettingsForManifest(activePath, { force: true });
       modeContentCache.configs = buildNodeConfigYamlFromState(cache || {});
       fileContentInputNode.value = "";
@@ -106739,7 +108222,7 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === "topic-schema") {
     try {
-      await loadAwnTypes(activeAgentId);
+      await loadAwnTypes(activeWorkspaceId);
       if (isWorkspaceSchemaContext(activePath)) {
         topicSchemaActiveTarget = "workspace";
       } else if (isAreaSchemaContext(activePath)) {
@@ -106889,20 +108372,20 @@ async function loadContentByMode(options = {}) {
 
 function replaceActiveMenuLabel(newLabel, pathHint = activePath) {
   const normalizedHint = normalizeMenuNodePath(pathHint);
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (menu && newLabel) {
     if (isAgentContainerRootIndexPath(normalizedHint) && menu.containerTree) {
       menu.containerTree.title = newLabel;
-      menuCacheByAgent.set(activeAgentId, menu);
+      menuCacheByAgent.set(activeWorkspaceId, menu);
       if (currentMenuData) currentMenuData.containerTree = menu.containerTree;
-      patchContainerMenuAfterCreate(activeAgentId);
+      patchContainerMenuAfterCreate(activeWorkspaceId);
       return;
     }
     if (isAgentSystemRootIndexPath(normalizedHint) && menu.serviceTree) {
       menu.serviceTree.title = newLabel;
-      menuCacheByAgent.set(activeAgentId, menu);
+      menuCacheByAgent.set(activeWorkspaceId, menu);
       if (currentMenuData) currentMenuData.serviceTree = menu.serviceTree;
-      patchServiceMenuAfterCreate(activeAgentId);
+      patchServiceMenuAfterCreate(activeWorkspaceId);
       return;
     }
   }
@@ -106973,7 +108456,9 @@ async function saveContent() {
         const details = errorData.details ? `: ${errorData.details}` : "";
         throw new Error(`${reason}${details}`);
       }
-      await loadSystemFiles();
+      await loadSystemFiles({
+        refreshNotePreview: activeSystemFile === ROOT_SYSTEM_NOTE_FILE
+      });
       saveSucceeded = true;
       showToast("Сохранено", "success");
     } catch (error) {
@@ -107003,10 +108488,10 @@ async function saveContent() {
         const details = errorData.details ? `: ${errorData.details}` : "";
         throw new Error(`${reason}${details}`);
       }
-      invalidateTypeCatalogCache(activeAgentId);
+      invalidateTypeCatalogCache(activeWorkspaceId);
       const [detail] = await Promise.all([
         loadAgentSystemTypeDetail(getActiveNodeApiPath()).catch(() => null),
-        loadAwnTypes(activeAgentId).catch(() => null)
+        loadAwnTypes(activeWorkspaceId).catch(() => null)
       ]);
       renderAgentSystemTypeInspector(detail);
       saveSucceeded = true;
@@ -107207,7 +108692,7 @@ async function saveContent() {
       }
 
       try {
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // menu will resync on next open
       }
@@ -107520,7 +109005,7 @@ async function saveContent() {
         activeLabel = resolveNodeDisplayName(nextStoredAwnName, getNodeSlugFromPath(activePath));
         replaceActiveMenuLabel(activeLabel, activePath);
         try {
-          await refreshMenu({ agentId: activeAgentId });
+          await refreshMenu({ agentId: activeWorkspaceId });
         } catch {
           // menu will resync on next open
         }
@@ -107676,7 +109161,7 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
           await loadAgents();
           renderAgentSelect();
         }
-        await refreshMenu({ agentId: activeAgentId });
+        await refreshMenu({ agentId: activeWorkspaceId });
       } catch {
         // menu will resync on next open
       }
@@ -107686,11 +109171,11 @@ async function saveProperties({ showToastOnSuccess = true, fromSyncedYaml = fals
       showToast("YAML сохранен", "success");
     }
     invalidateTopicSlotsDisabledCache(getPropertiesApiPath());
-    await refreshMenuRuntimeFlagsCache(activeAgentId);
+    await refreshMenuRuntimeFlagsCache(activeWorkspaceId);
     patchMenuNodeRuntimeCommandsFromProps(activePath, mergePropsFormEntries());
-    const menu = menuCacheByAgent.get(activeAgentId);
-    if (menu) enrichMenuRuntimeFromCache(menu, activeAgentId);
-    refreshMenuTreeRuntimeBadges(activeAgentId);
+    const menu = menuCacheByAgent.get(activeWorkspaceId);
+    if (menu) enrichMenuRuntimeFromCache(menu, activeWorkspaceId);
+    refreshMenuTreeRuntimeBadges(activeWorkspaceId);
     void refreshAllFocusPanels();
   } catch (error) {
     showToast("Ошибка YAML", "error");
@@ -107765,7 +109250,7 @@ function shouldApplyAgentWorkspaceViewFromConfig() {
   return false;
 }
 
-async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
+async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeWorkspaceId) {
   const manifestPath = getAgentWorkspaceRootManifestPath();
   if (!manifestPath || !agentId) return null;
   try {
@@ -107779,7 +109264,7 @@ async function readAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId
 
 let persistAgentWorkspaceViewToConfigPromise = null;
 
-async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = activeAgentId) {
+async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = activeWorkspaceId) {
   if (!shouldPersistAgentWorkspaceViewToConfig(view)) return;
   const manifestPath = getAgentWorkspaceRootManifestPath();
   if (!manifestPath || !agentId || !isNodeMdPath(manifestPath)) return;
@@ -107803,8 +109288,8 @@ async function persistAgentWorkspaceViewToWorkspaceConfig(view, agentId = active
   persistAgentWorkspaceViewToConfigPromise = null;
 }
 
-async function syncAgentWorkspaceViewFromWorkspaceConfig(agentId = activeAgentId) {
-  if (agentId !== activeAgentId || !shouldApplyAgentWorkspaceViewFromConfig()) return;
+async function syncAgentWorkspaceViewFromWorkspaceConfig(agentId = activeWorkspaceId) {
+  if (agentId !== activeWorkspaceId || !shouldApplyAgentWorkspaceViewFromConfig()) return;
   const configView = await readAgentWorkspaceViewFromWorkspaceConfig(agentId);
   if (!configView) return;
   const normalized = normalizeVisibleAgentWorkspaceView(configView);
@@ -108090,7 +109575,7 @@ function setAgentWorkspaceView(
 
 function countAgentMenuNodes(menu) {
   if (!menu) return { total: 0, folders: 0, leaves: 0 };
-  const entries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const entries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   const folders = entries.filter((entry) => entry.isFolder).length;
   return {
     total: entries.length,
@@ -108181,11 +109666,11 @@ function buildAgentMapZoneData(menu) {
       sub: agent.path || agent.id,
       agentId: agent.id,
       action: "agent",
-      active: agent.id === activeAgentId
+      active: agent.id === activeWorkspaceId
     }));
 
   const nodes = menu
-    ? collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })
+    ? collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })
         .filter((entry) => entry.path && entry.path !== rootPath)
         .slice(0, 6)
         .map((entry) => ({
@@ -108270,7 +109755,7 @@ function renderAgentMapHub() {
   if (!agentMapHubTitleNode || !agentMapHubSubNode || !agentMapHubAvatarNode) return;
   const agent = getActiveAgentMeta();
   agentMapHubTitleNode.textContent = agent?.name || getActiveAgentLabel() || "Agent";
-  agentMapHubSubNode.textContent = activeAgentId || "workspace";
+  agentMapHubSubNode.textContent = activeWorkspaceId || "workspace";
 
   agentMapHubAvatarNode.innerHTML = "";
   if (agent?.previewUrl) {
@@ -108376,7 +109861,7 @@ function buildAgentMap2Data(menu) {
 
   function walkMenuNode(menuNode, parentId, depth, parentSectionPath) {
     if (nodes.length >= AGENT_MAP2_MAX_NODES || depth > 8) return;
-    for (const child of getVisibleMenuChildren(menuNode, activeAgentId, parentSectionPath, depth)) {
+    for (const child of getVisibleMenuChildren(menuNode, activeWorkspaceId, parentSectionPath, depth)) {
       if (nodes.length >= AGENT_MAP2_MAX_NODES) break;
       if (child.kind === "folder") {
         attachFolderNode(child.entry, parentId, depth, parentSectionPath);
@@ -108432,7 +109917,7 @@ function buildAgentMap2Data(menu) {
 
   walkMenuNode(baseTree, rootId, 0, "");
 
-  if (menu?.serviceTree && shouldShowServiceSectionInMenu(activeAgentId)) {
+  if (menu?.serviceTree && shouldShowServiceSectionInMenu(activeWorkspaceId)) {
     attachFolderNode(
       { ...menu.serviceTree, title: menu.serviceTree.title || SERVICE_SECTION_TITLE },
       rootId,
@@ -108440,7 +109925,7 @@ function buildAgentMap2Data(menu) {
       ""
     );
   }
-  if (menu?.containerTree && shouldShowContainerSectionInMenu(activeAgentId)) {
+  if (menu?.containerTree && shouldShowContainerSectionInMenu(activeWorkspaceId)) {
     attachFolderNode(
       { ...menu.containerTree, title: menu.containerTree.title || CONTAINER_SECTION_LABEL },
       rootId,
@@ -109022,11 +110507,11 @@ function initAgentGitToolbar() {
 }
 
 function resolveActiveAgentWorkspaceGitRepo() {
-  const menu = menuCacheByAgent.get(activeAgentId) || currentMenuData;
+  const menu = menuCacheByAgent.get(activeWorkspaceId) || currentMenuData;
   if (Boolean(menu?.hasGitSelf)) return true;
-  if (Boolean(getFolderWorkspaceMarkersForNode(".", activeAgentId)?.hasGit)) return true;
+  if (Boolean(getFolderWorkspaceMarkersForNode(".", activeWorkspaceId)?.hasGit)) return true;
   if (
-    agentGitLastStatusAgentId === activeAgentId &&
+    agentGitLastStatusAgentId === activeWorkspaceId &&
     agentGitLastStatus?.moduleId === "module-git" &&
     agentGitLastStatus.isRepo
   ) {
@@ -109036,14 +110521,14 @@ function resolveActiveAgentWorkspaceGitRepo() {
 }
 
 async function prefetchAgentGitToolbarRepoState() {
-  if (!activeAgentId || resolveActiveAgentWorkspaceGitRepo()) return;
+  if (!activeWorkspaceId || resolveActiveAgentWorkspaceGitRepo()) return;
   try {
     const response = await fetch(buildApiUrl("/api/git/status", { includeCommits: "false" }));
     if (!response.ok) return;
     const data = await response.json();
     if (data?.moduleId !== "module-git") return;
     agentGitLastStatus = data;
-    agentGitLastStatusAgentId = activeAgentId;
+    agentGitLastStatusAgentId = activeWorkspaceId;
     syncAgentGitToolbarUi();
   } catch {
     // ignore — menu markers remain primary
@@ -109079,7 +110564,7 @@ function syncSidebarRoadmapGlobeToolbarUi() {
 
 function openSidebarRoadmapGlobePage() {
   closeAgentsPickerPopover();
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView();
     return;
   }
@@ -109882,7 +111367,7 @@ function formatAgentGitCommitBatchReason(reason) {
 
 function buildAgentGitCommitResultDetailsText(result, context = {}) {
   const lines = [];
-  const agentLabel = String(context.agentId || activeAgentId || "").trim();
+  const agentLabel = String(context.agentId || activeWorkspaceId || "").trim();
   if (agentLabel) lines.push(`Агент: ${agentLabel}`);
   if (context.batchLabel) lines.push(`Партия (UI): ${context.batchLabel}`);
   if (Array.isArray(context.batchIds) && context.batchIds.length) {
@@ -110081,9 +111566,9 @@ function getAgentGitFullCommitBatch() {
   return {
     id: AGENT_GIT_FULL_COMMIT_BATCH_ID,
     emoji: "🌐",
-    label: "Full — полный коммит",
+    label: "Full",
     extensions: [],
-    messageTemplate: "[{branch}] Полный коммит ({date} {time})",
+    messageTemplate: "[{branch}] Сохранение workspace ({date} {time}) - Full",
     maxFileSizeMb: 0
   };
 }
@@ -110846,7 +112331,7 @@ function agentGitHasConfiguredRemote(data) {
 
 function syncAgentGitSettingsUi(data) {
   agentGitLastStatus = data || null;
-  agentGitLastStatusAgentId = activeAgentId;
+  agentGitLastStatusAgentId = activeWorkspaceId;
   const isRepo = Boolean(data?.isRepo);
   const hasRemote = agentGitHasConfiguredRemote(data);
   if (agentGitInitBtn) agentGitInitBtn.disabled = isRepo;
@@ -111304,7 +112789,7 @@ async function renderAgentJournalView() {
   agentJournalContentNode.appendChild(host);
 
   try {
-    const statsResponse = await fetch(buildApiUrl("/api/agent/workspace-journal/stats", {}, activeAgentId));
+    const statsResponse = await fetch(buildApiUrl("/api/agent/workspace-journal/stats", {}, activeWorkspaceId));
     const stats = statsResponse.ok ? await statsResponse.json() : null;
     if (isStale()) return;
 
@@ -111376,7 +112861,7 @@ async function renderAgentRecyclerView() {
   syncAgentRecyclerInfoBar({ loading: true });
 
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeAgentId));
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/list", {}, activeWorkspaceId));
     const rawBody = await response.text();
     let data = {};
     try {
@@ -111470,7 +112955,7 @@ async function restoreRecyclerItemFromUi(item) {
   });
   if (!confirmed) return;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/restore", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/restore", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ markerId: item.markerId, markerLabel: item.markerLabel })
@@ -111480,7 +112965,7 @@ async function restoreRecyclerItemFromUi(item) {
     showToast("Восстановлено", "success");
     invalidateStorageRootScanCache();
     refreshEntryOverviewSlotCounterStripsForTopic(getResolvedNodePath(activePath));
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     await renderAgentRecyclerView();
   } catch (error) {
@@ -111495,7 +112980,7 @@ async function clearWorkspaceRecyclerFromUi() {
   );
   if (!confirmed) return;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/clear", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-recycler/clear", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true })
@@ -112104,7 +113589,7 @@ function collectWorkspaceTodoSources() {
   if (!menu) return sources;
 
   const seen = new Set([ROOT_SYSTEM_TODO_FILE.toLowerCase()]);
-  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+  for (const entry of collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true })) {
     if (entry.isFolder) continue;
     const manifestPath = normalizeMenuNodePath(resolveManifestPathForNodeApi(entry.path) || entry.path || "");
     if (!manifestPath || !isNodeManifestPath(manifestPath)) continue;
@@ -112168,7 +113653,7 @@ async function renderAgentTodoListView() {
   let rootTaskCount = 0;
 
   try {
-    const response = await fetch(buildApiUrl("/api/workspace/todo", {}, activeAgentId));
+    const response = await fetch(buildApiUrl("/api/workspace/todo", {}, activeWorkspaceId));
     if (response.ok) {
       const payload = await response.json();
       rootPreview = String(payload?.content || payload?.body || "").trim();
@@ -112675,8 +114160,8 @@ function renderAgentDashboardIdeaSection(_counts) {
 function renderAgentDashboardWorkspaceSection(counts) {
   if (!home2ContentNode || !home2HeadNode) return;
 
-  const agent = agentsCache.find((item) => item.id === activeAgentId);
-  const agentLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Агент";
+  const agent = agentsCache.find((item) => item.id === activeWorkspaceId);
+  const agentLabel = agent?.name || getActiveAgentLabel() || activeWorkspaceId || "Агент";
   home2HeadNode.replaceChildren();
   home2ContentNode.replaceChildren();
 
@@ -112743,7 +114228,7 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
   const meta = document.createElement("p");
   meta.className = "home2-meta";
-  meta.textContent = [activeAgentId, agent?.path].filter(Boolean).join(" · ");
+  meta.textContent = [activeWorkspaceId, agent?.path].filter(Boolean).join(" · ");
 
   copy.append(title, meta);
 
@@ -112761,7 +114246,7 @@ function renderAgentDashboardWorkspaceSection(counts) {
   const menuRoot = currentMenuData;
   let topicEntries = [];
   if (menuRoot) {
-    const flat = collectAgentMenuFlatEntries(menuRoot, activeAgentId, { includeHiddenSections: true });
+    const flat = collectAgentMenuFlatEntries(menuRoot, activeWorkspaceId, { includeHiddenSections: true });
     const leaves = flat.filter((entry) => !entry.isFolder);
     topicEntries = (leaves.length ? leaves : flat).slice(0, 12);
   }
@@ -112797,13 +114282,13 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
 let homeWorkspaceManifestLoadSeq = 0;
 
-function getActiveAgentWorkspaceManifestPath(agentId = activeAgentId) {
+function getActiveAgentWorkspaceManifestPath(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   if (!agent?.path || agent.manifestFound === false) return null;
   return AREA_MANIFEST_FILE;
 }
 
-async function fetchActiveAgentWorkspaceManifestContent(agentId = activeAgentId) {
+async function fetchActiveAgentWorkspaceManifestContent(agentId = activeWorkspaceId) {
   const manifestPath = getActiveAgentWorkspaceManifestPath(agentId);
   if (!manifestPath) return null;
   const response = await fetch(buildApiUrl("/api/file", { path: manifestPath }, agentId));
@@ -112873,7 +114358,7 @@ function renderHomeWorkspaceManifestSection(payload) {
   homeWorkspaceManifestNode.classList.remove("hidden");
 }
 
-async function refreshHomeWorkspaceManifestSection(agentId = activeAgentId) {
+async function refreshHomeWorkspaceManifestSection(agentId = activeWorkspaceId) {
   if (!homeWorkspaceManifestNode) return;
 
   if (!agentId || agentWorkspaceView !== "dashboard" || !isAgentWorkspaceCanvasVisible()) {
@@ -113484,11 +114969,11 @@ async function renderAgentAwnTypesView({ forceReload = false } = {}) {
     awnTypesCache = null;
     awnTypesLoadPromise = null;
   }
-  await loadAwnTypes(activeAgentId);
+  await loadAwnTypes(activeWorkspaceId);
   await renderAwnTypesContent(agentAwnTypesContentNode);
 }
 
-async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } = {}) {
+async function renderAwnTypesContent(containerNode, { agentId = activeWorkspaceId } = {}) {
   if (!containerNode) return;
   containerNode.innerHTML = "";
 
@@ -113692,16 +115177,21 @@ async function renderAgentRoadmapMapLiveView(renderSeq) {
   if (!agentRoadmapMapHostNode) return;
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка карты…");
 
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
 
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
@@ -114180,15 +115670,20 @@ async function renderAgentRoadmapMapMindmapView(renderSeq) {
 
 async function renderAgentRoadmapMapGraphView(renderSeq) {
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка графа…");
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   agentRoadmapMapHostNode.replaceChildren();
@@ -114231,7 +115726,7 @@ function renderAgentSchemaView() {
   }
 
   const menu = currentMenuData;
-  const entries = collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true });
+  const entries = collectAgentMenuFlatEntries(menu, activeWorkspaceId, { includeHiddenSections: true });
   if (!entries.length) {
     renderListEmptyMessage(agentSchemaContentNode, "В workspace пока нет тем");
     return;
@@ -114385,7 +115880,7 @@ function renderAgentVaultView() {
   }
 
   const allEntries = sortVaultEntries(
-    collectAgentMenuFlatEntries(currentMenuData, activeAgentId, { includeHiddenSections: true })
+    collectAgentMenuFlatEntries(currentMenuData, activeWorkspaceId, { includeHiddenSections: true })
   );
   const filtered = filterVaultEntries(allEntries);
 
@@ -114433,7 +115928,13 @@ function stripGraphContainerFolderPrefix(relPath) {
 }
 
 function isGraphFolderLikeType(type) {
-  return type === "folder" || type === "repositories" || type === "iblock";
+  return (
+    type === "folder" ||
+    type === "repositories" ||
+    type === "iblock" ||
+    type === "media-libraries" ||
+    type === "channels"
+  );
 }
 
 const GRAPH_IBLOCK_KIND_GLYPH = {
@@ -114446,11 +115947,32 @@ function resolveGraphNodeGlyph(node) {
   if (node?.graphGlyph) return node.graphGlyph;
   if (node?.id === "repositories-root") return "📚";
   if (node?.id === "awn-databases-root") return "🧩";
+  if (node?.id === "media-libraries-root") return "🖼";
+  if (node?.id === "channels-root") return "📡";
   if (node?.type === "repositories") return "📚";
+  if (node?.type === "media-libraries") return "🖼";
+  if (node?.type === "channels") return "📡";
   if (node?.type === "iblock") {
     return GRAPH_IBLOCK_KIND_GLYPH[node?.storeKind] || "🗂️";
   }
   return "";
+}
+
+const AGENT_GRAPH_CATALOG_SLICE = 32;
+
+function collectAgentGraphRegisteredCatalogEntries(items, presets) {
+  const seen = new Set();
+  const out = [];
+  const push = (entry) => {
+    if (!entry || entry.registered === false) return;
+    const slug = String(entry.slug || "").trim();
+    if (!slug || seen.has(slug)) return;
+    seen.add(slug);
+    out.push(entry);
+  };
+  for (const entry of items || []) push(entry);
+  for (const entry of presets || []) push(entry);
+  return out.slice(0, AGENT_GRAPH_CATALOG_SLICE);
 }
 
 async function fetchAgentWorkspacePageIndexPayload() {
@@ -114766,9 +116288,93 @@ function appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataP
   appendStores(Array.isArray(awnDataPayload?.stores) ? awnDataPayload.stores : [], awnDataRootId, 2);
 }
 
+function appendAgentGraphMediaLibrariesBranch({ nodes, edges, nodeIds, rootId, mediaLibrariesPayload }) {
+  const mediaRootId = "media-libraries-root";
+  nodes.push({
+    id: mediaRootId,
+    label: "Медиатеки",
+    graphSubLabel: "awn-media",
+    graphGlyph: "🖼",
+    isSatelliteRoot: true,
+    type: "media-libraries",
+    depth: 1,
+    graphTarget: { kind: "media-library-index", path: MEDIA_LIBRARY_INDEX_REL }
+  });
+  edges.push({ from: rootId, to: mediaRootId });
+  nodeIds.add(mediaRootId);
+
+  const libraries = collectAgentGraphRegisteredCatalogEntries(
+    mediaLibrariesPayload?.libraries,
+    mediaLibrariesPayload?.presets
+  );
+  for (const library of libraries) {
+    const slug = String(library?.slug || "").trim();
+    if (!slug) continue;
+    const manifestPath = String(
+      library?.manifestPath || `awn-media/${slug}/manifest.md`
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const nodeId = `media-lib:${slug}`;
+    if (nodeIds.has(nodeId)) continue;
+    nodes.push({
+      id: nodeId,
+      label: String(library?.name || slug).trim(),
+      graphGlyph: String(library?.icon || "🖼").trim() || "🖼",
+      type: "media-libraries",
+      depth: 2,
+      graphTarget: { kind: "media-library", path: manifestPath }
+    });
+    nodeIds.add(nodeId);
+    edges.push({ from: mediaRootId, to: nodeId, weak: true });
+  }
+}
+
+function appendAgentGraphChannelsBranch({ nodes, edges, nodeIds, rootId, channelsPayload }) {
+  const channelsRootId = "channels-root";
+  nodes.push({
+    id: channelsRootId,
+    label: "Каналы",
+    graphSubLabel: "awn-channels",
+    graphGlyph: "📡",
+    isSatelliteRoot: true,
+    type: "channels",
+    depth: 1,
+    graphTarget: { kind: "channel-index", path: AWN_CHANNELS_INDEX_REL_PATH }
+  });
+  edges.push({ from: rootId, to: channelsRootId });
+  nodeIds.add(channelsRootId);
+
+  const channels = collectAgentGraphRegisteredCatalogEntries(
+    channelsPayload?.channels,
+    channelsPayload?.presets
+  );
+  for (const channel of channels) {
+    const slug = String(channel?.slug || "").trim();
+    if (!slug) continue;
+    const manifestPath = String(
+      channel?.manifestPath || `awn-channels/${slug}/manifest.md`
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const nodeId = `channel:${slug}`;
+    if (nodeIds.has(nodeId)) continue;
+    nodes.push({
+      id: nodeId,
+      label: String(channel?.name || slug).trim(),
+      graphGlyph: String(channel?.icon || "📡").trim() || "📡",
+      type: "channels",
+      depth: 2,
+      graphTarget: { kind: "channel", path: manifestPath }
+    });
+    nodeIds.add(nodeId);
+    edges.push({ from: channelsRootId, to: nodeId, weak: true });
+  }
+}
+
 async function loadAgentGraphRepositoriesPayload() {
   if (menuRepositoriesLastPayload) return menuRepositoriesLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent));
@@ -114781,10 +116387,36 @@ async function loadAgentGraphRepositoriesPayload() {
 
 async function loadAgentGraphAwnDataPayload() {
   if (menuAwnDataStoresLastPayload) return menuAwnDataStoresLastPayload;
-  const resolvedAgent = String(activeAgentId || "").trim();
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   try {
     const response = await fetch(buildApiUrl("/api/awn-databases", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadAgentGraphMediaLibrariesPayload() {
+  if (menuMediaLibrariesLastPayload) return menuMediaLibrariesLastPayload;
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/media-libraries", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadAgentGraphChannelsPayload() {
+  if (menuAwnChannelsLastPayload) return menuAwnChannelsLastPayload;
+  const resolvedAgent = String(activeWorkspaceId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/channels", {}, resolvedAgent));
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -114799,12 +116431,33 @@ function handleAgentGraphNodeClick(node) {
   }
   const target = node?.graphTarget;
   if (!target) return;
-  if (target.kind === "repository-index" || target.kind === "iblock-index") {
+  if (
+    target.kind === "repository-index" ||
+    target.kind === "iblock-index" ||
+    target.kind === "media-library-index" ||
+    target.kind === "channel-index"
+  ) {
+    if (target.kind === "media-library-index") {
+      void openMediaLibraryIndexOverview();
+      return;
+    }
+    if (target.kind === "channel-index") {
+      void openAwnChannelsIndexOverview();
+      return;
+    }
     void openWorkspaceFilePreviewByRelPath(String(target.path || "").replace(/\\/g, "/"));
     return;
   }
   if (target.kind === "repository") {
     void openRepositoryWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "media-library") {
+    void openMediaLibraryWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "channel") {
+    void openAwnChannelWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
     return;
   }
   if (target.kind === "iblock" && target.storeRel) {
@@ -114878,7 +116531,13 @@ function resolveGraphIntermediateFolderLabel(entries, relPath, fallback, scopePr
 
 function buildGraphDataFromAgentMenu(
   menu,
-  { repositoriesPayload = null, awnDataPayload = null, pageIndexPayload = null } = {}
+  {
+    repositoriesPayload = null,
+    awnDataPayload = null,
+    mediaLibrariesPayload = null,
+    channelsPayload = null,
+    pageIndexPayload = null
+  } = {}
 ) {
   const manifestMetaMap = buildGraphManifestMetaMap(pageIndexPayload);
   const baseTree = getWorkspaceRootMenuTreeNode(menu);
@@ -115065,6 +116724,8 @@ function buildGraphDataFromAgentMenu(
 
   appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, repositoriesPayload });
   appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataPayload });
+  appendAgentGraphMediaLibrariesBranch({ nodes, edges, nodeIds, rootId, mediaLibrariesPayload });
+  appendAgentGraphChannelsBranch({ nodes, edges, nodeIds, rootId, channelsPayload });
 
   return { nodes, edges };
 }
@@ -116127,15 +117788,20 @@ async function renderAgentGraphView() {
 
   renderListEmptyMessage(agentGraphContentNode, "Загрузка графа…");
 
-  const [repositoriesPayload, awnDataPayload, pageIndexPayload] = await Promise.all([
-    loadAgentGraphRepositoriesPayload(),
-    loadAgentGraphAwnDataPayload(),
-    fetchAgentWorkspacePageIndexPayload()
-  ]);
+  const [repositoriesPayload, awnDataPayload, mediaLibrariesPayload, channelsPayload, pageIndexPayload] =
+    await Promise.all([
+      loadAgentGraphRepositoriesPayload(),
+      loadAgentGraphAwnDataPayload(),
+      loadAgentGraphMediaLibrariesPayload(),
+      loadAgentGraphChannelsPayload(),
+      fetchAgentWorkspacePageIndexPayload()
+    ]);
 
   const graph = buildGraphDataFromAgentMenu(currentMenuData, {
     repositoriesPayload,
     awnDataPayload,
+    mediaLibrariesPayload,
+    channelsPayload,
     pageIndexPayload
   });
   if (graph.nodes.length <= 1) {
@@ -116213,7 +117879,7 @@ function showAppLandingView(hint = "") {
   clearActiveSystemFile();
   activeExternalFilePath = null;
   clearMediaSidecarEditor();
-  activeAgentId = null;
+  activeWorkspaceId = null;
   resetGitWorkspaceViewToDefault();
   appRootNode.classList.add("app-landing-view");
   appRootNode.classList.remove("home-view", "system-file-view", "not-found-view");
@@ -116254,7 +117920,7 @@ function showAppLandingView(hint = "") {
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
     return;
   }
@@ -116338,7 +118004,7 @@ function showNotFoundView(requestedPath = "") {
 }
 
 function showHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showAppLandingView(hint !== AGENT_HOME_HINT_DEFAULT ? hint : "");
     return;
   }
@@ -116449,11 +118115,11 @@ function canIncrementalMenuPatch() {
   return isMenuTreeLayoutMode() && !menuSearchQuery.trim();
 }
 
-function getMenuTreeHost(agentId = activeAgentId) {
+function getMenuTreeHost(agentId = activeWorkspaceId) {
   return menuAgentPanes.get(agentId) || menuNode;
 }
 
-function findMenuSectionByFolderPath(folderPath, agentId = activeAgentId) {
+function findMenuSectionByFolderPath(folderPath, agentId = activeWorkspaceId) {
   const target = normalizeMenuPatchFolderPath(folderPath, agentId);
   const host = getMenuTreeHost(agentId);
   if (!host) return null;
@@ -116496,7 +118162,7 @@ function findMenuTreeNodeByFolderPath(node, folderPath, parentSectionPath = ".",
   return null;
 }
 
-function getMenuParentNodeForFolder(menu, folderPath, agentId = activeAgentId) {
+function getMenuParentNodeForFolder(menu, folderPath, agentId = activeWorkspaceId) {
   const normalized = normalizeMenuPatchFolderPath(folderPath || ".", agentId);
   if (normalized === ".") return null;
   const segments = normalized.split("/").filter(Boolean);
@@ -116505,7 +118171,7 @@ function getMenuParentNodeForFolder(menu, folderPath, agentId = activeAgentId) {
   return parentBranch?.node ?? null;
 }
 
-function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
+function getMenuBranchForFolder(menu, folderPath, agentId = activeWorkspaceId) {
   const agentTitle = getAgentTreeTitle(agentId);
   const baseTree = { title: agentTitle, ...menu };
   const queryLower = menuSearchQuery.trim().toLowerCase();
@@ -116528,7 +118194,7 @@ function getMenuBranchForFolder(menu, folderPath, agentId = activeAgentId) {
   return { ...hit, node: filtered };
 }
 
-function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeAgentId) {
+function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId = activeWorkspaceId) {
   const collapsed = getAgentCollapsedFolders(agentId);
   let changed = false;
   const expandPath = (folderPath) => {
@@ -116549,12 +118215,12 @@ function expandMenuFolderPathsForCreate(parentFolder, createdPath, type, agentId
   if (changed) saveCollapsedFoldersByAgent();
 }
 
-function normalizeMenuPatchFolderPath(folderPath, agentId = activeAgentId) {
+function normalizeMenuPatchFolderPath(folderPath, agentId = activeWorkspaceId) {
   const stripped = stripVaultPrefixFromRelPath(String(folderPath || "").replace(/\\/g, "/").trim());
   return normalizeFolderPath(stripped || ".");
 }
 
-function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentId) {
+function getCreateParentFolderForPatch(createdPath, type, agentId = activeWorkspaceId) {
   if (type === "catalog" || type === "taxonomy") {
     const taxFolder = getSharedTaxonomiesFolder(agentId);
     const normalizedCreated = String(createdPath || "").replace(/\\/g, "/");
@@ -116584,10 +118250,10 @@ function getCreateParentFolderForPatch(createdPath, type, agentId = activeAgentI
   return normalizeMenuPatchFolderPath(parentFolder, agentId);
 }
 
-function syncMenuCachesAfterFetch(menu, agentId = activeAgentId) {
+function syncMenuCachesAfterFetch(menu, agentId = activeWorkspaceId) {
   menuCacheByAgent.set(agentId, menu);
   indexManifestTreeTypesFromMenu(menu);
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     currentMenuData = menu;
     invalidateMenuDisplayLabelMap();
     sanitizeCollapsedFolderPaths(agentId);
@@ -116640,7 +118306,7 @@ function updateReservedSectionToggleUi(sectionEl, collapsed, hasContent) {
   }
 }
 
-function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncServiceSectionCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const parentEl = getWorkspacesTreeChildren(agentId);
   if (!parentEl || !menu?.serviceTree || !shouldShowServiceSectionInMenu(agentId)) return;
 
@@ -116676,7 +118342,7 @@ function syncServiceSectionCollapsedUi(agentId = activeAgentId, menu = menuCache
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
-function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncSharedSectionCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const parentEl = getWorkspacesTreeChildren(agentId);
   if (!parentEl || !menu?.sharedTree || !shouldShowSharedSectionInMenu(agentId)) return;
 
@@ -116708,19 +118374,19 @@ function syncSharedSectionCollapsedUi(agentId = activeAgentId, menu = menuCacheB
   updateReservedSectionToggleUi(sectionEl, collapsed, hasContent);
 }
 
-function syncReservedMenuSectionsCollapsedUi(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function syncReservedMenuSectionsCollapsedUi(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   syncServiceSectionCollapsedUi(agentId, menu);
   syncSharedSectionCollapsedUi(agentId, menu);
 }
 
-function refreshRootMenuTreeExtras(agentId = activeAgentId, menu = menuCacheByAgent.get(agentId)) {
+function refreshRootMenuTreeExtras(agentId = activeWorkspaceId, menu = menuCacheByAgent.get(agentId)) {
   const childrenContainer = getWorkspacesTreeChildren(agentId);
   if (!childrenContainer) return;
   renderRootMenuReservedSections(menu, childrenContainer, agentId);
   renderSystemFiles(systemFilesCache);
 }
 
-function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options = {}) {
+function patchFolderCollapsedState(folderPath, agentId = activeWorkspaceId, options = {}) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -116826,7 +118492,7 @@ function patchFolderCollapsedState(folderPath, agentId = activeAgentId, options 
   }
 }
 
-function refreshAllFolderCollapsedPatches(agentId = activeAgentId) {
+function refreshAllFolderCollapsedPatches(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -116846,7 +118512,7 @@ function refreshAllFolderCollapsedPatches(agentId = activeAgentId) {
   }
 }
 
-function findCreatedMenuChild(branch, createdPath, agentId = activeAgentId) {
+function findCreatedMenuChild(branch, createdPath, agentId = activeWorkspaceId) {
   if (!branch?.node) return null;
   const createdNorm = normalizeMenuNodePath(createdPath);
   const visibleChildren = getVisibleMenuChildren(
@@ -116870,7 +118536,7 @@ function findCreatedMenuChild(branch, createdPath, agentId = activeAgentId) {
   return null;
 }
 
-function menuTreeChildAlreadyRendered(child, parentFolder, agentId = activeAgentId) {
+function menuTreeChildAlreadyRendered(child, parentFolder, agentId = activeWorkspaceId) {
   if (child.kind === "folder") {
     const folderPath = normalizeFolderPath(
       child.entry.folderPath || getFolderPathFromManifest(child.entry.indexPath) || parentFolder
@@ -116919,7 +118585,7 @@ function getMenuTreeInsertAnchor(container) {
   );
 }
 
-function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
+function findDomNodeForMenuChild(container, child, agentId = activeWorkspaceId) {
   if (!container || !child) return null;
   if (child.kind === "folder") {
     const folderPath = normalizeFolderPath(
@@ -116937,7 +118603,7 @@ function findDomNodeForMenuChild(container, child, agentId = activeAgentId) {
   return itemBtn?.closest(".menu-item-row") || null;
 }
 
-function resolveMenuTreeInsertBefore(container, branch, createdChild, agentId = activeAgentId) {
+function resolveMenuTreeInsertBefore(container, branch, createdChild, agentId = activeWorkspaceId) {
   const visibleChildren = getVisibleMenuChildren(
     branch.node,
     agentId,
@@ -116969,7 +118635,7 @@ function renderMenuTreeChildInto(
   depth,
   parentSectionPath,
   parentMenuNode,
-  agentId = activeAgentId,
+  agentId = activeWorkspaceId,
   insertBefore = null
 ) {
   if (child.kind === "folder" && !shouldShowMenuTreeFolder(child.entry, agentId)) return null;
@@ -117018,7 +118684,7 @@ function patchMenuTreeInsertCreatedChild({
   parentFolder,
   createdPath,
   type,
-  agentId = activeAgentId
+  agentId = activeWorkspaceId
 }) {
   if (!canIncrementalMenuPatch()) return false;
   if (type === "manifest" || type === "catalog" || type === "taxonomy" || type === "service-doc") return false;
@@ -117083,7 +118749,7 @@ function patchMenuTreeInsertCreatedChild({
   }
 }
 
-function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
+function patchMenuTreeAtFolder(folderPath, agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu) return false;
@@ -117139,7 +118805,7 @@ function patchMenuTreeAtFolder(folderPath, agentId = activeAgentId) {
   }
 }
 
-function patchServiceMenuAfterCreate(agentId = activeAgentId) {
+function patchServiceMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.serviceTree) return false;
@@ -117153,7 +118819,7 @@ function patchServiceMenuAfterCreate(agentId = activeAgentId) {
   return true;
 }
 
-function patchContainerMenuAfterCreate(agentId = activeAgentId) {
+function patchContainerMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.containerTree) return false;
@@ -117167,7 +118833,7 @@ function patchContainerMenuAfterCreate(agentId = activeAgentId) {
   return true;
 }
 
-function patchSharedMenuAfterCreate(agentId = activeAgentId) {
+function patchSharedMenuAfterCreate(agentId = activeWorkspaceId) {
   if (!canIncrementalMenuPatch()) return false;
   const menu = menuCacheByAgent.get(agentId);
   if (!menu?.sharedTree) return false;
@@ -117410,7 +119076,7 @@ let appFooterIdeasLoadSeq = 0;
 let appFooterIdeasBadgeUiCache = null;
 
 function getAppFooterTodoScopeLabel() {
-  const agentLabel = getActiveAgentLabel() || activeAgentId || "проект";
+  const agentLabel = getActiveAgentLabel() || activeWorkspaceId || "проект";
   return `${ROOT_SYSTEM_TODO_FILE} · ${agentLabel}`;
 }
 
@@ -117519,7 +119185,7 @@ function renderAppFooterIdeasContent(content = "", { loading = false, error = ""
 }
 
 function syncAppFooterIdeasFromEditor() {
-  if (!appFooterIdeasBodyNode || !activeAgentId) return;
+  if (!appFooterIdeasBodyNode || !activeWorkspaceId) return;
   if (activeSystemFile !== ROOT_SYSTEM_TODO_FILE) return;
   renderAppFooterIdeasContent(String(fileContentInputNode?.value || ""), { exists: true });
 }
@@ -118329,7 +119995,7 @@ function createMenuAwnChannelKindNode(channelLike = "📡") {
   wrap.setAttribute("aria-hidden", "true");
   const iconNode = document.createElement("span");
   iconNode.className = "menu-awn-databases-store-kind menu-awn-databases-store-kind--channel";
-  const isBuiltinPreset = Boolean(slug && CHANNEL_BUILTIN_SLUGS.has(slug));
+  const isBuiltinPreset = Boolean(slug && isChannelBuiltinSlug(slug));
   if (!isBuiltinPreset) {
     iconNode.classList.add("menu-awn-databases-store-kind--channel-custom");
   }
@@ -118355,7 +120021,7 @@ function createMenuAwnChannelRow(channel) {
   row.className = "menu-awn-databases-store menu-awn-channels-item";
   if (isPreset) row.classList.add("menu-awn-channels-item--preset");
   if (isPendingCreate) row.classList.add("menu-awn-channels-item--pending");
-  if (slug && !CHANNEL_BUILTIN_SLUGS.has(slug)) {
+  if (slug && !isChannelBuiltinSlug(slug)) {
     row.classList.add("menu-awn-channels-item--custom");
   }
   row.dataset.awnChannelSlug = slug;
@@ -118399,7 +120065,7 @@ function createMenuAwnChannelRow(channel) {
             name: displayName,
             ...(channel.description && !channel.stub ? { description: channel.description } : {})
           },
-          activeAgentId,
+          activeWorkspaceId,
           { skipAutoOpen: true }
         );
         if (!created?.path) return;
@@ -118409,7 +120075,7 @@ function createMenuAwnChannelRow(channel) {
           manifestPath: created.path,
           folderPath: created.folderPath || channel.folderPath
         };
-        await refreshMenuAwnChannels(activeAgentId);
+        await refreshMenuAwnChannels(activeWorkspaceId);
       } catch (error) {
         showToast(String(error.message || error), "error");
         return;
@@ -118507,10 +120173,10 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
       : resolveMenuAwnChannelPresets(data);
 
   const channels = (Array.isArray(data.channels) ? data.channels : []).filter(
-    (entry) => !CHANNEL_BUILTIN_SLUGS.has(entry.slug)
+    (entry) => !isChannelBuiltinSlug(entry.slug)
   );
   const unregistered = (Array.isArray(data.unregistered) ? data.unregistered : []).filter(
-    (entry) => !CHANNEL_BUILTIN_SLUGS.has(entry.slug)
+    (entry) => !isChannelBuiltinSlug(entry.slug)
   );
   const userRows = [
     ...channels.map((entry) => ({ kind: "registered", entry })),
@@ -118547,10 +120213,10 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
   syncMenuAwnChannelsActiveState();
 }
 
-async function refreshMenuAwnChannels(agentId = activeAgentId) {
+async function refreshMenuAwnChannels(agentId = activeWorkspaceId) {
   if (!menuAwnChannelsListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuAwnChannelsCachedAgentId) {
     menuAwnChannelsLastPayload = null;
     menuAwnChannelsCachedAgentId = resolvedAgent;
@@ -118589,8 +120255,8 @@ async function refreshMenuAwnChannels(agentId = activeAgentId) {
   }
 }
 
-async function refreshAwnChannelsIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshAwnChannelsIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -118607,8 +120273,8 @@ async function refreshAwnChannelsIndex(agentId = activeAgentId) {
   return true;
 }
 
-async function openAwnChannelsIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openAwnChannelsIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -118649,10 +120315,10 @@ async function handleMenuAwnChannelsRefreshClick() {
   }
 }
 
-async function registerMenuAwnChannel(payload = {}, agentId = activeAgentId, options = {}) {
+async function registerMenuAwnChannel(payload = {}, agentId = activeWorkspaceId, options = {}) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -118876,7 +120542,7 @@ async function submitAwnChannelsCreateModal() {
     showToast("Укажите корректный ключ (slug)", "error");
     return;
   }
-  if (awnChannelsCreateModalState.mode === "custom" && CHANNEL_BUILTIN_SLUGS.has(slug)) {
+  if (awnChannelsCreateModalState.mode === "custom" && isChannelBuiltinSlug(slug)) {
     showToast("Этот ключ зарезервирован заготовкой — выберите её в списке или в модалке", "info");
     return;
   }
@@ -118884,7 +120550,7 @@ async function submitAwnChannelsCreateModal() {
   try {
     const created = await registerMenuAwnChannel(
       { slug, name, ...(description ? { description } : {}) },
-      activeAgentId,
+      activeWorkspaceId,
       { skipAutoOpen: true }
     );
     if (!created?.path) return;
@@ -119086,8 +120752,8 @@ function getAwnDataIndexRelPath() {
   return AWN_DATA_INDEX_REL_PATH;
 }
 
-async function probeAwnDataIndexExists(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function probeAwnDataIndexExists(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) return false;
   try {
     const response = await fetch(
@@ -119101,7 +120767,7 @@ async function probeAwnDataIndexExists(agentId = activeAgentId) {
 
 function syncMenuAwnDataIndexRowState() {
   if (!menuAwnDataIndexRowNode) return;
-  const hasAgent = Boolean(activeAgentId);
+  const hasAgent = Boolean(activeWorkspaceId);
   menuAwnDataIndexRowNode.hidden = !hasAgent;
   if (!hasAgent) return;
 
@@ -119176,8 +120842,8 @@ function formatAwnDataIndexPayloadAsMarkdown(payload) {
   return lines.join("\n").trimEnd();
 }
 
-async function fetchAwnDataIndexMarkdownFromApi(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function fetchAwnDataIndexMarkdownFromApi(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   const response = await fetch(buildApiUrl("/api/agent/awn-databases-index", {}, resolvedAgent));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -119192,8 +120858,8 @@ async function fetchAwnDataIndexMarkdownFromApi(agentId = activeAgentId) {
 
 let awnDataIndexPreviewOverride = null;
 
-async function openAwnDataIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openAwnDataIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -119216,8 +120882,8 @@ async function openAwnDataIndexOverview(agentId = activeAgentId) {
   void renderFolderBrowseFileView();
 }
 
-async function refreshAwnDataIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshAwnDataIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     throw new Error("Выберите агента");
   }
@@ -119302,7 +120968,7 @@ function setupMenuAwnScriptsBandGroup() {
   wireMenuBandHelpButton(menuAwnScriptsHelpBtn);
   menuAwnScriptsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Скрипты workspace", AWN_SCRIPTS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Скрипты workspace", AWN_SCRIPTS_FOLDER, { agentId: activeWorkspaceId });
   });
 }
 
@@ -119473,7 +121139,7 @@ function setupWorkspaceIndexPanelUi() {
   if (!window.WorkspaceIndexPanel?.init) return;
   window.WorkspaceIndexPanel.init({
     buildApiUrl,
-    getActiveAgentId: () => activeAgentId
+    getActiveAgentId: () => activeWorkspaceId
   });
 }
 
@@ -119489,7 +121155,7 @@ function setupAwnDashboardsUi() {
     parsePropsYaml,
     getPropsEntryValueByKey,
     escapeHtml,
-    getActiveAgentId: () => activeAgentId,
+    getActiveAgentId: () => activeWorkspaceId,
     getTodoFileName: () => ROOT_SYSTEM_TODO_FILE,
     setWorkspaceView: (view) => setAgentWorkspaceView(view, { persistWorkspaceConfig: false }),
     openFolderBrowse: (label, folderPath, options = {}) =>
@@ -119502,7 +121168,7 @@ function setupAwnDashboardsUi() {
     menuRefreshBtn: document.getElementById("menu-awn-dashboards-refresh-btn"),
     toolbarBtn
   });
-  void window.AwnDashboards.refreshMenuStats(activeAgentId);
+  void window.AwnDashboards.refreshMenuStats(activeWorkspaceId);
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
@@ -119571,9 +121237,9 @@ function resolveAwnDataSchemaTargetLabel(targetId, cache = null) {
   return labels[targetId] || AWN_DATA_SCHEMA_TARGET_LABELS[targetId] || targetId;
 }
 const AWN_DATA_SCHEMA_TARGET_TYPES = {
-  category: "awn.database.element.category",
-  record: "awn.database.element.record",
-  "record-csv": "awn.database.element.record-csv",
+  category: "awn.content.category",
+  record: "awn.content.record",
+  "record-csv": "awn.content.record-csv",
   sidecar: "awn.annotation.sidecar"
 };
 
@@ -119602,10 +121268,11 @@ function applyAwnDataStoreSchemaActiveTarget(cache, preferredTarget = "") {
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout.v2";
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY_LEGACY = "yamlcms.awnDataViewRecordsLayout";
 const AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY = "yamlcms.awnDataViewCardsColumns";
+const AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX = "yamlcms.awnDataViewStoreUi.v1:";
 const AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS = [1, 3, 5];
 const AWN_DATA_VIEW_SORT_SCOPE = "awn-databases-view";
 const AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX = "yamlcms.awnDataViewColumns.v1:";
-const AWN_DATA_VIEW_DEFAULT_COLUMN_KEYS = ["awn-id", "awn-name"];
+const AWN_DATA_VIEW_DEFAULT_COLUMN_KEYS = ["awn-id", "awn-name", "awn-preview"];
 let awnDataViewRecordsLayout = "table";
 let awnDataViewCardsColumns = 3;
 let awnDataViewVisibleColumnKeysCache = null;
@@ -120269,7 +121936,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
   async function syncQueuedState() {
     if (!client?.fetchQueue || !filePath) return;
     try {
-      const data = await client.fetchQueue(activeAgentId);
+      const data = await client.fetchQueue(activeWorkspaceId);
       const queued = client.isPathQueued(data.items, filePath);
       refreshEntryOverviewFileHubSendButton(button, { queued });
     } catch {
@@ -120293,7 +121960,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
     const queued = button.classList.contains("is-queued");
     button.disabled = true;
     const action = queued
-      ? client.removeFromFileHub({ path: filePath }, activeAgentId)
+      ? client.removeFromFileHub({ path: filePath }, activeWorkspaceId)
       : client.addToFileHub(
           {
             path: filePath,
@@ -120301,7 +121968,7 @@ function createEntryOverviewFileHubSendButton(context = {}) {
             place: dirnameWorkspaceHint(filePath),
             topic: "Файлообменник"
           },
-          activeAgentId
+          activeWorkspaceId
         );
     void action
       .then(() => {
@@ -120575,8 +122242,8 @@ function syncAwnDataCreateTaxonomyUi() {
   syncAwnDataCreateTaxonomyKeyFromSlug();
 }
 
-function isAwnContentsCollectionPresent(storeRel, agentId = activeAgentId) {
-  const resolvedAgentId = String(agentId || activeAgentId || "").trim();
+function isAwnContentsCollectionPresent(storeRel, agentId = activeWorkspaceId) {
+  const resolvedAgentId = String(agentId || activeWorkspaceId || "").trim();
   const rel = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
   if (!resolvedAgentId || !rel) return false;
   if (awnDataCatalogAgentId === resolvedAgentId && findAwnDataStoreInPayload(menuAwnDataStoresLastPayload, rel)) {
@@ -120596,52 +122263,52 @@ function syncAwnDataCreateGroupPresetsUi() {
     '[data-awn-data-group-preset="taxonomies"]'
   );
   if (taxonomiesBtn) {
-    const exists = isAwnTaxonomiesGroupPresent(activeAgentId);
+    const exists = isAwnTaxonomiesGroupPresent(activeWorkspaceId);
     taxonomiesBtn.disabled = exists;
     taxonomiesBtn.classList.toggle("is-disabled", exists);
     taxonomiesBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     taxonomiesBtn.title = exists
-      ? "Группа awn-databases/taxonomies/ уже создана"
-      : "Группа awn-databases/taxonomies/ для CSV-справочников";
+      ? "Группа awn-databases/0-taxonomies/ уже создана"
+      : "Группа awn-databases/0-taxonomies/ для CSV-справочников";
   }
 
   const factsBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
     '[data-awn-data-group-preset="contents-facts"]'
   );
   if (factsBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_FACTS_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_FACTS_STORE, activeWorkspaceId);
     factsBtn.disabled = exists;
     factsBtn.classList.toggle("is-disabled", exists);
     factsBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     factsBtn.title = exists
-      ? "Коллекция awn-databases/contents/facts уже создана"
-      : "Группа contents/ и коллекция facts (md-lite, MCP банк фактов)";
+      ? "Коллекция awn-databases/0-contents/0-facts уже создана"
+      : "Группа 0-contents/ и коллекция 0-facts (md-lite, MCP банк фактов)";
   }
 
   const glossaryBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
     '[data-awn-data-group-preset="contents-glossary"]'
   );
   if (glossaryBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_GLOSSARY_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_GLOSSARY_STORE, activeWorkspaceId);
     glossaryBtn.disabled = exists;
     glossaryBtn.classList.toggle("is-disabled", exists);
     glossaryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     glossaryBtn.title = exists
-      ? "Коллекция awn-databases/contents/glossary уже создана"
-      : "Группа contents/ и коллекция glossary (md-lite, MCP глоссарий)";
+      ? "Коллекция awn-databases/0-contents/0-glossary уже создана"
+      : "Группа 0-contents/ и коллекция 0-glossary (md-lite, MCP глоссарий)";
   }
 
   const referenceBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
     '[data-awn-data-group-preset="contents-reference"]'
   );
   if (referenceBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_REFERENCE_STORE, activeAgentId);
+    const exists = isAwnContentsCollectionPresent(AWN_CONTENTS_REFERENCE_STORE, activeWorkspaceId);
     referenceBtn.disabled = exists;
     referenceBtn.classList.toggle("is-disabled", exists);
     referenceBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     referenceBtn.title = exists
-      ? "Коллекция awn-databases/contents/reference уже создана"
-      : "Группа contents/ и коллекция reference (md-lite, иерархия, MCP справочник)";
+      ? "Коллекция awn-databases/0-contents/0-reference уже создана"
+      : "Группа 0-contents/ и коллекция 0-reference (md-lite, иерархия, MCP справочник)";
   }
 
   const taskQueueBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
@@ -120649,9 +122316,9 @@ function syncAwnDataCreateGroupPresetsUi() {
   );
   if (taskQueueBtn) {
     const exists =
-      isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, activeAgentId) ||
-      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeAgentId) ||
-      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_QUEUE_STORE, activeAgentId);
+      isAwnContentsCollectionPresent(AWN_TASK_QUEUE_STORE, activeWorkspaceId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_TASK_QUEUE_STORE, activeWorkspaceId) ||
+      isAwnContentsCollectionPresent(LEGACY_AWN_AGENT_QUEUE_STORE, activeWorkspaceId);
     taskQueueBtn.disabled = exists;
     taskQueueBtn.classList.toggle("is-disabled", exists);
     taskQueueBtn.setAttribute("aria-disabled", exists ? "true" : "false");
@@ -120683,7 +122350,7 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
         "Папка в <code>awn-databases/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
     } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
-        "Поднакопитель в <code>awn-databases/taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
+        "Поднакопитель в <code>awn-databases/0-taxonomies/{slug}/</code> — CSV-справочник (код и имя из типа record-csv).";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "single"
@@ -120722,8 +122389,8 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
   syncAwnDataCreateTaxonomyUi();
   awnDataCreateModalNode.classList.remove("hidden");
   if (awnDataCreateKind === "group") {
-    void loadAgentTaxonomies(activeAgentId).finally(() => syncAwnDataCreateGroupPresetsUi());
-    void refreshMenuAwnDataStores(activeAgentId).finally(() => syncAwnDataCreateGroupPresetsUi());
+    void loadAgentTaxonomies(activeWorkspaceId).finally(() => syncAwnDataCreateGroupPresetsUi());
+    void refreshMenuAwnDataStores(activeWorkspaceId).finally(() => syncAwnDataCreateGroupPresetsUi());
   }
   awnDataCreateNameInputNode?.focus();
 }
@@ -120750,7 +122417,7 @@ const AWN_DATA_CREATE_COLLECTION_TYPE_LABELS = {
 };
 let awnDataContainerTypesCache = null;
 
-async function loadAwnDataContainerTypes(agentId = activeAgentId) {
+async function loadAwnDataContainerTypes(agentId = activeWorkspaceId) {
   if (awnDataContainerTypesCache) return awnDataContainerTypesCache;
   const response = await fetch(buildApiUrl("/api/awn-databases/container-types", {}, agentId));
   if (!response.ok) {
@@ -121490,24 +123157,16 @@ function isAwnDatabaseSchemaContext(nodePath) {
 
 function resolveAwnDatabaseSchemaTargetForElementType(awnType, nodePath = "") {
   const normalized = normalizeAwnTypeName(String(awnType || "").trim());
-  if (
-    normalized === "awn.database.element.category" ||
-    normalized === "awn.database.category" ||
-    normalized === "awn.database.content.category"
-  ) {
+  if (normalized === normalizeAwnTypeName("awn.content.category")) {
     return "category";
   }
-  if (
-    normalized === "awn.annotation.sidecar" ||
-    normalized === "awn.database.element.sidecar" ||
-    normalized === "awn.database.content.sidecar"
-  ) {
+  if (normalized === normalizeAwnTypeName("awn.annotation.sidecar")) {
     return "sidecar";
   }
   if (
-    normalized === "awn.database.element.record" ||
-    normalized === "awn.database.record" ||
-    normalized === "awn.database.content.record"
+    normalized === normalizeAwnTypeName("awn.content.record") ||
+    normalized === normalizeAwnTypeName("awn.content.record-lite") ||
+    normalized === normalizeAwnTypeName("awn.content.record-csv")
   ) {
     return "record";
   }
@@ -121541,7 +123200,7 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
 
     const storeCache = await loadAwnDataStoreSchemaEditor(
       storeRel,
-      awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId
+      awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId
     );
     if (!storeCache) return null;
 
@@ -121589,7 +123248,7 @@ async function loadAwnDatabaseTopicSchemaForManifest(manifestPath, options = {})
   }
 }
 
-async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeAgentId) {
+async function loadAwnDataStoreSchemaEditor(storeRel, agentId = activeWorkspaceId) {
   const normalizedStoreRel = String(storeRel || "").trim();
   if (!normalizedStoreRel) return null;
   const response = await fetch(
@@ -121852,7 +123511,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   if (!cache) throw new Error("Схема не загружена");
   readSectionSchemaFieldsFromPanel(panel, cache);
   stripInheritedAwnDataSchemaFields(cache);
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   const storeRel = cache.storeRel || awnDataViewStoreRel;
   const mediaLibrarySlug = String(cache.mediaLibrarySlug || "").trim();
   const hubWorkspaceKind =
@@ -121924,7 +123583,7 @@ async function saveAwnDataStoreSchemaFromPanel(panel) {
   return data;
 }
 
-async function mountAwnDataStoreSchemaEditor(store, agentId = activeAgentId) {
+async function mountAwnDataStoreSchemaEditor(store, agentId = activeWorkspaceId) {
   const panel = awnDataViewElementSchemaPanelNode;
   const storeRel = String(store?.relPath || awnDataViewStoreRel || "").trim();
   if (!panel || !storeRel) return;
@@ -122035,6 +123694,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataUploadBtnNode = null;
   awnDataUploadHintNode = null;
   awnDataAddRecordBtn = null;
+  awnDataAddGoToEditInputNode = null;
   awnDataCreateMainCsvFormNode = null;
   awnDataCreateMainCsvBtn = null;
   awnDataViewStorePanelNode = null;
@@ -122046,6 +123706,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewRecordCommentsMountNode = null;
   awnDataViewLayoutToggleNode = null;
   awnDataViewColumnsWrapNode = null;
+  awnDataViewSortWrapNode = null;
   return;
 }
 
@@ -122109,6 +123770,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataUploadBtnNode = root.querySelector(".awn-databases-upload-btn");
   awnDataUploadHintNode = root.querySelector(".awn-databases-upload-hint");
   awnDataAddRecordBtn = root.querySelector(".awn-databases-add-record-btn");
+  awnDataAddGoToEditInputNode = root.querySelector(".awn-databases-add-go-to-edit-input");
   awnDataCreateMainCsvFormNode = root.querySelector(".awn-databases-view-create-main-csv-form");
   awnDataCreateMainCsvBtn = root.querySelector(".awn-databases-create-main-csv-btn");
   awnDataViewStorePanelNode = root.querySelector(".awn-databases-view-store-panel");
@@ -122195,15 +123857,19 @@ function setupAwnDataViewToolbarControls(root) {
     sortMount.className = "awn-databases-view-sort-mount";
     sortMount.appendChild(
       createNavigationListSortSelect(AWN_DATA_VIEW_SORT_SCOPE, {
+        loadSort: () => loadAwnDataViewListSort(),
+        saveSort: (mode) => saveAwnDataViewListSort(mode),
         onChange: () => {
           if (awnDataViewStoreCache && !awnDataViewRecordId) {
-            renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+            renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
           }
         }
       })
     );
     controls.appendChild(sortMount);
   }
+
+  awnDataViewSortWrapNode = controls.querySelector(".awn-databases-view-sort-mount .node-navigation-list-sort");
 
   if (!controls.querySelector(".awn-databases-view-columns-wrap")) {
     const columnsWrap = document.createElement("div");
@@ -122251,9 +123917,91 @@ function setupAwnDataViewToolbarControls(root) {
   awnDataViewLayoutToggleNode = controls.querySelector(".awn-databases-view-layout-control");
   syncAwnDataViewLayoutToggleUi();
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
+  syncNavigationListSortSelect(awnDataViewSortWrapNode, () => loadAwnDataViewListSort());
+}
+
+function getAwnDataViewStoreRelForUiPrefs(storeRel = "") {
+  return normalizeAwnDataViewStoreRel(
+    storeRel || awnDataViewStoreRel || awnDataViewStoreCache?.relPath || ""
+  );
+}
+
+function getAwnDataViewStoreUiStorageKey(storeRel) {
+  const rel = getAwnDataViewStoreRelForUiPrefs(storeRel);
+  if (!rel) return "";
+  return `${AWN_DATA_VIEW_STORE_UI_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${rel}`;
+}
+
+function readAwnDataViewStoreUiPrefs(storeRel) {
+  const storageKey = getAwnDataViewStoreUiStorageKey(storeRel);
+  if (!storageKey) return {};
+  try {
+    const raw = readStorageItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+  } catch {
+    // ignore
+  }
+
+  const migrated = {};
+  try {
+    const layout = localStorage.getItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY);
+    if (layout === "table" || layout === "fields" || layout === "cards" || layout === "toc") {
+      migrated.layout = layout;
+    }
+    const cols = Number(localStorage.getItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY));
+    if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) migrated.cardsCols = cols;
+  } catch {
+    // ignore
+  }
+  if (Object.keys(migrated).length) {
+    writeStorageItem(storageKey, JSON.stringify(migrated));
+  }
+  return migrated;
+}
+
+function saveAwnDataViewStoreUiPrefs(storeRel, patch) {
+  const storageKey = getAwnDataViewStoreUiStorageKey(storeRel);
+  if (!storageKey || !patch || typeof patch !== "object") return;
+  const current = readAwnDataViewStoreUiPrefs(storeRel);
+  writeStorageItem(storageKey, JSON.stringify({ ...current, ...patch }));
+}
+
+function loadAwnDataViewListSort(storeRel = "") {
+  const sort = readAwnDataViewStoreUiPrefs(storeRel).sort;
+  return sort === "created" ? "created" : "name";
+}
+
+function saveAwnDataViewListSort(mode, storeRel = "") {
+  saveAwnDataViewStoreUiPrefs(storeRel, { sort: mode === "created" ? "created" : "name" });
+}
+
+function applyAwnDataViewStoreUiPrefs(storeRel) {
+  const rel = getAwnDataViewStoreRelForUiPrefs(storeRel);
+  if (!rel) return;
+  const prefs = readAwnDataViewStoreUiPrefs(rel);
+  if (prefs.layout === "table" || prefs.layout === "fields" || prefs.layout === "cards" || prefs.layout === "toc") {
+    awnDataViewRecordsLayout = prefs.layout;
+  }
+  const cols = Number(prefs.cardsCols);
+  if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) {
+    awnDataViewCardsColumns = cols;
+  }
+  awnDataViewVisibleColumnKeysScope = "";
+  awnDataViewVisibleColumnKeysCache = null;
+  syncAwnDataViewLayoutToggleUi();
+  syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
+  syncNavigationListSortSelect(awnDataViewSortWrapNode, () => loadAwnDataViewListSort(rel));
 }
 
 function loadAwnDataViewCardsColumns() {
+  const cols = Number(readAwnDataViewStoreUiPrefs().cardsCols);
+  if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(cols)) {
+    awnDataViewCardsColumns = cols;
+    return;
+  }
   try {
     const stored = Number(localStorage.getItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY));
     if (AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(stored)) awnDataViewCardsColumns = stored;
@@ -122262,14 +124010,10 @@ function loadAwnDataViewCardsColumns() {
   }
 }
 
-function saveAwnDataViewCardsColumns(columns) {
+function saveAwnDataViewCardsColumns(columns, storeRel = "") {
   if (!AWN_DATA_VIEW_CARDS_COLUMN_OPTIONS.includes(columns)) return;
   awnDataViewCardsColumns = columns;
-  try {
-    localStorage.setItem(AWN_DATA_VIEW_CARDS_COLUMNS_STORAGE_KEY, String(columns));
-  } catch {
-    // ignore
-  }
+  saveAwnDataViewStoreUiPrefs(storeRel, { cardsCols: columns });
 }
 
 function createAwnDataViewLayoutBtnIcon(svgMarkup) {
@@ -122356,6 +124100,11 @@ function createAwnDataViewRecordsLayoutToggle() {
 
 function loadAwnDataViewRecordsLayout() {
   loadAwnDataViewCardsColumns();
+  const prefs = readAwnDataViewStoreUiPrefs();
+  if (prefs.layout === "table" || prefs.layout === "fields" || prefs.layout === "cards" || prefs.layout === "toc") {
+    awnDataViewRecordsLayout = prefs.layout;
+    return;
+  }
   try {
     const stored = localStorage.getItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY);
     if (stored === "table" || stored === "fields" || stored === "cards" || stored === "toc") {
@@ -122374,14 +124123,10 @@ function saveAwnDataViewRecordsLayout(layout) {
   if (layout !== "table" && layout !== "fields" && layout !== "cards" && layout !== "toc") return;
   if (awnDataViewRecordsLayout === layout) return;
   awnDataViewRecordsLayout = layout;
-  try {
-    localStorage.setItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY, layout);
-  } catch {
-    // ignore
-  }
+  saveAwnDataViewStoreUiPrefs("", { layout });
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
 }
@@ -122394,15 +124139,11 @@ function saveAwnDataViewCardsLayout(columns) {
   saveAwnDataViewCardsColumns(columns);
   if (layoutChanged) {
     awnDataViewRecordsLayout = "cards";
-    try {
-      localStorage.setItem(AWN_DATA_VIEW_LAYOUT_STORAGE_KEY, "cards");
-    } catch {
-      // ignore
-    }
+    saveAwnDataViewStoreUiPrefs("", { layout: "cards", cardsCols: columns });
   }
   syncAwnDataViewLayoutToggleUi();
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
   syncAwnDataViewColumnsPickerUi(awnDataViewStoreCache);
 }
@@ -122427,7 +124168,7 @@ function getAwnDataRecordSortCreated(record) {
   return String(fm["awn-created"] || fm["awn-create"] || fm.created || "").trim();
 }
 
-function sortAwnDataViewRecords(records, store, sortMode = loadNavigationListSort(AWN_DATA_VIEW_SORT_SCOPE)) {
+function sortAwnDataViewRecords(records, store, sortMode = loadAwnDataViewListSort(store?.relPath)) {
   const list = Array.isArray(records) ? [...records] : [];
   const sortOrder = Array.isArray(store?.sortOrder) ? store.sortOrder : [];
 
@@ -122645,7 +124386,7 @@ function rootQueryAwnDataToolbar() {
   return awnDataViewRoot?.querySelector(".awn-databases-view-toolbar");
 }
 
-async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeAgentId, options = {}) {
+async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeWorkspaceId, options = {}) {
   const normalized = String(workspacePath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   if (!/^(?:awn-databases|awn-data)(?:\/|$)/i.test(normalized)) return false;
   if (isAwnDataIndexRelPath(`${normalized}.md`) || isAwnDataIndexRelPath(normalized)) {
@@ -122665,9 +124406,18 @@ async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = active
     try {
       const response = await fetch(buildApiUrl("/api/awn-databases", { store: storeRel }, agentId));
       if (!response.ok) continue;
+      const data = await response.json().catch(() => ({}));
       if (recordPart) {
-        const recordId = recordPart.replace(/\.md$/i, "");
-        await openAwnDataRecordViewPage(storeRel, recordId, agentId, options);
+        const parsedTail = parseAwnDataStoreTailFromWorkspacePath(recordPart);
+        const target = resolveAwnDataRouteTailTarget(data.store, parsedTail);
+        if (target.view === "record" && target.recordId) {
+          await openAwnDataRecordViewPage(storeRel, target.recordId, agentId, options);
+        } else {
+          await openAwnDataViewPage(storeRel, agentId, {
+            ...options,
+            sectionId: target.sectionId || "__all__"
+          });
+        }
       } else {
         await openAwnDataViewPage(storeRel, agentId, options);
       }
@@ -122716,7 +124466,7 @@ function resolveAwnDataViewBackStoreRel() {
 async function navigateAwnDataViewBackToStore() {
   const storeRel = resolveAwnDataViewBackStoreRel();
   if (!storeRel) return;
-  await openAwnDataViewPage(storeRel, awnDataViewCatalogAgentId || activeAgentId);
+  await openAwnDataViewPage(storeRel, awnDataViewCatalogAgentId || activeWorkspaceId);
 }
 
 function bindAwnDataViewRecordBackButton(root) {
@@ -122781,7 +124531,7 @@ function wireAwnDataViewPageEvents(hub) {
   hub.addEventListener("input", (event) => {
     if (activeContentMode !== AWN_DATA_VIEW_MODE) return;
     if (event.target.matches(".awn-databases-view-search-input") && awnDataViewStoreCache) {
-      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
       return;
     }
     if (event.target.matches(".awn-databases-view-section-search-input") && awnDataViewStoreCache) {
@@ -122794,14 +124544,16 @@ function wireAwnDataViewPageEvents(hub) {
     if (event.target.closest(".awn-databases-view-section-tree-actions")) return;
     const item = event.target.closest(".awn-databases-view-section-tree-item");
     if (!item?.dataset.sectionId) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
     awnDataViewSectionId = item.dataset.sectionId;
     syncAwnDataViewSectionTreeActiveStates();
     applyAwnDataActiveSectionToAddParentSelect();
     syncAwnDataViewSectionPanelNotices(awnDataViewStoreCache);
     if (awnDataViewStoreCache) {
-      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
     }
+    syncAppRouteToUrl({ push: true });
   });
 
   hub.addEventListener("click", (event) => {
@@ -122916,7 +124668,7 @@ function renderAwnDataBreadcrumbs() {
   syncWorkspaceRevealFolderButton();
 }
 
-async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = {}) {
+async function openAwnDataViewPage(storeRel, agentId = activeWorkspaceId, options = {}) {
   const normalizedStoreRel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   if (!normalizedStoreRel) return;
 
@@ -122944,7 +124696,11 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   awnDataViewStoreCache = null;
   awnDataViewRecordId = "";
   awnDataViewRecordCache = null;
-  awnDataViewSectionId = "__all__";
+  if (options.sectionId !== undefined) {
+    awnDataViewSectionId = String(options.sectionId || "").trim() || "__all__";
+  } else {
+    awnDataViewSectionId = "__all__";
+  }
   if (awnDataViewSectionSearchInputNode) awnDataViewSectionSearchInputNode.value = "";
   awnDataViewSchemaDraft = "";
   awnDataViewSchemaEditing = false;
@@ -122970,7 +124726,7 @@ async function openAwnDataViewPage(storeRel, agentId = activeAgentId, options = 
   }
 }
 
-async function openAwnDataRecordViewPage(storeRel, recordId, agentId = activeAgentId, options = {}) {
+async function openAwnDataRecordViewPage(storeRel, recordId, agentId = activeWorkspaceId, options = {}) {
   const normalizedStoreRel = String(storeRel || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   const normalizedRecordId = String(recordId || "").trim();
   if (!normalizedStoreRel || !normalizedRecordId) return;
@@ -123049,7 +124805,7 @@ function revealAwnDataViewWorkspace() {
   workspacePathHeaderNode?.classList.remove("is-folder-browse", "is-workspace-tool-module");
 }
 
-function refreshAwnDataViewFromCache(agentId = activeAgentId) {
+function refreshAwnDataViewFromCache(agentId = activeWorkspaceId) {
   if (isAwnDatabaseManifestEditing()) return;
   ensureAwnDataViewHubMounted();
   const store = awnDataViewStoreCache;
@@ -123085,7 +124841,7 @@ function refreshAwnDataViewFromCache(agentId = activeAgentId) {
   awnDataViewAddWrapNode?.classList.toggle("hidden", shouldHideAwnDataViewActions(store));
 }
 
-async function loadAwnDataViewStore(agentId = activeAgentId) {
+async function loadAwnDataViewStore(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || isAwnDatabaseManifestEditing()) return;
   const renderSeq = nodeOverviewRenderSeq;
   const storeRel = awnDataViewStoreRel;
@@ -123113,6 +124869,7 @@ async function loadAwnDataViewStore(agentId = activeAgentId) {
 
     activeLabel = String(store.name || store.relPath || activeLabel).trim();
     awnDataViewStoreCache = store;
+    applyAwnDataViewStoreUiPrefs(store.relPath);
     syncAwnDataViewIblockLayout(store);
     const allRecords = Array.isArray(store?.records) ? store.records : [];
     renderAwnDataViewHeader(store);
@@ -123289,7 +125046,7 @@ function beginAwnDataViewStoreLoading(storeRel) {
     if (cached.kind === "group") {
       renderAwnDataViewGroupChildren(cached);
     } else {
-      renderAwnDataViewStoreContent(cached, awnDataViewCatalogAgentId || activeAgentId);
+      renderAwnDataViewStoreContent(cached, awnDataViewCatalogAgentId || activeWorkspaceId);
     }
     return;
   }
@@ -123444,7 +125201,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     if (schemaModFileNode) {
       schemaModFileNode.textContent = SCHEMA_MOD_FILE;
     }
-    void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+    void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
     mountAwnDataViewIblockOutsideStructureWarning(viewStore);
     return;
   }
@@ -123472,15 +125229,15 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     schemaModFileNode.textContent = SCHEMA_MOD_FILE;
   }
 
-  void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+  void mountAwnDataStoreSchemaEditor(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
   mountAwnDataViewIblockOutsideStructureWarning(viewStore);
 }
 
-function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeAgentId) {
+function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeWorkspaceId) {
   if (payload?.source === "platform" && payload?.sourceAgentId) {
     return String(payload.sourceAgentId).trim();
   }
-  return String(fallbackAgentId || activeAgentId || "").trim();
+  return String(fallbackAgentId || activeWorkspaceId || "").trim();
 }
 
 function resolveAwnDataStoreFileRel(fileName = "") {
@@ -123506,7 +125263,7 @@ function setAwnDataViewSchemaEditMode(enabled) {
 async function beginAwnDataViewSchemaEdit() {
   const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel) return;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   try {
     if (awnDataViewEditStoreBtn) awnDataViewEditStoreBtn.disabled = true;
     const response = await fetch(buildApiUrl("/api/agent-system/file", { path: fileRel }, catalogAgentId));
@@ -123533,7 +125290,7 @@ async function saveAwnDataViewSchemaEdit() {
   const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel || !awnDataViewSchemaTextareaNode) return;
   const content = awnDataViewSchemaTextareaNode.value;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   const storeRel = awnDataViewStoreRel;
   const saveBtn = awnDataViewRoot?.querySelector('[data-awn-databases-action="save-schema"]');
   try {
@@ -123607,7 +125364,7 @@ function isAwnDatabaseCsvRecordContentPath(nodePath) {
   return isAwnDatabaseRecordContentPath(normalized) && /\.csv$/i.test(normalized);
 }
 
-async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeAgentId) {
+async function fetchAwnDatabaseRecordEditorContent(filePath, agentId = activeWorkspaceId) {
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (/\.md$/i.test(normalized)) {
@@ -123796,7 +125553,7 @@ async function closeAwnDatabaseManifestEditor() {
   returnToNodeNavigation();
 }
 
-async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeAgentId) {
+async function openAwnDatabaseEditorFromRoute(resolved, agentId = activeWorkspaceId) {
   const storeRel = String(resolved?.storeRel || "").replace(/^\/+|\/+$/g, "");
   if (!storeRel) return false;
 
@@ -123947,7 +125704,7 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
   const label =
     labelHint ||
     `${awnDataViewStoreCache?.name || storeRel} · ${fileName}`;
-  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
   try {
     await openFolderBrowseFile(label, fileRel, { agentId: catalogAgentId });
   } catch (error) {
@@ -124103,10 +125860,7 @@ function isAwnDataSectionRecord(record) {
   const relPath = String(record?.relPath || "").replace(/\\/g, "/");
   if (/\/awn-storage\/data\/[^/]+\/manifest\.md$/i.test(relPath)) return true;
   const awnType = String(record?.frontmatter?.["awn-type"] || "").trim();
-  if (
-    awnType === "awn.database.element.category" ||
-    awnType === "awn.database.category"
-  ) {
+  if (normalizeAwnTypeName(awnType) === normalizeAwnTypeName("awn.content.category")) {
     return true;
   }
   const fileName = String(record?.fileName || "").toLowerCase();
@@ -124123,11 +125877,13 @@ function resolveAwnDataRecordTypeLabel(record, store = awnDataViewStoreCache) {
   const fm = record?.frontmatter && typeof record.frontmatter === "object" ? record.frontmatter : {};
   const explicit = String(fm["awn-type"] || "").trim();
   if (explicit) return explicit;
-  if (isAwnDataSectionRecord(record)) return "awn.database.element.category";
+  if (isAwnDataSectionRecord(record)) return "awn.content.category";
   if (isAwnDataSingleCsvStore(store) || isAwnDataCsvFilesStore(store)) {
-    return "awn.database.element.record";
+    return "awn.content.record-csv";
   }
-  return "awn.database.element.record";
+  const collectionType = String(store?.collectionType || store?.recordStorage || "").trim();
+  if (collectionType === "md-lite") return "awn.content.record-lite";
+  return "awn.content.record";
 }
 
 function getAwnDataStoreSections(store) {
@@ -124343,7 +126099,7 @@ async function ensureAwnDataSectionReadme(record, store = awnDataViewStoreCache)
   if (!storeRel || !sectionId) throw new Error("Раздел не найден");
   const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
   const { displayLabel } = resolveSectionReadmeSeedNames(sectionFolder);
-  const agentId = awnDataViewCatalogAgentId || activeAgentId;
+  const agentId = awnDataViewCatalogAgentId || activeWorkspaceId;
   const response = await fetch(buildApiUrl("/api/awn-databases/sections/manifest", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -124378,7 +126134,7 @@ function syncAwnDataViewSectionPanelNotices(store = awnDataViewStoreCache) {
   host.classList.remove("hidden");
   const sectionFolder = resolveAwnDataSectionReadmeFolder(record);
   appendSectionReadmeOffer(host, sectionFolder, {
-    categoryType: "awn.database.element.category",
+    categoryType: "awn.content.category",
     onCreate: () => void ensureAwnDataSectionReadme(record, store)
   });
   const issue = getAwnDataViewSectionSlugIssue(store);
@@ -124447,16 +126203,45 @@ function createAwnDataViewSectionTreeActions(record, store) {
   return actions;
 }
 
-function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, record = null, store = null }) {
+function createAwnDataViewSectionTreeGutters(depth, ancLines, isLast) {
+  const levelCount = Number(depth) || 0;
+  if (levelCount <= 0) return null;
+
+  const wrap = document.createElement("span");
+  wrap.className = "awn-databases-view-section-tree-gutters";
+  wrap.setAttribute("aria-hidden", "true");
+
+  for (let level = 0; level < levelCount; level += 1) {
+    const seg = document.createElement("span");
+    seg.className = "awn-databases-view-section-tree-gutter";
+    const isJoint = level === levelCount - 1;
+    if (isJoint) {
+      seg.classList.add("awn-databases-view-section-tree-gutter--joint");
+      if (isLast) seg.classList.add("is-last");
+    } else if (ancLines[level]) {
+      seg.classList.add("awn-databases-view-section-tree-gutter--line");
+    } else {
+      seg.classList.add("awn-databases-view-section-tree-gutter--spacer");
+    }
+    wrap.appendChild(seg);
+  }
+
+  return wrap;
+}
+
+function appendAwnDataViewSectionTreeItem(
+  container,
+  { id, label, depth = 0, record = null, store = null, ancLines = [], isLast = true }
+) {
   const row = document.createElement("div");
   row.className = "awn-databases-view-section-tree-row";
   if (depth > 0) row.classList.add("is-nested");
   const isUnregistered = Boolean(record && awnDataSectionMissingManifest(record));
   if (isUnregistered) row.classList.add("awn-databases-view-section-tree-row--unregistered");
 
-  const btn = document.createElement("button");
-  btn.type = "button";
+  const btn = document.createElement("a");
   btn.className = "awn-databases-view-section-tree-item";
+  btn.href = buildAwnDataViewSectionTreeHref(id);
   btn.dataset.sectionId = id;
   btn.style.setProperty("--tree-depth", String(depth));
   btn.setAttribute("role", "treeitem");
@@ -124469,6 +126254,9 @@ function appendAwnDataViewSectionTreeItem(container, { id, label, depth = 0, rec
     row.classList.add("is-active");
     btn.classList.add("is-active");
   }
+
+  const gutters = createAwnDataViewSectionTreeGutters(depth, ancLines, isLast);
+  if (gutters) btn.appendChild(gutters);
 
   const icon = document.createElement("span");
   icon.className = "awn-databases-view-section-tree-icon";
@@ -124506,7 +126294,15 @@ function awnDataSectionTreeNodeMatchesQuery(node, query) {
   return children.some((child) => awnDataSectionTreeNodeMatchesQuery(child, q));
 }
 
-function appendAwnDataViewSectionTreeBranchFiltered(container, node, depth, query, store = null) {
+function appendAwnDataViewSectionTreeBranchFiltered(
+  container,
+  node,
+  depth,
+  query,
+  store = null,
+  ancLines = [],
+  isLast = true
+) {
   const q = String(query || "").trim().toLowerCase();
   const children = Array.isArray(node?.children) ? node.children : [];
   const title = String(node?.title || node?.id || "").trim() || "—";
@@ -124521,10 +126317,22 @@ function appendAwnDataViewSectionTreeBranchFiltered(container, node, depth, quer
       label: title,
       depth,
       record: node,
-      store
+      store,
+      ancLines,
+      isLast
     });
-    for (const child of matchingChildren) {
-      appendAwnDataViewSectionTreeBranchFiltered(container, child, depth + 1, query, store);
+    for (let index = 0; index < matchingChildren.length; index += 1) {
+      const child = matchingChildren[index];
+      const childIsLast = index === matchingChildren.length - 1;
+      appendAwnDataViewSectionTreeBranchFiltered(
+        container,
+        child,
+        depth + 1,
+        query,
+        store,
+        [...ancLines, !isLast],
+        childIsLast
+      );
     }
   }
 }
@@ -124573,11 +126381,21 @@ function syncAwnDataViewSectionTree(store) {
   }
 
   const sectionTree = buildAwnDataSectionTree(sections);
-  for (const node of sectionTree) {
-    if (!queryLower || awnDataSectionTreeNodeMatchesQuery(node, queryLower)) {
-      appendAwnDataViewSectionTreeBranchFiltered(awnDataViewSectionTreeNode, node, 0, queryLower, viewStore);
-      visibleCount += 1;
-    }
+  const visibleRoots = sectionTree.filter(
+    (node) => !queryLower || awnDataSectionTreeNodeMatchesQuery(node, queryLower)
+  );
+  for (let index = 0; index < visibleRoots.length; index += 1) {
+    const node = visibleRoots[index];
+    appendAwnDataViewSectionTreeBranchFiltered(
+      awnDataViewSectionTreeNode,
+      node,
+      0,
+      queryLower,
+      viewStore,
+      [],
+      index === visibleRoots.length - 1
+    );
+    visibleCount += 1;
   }
 
   if (queryLower && !visibleCount) {
@@ -124641,7 +126459,7 @@ function resolveAwnDataViewRecordSchemaFields(store) {
 
 function getAwnDataViewColumnsStorageKey(store) {
   const storeRel = resolveAwnDataStoreRelPath(store) || String(awnDataViewStoreRel || "").replace(/^\/+|\/+$/g, "");
-  return `${AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX}${activeAgentId || "main"}:${storeRel}`;
+  return `${AWN_DATA_VIEW_COLUMNS_STORAGE_PREFIX}${activeWorkspaceId || "main"}:${storeRel}`;
 }
 
 function getAwnDataViewSchemaColumnOptions(store) {
@@ -124731,7 +126549,7 @@ function setAwnDataViewVisibleColumnKeys(store, keys) {
   writeStorageItem(awnDataViewVisibleColumnKeysScope, JSON.stringify(awnDataViewVisibleColumnKeysCache));
   syncAwnDataViewColumnsPickerUi(store);
   if (awnDataViewStoreCache && !awnDataViewRecordId) {
-    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeAgentId);
+    renderAwnDataViewStoreContent(awnDataViewStoreCache, awnDataViewCatalogAgentId || activeWorkspaceId);
   }
 }
 
@@ -124956,6 +126774,31 @@ function formatAwnDataViewCellValue(record, column, store = awnDataViewStoreCach
   return String(raw).trim();
 }
 
+function isAwnDataViewImagePreviewColumn(column) {
+  if (column.kind !== "field") return false;
+  const fieldType = String(column.fieldType || "");
+  if (fieldTypeIs(fieldType, "file.image.for-preview")) return true;
+  const key = String(column.key || "").trim().toLowerCase();
+  return key === "awn-preview" || key === "preview";
+}
+
+function appendAwnDataViewPreviewFieldCell(cell, record, column, store) {
+  const frontmatter = record?.frontmatter || {};
+  let raw = frontmatter[column.key];
+  raw = raw === undefined || raw === null ? "" : String(raw).trim();
+  if (!raw) {
+    cell.textContent = "—";
+    return;
+  }
+
+  cell.classList.add("external-table-cover-cell", "awn-databases-view-record-field-preview");
+  cell.title = raw;
+  const filePath = resolveAwnDataRecordFilePath(record, store);
+  const preview = buildPreviewUiFromPath(raw, filePath);
+  if (appendPreviewUiThumb(cell, preview, { className: "external-table-cover-thumb" })) return;
+  cell.textContent = raw;
+}
+
 function updateAwnDataViewCount(shown, total) {
   if (!awnDataViewCountNode) return;
   if (!total) {
@@ -125012,7 +126855,7 @@ async function openAwnDataRecordEditor(record, store = awnDataViewStoreCache) {
     : String(record?.title || record?.fileName || record?.id || filePath.split("/").pop() || filePath).trim();
 
   if (isAwnDataBinaryFileRecord(record, viewStore)) {
-    const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+    const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeWorkspaceId;
     const folderPath = storeRel
       ? `awn-databases/${storeRel}/awn-storage/data`
       : getFolderBrowseParentPath(filePath);
@@ -125149,6 +126992,9 @@ function syncAwnDataViewAddForm(store) {
   awnDataAddRecordsFormNode
     ?.querySelector(".awn-databases-add-slug-row")
     ?.classList.toggle("hidden", idMode === "numeric");
+  if (idMode === "numeric") {
+    awnDataAddSlugController?.reset();
+  }
 
   if (isFiles) {
     const fileTypes = resolveAwnDataRecordFileTypes(viewStore);
@@ -125285,7 +127131,7 @@ function renderAwnDataViewTocRecords(records, viewStore) {
       void openAwnDataRecordViewPage(
         viewStore.relPath,
         record.id,
-        awnDataViewCatalogAgentId || activeAgentId
+        awnDataViewCatalogAgentId || activeWorkspaceId
       );
     });
 
@@ -125419,7 +127265,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   card.tabIndex = 0;
   card.setAttribute("role", "listitem");
   const openRecord = () => {
-    void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+    void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
   };
   card.addEventListener("click", (event) => {
     if (
@@ -125446,7 +127292,7 @@ function createAwnDataViewRecordGridCard(record, viewStore, columns) {
   return card;
 }
 
-async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
+async function renderAwnDataRecordView(record, store, agentId = activeWorkspaceId) {
   syncAwnDataViewScreenMode();
   if (!awnDataViewRecordFieldsNode || !awnDataViewRecordBodyNode) return;
 
@@ -125667,13 +127513,6 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
   const showRecordLabel = !awnIdText && idMode !== "slug";
 
   wrap.appendChild(createAwnDataViewRecordEditIconButton(record, viewStore, recordLabel));
-  if (showRecordLabel) {
-    const idLabel = document.createElement("span");
-    idLabel.className = "awn-databases-view-record-id-label";
-    idLabel.textContent = recordLabel;
-    idLabel.title = recordLabel;
-    wrap.appendChild(idLabel);
-  }
 
   if (awnIdText) {
     const idBadge = createNavBookTocIdBadge(awnIdText);
@@ -125683,6 +127522,14 @@ function createAwnDataViewRecordIdCell(record, viewStore, value) {
     }
   } else {
     wrap.appendChild(createAwnDataViewRecordIdAssignButton(record, viewStore));
+  }
+
+  if (showRecordLabel) {
+    const idLabel = document.createElement("span");
+    idLabel.className = "awn-databases-view-record-id-label";
+    idLabel.textContent = recordLabel;
+    idLabel.title = recordLabel;
+    wrap.appendChild(idLabel);
   }
 
   return wrap;
@@ -125701,7 +127548,7 @@ function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
     void openAwnDataRecordViewPage(
       viewStore.relPath,
       record.id,
-      awnDataViewCatalogAgentId || activeAgentId
+      awnDataViewCatalogAgentId || activeWorkspaceId
     );
   };
   rowOrCell.addEventListener("click", (event) => {
@@ -125764,10 +127611,12 @@ function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
       if (column.kind === "id") {
         cell.classList.add("awn-databases-view-record-id");
         cell.append(createAwnDataViewRecordIdCell(record, viewStore, value));
+      } else if (isAwnDataViewImagePreviewColumn(column)) {
+        appendAwnDataViewPreviewFieldCell(cell, record, column, viewStore);
       } else {
         cell.textContent = value;
+        if (value !== "—") cell.title = value;
       }
-      if (value !== "—") cell.title = value;
       if (isAwnDataSystemRecord(record)) cell.classList.add("is-system");
       wireAwnDataViewRecordOpen(cell, record, viewStore);
       row.appendChild(cell);
@@ -125923,7 +127772,7 @@ function renderAwnDataEntityTypeRecords(records, viewStore) {
 
     section.addEventListener("click", (event) => {
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
 
     wrap.appendChild(section);
@@ -126086,7 +127935,7 @@ function buildAwnDataSingleStoreCsvFallbackRel(viewStore, primaryRel, recordFile
   return nestedRel && nestedRel !== primaryRel ? nestedRel : "";
 }
 
-async function fetchAwnDataSingleStoreCsvContent(viewStore, agentId = activeAgentId) {
+async function fetchAwnDataSingleStoreCsvContent(viewStore, agentId = activeWorkspaceId) {
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || agentId;
   const primaryRel = resolveAwnDataSingleStoreFileRel(viewStore);
   const recordFile = String(viewStore?.recordFile || "main.csv").trim() || "main.csv";
@@ -126249,7 +128098,7 @@ function createAwnDataSingleStoreContentCard(viewStore) {
   return { card, body };
 }
 
-async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentId) {
+async function renderAwnDataSingleStoreMainContent(store, agentId = activeWorkspaceId) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
   const viewStore = normalizeAwnDataStoreView(store || {});
@@ -126308,7 +128157,7 @@ async function renderAwnDataSingleStoreMainContent(store, agentId = activeAgentI
   }
 }
 
-function renderAwnDataViewStoreContent(store, agentId = activeAgentId) {
+function renderAwnDataViewStoreContent(store, agentId = activeWorkspaceId) {
   if (!awnDataViewRecordsNode) ensureAwnDataViewHubMounted();
   if (!awnDataViewRecordsNode) return;
   const viewStore = normalizeAwnDataStoreView(store || {});
@@ -126323,7 +128172,7 @@ function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   const viewStore = normalizeAwnDataStoreView(store || {});
   if (isAwnDataSingleTableStore(viewStore)) {
-    void renderAwnDataSingleStoreMainContent(viewStore, awnDataViewCatalogAgentId || activeAgentId);
+    void renderAwnDataSingleStoreMainContent(viewStore, awnDataViewCatalogAgentId || activeWorkspaceId);
     return;
   }
   syncAwnDataViewElementsTitle(viewStore);
@@ -126415,13 +128264,13 @@ function renderAwnDataViewRecords(store) {
     row.setAttribute("role", "link");
     row.addEventListener("click", (event) => {
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
     row.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       if (event.target.closest(".awn-databases-view-edit-btn")) return;
       event.preventDefault();
-      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeAgentId);
+      void openAwnDataRecordViewPage(viewStore.relPath, record.id, awnDataViewCatalogAgentId || activeWorkspaceId);
     });
 
     for (const column of columns) {
@@ -126445,6 +128294,9 @@ function renderAwnDataViewRecords(store) {
       } else if (column.kind === "parent" || column.key === "parent") {
         cell.className = "awn-databases-view-record-parent";
         cell.textContent = value;
+      } else if (isAwnDataViewImagePreviewColumn(column)) {
+        cell.className = "awn-databases-view-record-field";
+        appendAwnDataViewPreviewFieldCell(cell, record, column, viewStore);
       } else {
         cell.className = "awn-databases-view-record-field";
         cell.textContent = value;
@@ -126479,7 +128331,7 @@ function renderAwnDataViewGroupChildren(store) {
   awnDataViewRecordsNode.appendChild(list);
 }
 
-async function submitAwnDataCreateStore(agentId = activeAgentId) {
+async function submitAwnDataCreateStore(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -126531,6 +128383,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
     showToast(`Накопитель «${name}» создан`, "success");
     const taxonomySlugPrefix = String(slug || "").replace(/\\/g, "/");
     if (
+      taxonomySlugPrefix.startsWith("0-taxonomies/") ||
       taxonomySlugPrefix.startsWith("taxonomies/") ||
       taxonomySlugPrefix.startsWith("awn-taxonomies/")
     ) {
@@ -126546,7 +128399,7 @@ async function submitAwnDataCreateStore(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataUploadFiles(fileList, agentId = activeAgentId) {
+async function submitAwnDataUploadFiles(fileList, agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const store = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   const isCsvFiles = isAwnDataCsvFilesStore(store);
@@ -126597,7 +128450,7 @@ function toggleAwnDataCreateSectionForm(show) {
   }
 }
 
-async function submitAwnDataCreateSection(agentId = activeAgentId) {
+async function submitAwnDataCreateSection(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const name = String(awnDataViewSectionCreateNameInputNode?.value || "").trim();
   const slug = String(awnDataViewSectionCreateSlugController?.getSlug() || "").trim();
@@ -126653,7 +128506,7 @@ async function submitAwnDataCreateSection(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataAddRecord(agentId = activeAgentId) {
+async function submitAwnDataAddRecord(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const viewStore = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   if (isAwnDataSingleCsvStore(viewStore)) return;
@@ -126676,20 +128529,24 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
     return;
   }
 
+  const goToEditAfterCreate = Boolean(awnDataAddGoToEditInputNode?.checked);
   awnDataAddRecordBtn.disabled = true;
   try {
+    const payload = {
+      store: awnDataViewStoreRel,
+      name,
+      title: name,
+      parent: parent || undefined,
+      description: readTrimmedDescriptionInput(awnDataAddDescriptionInputNode) || undefined
+    };
+    if (idMode !== "numeric") {
+      payload.id = slug || undefined;
+      payload.slug = slug || undefined;
+    }
     const response = await fetch(buildApiUrl("/api/awn-databases/records", {}, agentId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        store: awnDataViewStoreRel,
-        name,
-        title: name,
-        id: slug || undefined,
-        slug: slug || undefined,
-        parent: parent || undefined,
-        description: readTrimmedDescriptionInput(awnDataAddDescriptionInputNode) || undefined
-      })
+      body: JSON.stringify(payload)
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
@@ -126697,8 +128554,22 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
     if (awnDataAddNameInputNode) awnDataAddNameInputNode.value = "";
     if (awnDataAddDescriptionInputNode) awnDataAddDescriptionInputNode.value = "";
     awnDataAddSlugController?.reset();
+    const createdMeta = data.store?.__awnLastCreatedRecord;
+    let createdRecordId = String(createdMeta?.id || "").trim();
+    if (!createdRecordId && idMode !== "numeric") createdRecordId = slug;
     await refreshMenuAwnDataStores(agentId);
     await loadAwnDataViewStore(agentId);
+    if (goToEditAfterCreate && createdRecordId) {
+      const store = normalizeAwnDataStoreView(awnDataViewStoreCache || data.store);
+      const record = getAwnDataStoreAllRecords(store).find(
+        (item) => String(item.id || "").trim() === createdRecordId
+      );
+      if (record) {
+        await openAwnDataRecordEditor(record, store);
+      } else {
+        showToast("Запись создана, но не найдена в списке для редактирования", "error");
+      }
+    }
   } catch (error) {
     showToast(String(error.message || error), "error");
   } finally {
@@ -126706,7 +128577,7 @@ async function submitAwnDataAddRecord(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataCreateMainCsv(agentId = activeAgentId) {
+async function submitAwnDataCreateMainCsv(agentId = activeWorkspaceId) {
   if (!awnDataViewStoreRel || !agentId) return;
   const viewStore = normalizeAwnDataStoreView(awnDataViewStoreCache || {});
   if (!shouldShowAwnDataCreateMainCsvForm(viewStore)) return;
@@ -126764,7 +128635,7 @@ async function handleMenuAwnDataRefreshClick(event) {
   const startedAt = performance.now();
 
   try {
-    await refreshMenuAwnDataStores(activeAgentId);
+    await refreshMenuAwnDataStores(activeWorkspaceId);
   } finally {
     const remaining = MENU_AWN_DATA_REFRESH_SPIN_MIN_MS - (performance.now() - startedAt);
     if (remaining > 0) {
@@ -126837,9 +128708,9 @@ function invalidateRepositoryCreateTypeDetailCache() {
   repositoryCreateTypeDetailCache = null;
 }
 
-async function fetchRepositoryCreateTypeDetail(agentId = activeAgentId, { force = false } = {}) {
+async function fetchRepositoryCreateTypeDetail(agentId = activeWorkspaceId, { force = false } = {}) {
   if (!force && repositoryCreateTypeDetailCache) return repositoryCreateTypeDetailCache;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) return null;
   const response = await fetch(
     buildApiUrl("/api/agent-system/type", { id: REPOSITORY_CREATE_TYPE_ID }, resolvedAgent)
@@ -127095,7 +128966,7 @@ function mapRepositoryToCreateFormValues(repo = {}) {
   };
 }
 
-async function renderRepositoryCreateForm(values = {}, agentId = activeAgentId) {
+async function renderRepositoryCreateForm(values = {}, agentId = activeWorkspaceId) {
   if (!repositoryCreateFieldsNode) return;
   const mergedValues = { ...getRepositoryCreateDefaultValues(), ...values };
   repositoryCreateFieldsNode.replaceChildren();
@@ -127353,9 +129224,9 @@ function renderRepositoryGroupsEditor() {
   }
 }
 
-async function openRepositoryGroupsModal(agentId = activeAgentId) {
+async function openRepositoryGroupsModal(agentId = activeWorkspaceId) {
   if (!repositoryGroupsModalNode) return;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -127382,8 +129253,8 @@ function closeRepositoryGroupsModal() {
   repositoryGroupsDraft = { groups: [], assignments: {} };
 }
 
-async function saveRepositoryGroups(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function saveRepositoryGroups(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -127477,10 +129348,10 @@ function closeRepositoryCreateModal() {
   repositoryModalState = { mode: "create" };
 }
 
-async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
+async function registerMenuRepository(payload = {}, agentId = activeWorkspaceId) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -127512,10 +129383,10 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
   return data;
 }
 
-async function updateMenuRepository(manifestPath, payload = {}, agentId = activeAgentId) {
+async function updateMenuRepository(manifestPath, payload = {}, agentId = activeWorkspaceId) {
   const path = String(manifestPath || "").trim();
   if (!path) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -127545,7 +129416,7 @@ function formatRepositoryStatusLabel(status) {
   return REPOSITORY_STATUS_LABELS[key] || key || "—";
 }
 
-async function fetchRepositoryOverviewData(repositoryPath, agentId = activeAgentId) {
+async function fetchRepositoryOverviewData(repositoryPath, agentId = activeWorkspaceId) {
   const folderPath = getRepositoryFolderPathFromWorkspacePath(repositoryPath);
   const path = folderPath || String(repositoryPath || "").trim();
   if (!path) return null;
@@ -128414,7 +130285,7 @@ function readRepositoryModalForm() {
   };
 }
 
-async function submitRepositoryCreate(agentId = activeAgentId) {
+async function submitRepositoryCreate(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -129049,7 +130920,7 @@ function syncRepositoriesDependenciesButtonState() {
 
 function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
   if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
-  const hasAgent = Boolean(String(activeAgentId || "").trim());
+  const hasAgent = Boolean(String(activeWorkspaceId || "").trim());
   menuRepositoriesShortcutsRow?.classList.toggle("hidden", !hasAgent);
   const indexFile = payload?.indexFile;
   const hasIndex = Boolean(indexFile?.exists);
@@ -129085,8 +130956,8 @@ function setRepositoryIndexRefreshLoading(loading) {
   }
 }
 
-async function refreshRepositoryIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshRepositoryIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -129115,8 +130986,8 @@ async function refreshRepositoryIndex(agentId = activeAgentId) {
   }
 }
 
-async function openRepositoryIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openRepositoryIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -129153,10 +131024,10 @@ async function handleRepositoryIndexRefreshClick() {
   }
 }
 
-async function refreshMenuRepositories(agentId = activeAgentId) {
+async function refreshMenuRepositories(agentId = activeWorkspaceId) {
   if (!menuRepositoriesListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuRepositoriesCachedAgentId) {
     menuRepositoriesLastPayload = null;
     menuRepositoriesCachedAgentId = resolvedAgent;
@@ -129326,7 +131197,7 @@ function createMenuMediaLibraryRow(library) {
             name: displayName,
             ...(library.description && !library.stub ? { description: library.description } : {})
           },
-          activeAgentId,
+          activeWorkspaceId,
           { skipAutoOpen: true }
         );
         if (!created?.path) return;
@@ -129515,10 +131386,10 @@ function renderMenuMediaLibraries(payload = null, { loading = false, error = fal
   syncMenuMediaLibraryActiveState();
 }
 
-async function refreshMenuMediaLibraries(agentId = activeAgentId) {
+async function refreshMenuMediaLibraries(agentId = activeWorkspaceId) {
   if (!menuMediaLibraryListNode) return;
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (resolvedAgent !== menuMediaLibrariesCachedAgentId) {
     menuMediaLibrariesLastPayload = null;
     menuMediaLibrariesCachedAgentId = resolvedAgent;
@@ -129568,10 +131439,10 @@ async function handleMenuMediaLibrariesRefreshClick() {
   }
 }
 
-async function registerMenuMediaLibrary(payload = {}, agentId = activeAgentId, options = {}) {
+async function registerMenuMediaLibrary(payload = {}, agentId = activeWorkspaceId, options = {}) {
   const slug = String(payload.slug || "").trim();
   if (!slug) return null;
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return null;
@@ -129614,7 +131485,7 @@ async function adoptMenuMediaLibrary(slug) {
 
 function syncMenuMediaLibraryIndexRowState(payload = menuMediaLibrariesLastPayload) {
   if (!menuMediaLibraryIndexOpenBtn || !menuMediaLibraryIndexRefreshBtn) return;
-  const hasAgent = Boolean(String(activeAgentId || "").trim());
+  const hasAgent = Boolean(String(activeWorkspaceId || "").trim());
   menuMediaLibraryIndexRowNode?.classList.toggle("hidden", !hasAgent);
   if (!hasAgent) return;
   const indexFile = payload?.indexFile;
@@ -129650,8 +131521,8 @@ function setMediaLibraryIndexRefreshLoading(loading) {
   }
 }
 
-async function refreshMediaLibraryIndex(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function refreshMediaLibraryIndex(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return false;
@@ -129675,8 +131546,8 @@ async function refreshMediaLibraryIndex(agentId = activeAgentId) {
   return true;
 }
 
-async function openMediaLibraryIndexOverview(agentId = activeAgentId) {
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+async function openMediaLibraryIndexOverview(agentId = activeWorkspaceId) {
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     showToast("Выберите агента", "error");
     return;
@@ -129779,10 +131650,7 @@ async function submitMediaLibraryCreateModal() {
     showToast("Укажите корректный ключ (slug)", "error");
     return;
   }
-  if (
-    mediaLibraryCreateModalState.mode === "custom" &&
-    MEDIA_LIBRARY_BUILTIN_SLUGS.has(slug)
-  ) {
+  if (mediaLibraryCreateModalState.mode === "custom" && isMediaLibraryBuiltinSlug(slug)) {
     showToast("Этот ключ зарезервирован заготовкой — создайте её из списка сверху", "info");
     return;
   }
@@ -129790,7 +131658,7 @@ async function submitMediaLibraryCreateModal() {
   try {
     const created = await registerMenuMediaLibrary(
       { slug, name, ...(description ? { description } : {}) },
-      activeAgentId,
+      activeWorkspaceId,
       { skipAutoOpen: true }
     );
     if (!created?.path) return;
@@ -129912,7 +131780,7 @@ function setupRepositoriesUi() {
   });
 }
 
-async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset = "facts" } = {}) {
+async function submitAwnDataScaffoldContents(agentId = activeWorkspaceId, { preset = "facts" } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -129959,7 +131827,7 @@ async function submitAwnDataScaffoldContents(agentId = activeAgentId, { preset =
   }
 }
 
-async function submitAwnDataScaffoldTaskQueue(agentId = activeAgentId) {
+async function submitAwnDataScaffoldTaskQueue(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -129999,7 +131867,7 @@ async function submitAwnDataScaffoldTaskQueue(agentId = activeAgentId) {
   }
 }
 
-async function submitAwnDataScaffoldTaxonomies(agentId = activeAgentId, { withDefaults = false } = {}) {
+async function submitAwnDataScaffoldTaxonomies(agentId = activeWorkspaceId, { withDefaults = false } = {}) {
   if (!agentId) {
     showToast("Выберите агента", "error");
     return;
@@ -130042,9 +131910,9 @@ function setupAwnDataStoresUi() {
     if (!button || button.disabled) return;
     const preset = button.getAttribute("data-awn-data-group-preset");
     if (preset === "taxonomies") void submitAwnDataScaffoldTaxonomies();
-    if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeAgentId, { preset: "facts" });
-    if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeAgentId, { preset: "glossary" });
-    if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeAgentId, { preset: "reference" });
+    if (preset === "contents-facts") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "facts" });
+    if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "glossary" });
+    if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
@@ -130671,7 +132539,7 @@ function isLegacyOnlyAwnDataPayload(payload) {
   return rel === "_base";
 }
 
-async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading = false } = {}) {
+async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoading = false } = {}) {
   if (!menuAwnDataStoresNode) return;
   if (menuAwnDataIndexRowNode) {
     menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = "0";
@@ -130684,7 +132552,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     renderMenuAwnDataStores(null, { loading: true });
   }
 
-  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
   if (!resolvedAgent) {
     if (seq !== menuAwnDataStoresLoadSeq) return;
     renderMenuAwnDataStores({ stores: [], emptyHint: "select-agent" });
@@ -130709,7 +132577,7 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
   }
 }
 
-async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
+async function refreshMenuGoogleDriveStats(agentId = activeWorkspaceId) {
   if (!agentLargeFilesCloudStatsNode) return;
   if (!agentId) {
     renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [], providers: [] });
@@ -130732,7 +132600,7 @@ async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {
   }
 }
 
-async function repairMenuGoogleDriveSymlinks(agentId = activeAgentId) {
+async function repairMenuGoogleDriveSymlinks(agentId = activeWorkspaceId) {
   if (!menuGoogleDriveRepairBtn || !agentId) return;
   if (menuGoogleDriveRepairBtn.disabled) return;
 
@@ -130857,7 +132725,7 @@ function renderMenuAwnDialogsStats(payload = null, { loading = false, error = fa
     btn.title = String(runtime.folderPath || "");
     btn.addEventListener("click", (event) => {
       event.preventDefault();
-      void openFolderBrowseFromMenu(runtime.name, runtime.folderPath, { agentId: activeAgentId });
+      void openFolderBrowseFromMenu(runtime.name, runtime.folderPath, { agentId: activeWorkspaceId });
     });
 
     const meta = document.createElement("span");
@@ -130872,7 +132740,7 @@ function renderMenuAwnDialogsStats(payload = null, { loading = false, error = fa
   }
 }
 
-async function refreshMenuAwnDialogsStats(agentId = activeAgentId) {
+async function refreshMenuAwnDialogsStats(agentId = activeWorkspaceId) {
   if (!menuAwnDialogsStatsNode && !menuAwnDialogsRuntimesNode) return;
   if (!agentId) {
     renderMenuAwnDialogsStats({ exists: false, runtimeCount: 0, dayFileCount: 0, runtimes: [] });
@@ -130934,13 +132802,13 @@ async function refreshMenuAwnDialogsStats(agentId = activeAgentId) {
 function setupMenuAwnDialogsUi() {
   menuAwnDialogsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Диалоги с ИИ", AWN_DIALOGS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Диалоги с ИИ", AWN_DIALOGS_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnDialogsRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnDialogsRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnDialogsStats(activeAgentId).finally(() => {
+    void refreshMenuAwnDialogsStats(activeWorkspaceId).finally(() => {
       menuAwnDialogsRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -130987,7 +132855,7 @@ function renderMenuAwnFactsStats(payload, { loading = false, error = false } = {
   menuAwnFactsStatsNode.classList.remove("is-error");
 }
 
-async function refreshMenuAwnFactsStats(agentId = activeAgentId) {
+async function refreshMenuAwnFactsStats(agentId = activeWorkspaceId) {
   if (!menuAwnFactsStatsNode) return;
   if (!agentId) {
     renderMenuAwnFactsStats({ totalCount: 0, kinds: {} });
@@ -131012,13 +132880,13 @@ async function refreshMenuAwnFactsStats(agentId = activeAgentId) {
 function setupMenuAwnFactsUi() {
   menuAwnFactsOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Банк фактов", AWN_FACTS_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Банк фактов", AWN_FACTS_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnFactsRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnFactsRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnFactsStats(activeAgentId).finally(() => {
+    void refreshMenuAwnFactsStats(activeWorkspaceId).finally(() => {
       menuAwnFactsRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -131067,7 +132935,7 @@ function renderMenuAwnTempStats(payload, { loading = false, error = false } = {}
   menuAwnTempStatsNode.classList.remove("is-error");
 }
 
-async function refreshMenuAwnTempStats(agentId = activeAgentId) {
+async function refreshMenuAwnTempStats(agentId = activeWorkspaceId) {
   if (!menuAwnTempStatsNode) return;
   if (!agentId) {
     renderMenuAwnTempStats({ exists: false, itemCount: 0, folderCount: 0 });
@@ -131100,13 +132968,13 @@ async function refreshMenuAwnTempStats(agentId = activeAgentId) {
 function setupMenuAwnTempUi() {
   menuAwnTempOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Временные файлы", AWN_TEMP_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Временные файлы", AWN_TEMP_FOLDER, { agentId: activeWorkspaceId });
   });
   menuAwnTempRefreshBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     menuAwnTempRefreshBtn.classList.add("is-spinning");
-    void refreshMenuAwnTempStats(activeAgentId).finally(() => {
+    void refreshMenuAwnTempStats(activeWorkspaceId).finally(() => {
       menuAwnTempRefreshBtn?.classList.remove("is-spinning");
     });
   });
@@ -131115,7 +132983,7 @@ function setupMenuAwnTempUi() {
 function setupMenuAwnBackupUi() {
   menuAwnBackupOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
-    void openFolderBrowseFromMenu("Резервное копирование", AWN_BACKUP_FOLDER, { agentId: activeAgentId });
+    void openFolderBrowseFromMenu("Резервное копирование", AWN_BACKUP_FOLDER, { agentId: activeWorkspaceId });
   });
 }
 
@@ -131220,7 +133088,7 @@ async function resolveWorkspaceJournalEntryContextResolved() {
   const chpuHint = syncContext.chpu || resolveWorkspaceJournalChpuLabel();
   try {
     if (route.type === "chpu" && route.chpuPath) {
-      const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeAgentId);
+      const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeWorkspaceId);
       const fromChpu = journalContextFromChpuResolved(resolved, route.chpuPath || chpuHint);
       if (fromChpu && (fromChpu.path || fromChpu.topic)) {
         appFooterJournalContextCache = fromChpu;
@@ -131256,7 +133124,7 @@ async function resolveWorkspaceJournalEntryContextResolved() {
 }
 
 function isAppFooterWorkspaceToolsContextActive() {
-  return Boolean(activeAgentId) && !isAppLandingViewActive();
+  return Boolean(activeWorkspaceId) && !isAppLandingViewActive();
 }
 
 function syncAppFooterWorkspaceToolsAvailability() {
@@ -131283,7 +133151,7 @@ function normalizeWorkspaceJournalContext(context = {}) {
 
 function syncAppFooterJournalSubmitState() {
   const body = String(appFooterJournalBodyInputNode?.value || "").trim();
-  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeAgentId;
+  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeWorkspaceId;
 }
 
 function syncAppFooterJournalFormState(contextOverride = null) {
@@ -131375,7 +133243,7 @@ async function refreshWorkspaceJournalSurfaces() {
 }
 
 async function submitAppFooterJournalEntry() {
-  if (!activeAgentId || !appFooterJournalBodyInputNode) return;
+  if (!activeWorkspaceId || !appFooterJournalBodyInputNode) return;
   const body = String(appFooterJournalBodyInputNode.value || "").trim();
   if (!body) return;
 
@@ -131384,7 +133252,7 @@ async function submitAppFooterJournalEntry() {
   const linkContext = Boolean(appFooterJournalLinkContextNode?.checked);
   if (linkContext && !context.path && !context.topic && context.chpu) {
     try {
-      const resolved = await fetchChpuResolve(context.chpu, activeAgentId);
+      const resolved = await fetchChpuResolve(context.chpu, activeWorkspaceId);
       const fromChpu = journalContextFromChpuResolved(resolved, context.chpu);
       if (fromChpu?.path || fromChpu?.topic) context = fromChpu;
     } catch {
@@ -131398,7 +133266,7 @@ async function submitAppFooterJournalEntry() {
 
   if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = true;
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeWorkspaceId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -131497,7 +133365,7 @@ function setupAppFooterIdeasPopover() {
 
 function syncHeaderFocusCount() {
   if (!headerFocusCountNode) return;
-  const total = activeAgentId ? agentFocusItemsCache.length : 0;
+  const total = activeWorkspaceId ? agentFocusItemsCache.length : 0;
   headerFocusCountNode.textContent = total ? String(total) : "";
   headerFocusCountNode.classList.toggle("hidden", !total);
   headerFocusToggleBtn?.classList.toggle("has-count", total > 0);
@@ -131936,7 +133804,7 @@ function setupWorkspaceScrollChrome() {
   syncWorkspaceScrollChrome();
 }
 
-async function fetchMenuData(agentId = activeAgentId, options = {}) {
+async function fetchMenuData(agentId = activeWorkspaceId, options = {}) {
   const settings = getMenuTreeSettings(agentId);
   const requestedDepth = Number.isFinite(options.maxDepth) ? options.maxDepth : settings.maxDepth;
   const maxDepth = options.fullTree
@@ -131961,7 +133829,7 @@ async function fetchMenuData(agentId = activeAgentId, options = {}) {
   return menu;
 }
 
-async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeAgentId }) {
+async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeWorkspaceId }) {
   await fetchMenuData(agentId);
 
   let patched = false;
@@ -132027,7 +133895,7 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
     withPreservedMenuScroll(() =>
       renderMenu(menuCacheByAgent.get(agentId), agentId, { menuOnly: true })
     );
-  } else if (agentId === activeAgentId) {
+  } else if (agentId === activeWorkspaceId) {
     refreshMenuSortDecorations(agentId);
     updateActiveButton();
     syncMenuCollapseAllButton();
@@ -132047,16 +133915,16 @@ async function applyMenuUpdateAfterCreate({ createdPath, type, agentId = activeA
 }
 
 async function refreshMenu(options = {}) {
-  const agentId = options.agentId || activeAgentId;
+  const agentId = options.agentId || activeWorkspaceId;
   if (!agentId) return null;
   const menu = await fetchMenuData(agentId, { refresh: options.refresh });
   withPreservedMenuScroll(() => {
     renderMenu(menu, agentId, options);
   });
-  if (agentId === activeAgentId) {
+  if (agentId === activeWorkspaceId) {
     updateActiveButton();
     void syncAgentWorkspaceViewFromWorkspaceConfig(agentId).then(() => {
-      if (agentId === activeAgentId && isAgentWorkspaceCanvasVisible()) {
+      if (agentId === activeWorkspaceId && isAgentWorkspaceCanvasVisible()) {
         applyAgentWorkspaceCanvasUi();
       }
     });
@@ -132073,7 +133941,7 @@ async function refreshMenu(options = {}) {
 
 async function refreshMenuTree() {
   if (menuRefreshInFlight) return;
-  if (!activeAgentId) {
+  if (!activeWorkspaceId) {
     showToast("Агент не выбран", "error");
     return;
   }
@@ -132083,11 +133951,11 @@ async function refreshMenuTree() {
   syncMenuRefreshButtonState();
 
   try {
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await loadSystemFiles({ skipRender: true });
-    await refreshMenu({ agentId: activeAgentId, menuOnly: true, refresh: true });
+    await refreshMenu({ agentId: activeWorkspaceId, menuOnly: true, refresh: true });
     syncMenuCollapseAllButton();
-    syncMenuPinBranchUi(activeAgentId);
+    syncMenuPinBranchUi(activeWorkspaceId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(`Ошибка обновления дерева: ${message}`, "error");
@@ -132109,7 +133977,7 @@ async function refreshMenuAndSelect() {
 }
 
 async function createReservedRootFolder(type, options = {}) {
-  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const agentId = options.agentId || getCreateModalAgentId() || activeWorkspaceId;
   const parentPath = options.parentPath || ".";
   const isKit = type === "kit-root";
   const isShared = type === "shared-root";
@@ -132156,14 +134024,14 @@ async function createSharedThemePreset(preset, options = {}) {
   const slug = String(preset || "").trim().toLowerCase();
   const label = SHARED_THEME_PRESET_LABELS[slug] || slug;
   if (!slug) return;
-  const agentId = options.agentId || getCreateModalAgentId() || activeAgentId;
+  const agentId = options.agentId || getCreateModalAgentId() || activeWorkspaceId;
   const sharedFolder = getActiveAgentSharedFolder(agentId);
   if (!sharedFolder) {
-    showToast("Папка awn-shared не настроена", "error");
+    showToast(`Папка ${SHARED_FOLDER_DEFAULT} не настроена`, "error");
     return;
   }
   if (!isAgentSharedFolderPresent(agentId)) {
-    showToast("Сначала создайте awn-shared", "error");
+    showToast(`Сначала создайте ${SHARED_FOLDER_DEFAULT}`, "error");
     return;
   }
   if (isSharedThemePresetPresent(agentId, slug)) {
@@ -132249,7 +134117,7 @@ async function createSystemFileScaffold(name, options = {}) {
 
 async function createNode(type, options = {}) {
   const agentId = getCreateModalAgentId();
-  if (!agentId || agentId !== activeAgentId) {
+  if (!agentId || agentId !== activeWorkspaceId) {
     showToast("Агент изменился — откройте «Создать» снова", "error");
     closeCreateNodeModal();
     return;
@@ -132438,7 +134306,7 @@ async function deleteNodeByPath(targetPath, targetLabel = getLabelFromPath(targe
       throw new Error(`${reason}${details}`);
     }
 
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     const menu = await refreshMenu();
     const normalizedActive = normalizeMenuNodePath(getResolvedNodePath(activePath));
     const normalizedDeleted = normalizeMenuNodePath(targetPath);
@@ -132467,7 +134335,7 @@ async function promptMoveNodeFromMenu(targetPath) {
 
   try {
     const data = await moveNodeByPath(targetPath, parentPath);
-    invalidateMenuAgentCache(activeAgentId);
+    invalidateMenuAgentCache(activeWorkspaceId);
     await refreshMenu();
     if (data.path) {
       await openNodeFromMenu(getLabelFromPath(data.path), data.path);
@@ -132524,24 +134392,24 @@ async function init() {
 
     await loadAgents();
     window.WorkspaceIndexPanel?.refreshStatus?.();
-    if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
+    if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
     setupWorkspaceIdleScreensaver();
     setupWorkspacePomodoro();
-    if (activeAgentId) reloadWorkspaceIdleScreensaverSettings(activeAgentId);
-    if (activeAgentId) reloadWorkspacePomodoroForAgent(activeAgentId);
+    if (activeWorkspaceId) reloadWorkspaceIdleScreensaverSettings(activeWorkspaceId);
+    if (activeWorkspaceId) reloadWorkspacePomodoroForAgent(activeWorkspaceId);
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 
-    if (activeAgentId) {
-      void loadSystemFiles();
+    if (activeWorkspaceId) {
+      void loadSystemFiles({ refreshNotePreview: true });
     }
 
     const bootRoute = parseAppRoute(location.pathname);
-    if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
+    if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeWorkspaceId) {
       setMenuLoading(true, "Загрузка дерева…");
       await refreshMenu();
       setMenuLoading(false);
-      void loadAwnTypes(activeAgentId);
+      void loadAwnTypes(activeWorkspaceId);
     }
 
     suspendAppRouteSync();
@@ -132551,8 +134419,8 @@ async function init() {
       resumeAppRouteSync();
     }
 
-    if (activeAgentId && !isAppLandingViewActive()) {
-      void loadAgentFocusItems(activeAgentId);
+    if (activeWorkspaceId && !isAppLandingViewActive()) {
+      void loadAgentFocusItems(activeWorkspaceId);
     }
 
     syncAppRouteToUrl({ replace: true });
@@ -132583,7 +134451,7 @@ agentSelectNode?.addEventListener("change", () => {
     showAppLandingView();
     return;
   }
-  if (nextAgentId === activeAgentId) return;
+  if (nextAgentId === activeWorkspaceId) return;
   switchActiveAgent(nextAgentId).catch((error) => {
     if (isMaintenanceErrorMessage(error?.message)) {
       showMaintenanceView();
@@ -133149,12 +135017,16 @@ async function openMdShowcaseModal() {
   if (!mdShowcaseModalNode || !mdShowcaseContentNode) return;
   try {
     if (!mdShowcaseCache) {
-      mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL-DOC-MARKDOWN.md");
+      mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL-SKILL-4-MARKDOWN.md");
     }
-    setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache, HEADER_DOC_PREVIEW_OPTIONS);
+    setMarkdownPreviewHtml(
+      mdShowcaseContentNode,
+      mdShowcaseCache,
+      buildDocumentationMarkdownPreviewOptions("platform-global:GLOBAL-SKILL-4-MARKDOWN.md")
+    );
     mdShowcaseModalNode.classList.remove("hidden");
   } catch (error) {
-    showToast(`Не удалось загрузить GLOBAL-DOC-MARKDOWN.md: ${error.message}`, "error");
+    showToast(`Не удалось загрузить GLOBAL-SKILL-4-MARKDOWN.md: ${error.message}`, "error");
   }
 }
 
@@ -133227,7 +135099,7 @@ async function loadComponentsIdeasContent() {
     setMarkdownPreviewHtml(
       componentsIdeasContentNode,
       componentsIdeasMarkdownCache,
-      HEADER_DOC_PREVIEW_OPTIONS
+      buildDocumentationMarkdownPreviewOptions(COMPONENTS_IDEAS_TOPIC_PATH)
     );
 
     const imagesResponse = await fetch("/api/public/images");
@@ -133340,7 +135212,7 @@ async function loadUserGuideIntoModal(relPath, index, { force = false } = {}) {
   setMarkdownPreviewHtml(
     userDocsContentNode,
     await fetchUserGuideMarkdown(path, force),
-    HEADER_DOC_PREVIEW_OPTIONS
+    buildDocumentationMarkdownPreviewOptions(path)
   );
 }
 
@@ -133372,7 +135244,11 @@ async function openBestPracticesModal() {
     if (!bestPracticesCache) {
       bestPracticesCache = await fetchDocumentationTopicMarkdown("agent-best-practices.md");
     }
-    setMarkdownPreviewHtml(bestPracticesContentNode, bestPracticesCache, HEADER_DOC_PREVIEW_OPTIONS);
+    setMarkdownPreviewHtml(
+      bestPracticesContentNode,
+      bestPracticesCache,
+      buildDocumentationMarkdownPreviewOptions("agent-best-practices.md")
+    );
     bestPracticesModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить Best Practices: ${error.message}`, "error");
@@ -133587,7 +135463,7 @@ window.addEventListener("popstate", () => {
         const route = parseAppRoute(location.pathname);
         if (route.type === "root" || route.type === "legacy") {
           showAppLandingView();
-        } else if (activeAgentId) {
+        } else if (activeWorkspaceId) {
           showAgentHomeView();
         } else {
           showAppLandingView();
@@ -134112,7 +135988,7 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
         batchIds,
         batchLabel: chunkLabel,
         committableCount,
-        agentId: activeAgentId
+        agentId: activeWorkspaceId
       });
     } catch (error) {
       const failBatchId = batchIds[0] || "";
@@ -134122,7 +135998,7 @@ agentGitCommitModalSubmitBtn?.addEventListener("click", () => {
         details: buildAgentGitCommitResultDetailsText({}, {
           batchIds,
           batchLabel: getAgentGitCommitBatchById(failBatchId)?.label,
-          agentId: activeAgentId,
+          agentId: activeWorkspaceId,
           errorPayload: error?.payload || {
             code: error?.code,
             details: error?.details,
@@ -134621,7 +136497,7 @@ createNodeModalNode?.addEventListener("click", (event) => {
 menuSearchInputNode.addEventListener("input", (event) => {
   menuSearchQuery = event.target.value || "";
   if (currentMenuData) {
-    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeAgentId, { menuOnly: true }));
+    withPreservedMenuScroll(() => renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true }));
     updateActiveButton();
   }
 });
@@ -134629,7 +136505,7 @@ menuCardsPreviewOnlyNode?.addEventListener("change", () => {
   menuCardsPreviewOnly = Boolean(menuCardsPreviewOnlyNode.checked);
   saveCardsPreviewOnly(menuCardsPreviewOnly);
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -134799,31 +136675,31 @@ resourceContextMenuListNode?.addEventListener("click", (event) => {
 });
 
 menuTreeShowEmptyFoldersNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     showEmptyFolders: Boolean(menuTreeShowEmptyFoldersNode.checked)
   });
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
 
 menuTreeShowActiveTopicsOnlyNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     showActiveTopicsOnly: Boolean(menuTreeShowActiveTopicsOnlyNode.checked)
   });
   if (currentMenuData) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
 
 menuTreePadSortIndexesNode?.addEventListener("change", () => {
-  saveMenuTreeSettings(activeAgentId, {
+  saveMenuTreeSettings(activeWorkspaceId, {
     padSortIndexes: Boolean(menuTreePadSortIndexesNode.checked)
   });
   if (currentMenuData && isMenuTreeLayoutMode()) {
-    renderMenu(currentMenuData, activeAgentId, { menuOnly: true });
+    renderMenu(currentMenuData, activeWorkspaceId, { menuOnly: true });
     updateActiveButton();
   }
 });
@@ -134831,8 +136707,8 @@ menuTreePadSortIndexesNode?.addEventListener("change", () => {
 menuTreeMaxDepthNode?.addEventListener("change", () => {
   const maxDepth = normalizeMenuTreeMaxDepth(menuTreeMaxDepthNode.value);
   menuTreeMaxDepthNode.value = String(maxDepth);
-  saveMenuTreeSettings(activeAgentId, { maxDepth });
-  void refreshMenu({ agentId: activeAgentId, menuOnly: true });
+  saveMenuTreeSettings(activeWorkspaceId, { maxDepth });
+  void refreshMenu({ agentId: activeWorkspaceId, menuOnly: true });
 });
 
 agentGraphShowPreviewsNode?.addEventListener("change", () => {
@@ -135138,6 +137014,92 @@ contentSearchModeIdBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   setContentSearchMode("id");
 });
+contentSearchModeDqlBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setContentSearchMode("dql");
+  openContentSearchDqlModal();
+});
+function openDqlDashboardFromSearchModal() {
+  closeContentSearchDqlModal();
+  showAgentHomeView("DQL · виджеты на awn-dashboards/home");
+  window.AwnDashboards?.setActiveSlug?.("home");
+  setAgentWorkspaceView("dashboard3", { persistWorkspaceConfig: false });
+}
+
+async function exportContentSearchDql(format) {
+  const dql = String(contentSearchDqlInputNode?.value || "").trim();
+  if (!dql) {
+    showToast("Введите DQL в вкладке «Текст»", "error");
+    return;
+  }
+  const scope = getContentSearchPathPrefix();
+  const response = await fetch(buildApiUrl("/api/storage-index/query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dql,
+      format,
+      pathPrefix: scope || undefined,
+      scopePrefix: scope || undefined,
+      enforceScope: Boolean(scope),
+      dqlParams: getContentSearchDqlParams()
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  const content = data.export?.content || "";
+  const mime = format === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8";
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `dql-export-${Date.now()}.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast(`${format.toUpperCase()} скачан`, "success");
+}
+
+contentSearchDqlRunBtnNode?.addEventListener("click", () => {
+  if (contentSearchDqlInputNode) saveContentSearchDqlDraft(contentSearchDqlInputNode.value);
+  closeContentSearchDqlModal();
+  scheduleContentSearch();
+});
+document.getElementById("content-search-dql-open-dashboard-btn")?.addEventListener("click", () => {
+  openDqlDashboardFromSearchModal();
+});
+document.getElementById("content-search-dql-export-csv-btn")?.addEventListener("click", () => {
+  void exportContentSearchDql("csv").catch((err) => showToast(String(err.message || err), "error"));
+});
+document.getElementById("content-search-dql-export-json-btn")?.addEventListener("click", () => {
+  void exportContentSearchDql("json").catch((err) => showToast(String(err.message || err), "error"));
+});
+contentSearchDqlCancelBtnNode?.addEventListener("click", closeContentSearchDqlModal);
+contentSearchDqlCloseBtnNode?.addEventListener("click", closeContentSearchDqlModal);
+contentSearchDqlResetBtnNode?.addEventListener("click", () => {
+  if (contentSearchDqlInputNode) contentSearchDqlInputNode.value = "";
+  saveContentSearchDqlDraft("");
+});
+contentSearchDqlModalNode?.addEventListener("click", (event) => {
+  if (event.target === contentSearchDqlModalNode) closeContentSearchDqlModal();
+});
+contentSearchDqlTabTextBtn?.addEventListener("click", () => setContentSearchDqlTab("text"));
+contentSearchDqlTabBuilderBtn?.addEventListener("click", () => setContentSearchDqlTab("builder"));
+contentSearchDqlTabViewsBtn?.addEventListener("click", () => setContentSearchDqlTab("views"));
+contentSearchDqlBuilderAddBtn?.addEventListener("click", () => addContentSearchDqlBuilderRow());
+contentSearchDqlBuilderApplyBtn?.addEventListener("click", () => {
+  void buildDqlFromBuilderUi().catch((err) => showToast(String(err.message || err), "error"));
+});
+contentSearchDqlViewSaveBtn?.addEventListener("click", () => {
+  void saveContentSearchDqlView()
+    .then(() => showToast("DQL view сохранён", "success"))
+    .catch((err) => showToast(String(err.message || err), "error"));
+});
+contentSearchDqlViewLoadBtn?.addEventListener("click", loadSelectedContentSearchDqlView);
+contentSearchDqlViewDeleteBtn?.addEventListener("click", () => {
+  void deleteSelectedContentSearchDqlView()
+    .then(() => showToast("View удалён", "success"))
+    .catch((err) => showToast(String(err.message || err), "error"));
+});
 contentSearchScopeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();
   syncContentSearchFiltersUi();
@@ -135341,6 +137303,7 @@ initAgentMcpMethodsToolbar();
 bindLandingFocusToolbar();
 bindLandingMainTopicsDock();
 initWorkspaceNotifications();
+void syncHeaderWelcomeDesktopHint();
 void loadContentSearchPolicy();
 window.addEventListener("workspace-index-policy-changed", () => {
   contentSearchPolicyCache = null;
@@ -135353,8 +137316,14 @@ window.addEventListener("agentcms-open-root-system-file", (event) => {
   void selectSystemFile(name);
 });
 
+window.addEventListener("agentcms-open-agent-cms-settings-file", (event) => {
+  const relPath = String(event?.detail?.path || "").trim().replace(/^\/+/, "");
+  if (!relPath || !relPath.startsWith(".agent-cms/")) return;
+  void openNodeFromMenu(relPath.split("/").pop(), relPath, { contentMode: "external" });
+});
+
 window.addEventListener("agentcms-system-files-changed", () => {
-  void loadSystemFiles();
+  void loadSystemFiles({ refreshNotePreview: true });
 });
 
 window.AgentCmsLinkDrag = {

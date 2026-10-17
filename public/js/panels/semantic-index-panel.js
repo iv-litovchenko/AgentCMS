@@ -22,6 +22,13 @@
   const linkProbePathInput = document.getElementById("menu-link-index-probe-path");
   const linkProbeBtn = document.getElementById("menu-link-index-probe-btn");
   const linkProbeResultNode = document.getElementById("menu-link-index-probe-result");
+  const entityStatusNode = document.getElementById("menu-entity-index-status");
+  const entityRebuildBtn = document.getElementById("menu-entity-index-rebuild-btn");
+  const entityShowBtn = document.getElementById("menu-entity-index-show-btn");
+  const entityRegistryOpenBtn = document.getElementById("menu-entity-registry-open-btn");
+  const entityProbeQInput = document.getElementById("menu-entity-index-probe-q");
+  const entityProbeBtn = document.getElementById("menu-entity-index-probe-btn");
+  const entityProbeResultNode = document.getElementById("menu-entity-index-probe-result");
   const workspaceIdStatusNode = document.getElementById("menu-workspace-id-status");
   const workspaceIdSyncBtn = document.getElementById("menu-workspace-id-sync-btn");
   const workspaceIdShowBtn = document.getElementById("menu-workspace-id-show-btn");
@@ -344,6 +351,16 @@
     return parts.join(" · ");
   }
 
+  function formatEntityStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "Не построен";
+    const parts = [
+      `${layer.entityCount || 0} объектов · ${layer.mentionCount || 0} упоминаний · ${layer.fileCount || 0} файлов`,
+      layer.builtAge || "—"
+    ];
+    if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
+    return parts.join(" · ");
+  }
+
   function formatWorkspaceIdStatus(data) {
     if (!data?.ready) return data?.reason || "—";
     const parts = [
@@ -420,6 +437,11 @@
     } else if (card.layer === "link") {
       lines.push(`${card.edgeCount || 0} рёбер · ${card.nodeCount || 0} узлов · ${card.fileCount || 0} файлов`);
       lines.push(`обновлён ${card.builtAge || "—"}`);
+    } else if (card.layer === "entity") {
+      lines.push(
+        `${card.entityCount || 0} объектов · ${card.mentionCount || 0} упоминаний · ${card.fileCount || 0} файлов`
+      );
+      lines.push(`обновлён ${card.builtAge || "—"}`);
     } else if (card.layer === "workspace-id") {
       lines.push(`${card.assignedCount || 0} записей · уникальных ${card.uniqueIdCount || 0}`);
       lines.push(`след. id ${card.nextId || 1} · ${card.builtAge || "—"}`);
@@ -459,6 +481,15 @@
               monitor && !("link" in monitor)
                 ? "Нет данных — перезапустите сервер"
                 : "Граф связей не построен"
+            )
+        ),
+        renderMonitorCard(
+          "Сущности",
+          monitor?.entity ||
+            emptyMonitorLayer(
+              monitor && !("entity" in monitor)
+                ? "Нет данных — перезапустите сервер"
+                : "Реестр сущностей не построен"
             )
         ),
         renderMonitorCard(
@@ -616,6 +647,7 @@
       [storageRebuildQuickBtn, "storage"],
       [storageRebuildFullBtn, "storage"],
       [linkRebuildBtn, "link"],
+      [entityRebuildBtn, "entity"],
       [workspaceIdSyncBtn, "workspaceId"],
       [wsmapRebuildBtn, "wsmap"]
     ]);
@@ -635,7 +667,8 @@
     const layers = policy?.layers || {};
     document.querySelectorAll("[data-index-layer]").forEach((block) => {
       const layerKey = block.dataset.indexLayer;
-      const enabled = Boolean(layers[layerKey]);
+      const hasLayerFlag = Object.prototype.hasOwnProperty.call(layers, layerKey);
+      const enabled = hasLayerFlag ? Boolean(layers[layerKey]) : layerKey === "entity";
       block.classList.toggle("is-feature-disabled", !enabled);
       const title = block.querySelector(".menu-index-block-title");
       if (!title) return;
@@ -663,6 +696,7 @@
     applyLayerButtonState(semanticRebuildBtn, policy.layers?.semantic);
     applyLayerButtonState(storageRebuildQuickBtn, policy.layers?.storage);
     applyLayerButtonState(linkRebuildBtn, policy.layers?.link);
+    applyLayerButtonState(entityRebuildBtn, policy.layers?.entity ?? true);
     applyLayerButtonState(workspaceIdSyncBtn, policy.layers?.workspaceId);
     applyLayerButtonState(wsmapRebuildBtn, policy.layers?.wsmap);
 
@@ -740,6 +774,7 @@
       semanticStatusNode.textContent = formatSemanticStatus(monitor.semantic);
       storageStatusNode.textContent = formatStorageStatus(monitor.storage);
       if (linkStatusNode) linkStatusNode.textContent = formatLinkStatus(monitor.link);
+      if (entityStatusNode) entityStatusNode.textContent = formatEntityStatus(monitor.entity);
       if (workspaceIdStatusNode && monitor.workspaceId) {
         workspaceIdStatusNode.textContent = formatWorkspaceIdMonitorStatus(monitor.workspaceId);
         window.__workspaceIdStatus = {
@@ -885,6 +920,127 @@
       .join("");
   }
 
+  function renderEntityItems(items) {
+    if (!items.length) {
+      return '<p class="workspace-index-catalog-empty">Нет сущностей по текущему фильтру.</p>';
+    }
+    return items
+      .map((item) => {
+        const kind = String(item.type || "entity");
+        const label = String(item.label || "—");
+        const entityId = String(item.entityId || "");
+        return `<article class="workspace-index-catalog-item workspace-index-catalog-item--entity">
+          <div class="workspace-index-catalog-link-edge">
+            <span class="workspace-index-catalog-badge workspace-index-catalog-badge--kind is-${escapeHtml(kind)}">${escapeHtml(kind)}</span>
+            <strong class="workspace-index-catalog-entity-label">${escapeHtml(label)}</strong>
+            <span class="workspace-index-catalog-entity-count">${escapeHtml(String(item.mentionCount || 0))} упом.</span>
+          </div>
+          <code class="workspace-index-catalog-entity-id">${escapeHtml(entityId)}</code>
+          <div class="workspace-index-catalog-entity-actions">
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="mentions" data-entity-id="${escapeHtml(entityId)}" data-entity-label="${escapeHtml(label)}">Где упомянуто</button>
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="alias" data-entity-type="${escapeHtml(kind)}" data-entity-label="${escapeHtml(label)}">Склеить с…</button>
+            <button type="button" class="menu-static-action-btn menu-static-action-btn--secondary entity-catalog-btn" data-entity-action="reject" data-entity-type="${escapeHtml(kind)}" data-entity-label="${escapeHtml(label)}">Скрыть</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  async function promptEntityRebuildAfterEdit() {
+    const message = "Правило сохранено в entity-registry.yml.\n\nПересобрать реестр сущностей сейчас?";
+    let confirmed = false;
+    if (typeof askConfirm === "function") {
+      confirmed = await askConfirm(message, { okLabel: "Пересобрать", variant: "primary" });
+    } else {
+      confirmed = window.confirm(message);
+    }
+    if (!confirmed) return;
+    await runRebuild(
+      "/api/entity-index/reindex",
+      entityStatusNode,
+      (data) =>
+        `Сущности: ${data.entityCount} объектов, ${data.mentionCount} упоминаний, ${data.fileCount} файлов.`,
+      { progressButton: entityRebuildBtn, progressLayer: "entity" }
+    );
+    if (catalogState.mode === "entities") loadCatalogPage();
+  }
+
+  async function handleEntityCatalogAction(button) {
+    const action = button.dataset.entityAction;
+    const label = button.dataset.entityLabel || "";
+    const type = button.dataset.entityType || "topic";
+    const entityId = button.dataset.entityId || "";
+    if (!action) return;
+
+    if (action === "mentions") {
+      if (!entityId) return;
+      catalogMeta.textContent = "Загрузка упоминаний…";
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/query"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "mentions", entityId, limit: 15 })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        const items = Array.isArray(data.items) ? data.items : [];
+        catalogMeta.textContent = items.length
+          ? `«${label}»: ${items.map((row) => `${row.path}:${row.line || "?"}`).join(" · ")}`
+          : `«${label}»: упоминаний не найдено.`;
+      } catch (error) {
+        catalogMeta.textContent = String(error.message || error);
+      }
+      return;
+    }
+
+    if (action === "alias") {
+      const canonical =
+        typeof window.prompt === "function"
+          ? window.prompt(`Каноническое имя для «${label}»:`, label)
+          : label;
+      const trimmed = String(canonical || "").trim();
+      if (!trimmed || trimmed === label) return;
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/alias"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ match: label, label: trimmed, type })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        if (typeof showToast === "function") showToast("Алиас сохранён", "success");
+        await promptEntityRebuildAfterEdit();
+      } catch (error) {
+        if (typeof showToast === "function") showToast(String(error.message || error), "error");
+      }
+      return;
+    }
+
+    if (action === "reject") {
+      const ok =
+        typeof askConfirm === "function"
+          ? await askConfirm(`Скрыть сущность «${label}» (${type}) из реестра?`, {
+              okLabel: "Скрыть",
+              variant: "danger"
+            })
+          : window.confirm(`Скрыть «${label}»?`);
+      if (!ok) return;
+      try {
+        const response = await fetch(buildApiUrl("/api/entity-index/reject"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, type })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+        if (typeof showToast === "function") showToast("Добавлено в reject", "success");
+        await promptEntityRebuildAfterEdit();
+      } catch (error) {
+        if (typeof showToast === "function") showToast(String(error.message || error), "error");
+      }
+    }
+  }
+
   function renderLinkItems(items) {
     if (!items.length) {
       return '<p class="workspace-index-catalog-empty">Нет рёбер по текущему фильтру.</p>';
@@ -983,6 +1139,7 @@
     let endpoint = "/api/search/semantic/catalog";
     if (catalogState.mode === "fields") endpoint = "/api/storage-index/catalog";
     if (catalogState.mode === "links") endpoint = "/api/link-index/catalog";
+    if (catalogState.mode === "entities") endpoint = "/api/entity-index/catalog";
     if (catalogState.mode === "ids") endpoint = "/api/workspace-id/catalog";
     if (catalogState.mode === "fields" && catalogField?.value) {
       params.field = catalogField.value;
@@ -990,10 +1147,15 @@
     if (catalogState.mode === "links" && catalogField?.value) {
       params.kind = catalogField.value;
     }
+    if (catalogState.mode === "entities" && catalogField?.value) {
+      params.type = catalogField.value;
+    }
     if (catalogQ) {
       catalogQ.placeholder =
         catalogState.mode === "links"
           ? "Поиск по from / to / kind…"
+          : catalogState.mode === "entities"
+            ? "Поиск по label / типу…"
           : catalogState.mode === "ids"
             ? "Поиск по id / пути…"
             : "Поиск по пути / тексту…";
@@ -1017,6 +1179,21 @@
         catalogList.innerHTML = renderVectorItems(data.items || []);
         catalogField?.classList.add("hidden");
         catalogField?.setAttribute("aria-label", "Фильтр по полю");
+      } else if (catalogState.mode === "entities") {
+        catalogTitle.textContent = "~show-entities";
+        catalogSubtitle.textContent = data.ready
+          ? `${data.entityCount || 0} объектов · ${data.mentionCount || 0} упоминаний · ${data.fileCount || 0} файлов`
+          : data.hint || "Реестр не построен";
+        populateKindSelect(data.typeCatalog, catalogField?.value);
+        catalogField?.classList.remove("hidden");
+        catalogField?.setAttribute("aria-label", "Фильтр по типу сущности");
+        const typeSample = Array.isArray(data.typeCatalog) ? data.typeCatalog.join(", ") : "";
+        catalogMeta.textContent = data.ready
+          ? `Показано ${data.items.length} из ${data.total}${typeSample ? ` · типы: ${typeSample}` : ""}${
+              data.builtAt ? ` · обновлён ${new Date(data.builtAt).toLocaleString("ru-RU")}` : ""
+            } · правки → entity-registry.yml`
+          : "";
+        catalogList.innerHTML = renderEntityItems(data.items || []);
       } else if (catalogState.mode === "links") {
         catalogTitle.textContent = "~show-links";
         catalogSubtitle.textContent = data.ready
@@ -1086,6 +1263,8 @@
         ? "fields"
         : mode === "links"
           ? "links"
+          : mode === "entities"
+            ? "entities"
           : mode === "ids"
             ? "ids"
             : "vector";
@@ -1292,6 +1471,16 @@
     );
   });
 
+  bindActionButton(entityRebuildBtn, async () => {
+    await runRebuild(
+      "/api/entity-index/reindex",
+      entityStatusNode,
+      (data) =>
+        `Сущности: ${data.entityCount} объектов, ${data.mentionCount} упоминаний, ${data.fileCount} файлов.`,
+      { progressButton: entityRebuildBtn, progressLayer: "entity" }
+    );
+  });
+
   bindActionButton(workspaceIdSyncBtn, async () => {
     await runRebuild(
       "/api/workspace-id/sync-counter",
@@ -1308,7 +1497,7 @@
       "/api/agent/workspace-wsmap",
       wsmapStatusNode,
       (payload) =>
-        `WS-MAP.md: ${payload.sourceCount ?? payload.written?.sourceCount ?? 0} index-файлов`,
+        `WS-MAP.md: ${payload.entryCount ?? payload.sourceCount ?? payload.written?.entryCount ?? payload.written?.sourceCount ?? 0} manifest-узлов`,
       { loadingLabel: "Сборка WS-MAP.md…" }
     );
     if (data) {
@@ -1345,6 +1534,38 @@
           : `id ${data.id}: ${data.path}`;
     } catch (error) {
       workspaceIdProbeResultNode.textContent = String(error.message || error);
+    }
+  });
+
+  bindActionButton(entityProbeBtn, async () => {
+    if (!entityProbeResultNode) return;
+    const q = entityProbeQInput?.value?.trim() || "";
+    if (!q) {
+      entityProbeResultNode.textContent = "Введите строку поиска.";
+      return;
+    }
+    entityProbeResultNode.textContent = "Поиск…";
+    try {
+      const response = await fetch(buildApiUrl("/api/entity-index/query"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "entities", q, limit: 8 })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      if (!data.ready) {
+        entityProbeResultNode.textContent = data.hint || "Реестр не построен.";
+        return;
+      }
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        entityProbeResultNode.textContent = `«${q}»: ничего не найдено.`;
+        return;
+      }
+      const lines = items.map((item) => `${item.type}:${item.label} (${item.mention_count || 0})`);
+      entityProbeResultNode.textContent = lines.join(" · ");
+    } catch (error) {
+      entityProbeResultNode.textContent = String(error.message || error);
     }
   });
 
@@ -1613,6 +1834,14 @@
   semanticShowBtn?.addEventListener("click", () => openCatalog("vector"));
   storageShowBtn?.addEventListener("click", () => openCatalog("fields"));
   linkShowBtn?.addEventListener("click", () => openCatalog("links"));
+  entityShowBtn?.addEventListener("click", () => openCatalog("entities"));
+  entityRegistryOpenBtn?.addEventListener("click", () => {
+    window.dispatchEvent(
+      new CustomEvent("agentcms-open-agent-cms-settings-file", {
+        detail: { path: ".agent-cms/settings/entity-registry.yml" }
+      })
+    );
+  });
   workspaceIdShowBtn?.addEventListener("click", () => openCatalog("ids"));
 
   catalogCloseBtn?.addEventListener("click", closeCatalog);
@@ -1640,6 +1869,12 @@
   catalogField?.addEventListener("change", () => {
     catalogState.offset = 0;
     loadCatalogPage();
+  });
+  catalogList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-entity-action]");
+    if (!button || catalogState.mode !== "entities") return;
+    event.preventDefault();
+    void handleEntityCatalogAction(button);
   });
 
   runLogCloseBtn?.addEventListener("click", closeRunLogModal);
@@ -1685,6 +1920,12 @@
   window.WorkspaceIndexPanel = {
     init(options = {}) {
       panelCtx = { ...panelCtx, ...options };
+      if (window.EntityRegistryEditor?.init) {
+        window.EntityRegistryEditor.init({
+          buildApiUrl: panelCtx.buildApiUrl,
+          getActiveAgentId: panelCtx.getActiveAgentId
+        });
+      }
       void refreshStatus();
     },
     refreshStatus

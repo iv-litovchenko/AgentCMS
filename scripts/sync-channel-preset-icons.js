@@ -21,12 +21,14 @@ function readIconSvg(pack, name) {
 }
 
 function normalizeLucideSvg(raw) {
-  return raw
+  let svg = raw
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/\sclass="[^"]*"/g, "")
-    .replace(/\swidth="[^"]*"/g, "")
-    .replace(/\sheight="[^"]*"/g, "")
     .trim();
+  // Только корневой <svg> — у дочерних <rect> width/height обязательны
+  svg = svg.replace(/(<svg\b[^>]*)\swidth="[^"]*"/, "$1");
+  svg = svg.replace(/(<svg\b[^>]*)\sheight="[^"]*"/, "$1");
+  return svg;
 }
 
 function normalizeSimpleSvg(raw) {

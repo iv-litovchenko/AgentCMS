@@ -4,7 +4,7 @@
  *
  * Usage:
  *   node scripts/migrate-awn-data-to-awn-databases.js
- *   node scripts/migrate-awn-data-to-awn-databases.js workspaces/agent-cms-test
+ *   node scripts/migrate-awn-data-to-awn-databases.js workspaces/0-ws-test
  */
 const fs = require("fs/promises");
 const path = require("path");

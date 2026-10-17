@@ -1,10 +1,13 @@
 #!/usr/bin/env node
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 import {
-  resolveAgentId,
+  normalizeWorkspaceScopedArgs,
+  resolveWorkspaceId,
   runWithAgentId,
   withAgentIdSchema,
   WORKSPACE_ID_SYNONYMS
@@ -42,12 +45,14 @@ import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
+import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
+import { registerCanonicalWithLegacyAlias } from "./lib/register-tool-alias.js";
 
 const pagePath = z
   .string()
   .min(1)
   .describe(
-    "Path to topic manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
+    "Path to topic manifest.md (awn.hub.topic|area|ws), e.g. awn-topics/finansydohody/manifest.md"
   );
 
 function textResult(data) {
@@ -77,7 +82,11 @@ function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
 
-  const server = new McpServer({ name: "agent-cms", version: "0.4.0" });
+  const instructions = loadMcpServerInstructions();
+  const server = new McpServer(
+    { name: "agent-cms", version: "0.4.0" },
+    instructions ? { instructions } : {}
+  );
   const toolRegistry = createToolRegistry();
 
   const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
@@ -86,7 +95,7 @@ function createServer() {
     if (formatResult) toolRegistry.formatters.set(name, formatResult);
     const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
     const scopeNote = agentScope
-      ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
+      ? ` Required: workspaceId (legacy alias: agentId; ${WORKSPACE_ID_SYNONYMS}).` +
         (cfg.defaultAgent ? ` Dev-only env fallback: ${cfg.defaultAgent}.` : "")
       : "";
     server.registerTool(
@@ -95,9 +104,10 @@ function createServer() {
       wrap(
         async (args) => {
           if (!agentScope) return fn(args);
-          const agentId = resolveAgentId(args, cfg.defaultAgent);
-          await assertWorkspaceMcpToolAllowed(client, agentId, name, args);
-          return runWithAgentId(agentId, () => fn(args));
+          const scopedArgs = normalizeWorkspaceScopedArgs(args, cfg.defaultAgent);
+          const workspaceId = scopedArgs.workspaceId;
+          await assertWorkspaceMcpToolAllowed(client, workspaceId, name, scopedArgs);
+          return runWithAgentId(workspaceId, () => fn(scopedArgs));
         },
         { formatResult }
       )
@@ -110,7 +120,7 @@ function createServer() {
 
   reg(
     "list_workspaces",
-    "START NEW CHAT: list all workspaces (agents / vaults / хранилища / рабочие пространства). Returns id, name, path, defaultAgentId. Pick agentId before get_session_context.",
+    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before get_session_context.",
     z.object({}),
     listWorkspacesHandler,
     { agentScope: false }
@@ -137,13 +147,13 @@ function createServer() {
 
   reg(
     "get_session_documentation",
-    "Platform docs on demand: GLOBAL-DOC-MCP.md, README.md, GLOBAL-DOC-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
+    "Platform docs on demand: README.md, GLOBAL-SKILL-4-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
     z.object({
       docs: z
         .union([z.array(z.string()), z.string()])
         .optional()
         .describe(
-          "Optional filter: file names or comma-separated, e.g. GLOBAL-DOC-MCP.md. Omit for all enabled docs."
+          "Optional filter: file names or comma-separated, e.g. README.md. Omit for all enabled docs."
         )
     }),
     ({ docs }) =>
@@ -154,16 +164,23 @@ function createServer() {
       })
   );
 
-  reg(
-    "get_user_active_context_now",
-    "What the user is viewing in Agent CMS UI: focus.entity, ready MCP args (path/slot/ref). Call when the user did not specify a path.",
-    z.object({}),
-    () => client.get("/api/agent/active-context")
-  );
+  const getUiFocusHandler = () => client.get("/api/agent/active-context");
+  const getUiFocusSchema = z.object({});
+  const getUiFocusDescription =
+    "Human focus in Agent CMS browser UI (not Cursor): focus.entity (page|slot|content|system|browse|home|none), " +
+    "mcp hints (path/slot/ref). Call when the user did not name a path. Response may include stale if UI was not synced (~5 min). " +
+    "REST: GET /api/agent/active-context.";
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_ui_focus",
+    legacy: "get_user_active_context_now",
+    description: getUiFocusDescription,
+    schema: getUiFocusSchema,
+    handler: getUiFocusHandler
+  });
 
   reg(
     "list_workspace_always_context",
-    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-DOC-MCP/README.",
+    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-SKILL-0/README.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );
@@ -214,7 +231,7 @@ function createServer() {
   registerReferenceTools(reg, client);
   registerJournalTools(reg, client);
 
-  // ── awn-databases: database_frame_* + database_element_* ─
+  // ── awn-databases: list_databases / get_database … (legacy database_frame_*; records → *_content_*) ─
 
   registerDatabaseTools(reg, client);
 
@@ -414,6 +431,13 @@ function createServer() {
   return server;
 }
 
-const server = createServer();
-const transport = new StdioServerTransport();
-await server.connect(transport);
+export { createServer };
+
+const isStdioMain =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isStdioMain) {
+  const server = createServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}

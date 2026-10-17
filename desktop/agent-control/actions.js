@@ -28,7 +28,7 @@ const ACTIONS = [
     category: "setup",
     title: "Установить зависимости",
     description:
-      "npm install, Python 3.12, ffmpeg, faster-whisper. Нужно один раз при первом запуске.",
+      "npm install, Python 3.12, ffmpeg, faster-whisper. GLiNER в install-deps пока отключён. Нужно один раз при первом запуске.",
     command: "bash",
     args: ["scripts/install-deps.sh"],
     tone: "primary"
@@ -149,6 +149,26 @@ const ACTIONS = [
     appRole: "rebuild"
   },
   {
+    id: "commander-open",
+    category: "apps",
+    title: "Запустить",
+    command: "bash",
+    args: ["scripts/launch-desktop-app.sh", "commander", "open"],
+    tone: "primary",
+    appId: "commander",
+    appRole: "open"
+  },
+  {
+    id: "commander-rebuild",
+    category: "apps",
+    title: "Пересобрать",
+    command: "bash",
+    args: ["scripts/launch-desktop-app.sh", "commander", "rebuild"],
+    tone: "default",
+    appId: "commander",
+    appRole: "rebuild"
+  },
+  {
     id: "control-dist",
     category: "control",
     title: "Пересобрать Control",
@@ -193,7 +213,10 @@ const COMMANDER_SELF = {
   badge: "Commander",
   accent: "commander",
   icon: "commander.svg",
-  placeholder: true
+  appBundle: "Agent CMS Commander.app",
+  npmRebuild: "npm run commander:pack",
+  openActionId: "commander-open",
+  rebuildActionId: "commander-rebuild"
 };
 
 const CONTROL_SELF = {

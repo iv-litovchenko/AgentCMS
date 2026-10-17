@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, shell, dialog, ipcMain } = electron;
+const { app, BrowserWindow, shell, dialog, ipcMain, screen } = electron;
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -76,6 +76,14 @@ function markPendingShowWindow() {
   pendingShowWindow = true;
 }
 
+function showFullWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  if (!win.isMaximized()) win.maximize();
+  win.show();
+  win.focus();
+}
+
 function showMainWindow() {
   if (!appReady) {
     markPendingShowWindow();
@@ -84,9 +92,7 @@ function showMainWindow() {
   if (!mainWindow) {
     return createWindow();
   }
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  if (!mainWindow.isVisible()) mainWindow.show();
-  mainWindow.focus();
+  showFullWindow(mainWindow);
   return Promise.resolve();
 }
 
@@ -141,10 +147,23 @@ async function startAppServer(root) {
   return serverInfo;
 }
 
+function appendDesktopShellQuery(urlString) {
+  if (!urlString) return null;
+  try {
+    const url = new URL(urlString);
+    if (url.searchParams.get("desktop") !== "1") {
+      url.searchParams.set("desktop", "1");
+    }
+    return url.toString();
+  } catch {
+    return urlString;
+  }
+}
+
 function getWindowUrl(deepLink = pendingDeepLink) {
   const baseUrl = getPreferredServerUrl();
   if (!baseUrl) return null;
-  return buildAppUrl(baseUrl, deepLink);
+  return appendDesktopShellQuery(buildAppUrl(baseUrl, deepLink));
 }
 
 async function navigateWithDeepLink(deepLink) {
@@ -289,9 +308,13 @@ async function createWindow() {
       await startAppServer(configuredRoot);
     }
 
+    const { workArea } = screen.getPrimaryDisplay();
+
     mainWindow = new BrowserWindow({
-      width: 1400,
-      height: 900,
+      x: workArea.x,
+      y: workArea.y,
+      width: workArea.width,
+      height: workArea.height,
       minWidth: 900,
       minHeight: 600,
       title: "Agent CMS",
@@ -306,7 +329,7 @@ async function createWindow() {
     });
 
     mainWindow.once("ready-to-show", () => {
-      mainWindow?.show();
+      showFullWindow(mainWindow);
     });
 
     const initialUrl = getWindowUrl() || getPreferredServerUrl();

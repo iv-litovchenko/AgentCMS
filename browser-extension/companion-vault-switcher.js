@@ -346,9 +346,16 @@
 
     let open = false;
     let agents = [];
+    let agentsLastKnown = [];
     let groups = [];
     let cmsBaseUrl = "";
     let selectedId = "";
+    let agentsFetchOk = true;
+    let agentsFetchError = "";
+
+    function isCmsUnreachable() {
+      return Boolean(cmsBaseUrl && agentsFetchOk === false);
+    }
 
     function setOpen(next) {
       open = Boolean(next);
@@ -369,23 +376,37 @@
     }
 
     function findAgent(id) {
-      return agents.find((a) => a.id === id) || null;
+      const key = String(id || "").trim();
+      if (!key) return null;
+      const pool = agents.length ? agents : agentsLastKnown;
+      return pool.find((a) => a.id === key) || null;
     }
 
     function renderSelected() {
+      const offline = isCmsUnreachable();
       const agent = findAgent(selectedId);
       const label = agent
         ? agentDisplayName(agent, { forList: !isAgentRegistryActive(agent) })
         : selectedId
           ? selectedId
           : "Выберите хранилище";
-      nameEl.textContent = label;
-      hintEl.textContent = agent
-        ? `${resolveAgentStatusEmoji(agent)} ${agent.id}`
-        : selectedId
-          ? "сохранено в расширении"
-          : "не выбрано";
-      avatarFallback.textContent = agentEmoji(agent);
+
+      if (offline && !agent && !selectedId) {
+        nameEl.textContent = "Нет связи";
+        hintEl.textContent = "запустите Agent CMS";
+      } else if (offline) {
+        nameEl.textContent = label;
+        hintEl.textContent = "нет связи с сервером";
+      } else {
+        nameEl.textContent = label;
+        hintEl.textContent = agent
+          ? `${resolveAgentStatusEmoji(agent)} ${agent.id}`
+          : selectedId
+            ? "сохранено в расширении"
+            : "не выбрано";
+      }
+
+      avatarFallback.textContent = offline && !agent ? "📡" : agentEmoji(agent);
       const thumb = agent ? buildAgentThumbUrl(cmsBaseUrl, agent) : null;
       if (thumb) {
         avatarImg.src = thumb;
@@ -400,24 +421,37 @@
         avatar.classList.remove("asc-vault-avatar--has-preview");
         avatar.classList.add("asc-vault-avatar--fallback");
       }
-      const inactiveVault = Boolean(
-        agent && (!isAgentRegistryActive(agent) || agent.folderExists === false)
-      );
+      const inactiveVault =
+        !offline &&
+        Boolean(agent && (!isAgentRegistryActive(agent) || agent.folderExists === false));
       trigger.classList.toggle("is-inactive-vault", inactiveVault);
-      if (agent) {
+      trigger.classList.toggle("is-offline-vault", offline);
+      if (offline) {
         avatarStatus.hidden = false;
+        avatarStatus.classList.remove("is-warn", "is-ok");
+        avatarStatus.classList.add("is-error");
+        avatarStatus.title = agentsFetchError
+          ? `Нет связи с Agent CMS (${agentsFetchError})`
+          : "Нет связи с Agent CMS";
+      } else if (agent) {
+        avatarStatus.hidden = false;
+        avatarStatus.classList.remove("is-error");
         avatarStatus.classList.toggle("is-warn", inactiveVault);
         avatarStatus.classList.toggle("is-ok", !inactiveVault);
         avatarStatus.title = inactiveVault ? "Хранилище выключено или недоступно" : "Хранилище активно";
       } else {
         avatarStatus.hidden = true;
-        avatarStatus.classList.remove("is-warn", "is-ok");
+        avatarStatus.classList.remove("is-warn", "is-ok", "is-error");
         avatarStatus.removeAttribute("title");
       }
-      const hasSelectedVault = Boolean(agent || selectedId);
+      const hasSelectedVault = Boolean(agent || selectedId || offline);
       wrap.classList.toggle("asc-vault-dock--fit", hasSelectedVault);
       trigger.classList.toggle("asc-vault-trigger--fit", hasSelectedVault);
-      trigger.title = agent ? `Хранилище: ${label}` : "Выбрать хранилище";
+      if (offline) {
+        trigger.title = "Нет связи с Agent CMS — проверьте, что сервер запущен";
+      } else {
+        trigger.title = agent ? `Хранилище: ${label}` : "Выбрать хранилище";
+      }
     }
 
     function renderList() {
@@ -429,9 +463,14 @@
       if (!allEntries.length) {
         const empty = document.createElement("p");
         empty.className = "asc-vault-empty";
-        empty.textContent = cmsBaseUrl
-          ? "Нет хранилищ или CMS недоступна"
-          : "Укажите URL CMS в настройках расширения";
+        if (!cmsBaseUrl) {
+          empty.textContent = "Укажите URL CMS в настройках расширения";
+        } else if (isCmsUnreachable()) {
+          empty.textContent =
+            "Нет связи с сервером. Запустите Agent CMS или проверьте URL в настройках расширения.";
+        } else {
+          empty.textContent = "В реестре пока нет хранилищ";
+        }
         list.append(empty);
         return;
       }
@@ -516,8 +555,16 @@
       cmsBaseUrl = String(settings?.cmsBaseUrl || "").replace(/\/$/, "");
 
       const data = await sendRuntime({ type: "COMPANION_LIST_AGENTS" });
-      agents = data?.ok && Array.isArray(data.agents) ? data.agents : [];
-      groups = data?.ok && Array.isArray(data.groups) ? data.groups : [];
+      agentsFetchOk = data?.ok === true;
+      agentsFetchError = agentsFetchOk ? "" : String(data?.error || "").trim();
+      if (agentsFetchOk && Array.isArray(data.agents)) {
+        agents = data.agents;
+        agentsLastKnown = data.agents;
+        groups = Array.isArray(data.groups) ? data.groups : [];
+      } else {
+        agents = [];
+        groups = [];
+      }
 
       renderSelected();
       renderList();

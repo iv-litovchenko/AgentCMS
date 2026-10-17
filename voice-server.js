@@ -536,7 +536,7 @@ if (require.main === module) {
       console.log(`CMS API proxy      → ${info.cmsApiUrl}`);
       console.log("");
       console.log("Откройте: /  или  /<agent-id>/");
-      console.log("Пример:   /agent-cms-core/");
+      console.log("Пример:   /0-ws-core/");
     })
     .catch((error) => {
       console.error(error);

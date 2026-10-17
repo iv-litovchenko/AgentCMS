@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J.A.R.V.I.S. // Полный Кокпит + Оконный Менеджер и Generative UI</title>
+
+  <!-- 1. TAILWIND CSS (для генеративной верстки любых окон, форм и карточек от модели) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Orbitron', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- 2. CHART.JS (для графиков Line, Bar, Radar) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- 3. MARKED.JS (для рендеринга Markdown-отчетов, таблиц и блоков кода) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #03070e;
+      --bg-panel: rgba(8, 20, 38, 0.68);
+      --bg-panel-hover: rgba(12, 32, 58, 0.85);
+      --cyan: #00f0ff;
+      --cyan-dim: rgba(0, 240, 255, 0.18);
+      --cyan-glow: rgba(0, 240, 255, 0.55);
+      --blue: #0077ff;
+      --amber: #ffaa00;
+      --red: #ff3355;
+      --green: #00ff9d;
+      --text-main: #e2f6ff;
+      --text-muted: #6c9bb8;
+      --border-hud: rgba(0, 240, 255, 0.26);
+      --state-color: var(--cyan);
+    }
+
+    body[data-state="listening"] { --state-color: #00ff9d; }
+    body[data-state="thinking"]  { --state-color: #ffaa00; }
+    body[data-state="speaking"]  { --state-color: #00f0ff; }
+    body[data-state="alert"]     { --state-color: #ff3355; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      background-image:
+        radial-gradient(circle at 50% 50%, rgba(0, 119, 255, 0.12) 0%, transparent 65%),
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+    }
+
+    /* Scanline overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 240, 255, 0.014) 3px,
+        transparent 4px
+      );
+      pointer-events: none;
+      z-index: 900;
+    }
+
+    /* Corner HUD brackets */
+    .hud-frame {
+      position: fixed;
+      inset: 10px;
+      pointer-events: none;
+      z-index: 40;
+      border: 1px solid rgba(0, 240, 255, 0.08);
+    }
+    .hud-frame::before,
+    .hud-frame::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: var(--state-color);
+      border-style: solid;
+      transition: border-color 0.4s ease;
+    }
+    .hud-frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .hud-frame::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    /* ================= ВЕРХНЯЯ ПАНЕЛЬ ================= */
+    header.topbar {
+      height: 64px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-hud);
+      background: linear-gradient(180deg, rgba(4, 15, 30, 0.94) 0%, rgba(4, 15, 30, 0.55) 100%);
+      backdrop-filter: blur(14px);
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid var(--state-color);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 15px var(--cyan-dim), inset 0 0 10px var(--cyan-dim);
+      transition: border-color 0.3s;
+    }
+    .brand-icon::after {
+      content: "";
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--state-color);
+      box-shadow: 0 0 10px var(--state-color);
+      transition: 0.3s;
+    }
+
+    .brand-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 3.5px;
+      color: var(--text-main);
+      text-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .brand-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.64rem;
+      color: var(--text-muted);
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .top-status-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 11px;
+      border: 1px solid var(--border-hud);
+      background: rgba(0, 240, 255, 0.05);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-main);
+      clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--state-color);
+      box-shadow: 0 0 8px var(--state-color);
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* Кнопки запуска окон и генеративных виджетов в шапке */
+    .artifact-launcher {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .launcher-btn {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: 1px solid rgba(0, 240, 255, 0.32);
+      background: rgba(0, 240, 255, 0.09);
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .launcher-btn:hover {
+      background: rgba(0, 240, 255, 0.24);
+      border-color: var(--cyan);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .clock-box {
+      text-align: right;
+      font-family: 'Orbitron', sans-serif;
+      flex-shrink: 0;
+    }
+    .clock-time {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--cyan);
+    }
+    .clock-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.64rem;
+      color: var(--text-muted);
+    }
+
+    /* ================= СТАНДАРТНЫЙ 3-КОЛОНОЧНЫЙ КОКПИТ ================= */
+    main.dashboard {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 330px 1fr 370px;
+      gap: 18px;
+      padding: 16px 24px;
+      min-height: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .hud-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hud);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      clip-path: polygon(
+        0 0,
+        calc(100% - 14px) 0,
+        100% 14px,
+        100% 100%,
+        14px 100%,
+        0 calc(100% - 14px)
+      );
+      box-shadow: inset 0 0 30px rgba(0, 240, 255, 0.03);
+    }
+
+    .hud-panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--state-color), transparent 80%);
+    }
+
+    .panel-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      background: rgba(0, 240, 255, 0.04);
+    }
+
+    .panel-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-muted);
+    }
+
+    .panel-body {
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Левая колонка: Телеметрия, Модули, Голосовые триггеры */
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .metric-item { display: flex; flex-direction: column; gap: 5px; }
+    .metric-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+    .metric-label { color: var(--text-muted); }
+    .metric-val { color: var(--text-main); font-weight: 600; }
+    .progress-track { height: 5px; background: rgba(0, 240, 255, 0.09); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--state-color)); box-shadow: 0 0 10px var(--state-color); transition: width 0.6s ease; }
+
+    .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .module-card {
+      padding: 10px;
+      border: 1px solid rgba(0, 240, 255, 0.16);
+      background: rgba(4, 14, 28, 0.6);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .module-card:hover { border-color: var(--cyan); background: var(--bg-panel-hover); }
+    .module-card.active { border-color: var(--state-color); background: rgba(0, 240, 255, 0.1); box-shadow: inset 0 0 14px rgba(0, 240, 255, 0.12); }
+    .module-top { display: flex; justify-content: space-between; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.64rem; color: var(--text-muted); }
+    .module-indicator { width: 7px; height: 7px; border-radius: 50%; background: #33526b; }
+    .module-card.active .module-indicator { background: var(--state-color); box-shadow: 0 0 8px var(--state-color); }
+    .module-name { font-weight: 600; font-size: 0.8rem; color: var(--text-main); }
+    .module-state { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: var(--cyan); }
+
+    .quick-cmd-list { display: flex; flex-direction: column; gap: 6px; }
+    .cmd-chip {
+      text-align: left;
+      padding: 8px 11px;
+      background: rgba(0, 240, 255, 0.04);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.71rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cmd-chip:hover { background: rgba(0, 240, 255, 0.14); border-color: var(--cyan); padding-left: 14px; }
+
+    /* Центральная сцена: Переключатель режимов, Ядро Джарвиса и Субтитры */
+    .center-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      padding: 6px 0;
+      min-height: 0;
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 6px;
+      background: rgba(5, 16, 32, 0.78);
+      padding: 5px;
+      border: 1px solid var(--border-hud);
+      border-radius: 6px;
+      z-index: 5;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.68rem;
+      letter-spacing: 1.5px;
+      padding: 6px 13px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.25s;
+      text-transform: uppercase;
+    }
+    .mode-btn:hover { color: var(--text-main); }
+    .mode-btn.active {
+      color: var(--bg-deep);
+      background: var(--state-color);
+      font-weight: 700;
+      box-shadow: 0 0 15px var(--state-color);
+    }
+
+    .core-wrapper {
+      position: relative;
+      width: 360px;
+      height: 360px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    #visualizerCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .hud-ring { position: absolute; border-radius: 50%; pointer-events: none; transition: 0.4s; }
+    .ring-outer { width: 325px; height: 325px; border: 1px dashed rgba(0, 240, 255, 0.3); animation: spinSlow 40s linear infinite; }
+    .ring-mid { width: 270px; height: 270px; border: 2px solid transparent; border-top-color: var(--state-color); border-bottom-color: var(--state-color); opacity: 0.65; animation: spinReverse 14s linear infinite; }
+    .ring-inner { width: 215px; height: 215px; border: 1px solid rgba(0, 240, 255, 0.25); border-left: 3px solid var(--state-color); border-right: 3px solid var(--state-color); animation: spinSlow 9s ease-in-out infinite alternate; }
+
+    .core-nucleus {
+      width: 138px;
+      height: 138px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.28) 0%, rgba(0, 30, 60, 0.88) 70%);
+      border: 2px solid var(--state-color);
+      box-shadow: 0 0 35px var(--cyan-dim), inset 0 0 25px var(--cyan-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      z-index: 3;
+      transition: 0.25s;
+    }
+    .core-wrapper:hover .core-nucleus {
+      transform: scale(1.05);
+      box-shadow: 0 0 50px var(--state-color), inset 0 0 30px var(--state-color);
+    }
+    .core-title { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 1rem; letter-spacing: 3px; color: var(--text-main); text-shadow: 0 0 10px var(--state-color); }
+    .core-status-label { font-family: 'JetBrains Mono', monospace; font-size: 0.64rem; color: var(--state-color); text-transform: uppercase; letter-spacing: 1.2px; }
+
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+
+    .voice-caption-box {
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+      padding: 12px 18px;
+      background: rgba(6, 18, 34, 0.82);
+      border: 1px solid var(--border-hud);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+    }
+    .caption-speaker { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 2px; color: var(--state-color); margin-bottom: 4px; text-transform: uppercase; }
+    .caption-text { font-size: 0.92rem; line-height: 1.45; color: var(--text-main); }
+
+    /* Правая колонка: Нейро-Диалог и Журнал Ядра */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .chat-stream { display: flex; flex-direction: column; gap: 10px; }
+    .msg {
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      user-select: text;
+    }
+    .msg.jarvis { background: rgba(0, 240, 255, 0.08); border-left: 3px solid var(--cyan); color: var(--text-main); align-self: flex-start; width: 95%; }
+    .msg.user { background: rgba(0, 119, 255, 0.16); border-right: 3px solid var(--green); color: #d8fff0; align-self: flex-end; text-align: right; width: 88%; }
+    .msg-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--text-muted); margin-bottom: 3px; display: flex; justify-content: space-between; }
+
+    .command-bar {
+      padding: 10px;
+      border-top: 1px solid rgba(0, 240, 255, 0.15);
+      display: flex;
+      gap: 6px;
+      background: rgba(3, 10, 22, 0.88);
+    }
+    .cmd-input {
+      flex: 1;
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 4px;
+      padding: 8px 11px;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      outline: none;
+    }
+    .cmd-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0, 240, 255, 0.2); }
+
+    .btn-hud {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--state-color);
+      color: var(--state-color);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-hud:hover { background: var(--state-color); color: var(--bg-deep); box-shadow: 0 0 15px var(--state-color); }
+
+    .log-list { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; display: flex; flex-direction: column; gap: 5px; }
+    .log-entry { display: flex; gap: 8px; color: var(--text-muted); }
+    .log-time { color: var(--cyan); flex-shrink: 0; }
+
+    /* ================= ПОВЕРХ КОКПИТА: ПЛАВАЮЩИЕ ОКНА И ДАШБОРДЫ ================= */
+    #floatingWorkspace {
+      position: fixed;
+      top: 64px;
+      left: 0;
+      right: 0;
+      bottom: 48px;
+      pointer-events: none;
+      z-index: 150;
+    }
+
+    .jarvis-win {
+      position: absolute;
+      pointer-events: auto;
+      background: rgba(6, 17, 34, 0.92);
+      backdrop-filter: blur(22px);
+      border: 1px solid rgba(0, 240, 255, 0.38);
+      border-radius: 10px;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 240, 255, 0.14);
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+      min-height: 220px;
+      resize: both;
+      overflow: hidden;
+    }
+
+    .jarvis-win.active-win {
+      border-color: var(--cyan);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.92), 0 0 32px rgba(0, 240, 255, 0.3);
+    }
+
+    .jarvis-win.minimized { display: none !important; }
+    .jarvis-win.maximized {
+      top: 12px !important;
+      left: 12px !important;
+      width: calc(100% - 24px) !important;
+      height: calc(100% - 24px) !important;
+      resize: none;
+    }
+
+    /* Оформление Markdown внутри окон и чата */
+    .md-prose { user-select: text; color: #dbeafe; font-size: 0.84rem; line-height: 1.55; }
+    .md-prose h1, .md-prose h2, .md-prose h3 { font-family: 'Orbitron', sans-serif; color: #00f0ff; margin: 0.5rem 0 0.35rem; font-weight: 700; }
+    .md-prose h1 { font-size: 1.05rem; border-bottom: 1px solid rgba(0,240,255,0.2); padding-bottom: 0.25rem; }
+    .md-prose h2 { font-size: 0.94rem; }
+    .md-prose p { margin-bottom: 0.5rem; }
+    .md-prose ul { padding-left: 1.2rem; margin-bottom: 0.5rem; list-style: disc; }
+    .md-prose code { font-family: 'JetBrains Mono', monospace; background: rgba(0,240,255,0.14); color: #00f0ff; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.76rem; }
+    .md-prose pre { background: rgba(2, 8, 18, 0.95); border: 1px solid rgba(0,240,255,0.25); padding: 0.65rem; border-radius: 6px; overflow-x: auto; margin-bottom: 0.6rem; }
+    .md-prose pre code { background: transparent; padding: 0; color: #a5f3fc; }
+    .md-prose blockquote { border-left: 3px solid #00f0ff; background: rgba(0,240,255,0.07); padding: 0.4rem 0.7rem; margin-bottom: 0.6rem; color: #bae6fd; }
+    .md-prose table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; }
+    .md-prose th, .md-prose td { border: 1px solid rgba(0,240,255,0.22); padding: 0.4rem 0.55rem; text-align: left; }
+    .md-prose th { background: rgba(0,240,255,0.14); color: #00f0ff; }
+
+    /* ================= НИЖНИЙ БАР И ДОК СВЕРНУТЫХ ОКОН ================= */
+    footer.bottombar {
+      height: 48px;
+      padding: 0 24px;
+      border-top: 1px solid var(--border-hud);
+      background: rgba(3, 10, 20, 0.94);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      z-index: 200;
+      flex-shrink: 0;
+    }
+
+    .footer-controls { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .hotkey-badge { padding: 2px 6px; border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 3px; color: var(--cyan); font-size: 0.64rem; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.28); border-radius: 2px; }
+  </style>
+</head>
+<body data-state="speaking">
+  <div class="hud-frame"></div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. ВЕРХНЯЯ ПАНЕЛЬ (СТАНДАРТНЫЕ ИНДИКАТОРЫ + КНОПКИ ОКНА / ДАШБОРДЫ)       -->
+  <!-- ========================================================================= -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon"></div>
+      <div>
+        <div class="brand-title">J.A.R.V.I.S.</div>
+        <div class="brand-sub">Just A Rather Very Intelligent System // CORE v4.9</div>
+      </div>
+    </div>
+
+    <div class="top-status-pills">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="topStatusText">НЕЙРОЯДРО АКТИВНО</span>
+      </div>
+      <div class="status-pill">
+        <span>МИКРОФОН:</span>
+        <strong id="micStatusLabel" style="color: var(--cyan)">ГОТОВ</strong>
+      </div>
+      <div class="status-pill">
+        <span>МОДЕЛЬ:</span>
+        <strong style="color: var(--cyan)">GEMINI-4-ARGON</strong>
+      </div>
+    </div>
+
+    <!-- Панель вызова плавающих окон и примеров визуализации от агента -->
+    <div class="artifact-launcher">
+      <button class="launcher-btn" onclick="spawnChartWindow()">📈 Графики</button>
+      <button class="launcher-btn" onclick="spawnTableWindow()">📋 Таблица</button>
+      <button class="launcher-btn" onclick="spawnMarkdownWindow()">📄 Markdown</button>
+      <button class="launcher-btn" onclick="spawnFormWindow()">🎛 Форма</button>
+      <button class="launcher-btn" onclick="spawnGalleryWindow()">🖼 Картинки</button>
+      <button class="launcher-btn" onclick="spawnVideoWindow()">🎬 Видео / YouTube</button>
+      <button class="launcher-btn" onclick="openModal('builderModal')" style="border-color: var(--green); color: var(--green);">＋ Свой UI</button>
+      <button class="launcher-btn" onclick="tileFloatingWindows()" title="Упорядочить открытые окна плиткой">⊞</button>
+    </div>
+
+    <div class="clock-box">
+      <div class="clock-time" id="clockTime">00:15:00</div>
+      <div class="clock-date">СИСТЕМА СИНХРОНИЗИРОВАНА</div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. СТАНДАРТНЫЙ 3-КОЛОНОЧНЫЙ КОКПИТ ДЖАРВИСА (СОХРАНЕН ПОЛНОСТЬЮ)          -->
+  <!-- ========================================================================= -->
+  <main class="dashboard">
+
+    <!-- ЛЕВАЯ КОЛОНКА: ТЕЛЕМЕТРИЯ, ПОДСИСТЕМЫ И ГОЛОСОВЫЕ ТРИГГЕРЫ -->
+    <section class="left-col">
+      <div class="hud-panel">
+        <div class="panel-header">
+          <span>Телеметрия Системы</span>
+          <span class="panel-tag">SYS-MON</span>
+        </div>
+        <div class="panel-body">
+          <div class="metric-item">
+            <div class="metric-row">
+              <span class="metric-label">НАГРУЗКА CPU / NEURAL ENGINE</span>
+              <span class="metric-val" id="cpuVal">24%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="cpuBar" style="width: 24%"></div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-row">
+              <span class="metric-label">ОПЕРАТИВНАЯ ПАМЯТЬ КОНТЕКСТА</span>
+              <span class="metric-val" id="ramVal">6.4 / 32 GB</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="ramBar" style="width: 38%"></div>
+            </div>
+          </div>
+
+          <div class="metric-item">
+            <div class="metric-row">
+              <span class="metric-label">ЗАДЕРЖКА СИНТЕЗА РЕЧИ (TTS)</span>
+              <span class="metric-val" id="latencyVal">42 мс</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="latencyBar" style="width: 18%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- УПРАВЛЕНИЕ ПОДСИСТЕМАМИ -->
+      <div class="hud-panel">
+        <div class="panel-header">
+          <span>Подсистемы и Протоколы</span>
+          <span class="panel-tag">CTRL-04</span>
+        </div>
+        <div class="panel-body">
+          <div class="module-grid">
+            <div class="module-card active" onclick="toggleModule(this, 'Рабочее окружение')">
+              <div class="module-top"><span>MOD-01</span><span class="module-indicator"></span></div>
+              <div class="module-name">Рабочий Кокпит</div>
+              <div class="module-state">АКТИВЕН</div>
+            </div>
+
+            <div class="module-card active" onclick="toggleModule(this, 'Защита периметра')">
+              <div class="module-top"><span>SEC-02</span><span class="module-indicator"></span></div>
+              <div class="module-name">Щит Безопасности</div>
+              <div class="module-state">АКТИВЕН</div>
+            </div>
+
+            <div class="module-card" onclick="toggleModule(this, 'Фокус-режим')">
+              <div class="module-top"><span>DEV-03</span><span class="module-indicator"></span></div>
+              <div class="module-name">Глубокий Фокус</div>
+              <div class="module-state">ОЖИДАНИЕ</div>
+            </div>
+
+            <div class="module-card active" onclick="toggleModule(this, 'Умный климат')">
+              <div class="module-top"><span>ENV-04</span><span class="module-indicator"></span></div>
+              <div class="module-name">Климат 21.5°C</div>
+              <div class="module-state">АКТИВЕН</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- БЫСТРЫЕ ГОЛОСОВЫЕ ТРИГГЕРЫ -->
+      <div class="hud-panel" style="flex: 1;">
+        <div class="panel-header">
+          <span>Голосовые Триггеры</span>
+          <span class="panel-tag">VOICE-CMD</span>
+        </div>
+        <div class="panel-body">
+          <div class="quick-cmd-list">
+            <button class="cmd-chip" onclick="runCommand('Джарвис, построй график и аналитику по найденным данным')">
+              <span>«Построй график по данным»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Джарвис, выведи таблицу найденных узлов и метрик')">
+              <span>«Выведи таблицу с фильтром»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Джарвис, сформируй отчет в Markdown с кодом')">
+              <span>«Сформируй отчет в Markdown»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Джарвис, открой диалоговую форму ввода параметров')">
+              <span>«Открой форму ввода параметров»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Джарвис, покажи найденные картинки и схемы')">
+              <span>«Покажи галерею картинок»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Джарвис, открой видеоплеер и YouTube трансляцию')">
+              <span>«Открой Видео и YouTube»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+            <button class="cmd-chip" onclick="runCommand('Переключи систему в боевой режим тревоги')">
+              <span>«Включи режим повышенной готовности»</span>
+              <span style="color:var(--cyan)">▶</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЦЕНТРАЛЬНАЯ КОЛОНКА: РЕЖИМЫ, ЯДРО ДЖАРВИСА И СУБТИТРЫ -->
+    <section class="center-stage">
+      <div class="mode-selector">
+        <button class="mode-btn" data-mode="listening" onclick="setAssistantState('listening')">Слушаю</button>
+        <button class="mode-btn" data-mode="thinking" onclick="setAssistantState('thinking')">Анализ</button>
+        <button class="mode-btn active" data-mode="speaking" onclick="setAssistantState('speaking')">Говорю</button>
+        <button class="mode-btn" data-mode="alert" onclick="setAssistantState('alert')">Тревога</button>
+      </div>
+
+      <!-- ИНТЕРАКТИВНОЕ ЯДРО -->
+      <div class="core-wrapper" id="coreTrigger" title="Нажмите для включения/выключения микрофона">
+        <canvas id="visualizerCanvas" width="360" height="360"></canvas>
+        <div class="hud-ring ring-outer"></div>
+        <div class="hud-ring ring-mid"></div>
+        <div class="hud-ring ring-inner"></div>
+
+        <div class="core-nucleus">
+          <div class="core-title">JARVIS</div>
+          <div class="core-status-label" id="coreStateLabel">ONLINE // SPEAKING</div>
+        </div>
+      </div>
+
+      <!-- ТЕКУЩАЯ РЕПЛИКА ДЖАРВИСА -->
+      <div class="voice-caption-box">
+        <div class="caption-speaker" id="captionSpeaker">J.A.R.V.I.S. // АУДИОПОТОК</div>
+        <div class="caption-text" id="liveCaption">
+          «Базовый кокпит на месте, сэр. Любые графики, таблицы, формы и Markdown-отчеты теперь открываются поверх кокпита в плавающих окнах.»
+        </div>
+      </div>
+    </section>
+
+    <!-- ПРАВАЯ КОЛОНКА: НЕЙРО-ДИАЛОГ И ЖУРНАЛ ЯДРА -->
+    <section class="right-col">
+      <div class="hud-panel" style="flex: 1.45;">
+        <div class="panel-header">
+          <span>Нейро-Диалог</span>
+          <span class="panel-tag">DIALOG-STREAM</span>
+        </div>
+        <div class="panel-body" id="chatContainer">
+          <div class="chat-stream" id="chatStream">
+            <div class="msg jarvis">
+              <div class="msg-meta">
+                <span>J.A.R.V.I.S.</span>
+                <span>СИСТЕМА ЗАПУЩЕНА</span>
+              </div>
+              Стандартный интерфейс полностью сохранен. Напишите команду ниже или нажмите кнопки <b>«📈 Графики»</b>, <b>«📋 Таблица»</b>, <b>«📄 Markdown»</b>, <b>«🎛 Форма ввода»</b> в верхней панели, чтобы открыть плавающие окна поверх кокпита.
+            </div>
+          </div>
+        </div>
+
+        <form class="command-bar" onsubmit="handleFormSubmit(event)">
+          <input
+            type="text"
+            id="cmdInput"
+            class="cmd-input"
+            placeholder="Команда (напр: «построй график» или «таблица»)..."
+            autocomplete="off"
+          />
+          <button type="button" class="btn-hud" onclick="toggleVoiceRecognition()" title="Голосовой ввод">🎙</button>
+          <button type="button" class="btn-hud" onclick="openModal('builderModal')" title="Открыть конструктор окна / формы">＋</button>
+          <button type="submit" class="btn-hud">ВВОД</button>
+        </form>
+      </div>
+
+      <!-- ЖУРНАЛ ЯДРА -->
+      <div class="hud-panel" style="flex: 0.7;">
+        <div class="panel-header">
+          <span>Журнал Ядра</span>
+          <span class="panel-tag">KERNEL-LOG</span>
+        </div>
+        <div class="panel-body">
+          <div class="log-list" id="kernelLog">
+            <div class="log-entry"><span class="log-time">[00:15:01]</span><span>Базовый кокпит J.A.R.V.I.S. инициализирован... ОК</span></div>
+            <div class="log-entry"><span class="log-time">[00:15:02]</span><span>Модули Tailwind + Chart.js + Marked.js подключены</span></div>
+            <div class="log-entry"><span class="log-time">[00:15:04]</span><span>Оператор: Perez19 // Готов к работе</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 3. СЛОЙ ПЛАВАЮЩИХ ОКОН И ДАШБОРДОВ (ПОВЕРХ СТАНДАРТНОГО КОКПИТА)          -->
+  <!-- ========================================================================= -->
+  <div id="floatingWorkspace"></div>
+
+  <!-- ========================================================================= -->
+  <!-- 4. МОДАЛЬНОЕ ДИАЛОГОВОЕ ОКНО: КОНСТРУКТОР ОКОН / TAILWIND / MARKDOWN      -->
+  <!-- ========================================================================= -->
+  <div id="builderModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-[2000]" onclick="if(event.target===this)closeModal('builderModal')">
+    <div class="w-full max-w-2xl bg-slate-900 border border-cyan-400 rounded-xl shadow-2xl overflow-hidden">
+      <div class="px-5 py-3.5 bg-cyan-500/10 border-b border-cyan-500/30 flex items-center justify-between">
+        <span class="font-display text-xs tracking-wider text-cyan-300 uppercase">＋ СОЗДАТЬ НОВОЕ ОКНО / ДАШБОРД / ВИЗУАЛИЗАЦИЮ</span>
+        <button onclick="closeModal('builderModal')" class="text-slate-400 hover:text-white font-mono">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex flex-wrap gap-2 pb-3 border-b border-cyan-500/20">
+          <span class="text-xs font-mono text-slate-400 self-center mr-1">Быстрые шаблоны:</span>
+          <button onclick="closeModal('builderModal'); spawnChartWindow()" class="px-2.5 py-1 rounded bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-400/40 text-xs font-mono text-cyan-200">📈 График Chart.js</button>
+          <button onclick="closeModal('builderModal'); spawnTableWindow()" class="px-2.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-400/40 text-xs font-mono text-emerald-200">📋 Таблица с поиском</button>
+          <button onclick="closeModal('builderModal'); spawnMarkdownWindow()" class="px-2.5 py-1 rounded bg-blue-500/15 hover:bg-blue-500/30 border border-blue-400/40 text-xs font-mono text-blue-200">📄 Markdown отчет</button>
+          <button onclick="closeModal('builderModal'); spawnFormWindow()" class="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-xs font-mono text-amber-200">🎛 Форма ввода</button>
+          <button onclick="closeModal('builderModal'); spawnGalleryWindow()" class="px-2.5 py-1 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-400/40 text-xs font-mono text-purple-200">🖼 Галерея картинок</button>
+          <button onclick="closeModal('builderModal'); spawnVideoWindow()" class="px-2.5 py-1 rounded bg-rose-500/15 hover:bg-rose-500/30 border border-rose-400/40 text-xs font-mono text-rose-200">🎬 Видео / YouTube</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1">Заголовок окна</label>
+            <input id="customWinTitle" type="text" value="🧪 Кастомный Дашборд Агента" class="w-full bg-slate-950 border border-cyan-500/40 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1">Формат содержимого</label>
+            <select id="customWinFormat" class="w-full bg-slate-950 border border-cyan-500/40 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400">
+              <option value="tailwind">Tailwind HTML верстка (карточки, сетки, формы)</option>
+              <option value="markdown">Markdown текст (заголовки, таблицы, код)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1">Код Tailwind HTML или Markdown (то, что генерирует модель)</label>
+          <textarea id="customWinCode" rows="6" class="w-full bg-slate-950 border border-cyan-500/40 rounded-lg p-3 font-mono text-xs text-cyan-200 focus:outline-none focus:border-cyan-400"><div class="space-y-3">
+  <div class="p-3 rounded-lg bg-cyan-500/10 border border-cyan-400/40 flex items-center justify-between">
+    <div>
+      <div class="text-[10px] font-mono text-cyan-300">СВОДКА ПО НАЙДЕННЫМ ДАННЫМ</div>
+      <div class="text-base font-bold text-white">Обнаружено 38 активных сервисов</div>
+    </div>
+    <span class="px-2 py-1 rounded bg-emerald-400 text-slate-950 font-mono text-xs font-bold">OK</span>
+  </div>
+  <div class="grid grid-cols-3 gap-2 text-center font-mono">
+    <div class="p-2 rounded bg-slate-900 border border-cyan-500/20">
+      <div class="text-[10px] text-slate-400">СКОРОСТЬ</div>
+      <div class="text-sm font-bold text-cyan-300">1.8 GB/s</div>
+    </div>
+    <div class="p-2 rounded bg-slate-900 border border-cyan-500/20">
+      <div class="text-[10px] text-slate-400">ТОЧНОСТЬ</div>
+      <div class="text-sm font-bold text-emerald-300">99.4%</div>
+    </div>
+    <div class="p-2 rounded bg-slate-900 border border-cyan-500/20">
+      <div class="text-[10px] text-slate-400">ОШИБКИ</div>
+      <div class="text-sm font-bold text-amber-300">0</div>
+    </div>
+  </div>
+</div></textarea>
+        </div>
+      </div>
+      <div class="px-5 py-3 bg-slate-950/90 border-t border-cyan-500/20 flex justify-end gap-2">
+        <button onclick="closeModal('builderModal')" class="px-4 py-1.5 rounded-lg border border-slate-600 text-xs font-mono text-slate-300 hover:bg-slate-800">Отмена</button>
+        <button onclick="spawnCustomFromModal()" class="px-4 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-mono text-xs font-bold hover:bg-cyan-300">Создать плавающее окно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. НИЖНЯЯ СТРОКА СОСТОЯНИЯ + ДОК ОТКРЫТЫХ/СВЕРНУТЫХ ОКОН                  -->
+  <!-- ========================================================================= -->
+  <footer class="bottombar">
+    <div class="footer-controls">
+      <span><span class="hotkey-badge">ПРОБЕЛ</span> — Микрофон</span>
+      <span><span class="hotkey-badge">КЛИК ПО ЯДРУ</span> — Голосовой захват</span>
+      <span>ОЗВУЧКА (TTS): <strong id="ttsToggleBtn" style="color: var(--cyan); cursor: pointer;" onclick="toggleTTS()">ВКЛ</strong></span>
+    </div>
+
+    <!-- Таскбар плавающих окон -->
+    <div id="windowDock" class="flex items-center gap-2 overflow-x-auto py-1"></div>
+
+    <div>STARK HUD // <span style="color: var(--cyan);">GEMINI-4-ARGON.HTML</span></div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // ЧАСТЬ 1: ЛОГИКА СТАНДАРТНОГО КОКПИТА (ЯДРО, ЧАТ, ЛОГИ, ТЕЛЕМЕТРИЯ, TTS)
+    // =========================================================================
+    const canvas = document.getElementById('visualizerCanvas');
+    const ctx = canvas.getContext('2d');
+    const chatStream = document.getElementById('chatStream');
+    const chatContainer = document.getElementById('chatContainer');
+    const liveCaption = document.getElementById('liveCaption');
+    const coreStateLabel = document.getElementById('coreStateLabel');
+    const topStatusText = document.getElementById('topStatusText');
+    const kernelLog = document.getElementById('kernelLog');
+    const micStatusLabel = document.getElementById('micStatusLabel');
+
+    let currentState = 'speaking';
+    let ttsEnabled = true;
+    let phase = 0;
+    let isListeningMic = false;
+    let recognition = null;
+
+    const stateConfig = {
+      listening: { color: '#00ff9d', label: 'LISTENING // МИКРОФОН', topText: 'ОЖИДАНИЕ ГОЛОСОВОЙ КОМАНДЫ', waveSpeed: 0.09, waveAmp: 22 },
+      thinking:  { color: '#ffaa00', label: 'ANALYZING // НЕЙРОСЕТЬ', topText: 'ВЫЧИСЛЕНИЕ ОТВЕТА...',      waveSpeed: 0.16, waveAmp: 14 },
+      speaking:  { color: '#00f0ff', label: 'ONLINE // SPEAKING',    topText: 'НЕЙРОЯДРО АКТИВНО',         waveSpeed: 0.11, waveAmp: 25 },
+      alert:     { color: '#ff3355', label: 'ALERT // DEFCON-2',     topText: 'ПОВЫШЕННАЯ ГОТОВНОСТЬ',     waveSpeed: 0.22, waveAmp: 30 }
+    };
+
+    function renderVisualizer() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const baseRadius = 86;
+      const bars = 64;
+      const cfg = stateConfig[currentState];
+      phase += cfg.waveSpeed;
+
+      for (let i = 0; i < bars; i++) {
+        const angle = (i / bars) * Math.PI * 2;
+        const noise = Math.sin(i * 0.45 + phase) * Math.cos(i * 0.2 - phase * 0.7) * cfg.waveAmp;
+        const barHeight = Math.max(4, Math.abs(noise) + (currentState === 'speaking' ? 7 : 3));
+
+        const x1 = centerX + Math.cos(angle) * baseRadius;
+        const y1 = centerY + Math.sin(angle) * baseRadius;
+        const x2 = centerX + Math.cos(angle) * (baseRadius + barHeight);
+        const y2 = centerY + Math.sin(angle) * (baseRadius + barHeight);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = cfg.color;
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = cfg.color;
+        ctx.stroke();
+      }
+      requestAnimationFrame(renderVisualizer);
+    }
+    renderVisualizer();
+
+    function setAssistantState(state) {
+      currentState = state;
+      document.body.setAttribute('data-state', state);
+      const cfg = stateConfig[state];
+      coreStateLabel.textContent = cfg.label;
+      topStatusText.textContent = cfg.topText;
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === state);
+      });
+    }
+
+    function addKernelLog(text) {
+      const now = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `<span class="log-time">[${now}]</span><span>${text}</span>`;
+      kernelLog.prepend(div);
+    }
+
+    function speakText(text) {
+      if (!ttsEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ru-RU';
+      utterance.rate = 1.05;
+      utterance.pitch = 0.92;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleTTS() {
+      ttsEnabled = !ttsEnabled;
+      const btn = document.getElementById('ttsToggleBtn');
+      btn.textContent = ttsEnabled ? 'ВКЛ' : 'ВЫКЛ';
+      btn.style.color = ttsEnabled ? 'var(--cyan)' : 'var(--text-muted)';
+      if (!ttsEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    }
+
+    function appendMessage(role, htmlOrText, isMarkdown = false) {
+      const now = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const msg = document.createElement('div');
+      msg.className = `msg ${role}`;
+      const bodyContent = isMarkdown ? `<div class="md-prose">${marked.parse(htmlOrText)}</div>` : `<div>${htmlOrText}</div>`;
+      msg.innerHTML = `
+        <div class="msg-meta">
+          <span>${role === 'jarvis' ? 'J.A.R.V.I.S.' : 'PEREZ19 // ОПЕРАТОР'}</span>
+          <span>${now}</span>
+        </div>
+        ${bodyContent}
+      `;
+      chatStream.appendChild(msg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function runCommand(commandText) {
+      appendMessage('user', commandText);
+      addKernelLog(`Команда: "${commandText}"`);
+      setAssistantState('thinking');
+      liveCaption.textContent = '«Анализирую запрос и готовлю визуализацию...»';
+
+      setTimeout(() => {
+        const q = commandText.toLowerCase();
+        let replyText = '';
+        let state = 'speaking';
+
+        if (q.includes('график') || q.includes('чарт') || q.includes('аналитик')) {
+          spawnChartWindow();
+          replyText = 'Построил интерактивный график по найденным данным в отдельном плавающем окне. Вы можете переключать Line, Bar и Radar.';
+        } else if (q.includes('таблиц') || q.includes('узл') || q.includes('список')) {
+          spawnTableWindow();
+          replyText = 'Вывел интерактивную таблицу найденных объектов с живой фильтрацией и добавлением строк.';
+        } else if (q.includes('markdown') || q.includes('маркдаун') || q.includes('отчет') || q.includes('код')) {
+          spawnMarkdownWindow();
+          replyText = 'Сформировал подробный Markdown-отчет с таблицей и примером кода. Вы можете редактировать его прямо в окне.';
+        } else if (q.includes('форм') || q.includes('параметр') || q.includes('ввод')) {
+          spawnFormWindow();
+          replyText = 'Открыл диалоговое окно с формой ввода параметров задачи.';
+        } else if (q.includes('картинк') || q.includes('фото') || q.includes('изображ') || q.includes('галере') || q.includes('схем')) {
+          spawnGalleryWindow();
+          replyText = 'Открыл визуальную галерею изображений и рендеров. Вы можете увеличивать кадры или добавлять свои картинки по ссылке и с диска.';
+        } else if (q.includes('видео') || q.includes('ютуб') || q.includes('youtube') || q.includes('плеер') || q.includes('трансляц')) {
+          spawnVideoWindow();
+          replyText = 'Запустил мультимедийный модуль: доступны YouTube-плеер, прямой HTML5 видеопоток и симуляция камеры дрона.';
+        } else if (q.includes('тревог') || q.includes('боевой') || q.includes('готовност')) {
+          state = 'alert';
+          replyText = 'Внимание! Включён протокол повышенной готовности. Внешние шлюзы заблокированы.';
+        } else {
+          replyText = `Команда «${commandText}» выполнена. Все показатели в норме, сэр.`;
+        }
+
+        setAssistantState(state);
+        liveCaption.textContent = `«${replyText}»`;
+        appendMessage('jarvis', replyText, true);
+        addKernelLog('Ответ и UI-артефакт синхронизированы');
+        speakText(replyText);
+      }, 500);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('cmdInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      runCommand(text);
+    }
+
+    function toggleModule(card, name) {
+      card.classList.toggle('active');
+      const isActive = card.classList.contains('active');
+      card.querySelector('.module-state').textContent = isActive ? 'АКТИВЕН' : 'ОЖИДАНИЕ';
+      addKernelLog(`Модуль [${name}] -> ${isActive ? 'ВКЛЮЧЕН' : 'ОТКЛЮЧЕН'}`);
+    }
+
+    // Распознавание речи
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'ru-RU';
+      recognition.onstart = () => {
+        isListeningMic = true;
+        micStatusLabel.textContent = 'СЛУШАЮ...';
+        micStatusLabel.style.color = '#00ff9d';
+        setAssistantState('listening');
+        liveCaption.textContent = '«Слушаю вас, сэр. Произнесите команду...»';
+      };
+      recognition.onresult = (event) => {
+        runCommand(event.results[0][0].transcript);
+      };
+      recognition.onend = () => {
+        isListeningMic = false;
+        micStatusLabel.textContent = 'ГОТОВ';
+        micStatusLabel.style.color = 'var(--cyan)';
+      };
+    }
+
+    function toggleVoiceRecognition() {
+      if (!recognition) {
+        setAssistantState('listening');
+        liveCaption.textContent = '«Голосовой канал активен. Выберите триггер слева или введите запрос справа.»';
+        document.getElementById('cmdInput').focus();
+        return;
+      }
+      if (isListeningMic) recognition.stop();
+      else recognition.start();
+    }
+
+    document.getElementById('coreTrigger').addEventListener('click', toggleVoiceRecognition);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        toggleVoiceRecognition();
+      }
+    });
+
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('clockTime').textContent = now.toTimeString().split(' ')[0];
+      const cpu = Math.floor(18 + Math.random() * 22);
+      const latency = Math.floor(32 + Math.random() * 18);
+      document.getElementById('cpuVal').textContent = `${cpu}%`;
+      document.getElementById('cpuBar').style.width = `${cpu}%`;
+      document.getElementById('latencyVal').textContent = `${latency} мс`;
+      document.getElementById('latencyBar').style.width = `${latency}%`;
+    }, 2000);
+
+    // =========================================================================
+    // ЧАСТЬ 2: ПЛАВАЮЩИЕ ОКНА И ДАШБОРДЫ (ГРАФИКИ, ТАБЛИЦЫ, MARKDOWN, ФОРМЫ)
+    // =========================================================================
+    let zWin = 300;
+    let dragEl = null;
+    let dragOffX = 0;
+    let dragOffY = 0;
+    const chartsMap = {};
+
+    function createFloatingWindow({ id, title, badge = 'WIDGET', top = 60, left = 360, width = 500, height = 370, html }) {
+      const existing = document.getElementById(id);
+      if (existing) {
+        existing.classList.remove('minimized');
+        focusWin(existing);
+        return existing;
+      }
+
+      const layer = document.getElementById('floatingWorkspace');
+      const win = document.createElement('section');
+      win.id = id;
+      win.dataset.title = title;
+      win.className = 'jarvis-win active-win';
+      win.style.top = `${top}px`;
+      win.style.left = `${left}px`;
+      win.style.width = `${width}px`;
+      win.style.height = `${height}px`;
+      win.style.zIndex = ++zWin;
+      win.onmousedown = () => focusWin(win);
+
+      win.innerHTML = `
+        <div class="h-9 px-3 bg-gradient-to-r from-cyan-500/20 via-blue-500/10 to-transparent border-b border-cyan-500/30 flex items-center justify-between cursor-grab active:cursor-grabbing shrink-0" onmousedown="startWinDrag(event, this.parentElement)">
+          <div class="flex items-center gap-2 truncate">
+            <span class="font-display text-xs tracking-wider text-cyan-300 uppercase truncate">${title}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/30 text-cyan-200">${badge}</span>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="minWin('${id}')" class="w-5 h-5 rounded border border-cyan-500/30 bg-slate-900 hover:bg-cyan-500/20 text-xs font-mono text-slate-300 grid place-items-center" title="Свернуть в нижний док">_</button>
+            <button onclick="maxWin('${id}')" class="w-5 h-5 rounded border border-cyan-500/30 bg-slate-900 hover:bg-cyan-500/20 text-xs font-mono text-slate-300 grid place-items-center" title="Развернуть">□</button>
+            <button onclick="closeFloatingWin('${id}')" class="w-5 h-5 rounded border border-rose-500/40 bg-slate-900 hover:bg-rose-500 hover:text-white text-xs font-mono text-slate-300 grid place-items-center" title="Закрыть">✕</button>
+          </div>
+        </div>
+        <div class="win-body-inner flex-1 p-4 overflow-y-auto select-text space-y-3">
+          ${html}
+        </div>
+      `;
+
+      layer.appendChild(win);
+      focusWin(win);
+      addKernelLog(`Открыто окно: [${title}]`);
+      return win;
+    }
+
+    function focusWin(win) {
+      document.querySelectorAll('.jarvis-win').forEach(w => w.classList.remove('active-win'));
+      win.classList.add('active-win');
+      win.style.zIndex = ++zWin;
+      renderWindowDock();
+    }
+
+    function startWinDrag(e, win) {
+      if (e.target.closest('button') || win.classList.contains('maximized')) return;
+      focusWin(win);
+      dragEl = win;
+      const r = win.getBoundingClientRect();
+      dragOffX = e.clientX - r.left;
+      dragOffY = e.clientY - r.top;
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragEl) return;
+      const box = document.getElementById('floatingWorkspace').getBoundingClientRect();
+      const x = Math.max(0, Math.min(e.clientX - box.left - dragOffX, box.width - 140));
+      const y = Math.max(0, Math.min(e.clientY - box.top - dragOffY, box.height - 42));
+      dragEl.style.left = `${x}px`;
+      dragEl.style.top = `${y}px`;
+    });
+
+    window.addEventListener('mouseup', () => { dragEl = null; });
+
+    function minWin(id) {
+      const w = document.getElementById(id);
+      if (w) { w.classList.toggle('minimized'); renderWindowDock(); }
+    }
+
+    function maxWin(id) {
+      const w = document.getElementById(id);
+      if (w) { w.classList.toggle('maximized'); focusWin(w); }
+    }
+
+    function closeFloatingWin(id) {
+      if (chartsMap[id]) { chartsMap[id].destroy(); delete chartsMap[id]; }
+      const w = document.getElementById(id);
+      if (w) { w.remove(); renderWindowDock(); }
+    }
+
+    function renderWindowDock() {
+      const dock = document.getElementById('windowDock');
+      dock.innerHTML = '';
+      document.querySelectorAll('.jarvis-win').forEach(w => {
+        const isMin = w.classList.contains('minimized');
+        const isAct = w.classList.contains('active-win') && !isMin;
+        const btn = document.createElement('button');
+        btn.className = `px-2.5 py-1 rounded text-[11px] font-mono border transition flex items-center gap-1 ${
+          isAct ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-slate-900 border-cyan-500/25 text-slate-400 hover:text-white'
+        }`;
+        btn.innerHTML = `<span>${w.dataset.title}</span>${isMin ? '<span class="text-amber-400">(свернуто)</span>' : ''}`;
+        btn.onclick = () => { w.classList.remove('minimized'); focusWin(w); };
+        dock.appendChild(btn);
+      });
+    }
+
+    function tileFloatingWindows() {
+      const wins = Array.from(document.querySelectorAll('.jarvis-win:not(.minimized)'));
+      if (!wins.length) return;
+      const box = document.getElementById('floatingWorkspace');
+      const W = box.clientWidth;
+      const H = box.clientHeight;
+      const cols = Math.ceil(Math.sqrt(wins.length));
+      const rows = Math.ceil(wins.length / cols);
+      const gap = 14;
+      const cw = (W - gap * (cols + 1)) / cols;
+      const ch = (H - gap * (rows + 1)) / rows;
+
+      wins.forEach((w, idx) => {
+        w.classList.remove('maximized');
+        const c = idx % cols;
+        const r = Math.floor(idx / cols);
+        w.style.left = `${gap + c * (cw + gap)}px`;
+        w.style.top = `${gap + r * (ch + gap)}px`;
+        w.style.width = `${cw}px`;
+        w.style.height = `${ch}px`;
+      });
+    }
+
+    // 1. ОКНО ГРАФИКОВ (CHART.JS)
+    function spawnChartWindow() {
+      const html = `
+        <div class="flex items-center justify-between gap-2 pb-2 border-b border-cyan-500/20">
+          <span class="text-xs font-mono text-cyan-300">ВИЗУАЛИЗАЦИЯ НАЙДЕННЫХ ДАННЫХ (CHART.JS)</span>
+          <div class="flex gap-1">
+            <button onclick="renderChartInWin('line')" class="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-400 hover:text-slate-950 text-[11px] font-mono text-cyan-200 border border-cyan-400/40">Line</button>
+            <button onclick="renderChartInWin('bar')" class="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-400 hover:text-slate-950 text-[11px] font-mono text-cyan-200 border border-cyan-400/40">Bar</button>
+            <button onclick="renderChartInWin('radar')" class="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-400 hover:text-slate-950 text-[11px] font-mono text-cyan-200 border border-cyan-400/40">Radar</button>
+            <button onclick="randomizeWinChart()" class="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-400 hover:text-slate-950 text-[11px] font-mono text-emerald-200 border border-emerald-400/40">↻ Данные</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="p-2 rounded bg-slate-900/90 border border-cyan-500/25">
+            <div class="text-[10px] font-mono text-slate-400">ОБРАБОТАНО</div>
+            <div class="text-base font-display font-bold text-cyan-300">14,890</div>
+          </div>
+          <div class="p-2 rounded bg-slate-900/90 border border-cyan-500/25">
+            <div class="text-[10px] font-mono text-slate-400">ОТКЛИК</div>
+            <div class="text-base font-display font-bold text-emerald-300">39 мс</div>
+          </div>
+          <div class="p-2 rounded bg-slate-900/90 border border-cyan-500/25">
+            <div class="text-[10px] font-mono text-slate-400">ТОЧНОСТЬ</div>
+            <div class="text-base font-display font-bold text-amber-300">99.6%</div>
+          </div>
+        </div>
+        <div class="relative h-52 w-full bg-slate-950/70 rounded-lg p-2 border border-cyan-500/20">
+          <canvas id="floatingChartCanvas"></canvas>
+        </div>
+      `;
+
+      createFloatingWindow({
+        id: 'win-chart',
+        title: '📈 Дашборд Графиков',
+        badge: 'CHART.JS',
+        top: 30,
+        left: 355,
+        width: 520,
+        height: 390,
+        html
+      });
+      renderChartInWin('line');
+    }
+
+    function renderChartInWin(type = 'line') {
+      const c = document.getElementById('floatingChartCanvas');
+      if (!c) return;
+      if (chartsMap['win-chart']) chartsMap['win-chart'].destroy();
+
+      chartsMap['win-chart'] = new Chart(c, {
+        type,
+        data: {
+          labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', 'Сейчас'],
+          datasets: [
+            {
+              label: 'Поток данных агента (MB/s)',
+              data: [34, 52, 45, 84, 69, 96, 115],
+              borderColor: '#00f0ff',
+              backgroundColor: 'rgba(0, 240, 255, 0.2)',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: true
+            },
+            {
+              label: 'Нагрузка Neural Engine (%)',
+              data: [22, 31, 38, 55, 49, 64, 59],
+              borderColor: '#00ff9d',
+              backgroundColor: 'rgba(0, 255, 157, 0.15)',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 11 } } } },
+          scales: type === 'radar' ? {
+            r: { grid: { color: 'rgba(0,240,255,0.15)' }, angleLines: { color: 'rgba(0,240,255,0.15)' }, pointLabels: { color: '#94a3b8' }, ticks: { display: false } }
+          } : {
+            x: { ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(0,240,255,0.08)' } },
+            y: { ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(0,240,255,0.08)' } }
+          }
+        }
+      });
+    }
+
+    function randomizeWinChart() {
+      const ch = chartsMap['win-chart'];
+      if (!ch) return;
+      ch.data.datasets.forEach(d => { d.data = d.data.map(() => Math.floor(20 + Math.random() * 95)); });
+      ch.update();
+    }
+
+    // 2. ОКНО ИНТЕРАКТИВНОЙ ТАБЛИЦЫ (TAILWIND + ПОИСК)
+    function spawnTableWindow() {
+      const html = `
+        <div class="flex items-center justify-between gap-2">
+          <input type="text" placeholder="🔍 Поиск по таблице (узел, стек, статус)..." oninput="filterWinTable(this)" class="flex-1 bg-slate-950 border border-cyan-500/35 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400" />
+          <button onclick="addWinTableRow()" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-400 hover:text-slate-950 border border-emerald-400/50 font-mono text-xs text-emerald-300">＋ Строка</button>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-cyan-500/25 bg-slate-950/70">
+          <table class="w-full text-left border-collapse font-mono text-xs" id="winDataTable">
+            <thead>
+              <tr class="bg-cyan-500/15 text-cyan-300 border-b border-cyan-500/25">
+                <th class="py-2 px-3">Сервис / Узел</th>
+                <th class="py-2 px-3">Стек</th>
+                <th class="py-2 px-3">Пинг</th>
+                <th class="py-2 px-3">Статус</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-cyan-500/10 text-slate-200">
+              <tr class="hover:bg-cyan-500/10"><td class="py-2 px-3 font-semibold text-white">Auth-Gateway-01</td><td class="py-2 px-3 text-slate-400">Rust / gRPC</td><td class="py-2 px-3 text-cyan-300">11 ms</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px]">ONLINE</span></td></tr>
+              <tr class="hover:bg-cyan-500/10"><td class="py-2 px-3 font-semibold text-white">Vector-Memory-DB</td><td class="py-2 px-3 text-slate-400">Qdrant / CUDA</td><td class="py-2 px-3 text-cyan-300">24 ms</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px]">INDEXED</span></td></tr>
+              <tr class="hover:bg-cyan-500/10"><td class="py-2 px-3 font-semibold text-white">Voice-Synth-TTS</td><td class="py-2 px-3 text-slate-400">Python / ONNX</td><td class="py-2 px-3 text-amber-300">58 ms</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">LOAD 74%</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      createFloatingWindow({ id: 'win-table', title: '📋 Таблица Данных Агента', badge: 'DATA-GRID', top: 55, left: 410, width: 500, height: 310, html });
+    }
+
+    function filterWinTable(input) {
+      const q = input.value.toLowerCase();
+      input.closest('.win-body-inner').querySelectorAll('tbody tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    function addWinTableRow() {
+      const tb = document.querySelector('#winDataTable tbody');
+      if (!tb) return;
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-cyan-500/10';
+      tr.innerHTML = `<td class="py-2 px-3 font-semibold text-white">Agent-Worker-${Math.floor(10+Math.random()*89)}</td><td class="py-2 px-3 text-slate-400">TypeScript</td><td class="py-2 px-3 text-cyan-300">${Math.floor(10+Math.random()*35)} ms</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[10px]">NEW</span></td>`;
+      tb.prepend(tr);
+    }
+
+    // 3. ОКНО MARKDOWN ОТЧЕТА (MARKED.JS)
+    const sampleMdReport = `# Аналитический Отчет Агента
+> **Источник:** Автоматический сбор метрик \`J.A.R.V.I.S. Core\`
+
+## Сводная таблица показателей
+| Модуль | Статус | Пропускная способность |
+| :--- | :--- | :--- |
+| Голосовое ядро | \`ACTIVE\` | 99.8% |
+| Генератор графиков | \`READY\` | Chart.js v4 |
+| Верстка окон | \`TAILWIND\` | Динамическая |
+
+## Пример вызова из кода агента
+\`\`\`javascript
+jarvis.openArtifact({
+  type: "markdown",
+  title: "Отчет по безопасности",
+  verified: true
+});
+\`\`\``;
+
+    function spawnMarkdownWindow() {
+      const html = `
+        <div class="flex items-center justify-between pb-2 border-b border-cyan-500/20">
+          <span class="text-xs font-mono text-blue-300">MARKDOWN РЕНДЕРЕР (MARKED.JS)</span>
+          <button onclick="document.getElementById('mdEditorBox').classList.toggle('hidden')" class="px-2.5 py-0.5 rounded bg-blue-500/20 hover:bg-blue-400 hover:text-slate-950 text-[11px] font-mono text-blue-200 border border-blue-400/40">✏️ Редактировать MD</button>
+        </div>
+        <textarea id="mdEditorBox" oninput="document.getElementById('mdPreviewBox').innerHTML = marked.parse(this.value)" class="hidden w-full h-32 bg-slate-950 border border-cyan-500/40 rounded-lg p-2 font-mono text-xs text-cyan-200 focus:outline-none">${sampleMdReport}</textarea>
+        <div id="mdPreviewBox" class="md-prose">${marked.parse(sampleMdReport)}</div>
+      `;
+      createFloatingWindow({ id: 'win-md', title: '📄 Markdown Отчет', badge: 'MARKDOWN', top: 80, left: 450, width: 500, height: 370, html });
+    }
+
+    // 4. ОКНО ДИНАМИЧЕСКОЙ ФОРМЫ ВВОДА ПАРАМЕТРОВ
+    function spawnFormWindow() {
+      const html = `
+        <form onsubmit="submitAgentForm(event)" class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-mono text-[10px] text-slate-400 uppercase mb-1">Название задачи / Дашборда</label>
+              <input name="title" type="text" value="Мониторинг API кластера" required class="w-full bg-slate-950 border border-cyan-500/35 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-cyan-400" />
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] text-slate-400 uppercase mb-1">Режим обработки</label>
+              <select name="mode" class="w-full bg-slate-950 border border-cyan-500/35 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-cyan-400">
+                <option value="Realtime Stream">Realtime Stream</option>
+                <option value="Deep Batch Analysis">Deep Batch Analysis</option>
+                <option value="Security Audit">Security Audit</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between font-mono text-[10px] text-slate-400 uppercase mb-1">
+              <span>Приоритет вычислительного пула</span>
+              <span id="poolRangeVal" class="text-cyan-300 font-bold">80%</span>
+            </div>
+            <input name="power" type="range" min="10" max="100" value="80" oninput="document.getElementById('poolRangeVal').textContent=this.value+'%'" class="w-full accent-cyan-400 cursor-pointer" />
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-slate-400 uppercase mb-1">Дополнительные параметры (JSON / Заметка)</label>
+            <textarea name="notes" rows="2" placeholder="Введите фильтр, URL или параметры..." class="w-full bg-slate-950 border border-cyan-500/35 rounded-lg p-2 font-mono text-xs text-cyan-200 focus:outline-none"></textarea>
+          </div>
+          <button type="submit" class="w-full py-2 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-display font-bold text-xs tracking-wider uppercase transition">
+            🚀 Передать параметры в J.A.R.V.I.S.
+          </button>
+        </form>
+      `;
+      createFloatingWindow({ id: 'win-form', title: '🎛 Форма Ввода Данных', badge: 'FORM-UI', top: 105, left: 480, width: 470, height: 350, html });
+    }
+
+    function submitAgentForm(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const summary = `Получены данные из формы: **${fd.get('title')}** | Режим: \`${fd.get('mode')}\` | Мощность: **${fd.get('power')}%** ${fd.get('notes') ? `\n\n> Примечание: ${fd.get('notes')}` : ''}`;
+      appendMessage('jarvis', summary, true);
+      addKernelLog(`Форма отправлена: ${fd.get('title')}`);
+      liveCaption.textContent = `«Параметры задачи "${fd.get('title')}" приняты в обработку, сэр.»`;
+    }
+
+    // Модалка конструктора
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+    }
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    }
+
+    function spawnCustomFromModal() {
+      const title = document.getElementById('customWinTitle').value.trim() || 'Окно агента';
+      const fmt = document.getElementById('customWinFormat').value;
+      const raw = document.getElementById('customWinCode').value;
+      const html = fmt === 'markdown' ? `<div class="md-prose">${marked.parse(raw)}</div>` : raw;
+
+      createFloatingWindow({
+        id: 'win-custom-' + Date.now(),
+        title,
+        badge: fmt.toUpperCase(),
+        top: 90,
+        left: 390,
+        width: 490,
+        height: 340,
+        html
+      });
+      closeModal('builderModal');
+    }
+
+    // 5. ОКНО ГАЛЕРЕИ КАРТИНОК, СХЕМ И COMPUTER VISION (LIGHTBOX + ДОБАВЛЕНИЕ URL/ФАЙЛА)
+    const defaultGalleryImages = [
+      {
+        title: 'Схема нейроядра Mk-IV',
+        tag: 'BLUEPRINT // 4K',
+        url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80'
+      },
+      {
+        title: 'Серверный кластер J.A.R.V.I.S.',
+        tag: 'INFRASTRUCTURE',
+        url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=900&q=80'
+      },
+      {
+        title: 'Спутниковая телеметрия орбиты',
+        tag: 'SAT-VISION',
+        url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=900&q=80'
+      },
+      {
+        title: 'Анализ кибер-топологии сети',
+        tag: 'NET-SCAN',
+        url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=80'
+      }
+    ];
+
+    function spawnGalleryWindow() {
+      const cardsHtml = defaultGalleryImages.map(item => `
+        <div class="group relative rounded-lg overflow-hidden border border-cyan-500/30 bg-slate-950 cursor-pointer" onclick="inspectImage('${item.url}', '${item.title}')">
+          <img src="${item.url}" alt="${item.title}" class="w-full h-28 object-cover group-hover:scale-105 transition duration-300" />
+          <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/85 border border-cyan-400/40 font-mono text-[9px] text-cyan-300">
+            ${item.tag}
+          </div>
+          <div class="p-2 bg-slate-950/90 border-t border-cyan-500/20 flex items-center justify-between">
+            <span class="text-xs font-medium text-white truncate">${item.title}</span>
+            <span class="text-[10px] font-mono text-cyan-400">🔍 Zoom</span>
+          </div>
+        </div>
+      `).join('');
+
+      const html = `
+        <!-- Панель добавления своей картинки по URL или с компьютера -->
+        <div class="flex items-center gap-2 pb-2 border-b border-cyan-500/20">
+          <input
+            id="imgUrlInput"
+            type="text"
+            placeholder="Вставьте URL картинки или скриншота..."
+            class="flex-1 bg-slate-950 border border-cyan-500/35 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400"
+          />
+          <button onclick="addCustomImageByUrl()" class="px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-400 hover:text-slate-950 border border-cyan-400/50 font-mono text-xs text-cyan-200 transition shrink-0">
+            ＋ По ссылке
+          </button>
+          <label class="px-2.5 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-400 hover:text-slate-950 border border-purple-400/50 font-mono text-xs text-purple-200 transition cursor-pointer shrink-0">
+            📁 Файл
+            <input type="file" accept="image/*" class="hidden" onchange="addCustomImageFile(event)" />
+          </label>
+        </div>
+
+        <!-- Режим детального просмотра выбранной картинки внутри окна -->
+        <div id="galleryPreviewBanner" class="hidden relative rounded-lg overflow-hidden border border-cyan-400 bg-slate-950 p-2 space-y-2">
+          <div class="flex items-center justify-between">
+            <span id="galleryPreviewTitle" class="font-display text-xs text-cyan-300 uppercase"></span>
+            <button onclick="document.getElementById('galleryPreviewBanner').classList.add('hidden')" class="text-xs font-mono text-rose-400 hover:text-white">✕ Свернуть превью</button>
+          </div>
+          <img id="galleryPreviewImg" src="" class="w-full max-h-56 object-contain rounded bg-black/60" />
+        </div>
+
+        <!-- Сетка картинок -->
+        <div id="galleryGrid" class="grid grid-cols-2 gap-2.5">
+          ${cardsHtml}
+        </div>
+      `;
+
+      createFloatingWindow({
+        id: 'win-gallery',
+        title: '🖼 Визуальные Данные и Картинки',
+        badge: 'VISION-IMG',
+        top: 40,
+        left: 340,
+        width: 540,
+        height: 430,
+        html
+      });
+    }
+
+    function inspectImage(url, title) {
+      const banner = document.getElementById('galleryPreviewBanner');
+      const img = document.getElementById('galleryPreviewImg');
+      const cap = document.getElementById('galleryPreviewTitle');
+      if (banner && img && cap) {
+        img.src = url;
+        cap.textContent = title;
+        banner.classList.remove('hidden');
+      }
+    }
+
+    function appendCardToGallery(url, title, tag = 'USER-IMG') {
+      const grid = document.getElementById('galleryGrid');
+      if (!grid) return;
+      const div = document.createElement('div');
+      div.className = 'group relative rounded-lg overflow-hidden border border-cyan-500/30 bg-slate-950 cursor-pointer';
+      div.onclick = () => inspectImage(url, title);
+      div.innerHTML = `
+        <img src="${url}" alt="${title}" class="w-full h-28 object-cover group-hover:scale-105 transition duration-300" />
+        <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/85 border border-cyan-400/40 font-mono text-[9px] text-emerald-300">${tag}</div>
+        <div class="p-2 bg-slate-950/90 border-t border-cyan-500/20 flex items-center justify-between">
+          <span class="text-xs font-medium text-white truncate">${title}</span>
+          <span class="text-[10px] font-mono text-cyan-400">🔍 Zoom</span>
+        </div>
+      `;
+      grid.prepend(div);
+      inspectImage(url, title);
+    }
+
+    function addCustomImageByUrl() {
+      const input = document.getElementById('imgUrlInput');
+      if (!input || !input.value.trim()) return;
+      appendCardToGallery(input.value.trim(), 'Изображение по ссылке', 'EXTERNAL-URL');
+      input.value = '';
+    }
+
+    function addCustomImageFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        appendCardToGallery(ev.target.result, file.name, 'LOCAL-FILE');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 6. ОКНО ВИДЕО И YOUTUBE-ПЛЕЕРА (YOUTUBE EMBED + HTML5 MP4 + КАМЕРА ДРОНА)
+    function spawnVideoWindow() {
+      const html = `
+        <!-- Переключатель источников видео + Поле вставки любой ссылки YouTube или MP4 -->
+        <div class="flex flex-col gap-2 pb-2 border-b border-cyan-500/20">
+          <div class="flex items-center justify-between gap-1.5 flex-wrap">
+            <div class="flex gap-1">
+              <button onclick="switchVideoSource('youtube', 'jfKfPfyJRdk')" class="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500 hover:text-white border border-rose-400/50 font-mono text-[11px] text-rose-200 transition">
+                ▶ YouTube: Sci-Fi Beats
+              </button>
+              <button onclick="switchVideoSource('youtube', '21X5lGlDOfg')" class="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500 hover:text-white border border-rose-400/50 font-mono text-[11px] text-rose-200 transition">
+                🛰 YouTube: NASA Live
+              </button>
+              <button onclick="switchVideoSource('mp4', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4')" class="px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-400 hover:text-slate-950 border border-cyan-400/50 font-mono text-[11px] text-cyan-200 transition">
+                🎞 HTML5 MP4 Плеер
+              </button>
+            </div>
+            <span class="text-[10px] font-mono text-emerald-400">● STREAM HD</span>
+          </div>
+
+          <div class="flex gap-1.5">
+            <input
+              id="customVideoUrl"
+              type="text"
+              placeholder="Вставьте ссылку на YouTube (watch?v=... / youtu.be/...) или прямой .mp4/.webm..."
+              class="flex-1 bg-slate-950 border border-cyan-500/35 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400"
+            />
+            <button onclick="loadCustomVideoUrl()" class="px-3 py-1.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-mono text-xs font-bold shrink-0">
+              Запустить ▶
+            </button>
+          </div>
+        </div>
+
+        <!-- Контейнер видеоплеера (16:9) -->
+        <div id="videoStageContainer" class="relative w-full h-60 rounded-lg overflow-hidden border border-cyan-500/30 bg-black">
+          <iframe
+            class="w-full h-full"
+            src="https://www.youtube.com/embed/jfKfPfyJRdk?rel=0"
+            title="J.A.R.V.I.S. YouTube Stream"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <span id="videoStatusCaption">Источник: YouTube Embed API // Готов к воспроизведению</span>
+          <span class="text-cyan-400">Поддержка: YouTube / MP4 / WebM</span>
+        </div>
+      `;
+
+      createFloatingWindow({
+        id: 'win-video',
+        title: '🎬 Видеопоток и YouTube',
+        badge: 'MEDIA-STREAM',
+        top: 65,
+        left: 390,
+        width: 560,
+        height: 430,
+        html
+      });
+    }
+
+    function extractYouTubeId(urlOrId) {
+      const clean = urlOrId.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return clean;
+      const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      const match = clean.match(regExp);
+      return match ? match[1] : null;
+    }
+
+    function switchVideoSource(mode, src) {
+      const stage = document.getElementById('videoStageContainer');
+      const cap = document.getElementById('videoStatusCaption');
+      if (!stage) return;
+
+      if (mode === 'youtube') {
+        stage.innerHTML = `
+          <iframe
+            class="w-full h-full"
+            src="https://www.youtube.com/embed/${src}?autoplay=1&rel=0"
+            title="J.A.R.V.I.S. YouTube Player"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+          ></iframe>
+        `;
+        if (cap) cap.textContent = `Источник: YouTube ID [${src}] // Поток активен`;
+      } else {
+        stage.innerHTML = `
+          <video src="${src}" controls autoplay class="w-full h-full object-contain bg-black"></video>
+        `;
+        if (cap) cap.textContent = `Источник: Прямой HTML5 Видеопоток`;
+      }
+    }
+
+    function loadCustomVideoUrl() {
+      const input = document.getElementById('customVideoUrl');
+      if (!input || !input.value.trim()) return;
+      const val = input.value.trim();
+      const ytId = extractYouTubeId(val);
+
+      if (ytId) {
+        switchVideoSource('youtube', ytId);
+        addKernelLog(`Запущено YouTube видео: ${ytId}`);
+      } else {
+        switchVideoSource('mp4', val);
+        addKernelLog(`Запущен прямой видеопоток: ${val.slice(0, 32)}...`);
+      }
+      input.value = '';
+    }
+  </script>
+</body>
+</html>

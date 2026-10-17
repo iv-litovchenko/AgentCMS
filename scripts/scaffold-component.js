@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Новый топик-компонент в agent-cms-core/components
+ * Новый топик-компонент в 0-ws-core/components
  *
  *   node scripts/scaffold-component.js agent my-agent
  *
- * Поля — awn-system/types/fields/; страницы — awn-system/types/pages/; блоки — awn-system/types/md-blocks/.
+ * Поля — awn-system/types/fields/; hub-узлы — awn-system/types/hubs/; блоки — awn-system/types/md-blocks/.
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");
@@ -45,7 +45,7 @@ if (kind === "field") {
 const repoRoot = path.join(__dirname, "..");
 const folder = KIND_FOLDER[kind];
 const relPath = `${folder}/${slug}`;
-const targetDir = path.join(repoRoot, "workspaces/agent-cms-core/components", folder, slug);
+const targetDir = path.join(repoRoot, "workspaces/0-ws-core/components", folder, slug);
 const schemaDir = path.join(targetDir, "storage", "configuration");
 
 if (fs.existsSync(targetDir)) {

@@ -5,7 +5,7 @@ const workspacePath = z
   .string()
   .min(1)
   .describe(
-    "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or AGENTS.md"
+    "Workspace-relative path, e.g. awn-topics/tema/awn-storage/media/photo.png or AGENTS.md"
   );
 
 const writeMode = z
@@ -115,7 +115,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
   reg(
     "patch_file",
-    "Replace a unique text block in a workspace file (safe edit). old_string must match exactly once unless replaceAll=true. Prefer over write_file for existing files.",
+    "Replace a unique text block in a workspace file. Prefer write_content mode=patch (any placement, expectedHash, works for slot .md). old_string must match exactly once unless replaceAll=true.",
     z.object({
       path: workspacePath,
       old_string: z.string().min(1).describe("Exact text to find in the file"),
@@ -163,7 +163,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
       path: z
         .string()
         .min(1)
-        .describe("Workspace-relative folder path, e.g. awn-container/tema/awn-storage/media"),
+        .describe("Workspace-relative folder path, e.g. awn-topics/tema/awn-storage/media"),
       depth: z.union([z.string(), z.number()]).optional(),
       includeBody: z.boolean().optional(),
       maxBodyChars: z.number().int().min(200).max(20000).optional()

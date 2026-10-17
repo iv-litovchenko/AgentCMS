@@ -1,4 +1,4 @@
-# Agent CMS — глобальные настройки платформы (agent-cms-core)
+# Agent CMS — глобальные настройки платформы (0-ws-core)
 
 awn_settings:
   maintenance-mode: false
@@ -9,12 +9,11 @@ awn_settings:
   ui-show-breadcrumbs: true
   ui-default-sidebar-width: 280
   always-context-platform-readme: true
-  always-context-global-mcp-doc: true
   always-context-global-response-style: true
   always-context-global-rules: true
   always-context-global-markdown-showcase: false
   always-context-md-files: AGENTS.md
-  always-context-ws-folder: awn-shared/context/awn-storage/
+  always-context-ws-folder: awn-topics/0-shared/0-context/awn-storage/
   mcp-mode: standard
   batch-enabled: true
   batch-read-limit: 20
@@ -24,15 +23,20 @@ awn_settings:
   confirm-delete: true
   read-text-max-bytes: 120000
   read-binary-max-bytes: 1500000
+  mcp-response-max-kb: 512
   indexing-ocr-langs: rus+eng
   index-ocr-enabled: false
   index-fulltext-enabled: true
   index-semantic-enabled: true
   index-storage-enabled: true
-  index-links-enabled: true
+  index-links-enabled: false
+  index-entities-enabled: true
+  index-entity-gliner-enabled: true
   index-workspace-id-enabled: true
   index-wsmap-enabled: true
   index-storage-mode: quick
+  index-storage-sqlite-enabled: true
+  index-storage-batch-size: 30
   index-file-extensions:
     - .md
     - .sidecar.md
@@ -51,10 +55,4 @@ awn_settings:
   search-semantic-chunk-overlap: 100
   search-hybrid-semantic-weight: 60
   search-hybrid-fulltext-weight: 40
-  media-cloud-default-provider: google-drive
-  media-cloud-providers:
-    - key: google-drive
-      title: Google Диск
-    - key: yandex-disk
-      title: Яндекс Диск
   auto-retain-facts: false

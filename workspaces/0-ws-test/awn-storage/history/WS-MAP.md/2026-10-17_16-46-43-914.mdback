@@ -1,0 +1,174 @@
+# Карта хранилища (WS-MAP)
+
+Собрано: 2026-10-17T13:45:00.471Z
+Узлов manifest: 165
+
+Лёгкий реестр **всех** `manifest.md` в workspace (обход диска, не меню и не get_topic_map): ID, статус, тип, путь ([Открыть](…) + rel), название (текст), описание. Для записей внутри темы — `read_content_index_toc` по пути темы. Пересборка: sidebar «Карта», pipeline или MCP `refresh_workspace_map`.
+
+| ID | Статус | Тип | Путь | Название | Описание |
+| ---: | --- | --- | --- | --- | --- |
+| 41 | 🟢 Открыта | awn.hub.topic.ws | [Открыть](manifest.md) `.` | [Memory CMS] Песочница и тесты | Описчание |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/artefacts/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/artefacts/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/main/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/main/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/main/razdel-2/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/main/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/notes/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/notes/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/notes/razdel-2/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/notes/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/references/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/references/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/references/razdel-2/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/references/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/scripts/razdel-1/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/scripts/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🔴 Закрыта | awn.hub.topic | [Открыть](aja-test-oblasti-2031/aja-test-temy-2031/manifest.md) `aja-test-oblasti-2031/aja-test-temy-2031/manifest.md` | Ая тест темы 2031 | Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном. |
+| — | 🟡 Черновик | awn.hub.topic.area | [Открыть](aja-test-oblasti-2031/manifest.md) `aja-test-oblasti-2031/manifest.md` | Ая тест области 2031 | Тестовая область Agent CMS для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты путают Хэллоуин и Рождество? — Потому что OCT 31 == DEC 25. |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/artefacts/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/artefacts/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/inbox/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/inbox/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/inbox/razdel-2/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/inbox/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/009/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/009/manifest.md` | 009 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-2/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/notes/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/notes/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/notes/razdel-2/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/notes/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/references/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/references/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/references/razdel-2/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/references/razdel-2/manifest.md` | Раздел 2 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/scripts/razdel-1/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/scripts/razdel-1/manifest.md` | Раздел 1 | — |
+| — | 🔴 Закрыта | awn.hub.topic | [Открыть](aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md) `aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md` | Ая тест темы 2049-2 | Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки. |
+| — | 🟡 Черновик | awn.hub.topic.area | [Открыть](aja-test-oblasti-2049/manifest.md) `aja-test-oblasti-2049/manifest.md` | Ая тест области 2049 | Тестовая область Agent CMS 2049 для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты такие аккуратные? — Потому что в их мире каждая точка с запятой может стать точкой невозврата. |
+| 9005 | — | awn.hub.channel | [Открыть](awn-channels/0-screenshots/manifest.md) `awn-channels/0-screenshots/manifest.md` | Скриншоты | — |
+| 9016 | — | awn.hub.channel | [Открыть](awn-channels/0-telegram/manifest.md) `awn-channels/0-telegram/manifest.md` | Telegram | — |
+| 9015 | — | awn.hub.channel | [Открыть](awn-channels/0-whatsapp/manifest.md) `awn-channels/0-whatsapp/manifest.md` | WhatsApp | — |
+| 9014 | — | awn.hub.channel | [Открыть](awn-channels/0-youtube/manifest.md) `awn-channels/0-youtube/manifest.md` | YouTube | — |
+| 9006 | — | awn.hub.channel | [Открыть](awn-channels/slider/manifest.md) `awn-channels/slider/manifest.md` | Слайдер | — |
+| — | — | awn.hub.topic.ws-system | [Открыть](awn-dashboards/manifest.md) `awn-dashboards/manifest.md` | Дашборды | Кастомные виджеты и раскладки workspace. Виджеты в widgets/, раскладки — в подпапках. |
+| 61 | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/0-contents/0-facts/manifest.md) `awn-databases/0-contents/0-facts/manifest.md` | Банк фактов | Выжимки решений и знаний агента (create_workspace_fact, search_workspace_facts). |
+| — | — | awn.content.record-lite | [Открыть](awn-databases/0-contents/0-glossary/awn-storage/data/manifest.md) `awn-databases/0-contents/0-glossary/awn-storage/data/manifest.md` | Manifest | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/0-contents/0-glossary/manifest.md) `awn-databases/0-contents/0-glossary/manifest.md` | Глоссарий | Термины workspace (create_glossary_term, search_glossary_terms). |
+| 54 | 🟢 Открыта | awn.content.category | [Открыть](awn-databases/0-contents/0-reference/awn-storage/data/54/manifest.md) `awn-databases/0-contents/0-reference/awn-storage/data/54/manifest.md` | 54 | — |
+| 9013 | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/0-contents/0-reference/manifest.md) `awn-databases/0-contents/0-reference/manifest.md` | Справочник | Справочные статьи workspace (create_reference_entry, search_reference_entries). |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/0-contents/manifest.md) `awn-databases/0-contents/manifest.md` | Контент | Группа md-коллекций workspace: банк фактов и глоссарий (MCP create / update / list / search). |
+| — | 🟢 Открыта | awn.hub.database.taxonomy-collection | [Открыть](awn-databases/0-taxonomies/777/manifest.md) `awn-databases/0-taxonomies/777/manifest.md` | 777 | — |
+| — | 🟢 Открыта | awn.hub.database.taxonomy-collection | [Открыть](awn-databases/0-taxonomies/kollektsiya-1-tree/manifest.md) `awn-databases/0-taxonomies/kollektsiya-1-tree/manifest.md` | Коллекция-1-tree | — |
+| — | 🟢 Открыта | awn.hub.database.taxonomy-collection | [Открыть](awn-databases/0-taxonomies/kollektsiya-1/manifest.md) `awn-databases/0-taxonomies/kollektsiya-1/manifest.md` | Коллекция-1 | — |
+| — | 🟢 Открыта | awn.hub.database.taxonomy-collection | [Открыть](awn-databases/0-taxonomies/kollektsiya-2-many-tree/manifest.md) `awn-databases/0-taxonomies/kollektsiya-2-many-tree/manifest.md` | Коллекция-2-many-tree | — |
+| — | 🟢 Открыта | awn.hub.database.taxonomy-collection | [Открыть](awn-databases/0-taxonomies/kollektsiya-2-many/manifest.md) `awn-databases/0-taxonomies/kollektsiya-2-many/manifest.md` | Коллекция-2-many | — |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/0-taxonomies/manifest.md) `awn-databases/0-taxonomies/manifest.md` | Таксономии (справочники) | Встроенная группа CSV-справочников workspace для поля awn-taxonomy. |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/555/manifest.md) `awn-databases/555/manifest.md` | 555 | — |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/888/manifest.md) `awn-databases/888/manifest.md` | 888 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-databases/aaa/aaa/awn-storage/data/%D0%90%D0%A3%D0%B0%D1%83%D1%86%D0%B0%D1%83%D1%86/manifest.md) `awn-databases/aaa/aaa/awn-storage/data/АУауцауц/manifest.md` | АУауцауц | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/aaa/aaa/manifest.md) `awn-databases/aaa/aaa/manifest.md` | ААА | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/aaa/aaa2/manifest.md) `awn-databases/aaa/aaa2/manifest.md` | ААА2 | — |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/aaa/manifest.md) `awn-databases/aaa/manifest.md` | ААА | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/aaa/techt-csv/manifest.md) `awn-databases/aaa/techt-csv/manifest.md` | Течт CSV | — |
+| 20 | — | awn.hub.database.collection | [Открыть](awn-databases/finansy/rashody-csv/manifest.md) `awn-databases/finansy/rashody-csv/manifest.md` | Расходы (таблица) | — |
+| 32 | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/fayly/manifest.md) `awn-databases/gruppa/fayly/manifest.md` | Файлы | — |
+| 9012 | 🟢 Открыта | awn.content.category | [Открыть](awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/32/manifest.md) `awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/32/manifest.md` | 32 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/razdel/998/manifest.md) `awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/razdel/998/manifest.md` | 998 | — |
+| — | — | awn.content.category | [Открыть](awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/razdel/manifest.md) `awn-databases/gruppa/kollektsiya-ierarhiya/awn-storage/data/razdel/manifest.md` | Раздел | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/kollektsiya-ierarhiya/manifest.md) `awn-databases/gruppa/kollektsiya-ierarhiya/manifest.md` | Коллекция иерархия | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/kollektsiya-tssv-fayl/manifest.md) `awn-databases/gruppa/kollektsiya-tssv-fayl/manifest.md` | КОллекция ЦСВ-файл | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/kollektsiya-tssv-fayl1/manifest.md) `awn-databases/gruppa/kollektsiya-tssv-fayl1/manifest.md` | Коллекция ЦСВ-файл1 | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/kollektsiya-tssv/manifest.md) `awn-databases/gruppa/kollektsiya-tssv/manifest.md` | Коллекция ЦСВ | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/gruppa/kollektsiya/manifest.md) `awn-databases/gruppa/kollektsiya/manifest.md` | КОллекция | — |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/gruppa/manifest.md) `awn-databases/gruppa/manifest.md` | Группа | — |
+| — | 🟢 Открыта | awn.hub.database.single | [Открыть](awn-databases/gruppa/odinochka/manifest.md) `awn-databases/gruppa/odinochka/manifest.md` | Одиночка | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/personal-finance/dokhody/manifest.md) `awn-databases/personal-finance/dokhody/manifest.md` | Доходы | Источники дохода и зарплата |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/personal-finance/investicii/manifest.md) `awn-databases/personal-finance/investicii/manifest.md` | Инвестиции | Инвестиционный портфель и активы |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/personal-finance/manifest.md) `awn-databases/personal-finance/manifest.md` | Личные финансы | Управление доходами, расходами, инвестициями и покупками |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/personal-finance/pokupki/manifest.md) `awn-databases/personal-finance/pokupki/manifest.md` | Покупки | План и история покупок |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/personal-finance/raskhody/manifest.md) `awn-databases/personal-finance/raskhody/manifest.md` | Расходы | Ежедневные расходы и траты |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/test-infobloka/manifest.md) `awn-databases/test-infobloka/manifest.md` | Тест инфоблока | Группа для тестирования инфоблоков |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/test-infobloka/test-1/manifest.md) `awn-databases/test-infobloka/test-1/manifest.md` | Тест 1 | Первая тестовая коллекция |
+| — | — | awn.content.category | [Открыть](awn-databases/test-infobloka/test-2/awn-storage/data/razdel-a/manifest.md) `awn-databases/test-infobloka/test-2/awn-storage/data/razdel-a/manifest.md` | Раздел А | — |
+| — | — | awn.content.category | [Открыть](awn-databases/test-infobloka/test-2/awn-storage/data/razdel-b/manifest.md) `awn-databases/test-infobloka/test-2/awn-storage/data/razdel-b/manifest.md` | Раздел Б | — |
+| — | — | awn.content.category | [Открыть](awn-databases/test-infobloka/test-2/awn-storage/data/razdel-d/manifest.md) `awn-databases/test-infobloka/test-2/awn-storage/data/razdel-d/manifest.md` | Раздел Д | — |
+| — | — | awn.content.category | [Открыть](awn-databases/test-infobloka/test-2/awn-storage/data/razdel-g/manifest.md) `awn-databases/test-infobloka/test-2/awn-storage/data/razdel-g/manifest.md` | Раздел Г | — |
+| — | — | awn.content.category | [Открыть](awn-databases/test-infobloka/test-2/awn-storage/data/razdel-v/manifest.md) `awn-databases/test-infobloka/test-2/awn-storage/data/razdel-v/manifest.md` | Раздел В | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/test-infobloka/test-2/manifest.md) `awn-databases/test-infobloka/test-2/manifest.md` | Тест 2 | Вторая тестовая коллекция с поддержкой разделов |
+| — | 🟢 Открыта | awn.hub.database.single | [Открыть](awn-databases/test-infobloka/test-3/manifest.md) `awn-databases/test-infobloka/test-3/manifest.md` | Тест 3 | Одиночка для тестирования |
+| — | 🟢 Открыта | awn.hub.database.group | [Открыть](awn-databases/test22/manifest.md) `awn-databases/test22/manifest.md` | Тест22 | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/test22/prosto-spisok/manifest.md) `awn-databases/test22/prosto-spisok/manifest.md` | Просто список | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-databases/test22/test/awn-storage/data/test/manifest.md) `awn-databases/test22/test/awn-storage/data/test/manifest.md` | Тест | — |
+| — | 🟢 Открыта | awn.hub.database.collection | [Открыть](awn-databases/test22/test/manifest.md) `awn-databases/test22/test/manifest.md` | Тест | — |
+| 92 | 🟢 Открыта | awn.hub.media | [Открыть](awn-media/0-documents/manifest.md) `awn-media/0-documents/manifest.md` | Документы | — |
+| 93 | 🟢 Открыта | awn.hub.media | [Открыть](awn-media/0-market/manifest.md) `awn-media/0-market/manifest.md` | Барахолка | — |
+| 94 | 🟢 Открыта | awn.hub.media | [Открыть](awn-media/0-slider/manifest.md) `awn-media/0-slider/manifest.md` | Слайдер | Кадры для слайдера вдохновения в превью агента (ротация в сайдбаре). |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-media/demo/awn-storage/files/009/manifest.md) `awn-media/demo/awn-storage/files/009/manifest.md` | 009 | — |
+| 9001 | — | awn.hub.media | [Открыть](awn-media/demo/manifest.md) `awn-media/demo/manifest.md` | Demo медиатека | Пример awn-media для тестов UI и API |
+| 69 | — | awn.hub.repository | [Открыть](awn-repositories/444/manifest.md) `awn-repositories/444/manifest.md` | 444 | Кратко: зачем клон, что смотреть |
+| 68 | 🟢 Открыта | awn.hub.repository | [Открыть](awn-repositories/888/manifest.md) `awn-repositories/888/manifest.md` | 888 | — |
+| 77 | 🟢 Открыта | awn.hub.repository | [Открыть](awn-repositories/4444/manifest.md) `awn-repositories/4444/manifest.md` | 4444 | — |
+| 78 | — | awn.hub.repository | [Открыть](awn-repositories/9999/manifest.md) `awn-repositories/9999/manifest.md` | 9999 | Кратко: зачем клон, что смотреть |
+| 79 | 🟢 Открыта | awn.hub.repository | [Открыть](awn-repositories/g8787777/manifest.md) `awn-repositories/g8787777/manifest.md` | г8787777 | — |
+| 80 | — | awn.hub.repository | [Открыть](awn-repositories/mupukpuk/manifest.md) `awn-repositories/mupukpuk/manifest.md` | мупукпук | пкупку |
+| 81 | — | awn.hub.repository | [Открыть](awn-repositories/pupupuk/manifest.md) `awn-repositories/pupupuk/manifest.md` | пупупук | Кратко: зачем клон, что смотреть |
+| 82 | — | awn.hub.repository | [Открыть](awn-repositories/rgrgsh/manifest.md) `awn-repositories/rgrgsh/manifest.md` | ргргш | Кратко: зачем клон, что смотреть |
+| — | — | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/0-agent/manifest.md) `awn-topics/0-agent-kit/0-agent/manifest.md` | Агент | — |
+| — | — | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/0-devices/manifest.md) `awn-topics/0-agent-kit/0-devices/manifest.md` | Управление ПК, устройствами, различный софт | — |
+| — | — | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/0-user/manifest.md) `awn-topics/0-agent-kit/0-user/manifest.md` | Пользователь | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/0-agent-kit/444/555/manifest.md) `awn-topics/0-agent-kit/444/555/manifest.md` | 555 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/0-agent-kit/444/manifest.md) `awn-topics/0-agent-kit/444/manifest.md` | 444 | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md) `awn-topics/0-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md` | ierarhi-3 н | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/0-agent-kit/ierarhi-1-o/manifest.md) `awn-topics/0-agent-kit/ierarhi-1-o/manifest.md` | ierarhi-1-о | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/manifest.md) `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/manifest.md` | ierarhi-2 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/0-agent-kit/ierarhi-12/manifest.md) `awn-topics/0-agent-kit/ierarhi-12/manifest.md` | ierarhi-12 | — |
+| — | 🟢 Открыта | awn.hub.topic.section | [Открыть](awn-topics/0-agent-kit/manifest.md) `awn-topics/0-agent-kit/manifest.md` | Служебные темы и компоненты | — |
+| — | — | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/real-world-and-space/manifest.md) `awn-topics/0-agent-kit/real-world-and-space/manifest.md` | Объекты реального мира, места и пространства | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/0-agent-kit/test/manifest.md) `awn-topics/0-agent-kit/test/manifest.md` | Тест | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/0-shared/0-downloads/manifest.md) `awn-topics/0-shared/0-downloads/manifest.md` | Загрузки из браузера | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/0-shared/0-inbox/manifest.md) `awn-topics/0-shared/0-inbox/manifest.md` | Входящие | — |
+| — | 🟢 Открыта | awn.hub.topic.section | [Открыть](awn-topics/0-shared/manifest.md) `awn-topics/0-shared/manifest.md` | Общие темы и ресурсы | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/009/manifest.md) `awn-topics/009/manifest.md` | 9 | шошщощш |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/777/777/manifest.md) `awn-topics/777/777/manifest.md` | 777 | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/finansy/awn-storage/main/dohody/manifest.md) `awn-topics/finansy/awn-storage/main/dohody/manifest.md` | Доходы | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/finansy/awn-storage/main/rashody/manifest.md) `awn-topics/finansy/awn-storage/main/rashody/manifest.md` | Расходы | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/finansy/awn-storage/main/tseli-po-nakopleniyam/manifest.md) `awn-topics/finansy/awn-storage/main/tseli-po-nakopleniyam/manifest.md` | Цели по накоплениям | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/finansy/manifest.md) `awn-topics/finansy/manifest.md` | Финансы | ауцауцауц |
+| 37 | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/html-i-css-2/awn-storage/main/papka-3/manifest.md) `awn-topics/html-i-css-2/awn-storage/main/papka-3/manifest.md` | manifest | — |
+| 1 | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/html-i-css-2/awn-storage/main/papka-12/manifest.md) `awn-topics/html-i-css-2/awn-storage/main/papka-12/manifest.md` | Папка-12 | — |
+| 4 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/html-i-css-2/manifest.md) `awn-topics/html-i-css-2/manifest.md` | HTML и CSS 2 | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md) `awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md` | Дом и быт | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md) `awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md` | Друзья и общение | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md) `awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md` | Хобби и увлечения | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md) `awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md` | Книги и обучение | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md) `awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md` | Личные цели | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/lichnaya-zhizn/manifest.md) `awn-topics/lichnaya-zhizn/manifest.md` | Личная жизнь | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md) `awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md` | Питание и рецепты | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody/manifest.md) `awn-topics/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/epizody/manifest.md` | Эпизоды | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/gosti/manifest.md) `awn-topics/lichnaya-zhizn/podkast-golos-nedeli/awn-storage/main/gosti/manifest.md` | Гости | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md) `awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md` | Подкаст «Голос недели» | Личный подкаст: короткие эпизоды раз в неделю на разные темы |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md) `awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md` | Привычки и саморазвитие | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/puteshestviya/manifest.md) `awn-topics/lichnaya-zhizn/puteshestviya/manifest.md` | Путешествия | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md) `awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md` | Семья и близкие | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md) `awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md` | Тема без слотов | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md) `awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md` | Здоровье и спорт | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](awn-topics/manifest.md) `awn-topics/manifest.md` | Контейнер | — |
+| 7 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/moi-vklady/manifest.md) `awn-topics/moi-vklady/manifest.md` | Мои вклады | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/novay-tema-test-id/manifest.md) `awn-topics/novay-tema-test-id/manifest.md` | Новай тема тест ID | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/manifest.md) `awn-topics/php/awn-storage/main/Синтаксис/manifest.md` | Синтаксис | Базовый синтаксис PHP 8.x — переменные, функции, массивы, поток управления |
+| 38 | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/%D0%A2%D0%B5%D1%81%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5/manifest.md) `awn-topics/php/awn-storage/main/Тестирование/manifest.md` | manifest | — |
+| — | 🟡 Черновик | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/manifest.md) `awn-topics/php/awn-storage/main/Фреймворки/manifest.md` | Фреймворки | Laravel, Symfony и экосистема |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/baza-dannyh/manifest.md) `awn-topics/php/awn-storage/main/baza-dannyh/manifest.md` | База данных | PDO, транзакции и миграции |
+| 35 | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/bezopasnost/manifest.md) `awn-topics/php/awn-storage/main/bezopasnost/manifest.md` | manifest | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/oop/manifest.md) `awn-topics/php/awn-storage/main/oop/manifest.md` | ООП | Классы, интерфейсы, traits, enums и namespaces |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/primery-koda/manifest.md) `awn-topics/php/awn-storage/main/primery-koda/manifest.md` | Примеры кода | Практические мини-проекты и snippets |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/php/awn-storage/main/standartnaya-biblioteka/manifest.md) `awn-topics/php/awn-storage/main/standartnaya-biblioteka/manifest.md` | Стандартная библиотека | Файлы, JSON, дата и время |
+| 34 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/php/manifest.md) `awn-topics/php/manifest.md` | PHP | Описание |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/tema-bez-slotov/awn-storage/main/999/manifest.md) `awn-topics/tema-bez-slotov/awn-storage/main/999/manifest.md` | 999 | — |
+| 40 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/tema-bez-slotov/manifest.md) `awn-topics/tema-bez-slotov/manifest.md` | Тема без слотов | 888 |
+| 9 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/temma-so-slotami/manifest.md) `awn-topics/temma-so-slotami/manifest.md` | Темма со слотами | — |
+| — | 🟢 Открыта | awn.content.category | [Открыть](awn-topics/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/manifest.md) `awn-topics/test-1000-soobscheniy/awn-storage/inbox/telegramm-1000-soobscheniy/manifest.md` | Телеграмм 1000 сообщений | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/test-1000-soobscheniy/manifest.md) `awn-topics/test-1000-soobscheniy/manifest.md` | Тест 1000 сообщений | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/test-formatov-faylov/manifest.md) `awn-topics/test-formatov-faylov/manifest.md` | Тест форматов файлов | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/test-md-blokov/manifest.md) `awn-topics/test-md-blokov/manifest.md` | Тест md-блоков | — |
+| 39 | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/test-vseh-svoystvo/manifest.md) `awn-topics/test-vseh-svoystvo/manifest.md` | Тест всех свойство | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/test/manifest.md) `awn-topics/test/manifest.md` | Тест | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](awn-topics/tevt-diagramm/manifest.md) `awn-topics/tevt-diagramm/manifest.md` | Тевт диаграмм | — |
+| 6 | 🟢 Открыта | awn.hub.topic.area | [Открыть](codex-test/manifest.md) `codex-test/manifest.md` | codex test | — |
+| 33 | 🟢 Открыта | awn.hub.topic | [Открыть](codex-test/test/manifest.md) `codex-test/test/manifest.md` | test | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/analitika/manifest.md) `crm-studio/analitika/manifest.md` | Аналитика | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/grafik/manifest.md) `crm-studio/grafik/manifest.md` | График | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/kalendar/manifest.md) `crm-studio/kalendar/manifest.md` | Календарь | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/klienty/manifest.md) `crm-studio/klienty/manifest.md` | Клиенты | — |
+| — | 🟢 Открыта | awn.hub.topic.area | [Открыть](crm-studio/manifest.md) `crm-studio/manifest.md` | CRM Studio 1 | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/mastera/manifest.md) `crm-studio/mastera/manifest.md` | Мастера | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/uslugi/manifest.md) `crm-studio/uslugi/manifest.md` | Услуги | — |
+| — | 🟢 Открыта | awn.hub.topic | [Открыть](crm-studio/zapisi/manifest.md) `crm-studio/zapisi/manifest.md` | Записи | — |

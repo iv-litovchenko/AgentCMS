@@ -9,7 +9,8 @@
     "agent-cms-mcp": "./index.js"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "start:http": "node http.js"
   },
   "engines": {
     "node": ">=18"

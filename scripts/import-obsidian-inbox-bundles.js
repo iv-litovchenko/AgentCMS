@@ -9,10 +9,10 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const AGENT_ROOT = path.resolve(__dirname, "../workspaces/agent-cms-test");
+const AGENT_ROOT = path.resolve(__dirname, "../workspaces/0-ws-test");
 const VAULT_ROOT = "/Users/macbook/Desktop/agent-aya";
 const ATTACHMENTS_ROOT = path.join(VAULT_ROOT, "07 📦 Vault/📎 Attachments");
-const STORAGE_ROOT = path.join(AGENT_ROOT, "awn-shared/inbox/awn-storage");
+const STORAGE_ROOT = path.join(AGENT_ROOT, "awn-topics/0-shared/0-inbox/awn-storage");
 const MAIN_DIR = path.join(STORAGE_ROOT, "main");
 const ASSETS_DIR = path.join(STORAGE_ROOT, "assets/pasted");
 const OLD_INBOX_DIR = path.join(STORAGE_ROOT, "inbox");
@@ -291,7 +291,7 @@ async function main() {
   console.log(
     JSON.stringify(
       {
-        topic: "awn-shared/inbox/manifest.md",
+        topic: "awn-topics/0-shared/0-inbox/manifest.md",
         slot: "main/",
         assets: "assets/pasted/",
         records: results

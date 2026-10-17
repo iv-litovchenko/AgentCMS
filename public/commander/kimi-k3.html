@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JARVIS · ядро Kimi K3</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23030711' stroke='%235b8cff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%237de8ff'/%3E%3Ccircle cx='16' cy='5' r='2' fill='%23ffb454'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #030711;
+      --panel: rgba(8, 14, 28, 0.92);
+      --line: rgba(94, 140, 255, 0.24);
+      --line-bright: rgba(125, 232, 255, 0.55);
+      --azure: #5b8cff;
+      --ice: #7de8ff;
+      --amber: #ffb454;
+      --ok: #4dffc3;
+      --text: #e8eefc;
+      --muted: #8593b4;
+      --font: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      --mono: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); color-scheme: dark; }
+    #stars { position: fixed; inset: 0; z-index: 0; }
+    .shell {
+      position: relative; z-index: 1; height: 100dvh;
+      display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px;
+      padding: 12px 14px 12px;
+    }
+    header, .dock { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+    .mark {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border: 1px solid var(--line-bright); border-radius: 10px;
+      color: var(--ice); font-family: var(--mono); font-weight: 700; font-size: 12px;
+      background: rgba(91, 140, 255, 0.14);
+    }
+    .brand strong { display: block; letter-spacing: 0.28em; font-size: 15px; }
+    .brand small { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .clock { text-align: right; font-family: var(--mono); }
+    .clock time { display: block; color: var(--ice); font-size: 18px; letter-spacing: 0.08em; }
+    .clock span { color: var(--muted); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .status { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--ok); }
+    .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    button, select { font: inherit; color: inherit; }
+    .btn, select.btn {
+      appearance: none; border: 1px solid var(--line); border-radius: 999px;
+      background: rgba(91, 140, 255, 0.1); color: var(--muted);
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 8px 12px; cursor: pointer;
+    }
+    .btn:hover, select.btn:hover, .btn[aria-pressed="true"] { color: var(--ice); border-color: var(--line-bright); }
+    .desktop {
+      position: relative; min-height: 0; overflow: hidden; border-radius: 16px;
+      border: 1px solid rgba(94, 140, 255, 0.14);
+      background:
+        linear-gradient(rgba(94, 140, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(94, 140, 255, 0.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+    .core-wrap {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px; text-align: center;
+      pointer-events: none; padding: 16px;
+    }
+    .reactor {
+      pointer-events: auto; position: relative; width: min(220px, 42vw); aspect-ratio: 1;
+      border: 0; border-radius: 50%; cursor: pointer;
+      background: radial-gradient(circle at 50% 42%, rgba(91, 140, 255, 0.16), rgba(3, 7, 17, 0.2) 70%);
+    }
+    .reactor:focus-visible { outline: 2px solid var(--amber); outline-offset: 6px; }
+    .ring { position: absolute; border-radius: 50%; border: 1px dashed rgba(94, 140, 255, 0.45); }
+    .r1 { inset: 0; animation: spin 28s linear infinite; }
+    .r2 { inset: 18px; border-style: solid; border-color: rgba(94, 140, 255, 0.25); border-top-color: var(--ice); animation: spin 9s linear infinite reverse; }
+    .nucleus {
+      position: absolute; inset: 46px; border-radius: 50%; display: grid; place-items: center;
+      background: radial-gradient(circle at 38% 32%, #d7ecff, #5b8cff 42%, #12307a 78%);
+      box-shadow: 0 0 36px rgba(91, 140, 255, 0.7);
+      font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: #04122e;
+    }
+    .who { margin: 0; font-family: var(--mono); font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--azure); }
+    #caption { margin: 0; max-width: 36em; font-size: 16px; line-height: 1.35; text-shadow: 0 2px 12px #000; }
+    .win {
+      position: absolute; z-index: 2; display: flex; flex-direction: column;
+      width: min(360px, calc(100% - 16px)); height: 380px; min-width: 0; min-height: 160px;
+      max-width: calc(100% - 16px);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); backdrop-filter: blur(12px);
+      resize: both; overflow: hidden;
+    }
+    .win.is-active { border-color: var(--line-bright); }
+    .win.is-min { height: auto !important; min-height: 0; resize: none; }
+    .win.is-min .win-body { display: none; }
+    .titlebar {
+      display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; cursor: grab;
+      background: linear-gradient(180deg, rgba(91, 140, 255, 0.18), rgba(91, 140, 255, 0.04));
+      border-bottom: 1px solid var(--line); touch-action: none; user-select: none;
+    }
+    .titlebar strong { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ice); }
+    .titlebar button {
+      width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line);
+      background: rgba(3, 7, 17, 0.45); color: var(--muted); cursor: pointer;
+    }
+    .win-body { min-height: 0; flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .thread { display: flex; flex-direction: column; gap: 8px; min-height: 80px; }
+    .bubble { max-width: 92%; padding: 8px 10px; border-radius: 12px; font-size: 14px; line-height: 1.4; }
+    .bubble small { display: block; margin-bottom: 2px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .bubble.user { align-self: flex-end; background: rgba(91, 140, 255, 0.2); }
+    .bubble.jarvis { align-self: flex-start; background: rgba(125, 232, 255, 0.08); border: 1px solid rgba(125, 232, 255, 0.16); }
+    .row { display: flex; gap: 8px; }
+    input, textarea, select.field {
+      width: 100%; border: 1px solid var(--line); border-radius: 8px;
+      background: rgba(2, 6, 14, 0.72); color: var(--text); font: inherit; font-size: 14px; padding: 10px 12px;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 1px solid var(--azure); outline-offset: 2px; }
+    .send {
+      border: 1px solid var(--line-bright); border-radius: 8px; background: rgba(91, 140, 255, 0.24);
+      color: var(--ice); font-weight: 600; padding: 10px 12px; cursor: pointer; white-space: nowrap;
+    }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .card { padding: 10px; border: 1px solid rgba(94, 140, 255, 0.16); border-radius: 10px; background: rgba(3, 8, 18, 0.5); }
+    .card small { display: block; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .card strong { display: block; margin-top: 4px; color: var(--ice); font-size: 18px; }
+    .card .x { float: right; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .task { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(94, 140, 255, 0.1); font-size: 14px; }
+    .task.done span { opacity: 0.45; text-decoration: line-through; }
+    .hint, .empty { margin: 0; color: var(--muted); font-size: 13px; }
+    .dock { padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: rgba(8, 14, 28, 0.8); }
+    #apps { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dock form { display: flex; gap: 8px; flex: 1; min-width: 220px; }
+    .modal { position: fixed; inset: 0; z-index: 30; background: rgba(2, 6, 14, 0.72); display: grid; place-items: center; padding: 16px; }
+    .modal[hidden] { display: none; }
+    .dialog {
+      width: min(440px, 100%); display: flex; flex-direction: column; gap: 12px;
+      padding: 16px; border-radius: 14px; border: 1px solid var(--line-bright); background: rgba(6, 12, 24, 0.96);
+    }
+    .dialog h2 { margin: 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em; color: var(--ice); font-weight: 600; }
+    label.field { display: flex; flex-direction: column; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .dialog .row { justify-content: flex-end; }
+    body[data-state="listening"] .nucleus, body[data-state="speaking"] .nucleus { animation: pulse 1.1s ease-in-out infinite; }
+    body[data-state="processing"] .status, body[data-state="processing"] .status i { color: var(--amber); }
+    body[data-state="processing"] .status i { background: var(--amber); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 50% { box-shadow: 0 0 48px rgba(125, 232, 255, 0.9); } }
+    @media (max-width: 720px) {
+      .brand small, .clock span { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+  </style>
+</head>
+<body data-state="idle">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <span class="mark">K3</span>
+        <div><strong>JARVIS</strong><small>окна и дашборды · perez19</small></div>
+      </div>
+      <button class="btn" type="button" id="btn-new">+ Окно</button>
+      <button class="btn" type="button" id="btn-tile">Разложить</button>
+      <select class="btn" id="preset" aria-label="Готовый дашборд">
+        <option value="">Дашборд…</option>
+      </select>
+      <div class="clock"><time id="clock">--:--:--</time><span id="date">—</span></div>
+      <div class="status"><i></i><b id="link">НА СВЯЗИ</b></div>
+    </header>
+    <section class="desktop" id="desktop">
+      <div class="core-wrap">
+        <button class="reactor" id="core" type="button" aria-label="Говорить"><span class="ring r1"></span><span class="ring r2"></span><span class="nucleus" id="core-label">ГОВОРИТЬ</span></button>
+        <p class="who">джарвис · kimi k3</p>
+        <p id="caption">Откройте диалог, соберите дашборд или создайте своё окно.</p>
+      </div>
+    </section>
+    <footer class="dock">
+      <div id="apps"></div>
+      <form id="form">
+        <input id="say" autocomplete="off" placeholder="Команда: открой диалог, дашборд Спринт, задача купить молоко" aria-label="Команда или сообщение">
+        <button class="send" type="submit">Выполнить</button>
+      </form>
+    </footer>
+  </main>
+  <div class="modal" id="modal" hidden>
+    <form class="dialog" id="new-form">
+      <h2>Новое окно</h2>
+      <label class="field">Название<input name="title" required placeholder="Например: Спринт"></label>
+      <label class="field">Тип
+        <select class="field" name="type">
+          <option value="note">Заметка — свободный текст</option>
+          <option value="list">Список — свои пункты</option>
+          <option value="dashboard">Дашборд — карточки с вашими цифрами</option>
+        </select>
+      </label>
+      <label class="field">Первая запись<textarea name="content" placeholder="Текст заметки, пункт списка или значение карточки"></textarea></label>
+      <div class="row">
+        <button class="btn" type="button" id="cancel-new">Отмена</button>
+        <button class="send" type="submit">Создать</button>
+      </div>
+    </form>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const desktop = $("desktop");
+    const KEY = "kimi-k3";
+    const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(KEY + "." + k)); return v == null ? d : v; } catch (e) { return d; } };
+    const save = (k, v) => localStorage.setItem(KEY + "." + k, JSON.stringify(v));
+
+    let chat = load("chat", []);
+    let notes = load("notes", "");
+    let tasks = load("tasks", []);
+    let customs = load("custom", []);
+    let layout = load("layout", {});
+    const wins = {};
+    let z = 5;
+    let latency = 9;
+
+    const PRESETS = {
+      overview: { name: "Обзор", ids: ["dialog", "dash"] },
+      work: { name: "Работа", ids: ["dialog", "tasks", "notes"] },
+      empty: { name: "Пусто", ids: [] }
+    };
+
+    const DEFS = {
+      dialog: { title: "Диалог", alias: ["диалог", "чат"], w: 380, h: 420 },
+      dash: { title: "Телеметрия", alias: ["телеметр", "систем", "статус", "дашборд"], w: 420, h: 300 },
+      notes: { title: "Заметки", alias: ["замет"], w: 340, h: 320 },
+      tasks: { title: "Задачи", alias: ["задач", "дела", "список"], w: 340, h: 340 }
+    };
+
+    function defOf(id) {
+      if (DEFS[id]) return DEFS[id];
+      const c = customs.find((x) => x.id === id);
+      if (!c) return null;
+      const titles = { note: "Заметка", list: "Список", dashboard: "Дашборд" };
+      return { title: c.title, alias: [c.title.toLowerCase()], w: c.type === "dashboard" ? 420 : 340, h: 340, custom: c, kind: titles[c.type] };
+    }
+    function allIds() { return [...Object.keys(DEFS), ...customs.map((c) => c.id)]; }
+
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+
+    function focusWin(id) {
+      const win = wins[id];
+      if (!win) return;
+      z += 1;
+      win.style.zIndex = String(z);
+      document.querySelectorAll(".win").forEach((w) => w.classList.toggle("is-active", w === win));
+    }
+
+    function paintApps() {
+      const box = $("apps");
+      box.replaceChildren();
+      allIds().forEach((id) => {
+        const d = defOf(id);
+        const b = el("button", "btn", d.title);
+        b.type = "button";
+        b.setAttribute("aria-pressed", wins[id] ? "true" : "false");
+        b.addEventListener("click", () => { if (wins[id]) closeWin(id); else openWin(id); });
+        box.appendChild(b);
+      });
+    }
+
+    function paintThread() {
+      const thread = $("thread");
+      if (!thread) return;
+      thread.replaceChildren();
+      if (!chat.length) thread.appendChild(el("p", "empty", "Напишите сообщение ниже. Это окно и есть диалог."));
+      chat.forEach((m) => {
+        const b = el("div", "bubble " + (m.who === "Вы" ? "user" : "jarvis"));
+        b.append(el("small", "", m.who), document.createTextNode(m.text));
+        thread.appendChild(b);
+      });
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    function renderDialog(body) {
+      const thread = el("div", "thread");
+      thread.id = "thread";
+      const form = el("form", "row");
+      const field = document.createElement("input");
+      field.name = "text";
+      field.placeholder = "Сообщение…";
+      field.setAttribute("aria-label", "Сообщение в диалог");
+      const btn = el("button", "send", "Отправить");
+      btn.type = "submit";
+      form.append(field, btn);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        handle(field.value);
+        field.value = "";
+      });
+      body.append(thread, form);
+      paintThread();
+    }
+
+    function renderDash(body) {
+      body.id = "dash-body";
+      paintDash();
+    }
+
+    function paintDash() {
+      const body = $("dash-body");
+      if (!body) return;
+      const cards = [
+        ["Ядро", $("link").textContent.toLowerCase()],
+        ["Канал", latency + " мс"],
+        ["Задачи", String(tasks.filter((t) => !t.done).length)],
+        ["Свои окна", String(customs.length)]
+      ];
+      const grid = el("div", "cards");
+      cards.forEach(([k, v]) => {
+        const c = el("article", "card");
+        c.append(el("small", "", k), el("strong", "", v));
+        grid.appendChild(c);
+      });
+      body.replaceChildren(grid, el("p", "hint", "Это системный дашборд. Свой собирается кнопкой «+ Окно» → тип «Дашборд»."));
+    }
+
+    function renderNotes(body) {
+      const area = document.createElement("textarea");
+      area.value = notes;
+      area.placeholder = "Пишите что угодно — текст сохранится в этом браузере.";
+      area.addEventListener("input", () => { notes = area.value; save("notes", notes); });
+      body.append(el("p", "hint", "Свободные заметки. Команда: «заметка купить кабель»."), area);
+    }
+
+    function renderTasks(body) {
+      const form = el("form", "row");
+      const field = document.createElement("input");
+      field.placeholder = "Новая задача";
+      field.setAttribute("aria-label", "Новая задача");
+      form.append(field, el("button", "send", "Добавить"));
+      form.querySelector("button").type = "submit";
+      const list = el("div", "");
+      list.id = "task-list";
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = field.value.trim();
+        if (!text) return;
+        tasks.push({ text, done: false });
+        save("tasks", tasks);
+        field.value = "";
+        paintTasks();
+        paintDash();
+      });
+      body.append(form, list);
+      paintTasks();
+    }
+
+    function paintTasks() {
+      const list = $("task-list");
+      if (!list) return;
+      list.replaceChildren();
+      if (!tasks.length) list.appendChild(el("p", "empty", "Список пуст. Добавьте задачу полем выше или командой «задача …»."));
+      tasks.forEach((t, i) => {
+        const row = el("label", "task" + (t.done ? " done" : ""));
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = t.done;
+        box.addEventListener("change", () => { tasks[i].done = box.checked; save("tasks", tasks); row.classList.toggle("done", box.checked); paintDash(); });
+        row.append(box, el("span", "", t.text));
+        list.appendChild(row);
+      });
+    }
+
+    function renderCustom(body, c) {
+      if (c.type === "note") {
+        const area = document.createElement("textarea");
+        area.value = c.content || "";
+        area.addEventListener("input", () => { c.content = area.value; save("custom", customs); });
+        body.append(area, destroyBtn(c.id));
+        return;
+      }
+      if (c.type === "list") {
+        if (!Array.isArray(c.items)) c.items = c.content ? [c.content] : [];
+        const form = el("form", "row");
+        const field = document.createElement("input");
+        field.placeholder = "Новый пункт";
+        form.append(field, el("button", "send", "Добавить"));
+        form.querySelector("button").type = "submit";
+        const list = el("div", "");
+        const paint = () => {
+          list.replaceChildren();
+          c.items.forEach((text, i) => {
+            const row = el("div", "task");
+            const rm = el("button", "x", "×");
+            rm.type = "button";
+            rm.addEventListener("click", () => { c.items.splice(i, 1); save("custom", customs); paint(); });
+            row.append(el("span", "", text), rm);
+            list.appendChild(row);
+          });
+        };
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const text = field.value.trim();
+          if (!text) return;
+          c.items.push(text);
+          save("custom", customs);
+          field.value = "";
+          paint();
+        });
+        body.append(form, list, destroyBtn(c.id));
+        paint();
+        return;
+      }
+      if (!Array.isArray(c.cards)) c.cards = c.content ? [{ label: "Значение", value: c.content }] : [];
+      const grid = el("div", "cards");
+      const paint = () => {
+        grid.replaceChildren();
+        if (!c.cards.length) grid.appendChild(el("p", "empty", "Карточек нет. Добавьте подпись и значение."));
+        c.cards.forEach((card, i) => {
+          const node = el("article", "card");
+          const rm = el("button", "x", "×");
+          rm.type = "button";
+          rm.addEventListener("click", () => { c.cards.splice(i, 1); save("custom", customs); paint(); });
+          node.append(rm, el("small", "", card.label), el("strong", "", card.value));
+          grid.appendChild(node);
+        });
+      };
+      const form = document.createElement("form");
+      form.className = "row";
+      const label = document.createElement("input");
+      label.placeholder = "Подпись";
+      label.setAttribute("aria-label", "Подпись карточки");
+      const value = document.createElement("input");
+      value.placeholder = "Значение";
+      value.setAttribute("aria-label", "Значение карточки");
+      form.append(label, value, el("button", "send", "Добавить"));
+      form.querySelector("button").type = "submit";
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!label.value.trim() || !value.value.trim()) return;
+        c.cards.push({ label: label.value.trim(), value: value.value.trim() });
+        save("custom", customs);
+        label.value = "";
+        value.value = "";
+        paint();
+      });
+      body.append(grid, form, destroyBtn(c.id));
+      paint();
+    }
+
+    function destroyBtn(id) {
+      const b = el("button", "btn", "Удалить это окно");
+      b.type = "button";
+      b.addEventListener("click", () => {
+        closeWin(id);
+        customs = customs.filter((c) => c.id !== id);
+        delete layout[id];
+        save("custom", customs);
+        save("layout", layout);
+        paintApps();
+      });
+      return b;
+    }
+
+    function fill(id, body) {
+      body.replaceChildren();
+      if (id === "dialog") return renderDialog(body);
+      if (id === "dash") return renderDash(body);
+      if (id === "notes") return renderNotes(body);
+      if (id === "tasks") return renderTasks(body);
+      const c = customs.find((x) => x.id === id);
+      if (c) renderCustom(body, c);
+    }
+
+    function openWin(id) {
+      if (!defOf(id)) return;
+      if (wins[id]) { wins[id].classList.remove("is-min"); focusWin(id); return; }
+      const def = defOf(id);
+      const st = layout[id] || {};
+      const area = desktop.getBoundingClientRect();
+      const n = Object.keys(wins).length;
+      st.w = Math.min(st.w || def.w, Math.max(180, area.width - 16));
+      st.h = Math.min(st.h || def.h, Math.max(160, area.height - 16));
+      st.x = Math.max(0, Math.min(st.x ?? 12 + (n % 5) * 26, Math.max(0, area.width - 80)));
+      st.y = Math.max(0, Math.min(st.y ?? 12 + (n % 4) * 26, Math.max(0, area.height - 48)));
+      st.open = true;
+      st.min = false;
+      layout[id] = st;
+      const win = el("section", "win");
+      win.dataset.id = id;
+      win.setAttribute("role", "dialog");
+      win.setAttribute("aria-label", def.title);
+      win.style.left = st.x + "px";
+      win.style.top = st.y + "px";
+      win.style.width = st.w + "px";
+      win.style.height = st.h + "px";
+      const bar = el("div", "titlebar");
+      bar.append(el("strong", "", def.title));
+      const min = el("button", "", "–");
+      min.type = "button";
+      min.setAttribute("aria-label", "Свернуть");
+      min.addEventListener("click", () => win.classList.toggle("is-min"));
+      const close = el("button", "", "×");
+      close.type = "button";
+      close.setAttribute("aria-label", "Закрыть");
+      close.addEventListener("click", () => closeWin(id));
+      bar.append(min, close);
+      const body = el("div", "win-body");
+      win.append(bar, body);
+      drag(win, bar, id);
+      win.addEventListener("pointerdown", () => focusWin(id));
+      win.addEventListener("pointerup", () => {
+        st.w = win.offsetWidth;
+        st.h = win.offsetHeight;
+        save("layout", layout);
+      });
+      desktop.appendChild(win);
+      wins[id] = win;
+      fill(id, body);
+      focusWin(id);
+      save("layout", layout);
+      paintApps();
+    }
+
+    function closeWin(id) {
+      if (!wins[id]) return;
+      wins[id].remove();
+      delete wins[id];
+      if (layout[id]) layout[id].open = false;
+      save("layout", layout);
+      paintApps();
+    }
+
+    function drag(win, bar, id) {
+      let on = false;
+      let ox = 0;
+      let oy = 0;
+      bar.addEventListener("pointerdown", (e) => {
+        if (e.target.closest("button")) return;
+        on = true;
+        const r = win.getBoundingClientRect();
+        const p = desktop.getBoundingClientRect();
+        ox = e.clientX - r.left;
+        oy = e.clientY - r.top;
+        bar.setPointerCapture(e.pointerId);
+      });
+      bar.addEventListener("pointermove", (e) => {
+        if (!on) return;
+        const p = desktop.getBoundingClientRect();
+        const x = Math.max(0, Math.min(e.clientX - p.left - ox, p.width - 80));
+        const y = Math.max(0, Math.min(e.clientY - p.top - oy, p.height - 36));
+        win.style.left = x + "px";
+        win.style.top = y + "px";
+        layout[id].x = x;
+        layout[id].y = y;
+      });
+      const stop = () => { if (!on) return; on = false; save("layout", layout); };
+      bar.addEventListener("pointerup", stop);
+      bar.addEventListener("pointercancel", stop);
+    }
+
+    function tile(ids) {
+      const gap = 10;
+      const W = desktop.clientWidth - 20;
+      const H = desktop.clientHeight - 20;
+      const cols = Math.ceil(Math.sqrt(ids.length || 1));
+      const rows = Math.ceil(ids.length / cols);
+      ids.forEach((id, i) => {
+        openWin(id);
+        const x = 10 + (i % cols) * ((W - gap * (cols - 1)) / cols + gap);
+        const y = 10 + Math.floor(i / cols) * ((H - gap * (rows - 1)) / rows + gap);
+        const w = (W - gap * (cols - 1)) / cols;
+        const h = (H - gap * (rows - 1)) / rows;
+        Object.assign(layout[id], { x, y, w, h, min: false });
+        Object.assign(wins[id].style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+        wins[id].classList.remove("is-min");
+      });
+      save("layout", layout);
+    }
+
+    function applyPreset(key) {
+      const ids = PRESETS[key].ids;
+      Object.keys(wins).forEach(closeWin);
+      if (ids.length) tile(ids);
+      else $("caption").textContent = "Стол пуст. Откройте окно с панели или создайте своё.";
+    }
+
+    function createCustom(title, type, content) {
+      const id = "c" + Date.now().toString(36);
+      const item = { id, title, type };
+      if (type === "note") item.content = content || "";
+      if (type === "list") item.items = content ? [content] : [];
+      if (type === "dashboard") item.cards = content ? [{ label: "Значение", value: content }] : [];
+      customs.push(item);
+      save("custom", customs);
+      openWin(id);
+      return item;
+    }
+
+    function findId(name) {
+      const n = name.toLowerCase();
+      let best = null;
+      let len = 0;
+      allIds().forEach((id) => {
+        defOf(id).alias.forEach((a) => {
+          if (n.includes(a) && a.length > len) { best = id; len = a.length; }
+        });
+      });
+      return best;
+    }
+
+    function pushChat(who, text, open) {
+      chat.push({ who, text });
+      chat = chat.slice(-80);
+      save("chat", chat);
+      if (who === "Джарвис") $("caption").textContent = text;
+      if (wins.dialog) paintThread();
+      else if (open) openWin("dialog");
+    }
+
+    function command(raw) {
+      const t = raw.toLowerCase().trim().replace(/[.!?]+$/g, "");
+      let m;
+      if ((m = t.match(/^(открой|покажи|запусти)\s+(.+)/))) {
+        const id = findId(m[2]);
+        if (!id) return "Такого окна нет. Нажмите «+ Окно» и соберите своё.";
+        openWin(id);
+        return "Открываю «" + defOf(id).title + "».";
+      }
+      if ((m = t.match(/^(закрой|убери)\s+(.+)/))) {
+        const id = findId(m[2]);
+        if (!id || !wins[id]) return "Это окно и так закрыто.";
+        closeWin(id);
+        return "Окно «" + defOf(id).title + "» закрыто.";
+      }
+      if ((m = t.match(/^дашборд\s+(.+)/))) {
+        const preset = Object.keys(PRESETS).find((k) => m[1].includes(PRESETS[k].name.toLowerCase()) || (k === "overview" && /обзор/.test(m[1])) || (k === "work" && /работ/.test(m[1])) || (k === "empty" && /пуст/.test(m[1])));
+        if (preset) { applyPreset(preset); return "Дашборд «" + PRESETS[preset].name + "» собран."; }
+        const item = createCustom(m[1][0].toUpperCase() + m[1].slice(1), "dashboard", "");
+        return "Дашборд «" + item.title + "» создан. Добавьте карточки внизу окна.";
+      }
+      if ((m = raw.match(/^(?:новое\s+окно|создай\s+окно)\s*(.*)/i))) {
+        if (!m[1].trim()) { $("modal").hidden = false; $("new-form").elements.title.focus(); return "Открыл конструктор. Выберите тип: заметка, список или дашборд."; }
+        createCustom(m[1].trim(), "note", "");
+        return "Окно «" + m[1].trim() + "» создано. Пишите прямо в нём.";
+      }
+      if (/разлож/.test(t)) {
+        const ids = Object.keys(wins);
+        if (!ids.length) return "Сначала откройте хотя бы одно окно.";
+        tile(ids);
+        return "Разложил открытые окна по столу.";
+      }
+      if ((m = raw.match(/^(?:добавь\s+)?задач[ауи][:,]?\s+(.+)/i))) {
+        tasks.push({ text: m[1].trim(), done: false });
+        save("tasks", tasks);
+        openWin("tasks");
+        paintTasks();
+        return "Задача добавлена: " + m[1].trim() + ".";
+      }
+      if ((m = raw.match(/^заметк[ауи][:,]?\s+(.+)/i))) {
+        notes = (notes ? notes + "\n" : "") + m[1].trim();
+        save("notes", notes);
+        openWin("notes");
+        const area = wins.notes.querySelector("textarea");
+        if (area) area.value = notes;
+        return "Записал в заметки.";
+      }
+      if (/что (ты )?помнишь|мои замет|мои задач/.test(t)) {
+        const bits = [];
+        if (notes.trim()) bits.push("заметки: " + notes.trim().slice(0, 180));
+        if (tasks.length) bits.push("задачи: " + tasks.map((x) => (x.done ? "✓ " : "") + x.text).join(", "));
+        if (customs.length) bits.push("окна: " + customs.map((c) => c.title).join(", "));
+        return bits.length ? bits.join(". ") + "." : "Пока ничего не сохранено. Создайте окно или напишите «задача …».";
+      }
+      return "";
+    }
+
+    function talk(q) {
+      const s = q.toLowerCase();
+      const now = new Date();
+      if (/(привет|здравств)/.test(s)) return "На связи. Могу открыть диалог, собрать дашборд или записать ваши данные.";
+      if (/(врем|час)/.test(s)) return "Сейчас " + now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) + ".";
+      if (/погод/.test(s)) return "Сейчас около +17 и облачно. Это заглушка, живой погоды в макете нет.";
+      if (/кто ты|что умеешь|команд/.test(s)) return "Открываю окна по имени, собираю дашборды и храню заметки с задачами. Кнопка «+ Окно» создаёт своё.";
+      return "Принял. Чтобы получить окно, скажите «открой диалог», «дашборд Спринт» или нажмите «+ Окно».";
+    }
+
+    function speak(text) {
+      if (!("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "ru-RU";
+      const voice = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith("ru"));
+      if (voice) u.voice = voice;
+      u.onend = () => { if (document.body.dataset.state === "speaking") setState("idle"); };
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+
+    function setState(state) {
+      document.body.dataset.state = state;
+      $("core-label").textContent = { idle: "ГОВОРИТЬ", listening: "СЛУШАЮ", processing: "РАЗБОР", speaking: "ОТВЕТ" }[state];
+      $("link").textContent = { idle: "НА СВЯЗИ", listening: "СЛУШАЮ", processing: "АНАЛИЗ", speaking: "ГОВОРЮ" }[state];
+      paintDash();
+    }
+
+    function handle(raw) {
+      const value = (raw || "").trim();
+      if (!value) return;
+      pushChat("Вы", value, false);
+      setState("processing");
+      setTimeout(() => {
+        const answer = command(value) || talk(value);
+        const closed = /закрыто/.test(answer);
+        pushChat("Джарвис", answer, !closed);
+        setState("speaking");
+        speak(answer);
+        setTimeout(() => { if (document.body.dataset.state === "speaking") setState("idle"); }, Math.max(1200, answer.length * 40));
+      }, 350);
+    }
+
+    $("form").addEventListener("submit", (e) => { e.preventDefault(); handle($("say").value); $("say").value = ""; });
+    $("btn-new").addEventListener("click", () => { $("modal").hidden = false; $("new-form").elements.title.focus(); });
+    $("cancel-new").addEventListener("click", () => { $("modal").hidden = true; });
+    $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") $("modal").hidden = true; });
+    $("new-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      const item = createCustom(data.get("title").trim(), data.get("type"), data.get("content").trim());
+      e.target.reset();
+      $("modal").hidden = true;
+      pushChat("Джарвис", "Окно «" + item.title + "» на столе. Данные в нём сохраняются в браузере.", false);
+    });
+    $("btn-tile").addEventListener("click", () => {
+      const ids = Object.keys(wins);
+      if (ids.length) tile(ids);
+    });
+    Object.entries(PRESETS).forEach(([k, p]) => $("preset").add(new Option(p.name, k)));
+    $("preset").addEventListener("change", (e) => { if (e.target.value) applyPreset(e.target.value); e.target.value = ""; });
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let listening = false;
+    let recog = null;
+    if (SR) {
+      recog = new SR();
+      recog.lang = "ru-RU";
+      recog.interimResults = false;
+      recog.addEventListener("result", (e) => handle(e.results[0][0].transcript));
+      recog.addEventListener("end", () => { listening = false; if (document.body.dataset.state === "listening") setState("idle"); });
+    }
+    function toggleMic() {
+      if (!recog) { $("caption").textContent = "В этом браузере нет распознавания. Напишите команду в строке внизу."; return; }
+      listening = !listening;
+      if (listening) { setState("listening"); try { recog.start(); } catch (e) { listening = false; } }
+      else { try { recog.stop(); } catch (e) {} setState("idle"); }
+    }
+    $("core").addEventListener("click", toggleMic);
+    window.addEventListener("keydown", (e) => {
+      if (e.code !== "Space" || e.target.closest("input, textarea, select, button")) return;
+      e.preventDefault();
+      toggleMic();
+    });
+
+    function tick() {
+      const now = new Date();
+      $("clock").textContent = now.toLocaleTimeString("ru-RU");
+      $("date").textContent = now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+    }
+    tick();
+    setInterval(tick, 1000);
+    setInterval(() => { latency = 7 + Math.round(Math.random() * 8); paintDash(); }, 2500);
+
+    if (!chat.length) {
+      chat.push({ who: "Джарвис", text: "Диалог открыт. Пишите здесь или в строке внизу. Свой дашборд — кнопка «+ Окно»." });
+      $("caption").textContent = chat[0].text;
+    }
+    const saved = allIds().filter((id) => layout[id] && layout[id].open);
+    (saved.length ? saved : ["dialog"]).forEach(openWin);
+
+    const canvas = $("stars");
+    const ctx = canvas.getContext("2d");
+    let particles = [];
+    function resize() {
+      const dpr = devicePixelRatio || 1;
+      canvas.width = innerWidth * dpr;
+      canvas.height = innerHeight * dpr;
+      canvas.style.width = innerWidth + "px";
+      canvas.style.height = innerHeight + "px";
+      particles = Array.from({ length: 70 }, () => ({
+        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.12 * dpr, vy: (Math.random() - 0.5) * 0.12 * dpr, r: (Math.random() + 0.4) * dpr
+      }));
+    }
+    resize();
+    addEventListener("resize", resize);
+    (function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p) => {
+        p.x = (p.x + p.vx + canvas.width) % canvas.width;
+        p.y = (p.y + p.vy + canvas.height) % canvas.height;
+        ctx.fillStyle = "rgba(125,200,255,.4)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, 6.28);
+        ctx.fill();
+      });
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>

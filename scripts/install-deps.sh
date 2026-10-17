@@ -173,6 +173,49 @@ install_stt_python() {
   echo "  STT Python готов — движки подключаются через сервер Shell (Web Speech — в браузере)."
 }
 
+# Временно не ставим GLiNER из install-deps (entity-index работает без него).
+INSTALL_ENTITY_GLINER="${INSTALL_ENTITY_GLINER:-0}"
+
+install_entity_gliner_python() {
+  if [ "$INSTALL_ENTITY_GLINER" != "1" ]; then
+    echo ""
+    echo "→ GLiNER (entity-index): пропуск (INSTALL_ENTITY_GLINER=1 чтобы включить)"
+    return 0
+  fi
+  echo ""
+  echo "→ Python GLiNER (реестр сущностей) — .venv-entity …"
+
+  local py=""
+  if ! py="$(pick_stt_python)"; then
+    echo "  python3 не найден — пропускаю GLiNER."
+    return 1
+  fi
+  echo "  Python: $($py -V 2>&1)"
+
+  local venv_dir="$ROOT/.venv-entity"
+  if [ ! -d "$venv_dir" ]; then
+    echo "  $py -m venv .venv-entity"
+    "$py" -m venv "$venv_dir"
+  fi
+  # shellcheck disable=SC1091
+  source "$venv_dir/bin/activate"
+
+  echo "  pip install --upgrade pip"
+  pip install --upgrade pip
+
+  echo "  pip install gliner (модель скачается при первой пересборке entity-index) …"
+  if pip install "gliner>=0.2.0"; then
+    echo "  GLiNER готов — включите index-entity-gliner-enabled в platform.yml"
+  else
+    echo ""
+    echo "  ⚠ GLiNER не установился. Реестр сущностей работает без него (regex + теги)."
+    echo "    Повтор: source .venv-entity/bin/activate && pip install gliner"
+    echo ""
+  fi
+
+  cd "$ROOT"
+}
+
 echo "Agent CMS — установка зависимостей"
 echo "=================================="
 
@@ -182,6 +225,8 @@ install_mkcert
 install_certs
 
 install_stt_python || echo "  Python STT не установлен — повторите: bash scripts/install-deps.sh"
+
+install_entity_gliner_python
 
 echo ""
 echo "Готово. Дальше:"

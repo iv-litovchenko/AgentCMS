@@ -1,17 +1,41 @@
 # Функция работы с файлами
 
-**Глобальные документы:** [GLOBAL-DOC-MCP.md](GLOBAL-DOC-MCP.md) · [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) · [GLOBAL-RULES.md](GLOBAL-RULES.md) · [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
+**Глобальные документы:** [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) · [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) · [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) · [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
 
 
-1.1 Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 
+1.1 ✅ Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 
+    - Сделано: `write_content` `mode` = `patch` | `replace_lines` | `insert` | `append` | `prepend` | `replace` (см. раздел ниже).
 
 1.2 Сделать запись файла по md5 если изменилось содержимое файла кто то поменял модели нужно заново загрузить и запиьс будет отклонена
+    - ✅ Сделано: `read_content` отдаёт `hash` (`md5:…` всего файла); `write_content` принимает `expectedHash` и при несовпадении отказывает с `conflict` + `currentHash`. Обязателен для `replace_lines` / `insert`. Ограничение: проверка в MCP перед записью, не атомарно на сервере.
 
 1.3 Придумать понятный наобр инструментов
 
-1.4 КОгда мы читаем файл с середены например будет разрыв из за блоков кода или цитат ``` ``` - инетересно можно ли что то сделать придумать что бы это обойти
+1.4 ✅ КОгда мы читаем файл с середены например будет разрыв из за блоков кода или цитат ``` ``` - инетересно можно ли что то сделать придумать что бы это обойти
+    - Сделано для блоков ``` / ~~~: окно чтения расширяется до открытия/закрытия блока (до 100 строк), в ответе `codeFence` (`expandedBefore`, `expandedAfter`, `startsInside`, `endsInside`). Цитаты `>` не обрабатываются.
 
-1.5 По умолчанию всегда читается содержимое файла не более какого-то кол-ва строк
+1.5 ✅ По умолчанию всегда читается содержимое файла не более какого-то кол-ва строк
+    - Сделано: `read_content` part=body — по умолчанию 300 строк тела, `limitLines` до 500, `full: true` — всё тело (обязательно перед `write_content` replace).
+
+## ✅ Реализовано: чтение content (`read_content`)
+
+- Только `read_content` (part=body и body внутри part=all → `bodyWindow`); новых MCP-методов нет.
+- Placement: page / channel / media / root. Internal-слоты и `main-single-csv` — по-прежнему целиком; `format: base64` и `offsetBytes` — как раньше.
+- `startLine` / `limitLines` — номера строк **файла с frontmatter**, совпадают с `startLine` в `search_workspace_*` (fulltext и semantic). Если `startLine` внутри frontmatter — читается с начала тела.
+- Ответ: `startLine`, `endLine`, `totalLines`, `bodyStartLine` (.md), `hasMore`, `truncated`, `nextStartLine`, `hash`, `codeFence`.
+- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
+- Не сделано из `read_universal`: чтение по доле файла (percent) и по якорю.
+- Схема параметров публикуется в MCP; неизвестные параметры → ошибка; `kind: topic` = `page`; `ref` без `.md` → повтор с `.md` (`refResolved`).
+
+## ✅ Реализовано: запись content (`write_content`, part=body)
+
+- Только `write_content`, новых MCP-методов нет. Placement тот же, что у `read_content`.
+- `mode`: `replace` (default) · `append` · `prepend` · `patch` (`oldString` → `newString`, уникально или `replaceAll`) · `replace_lines` (`startLine`..`endLine`, `content: ""` = удалить) · `insert` (`afterLine` | `beforeLine`).
+- Номера строк — как в `read_content` и поиске; frontmatter через body не меняется (ошибка → `part=properties`).
+- `expectedHash` → `conflict` при несовпадении; обязателен для `replace_lines` / `insert`. Ответ: изменённые `startLine`/`endLine`, `totalLines`, `previousHash`, `hash` (перечитан после записи).
+- Сохраняются переводы строк файла (`\r\n`). Root: `replace`/`append`/`prepend` создают файл, если его нет.
+- Код: `mcp-server/lib/content-write-edit.js`, `writeContentBody` в `content-core.js`, схема в `content-tools.js`.
+- Не сделано: вставка по якорю/заголовку, режимы по байтам, `truncate`, stream; `expectedHash` для `part=properties`; атомарная проверка hash на сервере.
 
 ```
 Запись в файл

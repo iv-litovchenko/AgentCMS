@@ -95,7 +95,7 @@ const PHASE_SPEAKING = "speaking";
 const PHASE_DISABLED = "disabled";
 
 const DEFAULT_SETTINGS = {
-  topicPath: "awn-agent-kit/agent/manifest.md",
+  topicPath: "awn-topics/0-agent-kit/0-agent/manifest.md",
   messageChannel: "thread",
   messageTarget: "qwenpaw",
   qwenpawBaseUrl: "http://127.0.0.1:8088",
@@ -2357,6 +2357,7 @@ async function buildStatusPayload(
   void ensureCliSandbox(projectRoot, agentId, cliRuntime).catch(() => {});
 
   return {
+    workspaceId: agentId,
     agentId,
     agentRoot,
     cliSandboxes: cliSandboxesMeta(projectRoot, agentId),

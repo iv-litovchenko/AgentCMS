@@ -80,4 +80,24 @@ export function registerRepositoryTools(reg, client) {
     }),
     (payload) => client.put("/api/agent/repositories", payload)
   );
+
+  reg(
+    "delete_repository",
+    "Soft-delete repository hub folder (awn-repositories/{slug}/) to workspace recycle bin.",
+    z.object({ path: workspaceRelPath }),
+    ({ path }) => client.delete("/api/agent/repository", { path })
+  );
+
+  reg(
+    "rename_repository",
+    "Rename/move repository folder under awn-repositories/ (slug or group/repo). Updates groups.yml assignment when present.",
+    z.object({
+      path: workspaceRelPath,
+      slug: z
+        .string()
+        .min(1)
+        .describe("New path under awn-repositories/, e.g. my-fork or clients/acme-site")
+    }),
+    ({ path, slug }) => client.post("/api/agent/repositories/rename", { path, slug })
+  );
 }

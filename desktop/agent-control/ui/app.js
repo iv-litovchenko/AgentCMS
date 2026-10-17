@@ -62,6 +62,8 @@ const ACTION_LABELS = {
   "cms-rebuild": "Собрать",
   "voice-open": "Открыть",
   "voice-rebuild": "Собрать",
+  "commander-open": "Открыть",
+  "commander-rebuild": "Собрать",
   "control-dist": "Собрать",
   "server-autostart-enable": "Автостарт",
   "server-autostart-disable": "Автостарт",
@@ -77,6 +79,7 @@ const ACTION_LABELS = {
 const BUILD_DURATION_HINTS = {
   "cms-rebuild": "~1–2 мин",
   "voice-rebuild": "~1 мин",
+  "commander-rebuild": "~1 мин",
   "control-dist": "~1 мин"
 };
 
@@ -816,7 +819,8 @@ function getPorts() {
       editorHttps: 3443,
       editorHttp: 3000,
       voiceHttps: 3488,
-      voiceHttp: 3088
+      voiceHttp: 3088,
+      commanderHttp: 3188
     }
   );
 }
@@ -1267,7 +1271,8 @@ function getCardPorts(accent) {
     editorHttps: 3443,
     editorHttp: 3000,
     voiceHttps: 3488,
-    voiceHttp: 3088
+    voiceHttp: 3088,
+    commanderHttp: 3188
   };
 
   if (accent === "cms") {
@@ -1275,6 +1280,9 @@ function getCardPorts(accent) {
   }
   if (accent === "voice") {
     return { main: ports.voiceHttps, sub: ports.voiceHttp };
+  }
+  if (accent === "commander") {
+    return { main: ports.commanderHttp, sub: "HTTP" };
   }
   return null;
 }
@@ -1332,9 +1340,11 @@ function renderControlCard(control) {
 
 function renderCommanderCard(commander) {
   if (!commander) return "";
-
-  const actionsHtml = `<button type="button" class="run-btn compact-btn" data-tone="default" disabled title="Заготовка на будущее">Заготовка</button>`;
-  return launchTile(commander, actionsHtml);
+  if (commander.placeholder) {
+    const actionsHtml = `<button type="button" class="run-btn compact-btn" data-tone="default" disabled title="Заготовка на будущее">Заготовка</button>`;
+    return launchTile(commander, actionsHtml);
+  }
+  return renderAppCard(commander);
 }
 
 function renderAppsSection() {
@@ -1596,6 +1606,7 @@ const ACTION_CARD_TITLES = {
 
 const ACTION_CARD_BUSY = {
   "cms-rebuild": "Сборка…",
+  "commander-rebuild": "Сборка…",
   "voice-rebuild": "Сборка…",
   "control-dist": "Сборка…",
   "server-autostart-enable": "Автостарт…",

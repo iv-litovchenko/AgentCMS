@@ -9,8 +9,8 @@ const { listBundleFileNameCandidates, BUNDLE_MAIN_FILE, BUNDLE_TABULAR_FILE, BUN
 
 const ROOT = path.resolve(__dirname, "..");
 const WORKSPACES = [
-  path.join(ROOT, "workspaces/agent-cms-core"),
-  path.join(ROOT, "workspaces/agent-cms-test")
+  path.join(ROOT, "workspaces/0-ws-core"),
+  path.join(ROOT, "workspaces/0-ws-test")
 ];
 
 const STORAGE_ROOT = "awn-storage";

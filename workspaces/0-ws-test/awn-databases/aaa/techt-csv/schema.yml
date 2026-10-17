@@ -1,0 +1,27 @@
+version: 1
+layer: awn-databases-store
+
+awn_schema:
+  frame:
+    extends: awn.hub.database.collection
+  category:
+    extends: awn.content.category
+  record:
+    extends: awn.content.record
+  record-csv:
+    extends: awn.content.record-csv
+    fields:
+      field-1:
+        type: awn.field.string
+        name: Поле 1
+        placement: editor-body
+        sort: 10
+        title: Поле 1
+      field-2:
+        type: awn.field.string
+        name: Поле 2
+        placement: editor-body
+        sort: 20
+        title: Поле 2
+  sidecar:
+    extends: awn.annotation.sidecar

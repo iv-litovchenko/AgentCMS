@@ -113,11 +113,17 @@
 
   function setVisible(show) {
     mountRoot();
+    if (show) {
+      document.documentElement.appendChild(root);
+    }
     root.hidden = !show;
     root.setAttribute("aria-hidden", show ? "false" : "true");
     document.documentElement.classList.toggle("asc-pomodoro-break-active", show);
     if (document.body) {
       document.body.classList.toggle("asc-pomodoro-break-active", show);
+    }
+    if (typeof globalThis.syncCompanionCrosshair === "function") {
+      globalThis.syncCompanionCrosshair();
     }
     if (show) {
       startEmoji();

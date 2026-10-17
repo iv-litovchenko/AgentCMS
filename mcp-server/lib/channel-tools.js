@@ -14,7 +14,7 @@ const {
 const workspaceRelPath = z
   .string()
   .min(1)
-  .describe("Workspace-relative path, e.g. awn-channels/telegram/manifest.md");
+  .describe("Workspace-relative path, e.g. awn-channels/0-telegram/manifest.md");
 
 const channelStorageFolder = z
   .enum(["files", "assets"])
@@ -80,6 +80,23 @@ export function registerChannelTools(reg, client, options = {}) {
       body: z.string().optional()
     }),
     (payload) => client.put("/api/agent/channels", payload)
+  );
+
+  reg(
+    "delete_channel",
+    "Soft-delete channel hub folder (awn-channels/{slug}/) to workspace recycle bin. Built-in presets are protected.",
+    z.object({ path: workspaceRelPath }),
+    ({ path }) => client.delete("/api/agent/channel", { path })
+  );
+
+  reg(
+    "rename_channel",
+    "Rename/move channel folder under awn-channels/ (new slug). Built-in presets are protected.",
+    z.object({
+      path: workspaceRelPath,
+      slug: z.string().min(1).describe("New folder name under awn-channels/, e.g. telegram")
+    }),
+    ({ path, slug }) => client.post("/api/agent/channels/rename", { path, slug })
   );
 
   const readChannelsIndexSchema = z.object({});

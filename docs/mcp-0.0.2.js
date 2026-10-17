@@ -6,17 +6,17 @@ module.exports = {
   packagePath: "mcp-server/",
   generatedAt: "2026-10-11",
   notes: [
-    "MCP slim v0.3.8 — per-chat agentId · placement (page|channel|media|root) · CONTENT + FS + exec.",
+    "MCP slim v0.3.8 — per-chat agentId · placement (topic|channel|media|database|repository|root; legacy page→topic) · CONTENT + FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool). Живой список tools — mcp-server/ после перезапуска.",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
     "list_vaults — alias для list_workspaces.",
-    "Контент (placement): read_content / write_content / list_content + kind page|channel|media|root; legacy path+slot = page.",
-    "Индексы и поиск — НЕ placement: get_topic_map, read/refresh_*_index_toc, search_workspace_*, rebuild_workspace_*.",
+    "Контент (placement): read_content / write_content / list_content; kind topic|channel|media|database|repository|root (legacy page на входе); legacy path+slot без placement → topic.",
+    "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: database_frame_* / database_element_*; TOC → read/refresh_database_frame_index_toc.",
+    "awn-databases: list_databases / get_database … (legacy database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
     "notify_user — колокольчик CMS (не Shell).",
@@ -68,14 +68,15 @@ module.exports = {
           http: "GET /api/agent/session-context?agent="
         },
         {
-          name: "get_user_active_context_now",
+          name: "get_ui_focus",
+          legacyName: "get_user_active_context_now",
           description: "Что открыто в UI: focus.entity, готовые path/slot/ref для read/write_*.",
           parameters: "—",
           http: "GET /api/agent/active-context"
         },
         {
           name: "get_session_documentation",
-          description: "GLOBAL-DOC-MCP, README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
+          description: "README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
           parameters: "docs? (filter file names)",
           http: "GET /api/agent/session-documentation?docs="
         },
@@ -144,13 +145,13 @@ module.exports = {
       tools: [
         {
           name: "get_topic_map",
-          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body.",
+          description: "Deprecated → read_topic_index_toc + list_folder. Legacy: manifest + kind:folder.",
           parameters: "includeSlots?: boolean",
           http: "GET /api/agent/page-map"
         },
         {
           name: "get_content_map",
-          description: "Карта контента страницы по слотам (meta + properties, без body).",
+          description: "Deprecated → read_content_index_toc + read_content (part=properties). Legacy: meta по слотам.",
           parameters: "path, slot?",
           http: "GET /api/agent/content-map"
         },
@@ -167,14 +168,20 @@ module.exports = {
           http: "POST /api/agent/content-index"
         },
         {
+          name: "list_topics",
+          description: "Узлы дерева тем (ws/area/topic): плоско или parentPath + scope.",
+          parameters: "parentPath?, scope?, includeFolders?",
+          http: "GET /api/agent/topics"
+        },
+        {
           name: "read_topic_index_toc",
-          description: "Оглавление INDEX.md в корне workspace: path, type, title, description (темы и области).",
+          description: "Оглавление awn-topics/index.md: path, type, title, description (темы и области).",
           parameters: "—",
           http: "GET /api/agent/workspace-page-index"
         },
         {
           name: "refresh_topic_index_toc",
-          description: "Обновить INDEX.md в корне workspace (таблица path/type/title/description).",
+          description: "Обновить awn-topics/index.md (таблица path/type/title/description).",
           parameters: "overwrite?",
           http: "POST /api/agent/workspace-page-index"
         },
@@ -256,6 +263,13 @@ module.exports = {
       id: "topic",
       title: "Тема (manifest.md)",
       tools: [
+        { name: "get_topic", description: "Карточка hub: properties + body.", parameters: "path", http: "GET /api/agent/topic" },
+        {
+          name: "update_topic",
+          description: "Patch name/description/body manifest.",
+          parameters: "path, name?, description?, body?",
+          http: "PUT /api/agent/topic"
+        },
         { name: "read_topic_body", description: "Тело manifest.md.", parameters: "path", http: "GET /api/file" },
         { name: "write_topic_body", description: "Сохранить тело.", parameters: "path, content", http: "POST /api/file/content" },
         { name: "read_topic_properties", description: "Frontmatter manifest.md (full YAML).", parameters: "path", http: "GET /api/file/properties" },
@@ -297,7 +311,7 @@ module.exports = {
       tools: [
         {
           name: "list_slots",
-          description: "Слоты контейнера (page / channel / media): driver, path, allowedContent.",
+          description: "Слоты контейнера (topic / channel / media / database / repository): driver, path, allowedContent.",
           parameters: "placement.kind + path или path=manifest",
           http: "GET /api/page/slots"
         }
@@ -309,7 +323,7 @@ module.exports = {
       tools: [
         {
           name: "read_content",
-          description: "Канон: placement.kind page|channel|media|root; part body|properties|schema|meta|all.",
+          description: "Канон: placement.kind topic|channel|media|database|repository|root (legacy page→topic); part body|properties|schema|meta|all.",
           parameters: "placement или path+slot, part?, ref?, format? (root binary)",
           http: "—"
         },
@@ -361,67 +375,52 @@ module.exports = {
     },
     {
       id: "database-frame",
-      title: "Каркас awn-databases (database_frame_*)",
+      title: "Каркас awn-databases (list_databases …)",
       tools: [
-        { name: "database_frame_list", description: "Список frames (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
-        { name: "database_frame_get", description: "Один frame: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
+        { name: "list_databases", description: "Список stores (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
+        { name: "get_database", description: "Один store: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
-          name: "read_database_frame_index_toc",
-          description: "Оглавление frames (awn-databases/index.md).",
+          name: "read_databases_index_toc",
+          description: "Оглавление (awn-databases/index.md).",
           parameters: "—",
           http: "GET /api/agent/awn-databases-index"
         },
         {
-          name: "refresh_database_frame_index_toc",
-          description: "Обновить awn-databases/index.md из database_frame_list.",
+          name: "refresh_databases_index_toc",
+          description: "Обновить index.md из list_databases.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"
         },
         {
-          name: "database_frame_create",
-          description: "Создать frame: group/collection/single.",
+          name: "register_database",
+          description: "Зарегистрировать store hub (как register_channel).",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
         },
-        { name: "database_frame_delete", description: "Удалить frame (store).", parameters: "store", http: "DELETE /api/awn-databases/stores" },
-        { name: "database_frame_rename", description: "Переименовать/переместить frame.", parameters: "store, newStore", http: "POST /api/awn-databases/stores/rename" },
         {
-          name: "database_frame_read_schema",
-          description: "Кастомные поля instance в schema.yml (не каталог типов).",
+          name: "update_database",
+          description: "Patch manifest: name, description, body.",
+          parameters: "store, name?, description?, body?",
+          http: "PUT /api/awn-databases/stores"
+        },
+        { name: "delete_database", description: "Удалить store.", parameters: "store", http: "DELETE /api/awn-databases/stores" },
+        { name: "rename_database", description: "Переименовать/переместить store.", parameters: "store, slug", http: "POST /api/awn-databases/stores/rename" },
+        {
+          name: "read_database_schema",
+          description: "Кастомные поля instance в schema.yml.",
           parameters: "store",
           http: "GET /api/awn-databases/store-schema"
         },
         {
-          name: "database_frame_write_schema",
+          name: "write_database_schema",
           description: "Записать кастомные поля в schema.yml.",
           parameters: "store, content? | awnSchema? | fields? | tabs?",
           http: "POST /api/awn-databases/store-schema"
         },
-        { name: "database_frame_read_properties", description: "Frontmatter manifest frame.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
-        { name: "database_frame_write_properties", description: "Patch manifest frame.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
-        { name: "database_frame_read_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
-        { name: "database_frame_write_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
-      ]
-    },
-    {
-      id: "database-element",
-      title: "Элементы awn-databases (database_element_*)",
-      tools: [
-        { name: "database_element_list", description: "Лёгкий список записей/разделов.", parameters: "store, parent?", http: "GET /api/awn-databases/records" },
-        {
-          name: "database_element_create",
-          description: "Добавить запись или раздел.",
-          parameters: "store, name?, slug?, isSection?, id?, title?, parent?",
-          http: "POST /api/awn-databases/records"
-        },
-        { name: "database_element_delete", description: "Удалить запись или раздел.", parameters: "store, record", http: "DELETE /api/awn-databases/records" },
-        { name: "database_element_rename", description: "Переименовать запись/раздел.", parameters: "store, record, newRecord", http: "POST /api/awn-databases/records/rename" },
-        { name: "database_element_read_body", description: "Тело markdown записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-body" },
-        { name: "database_element_write_body", description: "Записать тело markdown.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-body" },
-        { name: "database_element_read_properties", description: "Frontmatter записи.", parameters: "store, record?", http: "GET /api/awn-databases/record-properties" },
-        { name: "database_element_write_properties", description: "Patch frontmatter записи.", parameters: "store, record?, content", http: "POST /api/awn-databases/record-properties" },
-        { name: "database_element_read_property", description: "One record property.", parameters: "store, record?, key", http: "GET /api/awn-databases/record-properties?key=" },
-        { name: "database_element_write_property", description: "Set one record property.", parameters: "store, record?, key, value", http: "POST /api/awn-databases/record-properties" }
+        { name: "read_database_properties", description: "Frontmatter manifest.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
+        { name: "write_database_properties", description: "Patch manifest.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
+        { name: "read_database_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
+        { name: "write_database_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
       ]
     },
     {

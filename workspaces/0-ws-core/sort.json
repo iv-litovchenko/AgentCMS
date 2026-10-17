@@ -1,0 +1,18 @@
+{
+  "order": [
+    "types",
+    "awn-databases",
+    "components",
+    "settings",
+    "workflows",
+    "ideasmd",
+    "zagotovki-i-shablony",
+    "awn-topics",
+    "sayt-platformy",
+    "svobodnaya-pamyat",
+    "oblast",
+    "oblast-test",
+    "test",
+    "tetsoblast"
+  ]
+}

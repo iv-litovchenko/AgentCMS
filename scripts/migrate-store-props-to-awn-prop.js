@@ -13,7 +13,7 @@ const {
 } = require("../lib/awn/awn-data-loader");
 const { parseCsvText, serializeCsv } = require("../lib/awn/awn-data-csv");
 
-const ROOT = path.join(__dirname, "..", "workspaces", "agent-cms-core", "awn-data");
+const ROOT = path.join(__dirname, "..", "workspaces", "0-ws-core", "awn-data");
 const SKIP_FILES = new Set(["_store.md", "manifest.md", "main.md"].map((s) => s.toLowerCase()));
 
 function readStoreParts(filePath) {

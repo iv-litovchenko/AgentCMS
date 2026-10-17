@@ -24,7 +24,9 @@
       html.classList.contains("asc-capturing-viewport") ||
       html.classList.contains("asc-capturing-fullpage") ||
       html.classList.contains("asc-screenshot-annotate-active") ||
-      html.classList.contains("asc-bookmarks-draft-active")
+      html.classList.contains("asc-bookmarks-draft-active") ||
+      html.classList.contains("asc-pomodoro-toolbar-pop-open") ||
+      html.classList.contains("asc-pomodoro-break-active")
     );
   }
 
@@ -49,7 +51,8 @@
   }
 
   function mountHost() {
-    return document.body || document.documentElement;
+    // На <html> рядом с тулбаром — z-index сопоставим с #agent-shell-companion-toolbar.
+    return document.documentElement;
   }
 
   function removeExtraCrosshairRoots(keep) {
@@ -168,6 +171,9 @@
     if (enabled) flushPointer();
   }
 
+  global.setCompanionCrosshairEnabled = setEnabled;
+  global.getCompanionCrosshairEnabled = () => enabled;
+
   document.addEventListener("pointermove", onPointerMove, { passive: true, capture: true });
   window.addEventListener(
     "scroll",
@@ -280,7 +286,7 @@
 
     void readEnabledSetting().then(setToggleOn);
 
-    return { wrap };
+    return { wrap, setUiOn: setToggleOn };
   }
 
   global.createCompanionCrosshairDock = createCompanionCrosshairDock;

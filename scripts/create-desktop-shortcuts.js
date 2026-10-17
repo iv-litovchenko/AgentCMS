@@ -22,6 +22,10 @@ const SHORTCUTS = [
     target: () => path.join(repoRoot, "dist/agent-shell/Agent Shell.app")
   },
   {
+    name: "ACMS-Commander.app",
+    target: () => path.join(repoRoot, "dist/agent-commander/Agent CMS Commander.app")
+  },
+  {
     name: "ACMS-Browser-Extension",
     target: () => path.join(repoRoot, "browser-extension"),
     isFolder: true

@@ -39,7 +39,7 @@ const searchTermsSchema = z.object({
 export function registerGlossaryTools(reg, client) {
   reg(
     "create_glossary_term",
-    "Create a glossary term in awn-databases/contents/glossary (md-lite collection).",
+    "Create a glossary term in awn-databases/0-contents/0-glossary (md-lite collection).",
     createTermSchema,
     (payload) => client.post("/api/agent/workspace-glossary/create", payload)
   );

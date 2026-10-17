@@ -3,7 +3,7 @@ import { z } from "zod";
 const pagePath = z
   .string()
   .min(1)
-  .describe("Path to page manifest.md, e.g. awn-container/tema/manifest.md");
+  .describe("Path to page manifest.md, e.g. awn-topics/tema/manifest.md");
 
 const workspacePath = z
   .string()

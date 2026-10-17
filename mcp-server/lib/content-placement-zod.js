@@ -2,88 +2,98 @@ import { z } from "zod";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { PLACEMENT_KINDS } = require("../../lib/config/content-placement.js");
+const { publicPlacementKindList } = require("../../lib/config/content-placement.js");
 
 export function buildContentSlotSchema(listSectionCapableSlotKeys) {
   return z
     .string()
     .min(1)
     .describe(
-      `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, repository, main-single, main-single-csv, todo-single, roadmap-single, inbox, outbox, files, assets`
+      `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, data (database), repository, main-single, main-single-csv, todo-single, roadmap-single, inbox, outbox, files, assets`
     );
 }
 
-export const placementKindSchema = z.enum(PLACEMENT_KINDS);
+const publicKinds = publicPlacementKindList();
+
+export const placementKindSchema = z
+  .enum(publicKinds)
+  .describe("topic | channel | media | database | repository | root (legacy input: page → topic)");
 
 const placementPath = z
   .string()
   .min(1)
-  .describe("Container path or slug (page manifest, awn-channels/{slug}, awn-media/{slug})");
+  .describe(
+    "Container slug or path without hub prefix: topic folder path, channel slug, media slug, database store slug, repository slug (group/repo)"
+  );
 
 const rootWorkspacePath = z
   .string()
   .min(1)
   .describe("Workspace-relative file path (AGENTS.md, folder/file.md, …) — no slot/ref");
 
+const placementRef = z
+  .string()
+  .min(1)
+  .optional()
+  .describe("File inside the slot, with extension: folder/note.md (read retries with .md if omitted)");
+
+function slotPlacement(kind) {
+  return z
+    .object({
+      kind: z.literal(kind),
+      path: placementPath,
+      slot: z.string().min(1),
+      ref: placementRef
+    })
+    .strict();
+}
+
 export const placementSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("page"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("channel"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("media"),
-    path: placementPath,
-    slot: z.string().min(1),
-    ref: z.string().min(1).optional()
-  }),
-  z.object({
-    kind: z.literal("root"),
-    path: rootWorkspacePath
-  })
+  slotPlacement("topic"),
+  slotPlacement("channel"),
+  slotPlacement("media"),
+  slotPlacement("database"),
+  slotPlacement("repository"),
+  z
+    .object({
+      kind: z.literal("root"),
+      path: rootWorkspacePath
+    })
+    .strict()
 ]);
+
+/** Plain strict object: refinements/intersections make MCP tools/list publish an empty input schema. */
+function normalizeLegacyPagePlacement(placement) {
+  if (!placement || typeof placement !== "object") return placement;
+  if (String(placement.kind || "").toLowerCase() === "page") {
+    return { ...placement, kind: "topic" };
+  }
+  return placement;
+}
 
 export function withContentAddress(baseShape, contentSlot) {
   return z
     .object({
-      placement: placementSchema.optional(),
-      path: z.string().min(1).optional(),
+      placement: z
+        .preprocess(normalizeLegacyPagePlacement, placementSchema.optional())
+        .describe("Preferred address. kind: topic (legacy page accepted). Or legacy top-level path + slot + ref"),
+      path: z.string().min(1).optional().describe("Legacy: manifest path (hub prefix auto-inferred for awn-databases/…)"),
       slot: contentSlot.optional(),
       ref: z.string().min(1).optional(),
       ...baseShape
     })
-    .superRefine((val, ctx) => {
-      if (val.placement) {
-        if (val.placement.kind === "root") return;
-        return;
-      }
-      if (!val.path) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement is required" });
-      }
-      if (!val.slot) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "slot is required when placement is omitted" });
-      }
-    });
+    .strict();
 }
 
 export const slotsListInputSchema = z
   .object({
     placement: z
       .object({
-        kind: placementKindSchema.default("page"),
+        kind: placementKindSchema.default("topic"),
         path: placementPath
       })
+      .strict()
       .optional(),
     path: z.string().min(1).optional()
   })
-  .superRefine((val, ctx) => {
-    if (val.placement?.path || val.path) return;
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path or placement.path is required" });
-  });
+  .strict();

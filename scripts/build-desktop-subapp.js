@@ -7,9 +7,12 @@ const { execFileSync } = require("child_process");
 const path = require("path");
 
 const subapp = process.argv[2];
-const allowed = new Set(["agent-shell", "agent-control"]);
+const mode = process.argv[3] === "pack" ? "pack" : "dist";
+const allowed = new Set(["agent-shell", "agent-control", "agent-commander"]);
 if (!allowed.has(subapp)) {
-  console.error("Usage: node scripts/build-desktop-subapp.js <agent-shell|agent-control>");
+  console.error(
+    "Usage: node scripts/build-desktop-subapp.js <agent-shell|agent-control|agent-commander> [pack|dist]"
+  );
   process.exit(1);
 }
 
@@ -20,11 +23,14 @@ const electronVersion = electronPkg.version;
 
 const builderBin = path.join(root, "node_modules", ".bin", "electron-builder");
 
-console.log(`build-desktop-subapp: ${subapp} (electron ${electronVersion})`);
+const builderArgs = ["--config.electronVersion", electronVersion];
+if (mode === "pack") builderArgs.push("--dir");
+
+console.log(`build-desktop-subapp: ${subapp} ${mode} (electron ${electronVersion})`);
 
 execFileSync(
   builderBin,
-  ["--config.electronVersion", electronVersion],
+  builderArgs,
   {
     cwd: projectDir,
     stdio: "inherit",

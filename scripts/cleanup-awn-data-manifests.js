@@ -10,7 +10,7 @@ const path = require("path");
 const { parseTypeYaml } = require("../lib/awn/awn-yaml-utils");
 const { buildStoreManifestContent } = require("../lib/awn/awn-data-loader");
 
-const AGENT_ROOT = path.join(process.cwd(), "workspaces/agent-cms-core");
+const AGENT_ROOT = path.join(process.cwd(), "workspaces/0-ws-core");
 const AWN_DATA = path.join(AGENT_ROOT, "awn-data");
 const TABLE_BASE_EXTENDS = "awn-data/cms-base/entities/table.base.md";
 /** @deprecated */

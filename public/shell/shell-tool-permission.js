@@ -53,6 +53,10 @@ export function initShellToolPermission({
     return String(fallback || "").trim();
   }
 
+  function workspaceIdFromPayload(payload, fallback = "") {
+    return String(payload?.workspaceId ?? payload?.agentId ?? resolveAgentId(fallback) ?? "").trim();
+  }
+
   function setStatus(text) {
     if (typeof onStatus === "function") onStatus(String(text || "").trim());
   }
@@ -153,6 +157,7 @@ export function initShellToolPermission({
       agentId,
       method: "POST",
       body: JSON.stringify({
+        workspaceId: agentId,
         agentId,
         requestId,
         allow: Boolean(decision.allow),
@@ -237,7 +242,7 @@ export function initShellToolPermission({
     if (!requestId) return;
     const cliRequestId = String(payload?.cliRequestId || "").trim();
     const fingerprint = permissionFingerprint(payload);
-    const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
+    const requestAgentId = workspaceIdFromPayload(payload);
     const currentAgentId = resolveAgentId();
     if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
     if (isRequestTracked(requestId, cliRequestId, fingerprint)) return;

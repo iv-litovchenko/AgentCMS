@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S.</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+<style>
+  :root {
+    --cyan: #00e5ff;
+    --cyan-mid: rgba(0, 229, 255, 0.5);
+    --cyan-dim: rgba(0, 229, 255, 0.25);
+    --cyan-faint: rgba(0, 229, 255, 0.08);
+    --orange: #ffb547;
+    --red: #ff5470;
+    --bg: #02070d;
+    --text: #bfefff;
+    --top: 56px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at center, #06202e 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    overflow: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(var(--cyan-faint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--cyan-faint) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .btn {
+    background: var(--cyan-faint); border: 1px solid var(--cyan-dim); color: var(--cyan);
+    padding: 6px 12px; font-size: 11px; letter-spacing: 2px; transition: all .15s;
+  }
+  .btn:hover { background: rgba(0,229,255,.18); border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan-dim); }
+  .field {
+    background: rgba(0,0,0,.35); border: 1px solid var(--cyan-dim); outline: none;
+    padding: 8px 10px; font-size: 13px; width: 100%;
+  }
+  .field:focus { border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan-dim); }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 10000;
+    display: flex; align-items: center; gap: 12px; padding: 0 20px;
+    border-bottom: 1px solid var(--cyan-dim); background: rgba(2,12,20,.85); backdrop-filter: blur(6px);
+  }
+  .logo { font-size: 18px; letter-spacing: 8px; color: var(--cyan); text-shadow: 0 0 12px var(--cyan); margin-right: 16px; }
+  .topbar .spacer { flex: 1; }
+  .topbar select.field { width: auto; padding: 5px 8px; font-size: 11px; letter-spacing: 1px; }
+  .clock { text-align: right; font-size: 16px; letter-spacing: 3px; }
+  .clock small { display: block; font-size: 9px; opacity: .6; letter-spacing: 2px; }
+
+  /* ---------- Dock ---------- */
+  .dock {
+    position: fixed; left: 0; top: var(--top); bottom: 0; width: 56px; z-index: 10000;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0;
+    border-right: 1px solid var(--cyan-dim); background: rgba(2,12,20,.7);
+    overflow-y: auto; scrollbar-width: none;
+  }
+  .dock-btn {
+    position: relative; width: 40px; height: 40px; flex-shrink: 0;
+    background: transparent; border: 1px solid transparent; color: var(--cyan-mid); font-size: 17px;
+  }
+  .dock-btn:hover { border-color: var(--cyan-dim); color: var(--cyan); background: var(--cyan-faint); }
+  .dock-btn.on { color: var(--cyan); border-color: var(--cyan-dim); text-shadow: 0 0 8px var(--cyan); }
+  .dock-btn.on::before, .dock-btn.min::before {
+    content: ""; position: absolute; left: -9px; top: 10px; bottom: 10px; width: 3px; background: var(--cyan);
+  }
+  .dock-btn.min::before { background: var(--orange); }
+  .dock-btn::after {
+    content: attr(data-label); position: absolute; left: 50px; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; font-size: 10px; letter-spacing: 2px; padding: 5px 8px;
+    background: rgba(2,18,28,.95); border: 1px solid var(--cyan-dim); color: var(--cyan);
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .dock-btn:hover::after { opacity: 1; }
+  .dock hr { width: 28px; border: none; border-top: 1px solid var(--cyan-dim); margin: 4px 0; }
+  .dock .add { color: var(--orange); font-size: 22px; }
+
+  /* ---------- Core (background) ---------- */
+  .core-wrap {
+    position: fixed; left: 56px; right: 0; top: var(--top); bottom: 110px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 1;
+  }
+  .core { position: relative; width: min(42vh, 380px); aspect-ratio: 1; }
+  .ring { position: absolute; border-radius: 50%; border: 2px solid var(--cyan-dim); }
+  .r1 { inset: 0; border-style: dashed; animation: spin 40s linear infinite; }
+  .r2 { inset: 6%; border-width: 6px; border-color: transparent var(--cyan) transparent var(--cyan); animation: spin 12s linear infinite reverse; filter: drop-shadow(0 0 6px var(--cyan)); }
+  .r3 { inset: 14%; border: 1px solid var(--cyan); border-left-color: transparent; animation: spin 6s linear infinite; }
+  .r4 { inset: 22%; border: 10px dotted var(--cyan-dim); animation: spin 25s linear infinite; }
+  .r5 { inset: 32%; border: 2px solid var(--cyan); box-shadow: 0 0 20px var(--cyan), inset 0 0 20px var(--cyan); }
+  .nucleus {
+    position: absolute; inset: 38%; border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, #9ff8ff 25%, var(--cyan) 55%, transparent 72%);
+    box-shadow: 0 0 60px var(--cyan), 0 0 120px var(--cyan-dim);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .core.listening .r2 { animation-duration: 3s; border-color: transparent var(--orange) transparent var(--orange); filter: drop-shadow(0 0 8px var(--orange)); }
+  .core.thinking .r3 { animation-duration: 1s; }
+  .core.speaking .nucleus { animation-duration: .6s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: .75; transform: scale(.94); } }
+  .status-text { margin-top: 24px; font-size: 12px; letter-spacing: 6px; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .last-reply { margin-top: 10px; font-size: 14px; max-width: 520px; text-align: center; opacity: .85; min-height: 20px; }
+
+  /* ---------- Windows ---------- */
+  .desktop { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .win {
+    position: absolute; pointer-events: auto;
+    min-width: 220px; min-height: 140px; display: flex; flex-direction: column;
+    background: rgba(2,18,28,.85); border: 1px solid var(--cyan-dim);
+    backdrop-filter: blur(8px); box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    resize: both; overflow: hidden; animation: winIn .18s ease-out;
+  }
+  .win.focused { border-color: var(--cyan-mid); box-shadow: 0 0 25px rgba(0,229,255,.15), 0 10px 40px rgba(0,0,0,.6); }
+  .win.max { left: 68px !important; top: calc(var(--top) + 12px) !important; width: calc(100vw - 80px) !important; height: calc(100vh - var(--top) - 130px) !important; resize: none; }
+  .win::before, .win::after {
+    content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none; border: 2px solid var(--cyan);
+  }
+  .win::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .win::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+  @keyframes winIn { from { opacity: 0; transform: scale(.96); } }
+  .win-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; flex-shrink: 0;
+    border-bottom: 1px solid var(--cyan-dim); cursor: move; user-select: none;
+    font-size: 11px; letter-spacing: 3px; color: var(--cyan);
+    background: linear-gradient(90deg, rgba(0,229,255,.12), transparent);
+  }
+  .win-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .win-head button {
+    width: 22px; height: 22px; background: transparent; border: 1px solid transparent;
+    color: var(--cyan-mid); font-size: 11px; line-height: 1;
+  }
+  .win-head button:hover { border-color: var(--cyan-dim); color: var(--cyan); }
+  .win-head button[data-a=close]:hover, .win-head button[data-a=del]:hover { color: var(--red); border-color: var(--red); }
+  .win-body { flex: 1; min-height: 0; overflow: auto; padding: 12px; font-size: 13px; line-height: 1.5; }
+  .win-body.flush { padding: 0; display: flex; flex-direction: column; }
+  .win-body::-webkit-scrollbar, .messages::-webkit-scrollbar { width: 4px; }
+  .win-body::-webkit-scrollbar-thumb, .messages::-webkit-scrollbar-thumb { background: var(--cyan-dim); }
+
+  /* Chat */
+  .messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 8px 10px; border-left: 2px solid var(--cyan); background: var(--cyan-faint); max-width: 90%; animation: winIn .2s; }
+  .msg.user { border-left: none; border-right: 2px solid var(--orange); background: rgba(255,181,71,.07); align-self: flex-end; text-align: right; white-space: pre-wrap; }
+  .msg.wide { max-width: 100%; width: 100%; }
+  .msg b { display: block; font-size: 9px; letter-spacing: 2px; opacity: .55; margin-bottom: 2px; font-weight: normal; }
+  .mini-input { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--cyan-dim); flex-shrink: 0; }
+  .mini-input.top { border-top: none; border-bottom: 1px solid var(--cyan-dim); padding: 0 0 10px; margin-bottom: 10px; }
+
+  /* System */
+  .stat { margin-bottom: 14px; }
+  .stat label { font-size: 10px; letter-spacing: 2px; opacity: .7; display: flex; justify-content: space-between; }
+  .bar { height: 6px; background: var(--cyan-faint); margin-top: 6px; position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--cyan), #7ff6ff); box-shadow: 0 0 8px var(--cyan); transition: width .8s; }
+  .module { display: flex; justify-content: space-between; padding: 6px 8px; margin-bottom: 6px; font-size: 11px; border-left: 2px solid var(--cyan); background: var(--cyan-faint); }
+  .module span:last-child { color: var(--cyan); }
+  .module.off { border-color: var(--orange); }
+  .module.off span:last-child { color: var(--orange); }
+
+  /* Notes */
+  .notes { width: 100%; height: 100%; resize: none; background: transparent; border: none; outline: none; padding: 12px; font-size: 13px; line-height: 1.6; }
+
+  /* Todo */
+  .todo { list-style: none; }
+  .todo li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--cyan-faint); }
+  .todo li.done span { text-decoration: line-through; opacity: .45; }
+  .todo span { flex: 1; }
+  .todo input { accent-color: var(--cyan); }
+  .todo button { background: none; border: none; color: var(--cyan-mid); }
+  .todo button:hover { color: var(--red); }
+  .empty { opacity: .45; font-size: 12px; text-align: center; padding: 16px; }
+
+  /* Weather */
+  .wx-now { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .wx-temp { font-size: 44px; color: var(--cyan); text-shadow: 0 0 12px var(--cyan); }
+  .wx-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; font-size: 11px; }
+  .wx-days div { padding: 8px 0; background: var(--cyan-faint); }
+  .wx-days b { display: block; font-size: 16px; margin: 4px 0; font-weight: normal; }
+
+  /* Calendar */
+  .cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; letter-spacing: 2px; font-size: 12px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 12px; }
+  .cal .dow { opacity: .5; font-size: 10px; }
+  .cal .day { padding: 6px 0; background: var(--cyan-faint); }
+  .cal .today { background: var(--cyan); color: var(--bg); box-shadow: 0 0 10px var(--cyan); }
+
+  /* Timer */
+  .timer-display { font-size: 48px; text-align: center; color: var(--cyan); text-shadow: 0 0 14px var(--cyan); letter-spacing: 4px; margin: 6px 0 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+
+  /* Web */
+  .web-frame { flex: 1; border: none; background: #fff; width: 100%; }
+  .web-bar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--cyan-dim); }
+
+  /* Custom */
+  .custom-text { outline: none; min-height: 100%; white-space: pre-wrap; }
+  .custom-text:empty::before { content: "Нажмите и пишите..."; opacity: .4; }
+
+  /* ---------- Command bar ---------- */
+  .cmd-zone {
+    position: fixed; left: 56px; right: 0; bottom: 0; height: 110px; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 18px;
+    pointer-events: none;
+  }
+  #wave { width: min(760px, 90%); height: 28px; }
+  .cmdbar {
+    pointer-events: auto; width: min(760px, 90%); display: flex; align-items: center; gap: 10px;
+    padding: 8px 8px 8px 8px; border: 1px solid var(--cyan-mid);
+    background: rgba(2,18,28,.92); box-shadow: 0 0 30px rgba(0,229,255,.15);
+  }
+  .cmdbar input { flex: 1; background: transparent; border: none; outline: none; font-size: 15px; padding: 6px 4px; }
+  .cmdbar input::placeholder { color: rgba(191,239,255,.4); }
+  .mic {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+    border: 2px solid var(--cyan); background: radial-gradient(circle, rgba(0,229,255,.2), transparent 70%); color: var(--cyan);
+    transition: all .2s;
+  }
+  .mic:hover { box-shadow: 0 0 18px var(--cyan); }
+  .mic.active { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 24px var(--orange); animation: micPulse 1.2s infinite; }
+  @keyframes micPulse { 50% { box-shadow: 0 0 6px var(--orange); } }
+  .mic svg { width: 20px; height: 20px; }
+  kbd { font-size: 10px; opacity: .5; border: 1px solid var(--cyan-dim); padding: 2px 5px; }
+
+  /* ---------- Modal ---------- */
+  .modal { position: fixed; inset: 0; z-index: 20000; background: rgba(0,5,10,.7); display: grid; place-items: center; backdrop-filter: blur(3px); }
+  .dialog { width: min(440px, 92vw); background: rgba(2,18,28,.97); border: 1px solid var(--cyan-mid); padding: 20px; display: flex; flex-direction: column; gap: 12px; position: relative; animation: winIn .2s; }
+  .dialog h3 { font-size: 12px; letter-spacing: 4px; color: var(--cyan); font-weight: normal; }
+  .dialog label { font-size: 10px; letter-spacing: 2px; opacity: .8; display: flex; flex-direction: column; gap: 6px; }
+  .dialog textarea { min-height: 90px; resize: vertical; }
+  .dialog .row { justify-content: flex-end; }
+
+  .help { font-size: 12px; }
+  .help code { color: var(--orange); }
+  .help li { margin: 4px 0 4px 16px; }
+  .help h4 { font-size: 10px; letter-spacing: 2px; color: var(--cyan); margin: 10px 0 4px; font-weight: normal; }
+
+  /* ---------- Rich content (markdown + artifacts) ---------- */
+  .field { color-scheme: dark; }
+  select.field option { background: #02121c; }
+  .rich { line-height: 1.6; }
+  .rich > :first-child { margin-top: 0; }
+  .rich h1 { font-size: 18px; color: var(--cyan); letter-spacing: 2px; margin: 4px 0 8px; text-shadow: 0 0 8px var(--cyan-dim); font-weight: normal; }
+  .rich h2 { font-size: 12px; color: var(--cyan); letter-spacing: 3px; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--cyan-dim); text-transform: uppercase; font-weight: normal; }
+  .rich h3 { font-size: 13px; color: var(--orange); margin: 14px 0 6px; font-weight: normal; }
+  .rich p { margin: 6px 0; }
+  .rich ul, .rich ol { margin: 6px 0 6px 20px; }
+  .rich li { margin: 2px 0; }
+  .rich li input[type=checkbox] { accent-color: var(--cyan); margin-right: 6px; }
+  .rich ul:has(> li > input[type=checkbox]) { list-style: none; margin-left: 2px; }
+  .rich a { color: var(--cyan); }
+  .rich strong { color: #fff; }
+  .rich code { background: var(--cyan-faint); padding: 1px 5px; color: var(--orange); font-size: 12px; }
+  .rich pre { background: rgba(0,0,0,.4); border: 1px solid var(--cyan-dim); padding: 10px; overflow: auto; margin: 8px 0; }
+  .rich pre code { background: none; padding: 0; color: var(--text); white-space: pre-wrap; }
+  .rich blockquote { border-left: 3px solid var(--orange); padding: 4px 12px; margin: 8px 0; background: rgba(255,181,71,.06); }
+  .rich hr { border: none; border-top: 1px dashed var(--cyan-dim); margin: 14px 0; }
+  .rich table, .dt { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  .rich th { text-align: left; color: var(--cyan); font-weight: normal; letter-spacing: 1px; font-size: 10px; text-transform: uppercase; padding: 7px 8px; border-bottom: 1px solid var(--cyan-mid); background: #04202c; }
+  .rich td { padding: 6px 8px; border-bottom: 1px solid var(--cyan-faint); }
+  .rich tr:hover td { background: rgba(0,229,255,.04); }
+
+  .art { margin: 12px 0; }
+  .art-box { border: 1px solid var(--cyan-dim); background: rgba(0,0,0,.2); padding: 10px; }
+  .art-title { font-size: 10px; letter-spacing: 2px; color: var(--cyan); margin-bottom: 8px; text-transform: uppercase; }
+  .art-err { border: 1px solid var(--red); color: var(--red); padding: 8px; font-size: 12px; white-space: pre-wrap; }
+  .art-frame { width: 100%; height: 160px; border: none; display: block; background: transparent; }
+  .chart-box { position: relative; height: 240px; }
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+
+  .tools { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .tools .art-title { margin: 0 auto 0 0; }
+  .tools .field { padding: 5px 8px; font-size: 12px; width: 160px; }
+  .tools small { opacity: .5; font-size: 10px; }
+  .dt-wrap { overflow: auto; max-height: 420px; }
+  .dt th { cursor: pointer; position: sticky; top: 0; user-select: none; }
+  .dt th[data-sort]:not([data-sort=""])::after { content: " " attr(data-sort); color: var(--orange); }
+  .dt .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: #3dffa8; }
+  .down { color: var(--red); }
+  .badge { display: inline-block; padding: 0 8px; font-size: 10px; letter-spacing: 1px; border: 1px solid currentColor; white-space: nowrap; }
+
+  .jf { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .jf .f { grid-column: span 2; display: flex; flex-direction: column; gap: 5px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .jf .f.half { grid-column: span 1; }
+  .jf .f > span:first-child { color: var(--cyan); }
+  .jf .req::after { content: " *"; color: var(--orange); }
+  .jf .opts { display: flex; flex-wrap: wrap; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 12px; }
+  .jf .opts label { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--cyan-dim); cursor: pointer; }
+  .jf .opts label:has(input:checked) { border-color: var(--cyan); background: var(--cyan-faint); color: var(--cyan); }
+  .jf input[type=radio], .jf input[type=checkbox], .jf input[type=range] { accent-color: var(--cyan); }
+  .jf .f.check { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 12px; cursor: pointer; }
+  .jf .f.check > span:first-child { color: var(--text); }
+  .jf .actions { grid-column: span 2; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+  .jf .sent { color: #3dffa8; font-size: 11px; letter-spacing: 2px; margin-right: auto; }
+  .jf :disabled { opacity: .55; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { border: 1px solid var(--cyan-dim); background: linear-gradient(160deg, rgba(0,229,255,.1), transparent 70%); padding: 12px; }
+  .kpi .l { font-size: 10px; letter-spacing: 2px; opacity: .7; text-transform: uppercase; }
+  .kpi .v { font-size: 22px; color: var(--cyan); text-shadow: 0 0 10px var(--cyan-dim); margin: 4px 0 2px; white-space: nowrap; }
+  .kpi .d { font-size: 12px; }
+  .kpi .h { opacity: .5; font-size: 11px; }
+
+  .prog { margin: 10px 0; }
+  .prog label { display: flex; justify-content: space-between; font-size: 11px; }
+  .prog.done .bar i { background: #3dffa8; box-shadow: 0 0 8px #3dffa8; }
+
+  .tl { position: relative; padding-left: 24px; }
+  .tl::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 1px; background: var(--cyan-dim); }
+  .tl-item { position: relative; margin-bottom: 14px; }
+  .tl-item::before { content: ""; position: absolute; left: -23px; top: 4px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--cyan); background: var(--bg); }
+  .tl-item.done::before { background: var(--cyan); }
+  .tl-item.active::before { border-color: var(--orange); background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+  .tl-item.pending { opacity: .55; }
+  .tl-time { font-size: 10px; letter-spacing: 2px; color: var(--orange); }
+  .tl-title { color: var(--cyan); }
+  .tl-text { font-size: 12px; opacity: .8; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .card { border: 1px solid var(--cyan-dim); padding: 12px; background: rgba(0,229,255,.04); display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; transition: .15s; }
+  a.card:hover { border-color: var(--cyan); box-shadow: 0 0 14px var(--cyan-dim); }
+  .card .t { color: var(--cyan); font-size: 13px; }
+  .card .x { font-size: 12px; opacity: .8; flex: 1; }
+  .card .m { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; opacity: .6; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .g-item { text-align: left; border: 1px solid var(--cyan-dim); background: var(--cyan-faint); padding: 12px; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+  .g-item:hover { border-color: var(--cyan); box-shadow: 0 0 14px var(--cyan-dim); }
+  .g-item i { font-style: normal; font-size: 20px; color: var(--cyan); }
+  .g-item b { color: var(--cyan); font-weight: normal; letter-spacing: 1px; font-size: 12px; }
+  .g-item span { font-size: 11px; opacity: .65; line-height: 1.4; }
+
+  .sbx-bar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--cyan-dim); flex-shrink: 0; align-items: center; }
+  .sbx { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .sbx textarea { resize: none; border: none; border-right: 1px solid var(--cyan-dim); background: rgba(0,0,0,.3); padding: 10px; font-size: 12px; line-height: 1.5; outline: none; min-height: 0; }
+  .sbx .pv { overflow: auto; padding: 12px; min-height: 0; }
+
+  /* ---------- Media ---------- */
+  .art figure { margin: 0; }
+  .art figcaption { font-size: 11px; opacity: .65; margin-top: 4px; }
+  .img-single img { max-width: 100%; max-height: 440px; display: block; cursor: zoom-in; border: 1px solid var(--cyan-dim); }
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .img-grid img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; cursor: zoom-in; border: 1px solid var(--cyan-dim); transition: .15s; }
+  .img-grid img:hover, .img-single img:hover, .rich p img:hover { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-dim); }
+  .rich p img { max-width: 100%; cursor: zoom-in; border: 1px solid var(--cyan-dim); display: block; }
+
+  .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .video-frame { position: relative; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--cyan-dim); overflow: hidden; }
+  .video-frame iframe, .video-frame video, .video-frame img { position: absolute; inset: 0; width: 100%; height: 100%; border: none; object-fit: cover; }
+  .video-frame video { object-fit: contain; }
+  .video-play { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(transparent 40%, rgba(0,0,0,.6)); border: none; }
+  .video-play span { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--cyan); display: grid; place-items: center; color: var(--cyan); font-size: 22px; background: rgba(2,18,28,.75); box-shadow: 0 0 20px var(--cyan-dim); transition: .15s; }
+  .video-play:hover span { transform: scale(1.1); box-shadow: 0 0 30px var(--cyan); }
+  .video-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; margin-top: 5px; }
+  .video-meta a { color: var(--cyan); opacity: .8; white-space: nowrap; }
+
+  .audio-item { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; }
+  .audio-item:last-child { margin-bottom: 0; }
+  .audio-item audio { width: 100%; height: 36px; color-scheme: dark; }
+  .embed-frame { width: 100%; border: 1px solid var(--cyan-dim); display: block; background: #000; }
+  .card-img { width: calc(100% + 24px); margin: -12px -12px 4px; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+
+  .lightbox { position: fixed; inset: 0; z-index: 30000; background: rgba(0,4,8,.92); display: grid; place-items: center; backdrop-filter: blur(4px); animation: winIn .15s; }
+  .lightbox figure { text-align: center; }
+  .lightbox img { max-width: 88vw; max-height: 80vh; border: 1px solid var(--cyan-dim); box-shadow: 0 0 40px rgba(0,229,255,.2); }
+  .lb-cap { margin-top: 10px; font-size: 13px; }
+  .lb-count { position: absolute; top: 24px; left: 24px; font-size: 11px; letter-spacing: 2px; color: var(--cyan); }
+  .lb-x, .lb-nav { position: absolute; background: rgba(2,18,28,.8); border: 1px solid var(--cyan-dim); color: var(--cyan); width: 44px; height: 44px; font-size: 20px; }
+  .lb-x { top: 16px; right: 16px; }
+  .lb-nav { top: 50%; transform: translateY(-50%); }
+  .lb-nav.prev { left: 20px; }
+  .lb-nav.next { right: 20px; }
+  .lb-x:hover, .lb-nav:hover { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-dim); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">J.A.R.V.I.S.</div>
+  <button class="btn" id="btnNew">+ НОВОЕ ОКНО</button>
+  <button class="btn" id="btnTile">РАЗЛОЖИТЬ</button>
+  <select class="field" id="preset">
+    <option value="">ДАШБОРД…</option>
+  </select>
+  <button class="btn" id="btnReset">СБРОС</button>
+  <div class="spacer"></div>
+  <div class="clock"><span id="time">00:00:00</span><small id="date"></small></div>
+</header>
+
+<nav class="dock" id="dock"></nav>
+
+<div class="core-wrap">
+  <div class="core" id="core">
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+    <div class="ring r4"></div><div class="ring r5"></div><div class="nucleus" id="nucleus"></div>
+  </div>
+  <div class="status-text" id="status">ОЖИДАНИЕ КОМАНДЫ</div>
+  <div class="last-reply" id="lastReply"></div>
+</div>
+
+<div class="desktop" id="desktop"></div>
+
+<div class="cmd-zone">
+  <canvas id="wave"></canvas>
+  <form class="cmdbar" id="cmdForm">
+    <button type="button" class="mic" id="mic" title="Голосовой ввод (пробел)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/>
+      </svg>
+    </button>
+    <input id="cmd" autocomplete="off" placeholder="Скажите или напишите: «открой заметки», «задача купить молоко», «таймер 5 минут»…">
+    <kbd>⌘K</kbd>
+    <button class="btn">ВЫПОЛНИТЬ</button>
+  </form>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <form class="dialog" id="newForm">
+    <h3>НОВОЕ ОКНО</h3>
+    <label>НАЗВАНИЕ<input class="field" name="title" required placeholder="Например: Проект Mark VII"></label>
+    <label>ТИП
+      <select class="field" name="type">
+        <option value="text">Текст / заметка</option>
+        <option value="web">Веб-страница (URL)</option>
+        <option value="rich">Markdown + виджеты (формат агента)</option>
+        <option value="html">Свой HTML-виджет</option>
+      </select>
+    </label>
+    <label>СОДЕРЖИМОЕ<textarea class="field" name="content" placeholder="Текст, ссылка или HTML-код"></textarea></label>
+    <div class="row">
+      <button type="button" class="btn" id="cancelNew">ОТМЕНА</button>
+      <button class="btn">СОЗДАТЬ</button>
+    </div>
+  </form>
+</div>
+
+<script>
+/* ================= Artifacts: markdown + visual blocks =================
+ * Ответ агента — Markdown. Fenced-блоки ```chart / ```table / ```form / ```kpi / ```progress /
+ * ```timeline / ```cards (JSON) и ```html (Tailwind + Chart.js в iframe) рендерятся как виджеты.
+ */
+
+const PALETTE = ['#00e5ff', '#ffb547', '#7c5cff', '#3dffa8', '#ff5470', '#4da3ff', '#f5f56b', '#ff7ad9'];
+const CHART_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js';
+const ART_RE = /(```|~~~)[ \t]*(chart|table|form|kpi|progress|timeline|cards|html|image|images|video|youtube|audio|embed)[^\n]*\n([\s\S]*?)\1/g;
+const BOXED = ['chart', 'table', 'form', 'progress', 'timeline', 'audio'];
+
+if (window.Chart) {
+  Chart.defaults.color = '#bfefff';
+  Chart.defaults.borderColor = 'rgba(0,229,255,.1)';
+  Chart.defaults.font.family = '"SF Mono", Menlo, Consolas, monospace';
+  Chart.defaults.font.size = 11;
+}
+
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat(Infinity).forEach(c => c != null && c !== false && el.append(c));
+  return el;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = u => /^https?:\/\//i.test(u) ? u : '#';
+const safeMedia = u => /^(https?:\/\/|data:(image|video|audio)\/)/i.test(u) ? u : '';
+const itemsOf = s => Array.isArray(s) ? s : (s.items || []);
+const titleOf = (box, s) => { if (!Array.isArray(s) && s.title) box.append(h('div', { class: 'art-title' }, s.title)); };
+
+function hasArtifacts(md) { ART_RE.lastIndex = 0; return ART_RE.test(md); }
+
+function plain(md) {
+  return String(md)
+    .replace(ART_RE, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[#*_`>|~]+/g, ' ')
+    .replace(/\s+/g, ' ').trim().slice(0, 400);
+}
+
+function renderRich(el, md) {
+  el.classList.add('rich');
+  const arts = [];
+  const src = String(md).replace(ART_RE, (_, f, type, body) => `\n\n@@ART${arts.push({ type, body }) - 1}@@\n\n`);
+  let html = window.marked && window.DOMPurify
+    ? DOMPurify.sanitize(marked.parse(src, { gfm: true, breaks: true }))
+    : `<p>${esc(src).replace(/\n/g, '<br>')}</p>`;
+  html = html.replace(/(<p>)?@@ART(\d+)@@(<\/p>)?/g, '<div data-art="$2"></div>');
+  el.innerHTML = html;
+  el.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+  el.querySelectorAll('p').forEach(p => {
+    const a = p.firstElementChild;
+    if (p.childNodes.length !== 1 || a?.tagName !== 'A' || !videoSource(a.href)) return;
+    const box = h('div', { class: 'art art-video' });
+    p.replaceWith(box);
+    renderVideo(box, { url: a.href });
+  });
+  const imgs = [...el.querySelectorAll('p img')];
+  imgs.forEach((img, i) => img.onclick = () => openLightbox(imgs.map(x => ({ src: x.src, caption: x.alt })), i));
+  el.querySelectorAll('[data-art]').forEach(ph => mountArtifact(ph, arts[+ph.dataset.art]));
+}
+
+function mountArtifact(ph, { type, body }) {
+  const box = h('div', { class: 'art art-' + type + (BOXED.includes(type) ? ' art-box' : '') });
+  ph.replaceWith(box);
+  try {
+    if (type === 'html') return renderHtml(box, body);
+    RENDERERS[type](box, JSON.parse(body.trim()));
+  } catch (e) {
+    box.className = 'art';
+    box.replaceChildren(h('div', { class: 'art-err' }, `Ошибка в блоке «${type}»: ${e.message}\n\n${body.slice(0, 300)}`));
+  }
+}
+
+/* ---------- chart ---------- */
+function toChartConfig(s) {
+  const grid = 'rgba(0,229,255,.1)';
+  if (s.data?.datasets) {
+    const cfg = structuredClone(s);
+    cfg.options = { responsive: true, maintainAspectRatio: false, ...(cfg.options || {}) };
+    cfg.data.datasets.forEach((d, i) => { const c = PALETTE[i % PALETTE.length]; d.borderColor ??= c; d.backgroundColor ??= c + '55'; });
+    return cfg;
+  }
+  const kind = s.type || 'line';
+  const type = kind === 'area' ? 'line' : kind === 'hbar' ? 'bar' : kind;
+  const round = ['pie', 'doughnut', 'polarArea'].includes(type);
+  const series = s.series || [{ name: s.title, data: s.data }];
+  const datasets = series.map((d, i) => {
+    const c = d.color || PALETTE[i % PALETTE.length];
+    const asLine = (d.type || type) === 'line' || type === 'radar';
+    return {
+      label: d.name, data: d.data, type: d.type,
+      borderColor: round ? '#02121c' : c,
+      backgroundColor: round ? d.data.map((_, j) => PALETTE[j % PALETTE.length] + 'cc') : asLine ? c + '33' : c + 'bb',
+      fill: kind === 'area' || type === 'radar' || !!d.fill,
+      tension: 0.35, borderWidth: 2, borderRadius: type === 'bar' && !d.type ? 3 : 0,
+      pointRadius: type === 'scatter' ? 4 : 2, yAxisID: d.axis === 'right' ? 'y1' : 'y',
+    };
+  });
+  const options = {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: kind === 'hbar' ? 'y' : 'x',
+    interaction: round || type === 'scatter' ? { mode: 'nearest', intersect: true } : { mode: 'index', intersect: false },
+    plugins: {
+      title: { display: !!s.title, text: s.title, color: '#00e5ff', font: { size: 12, weight: 'normal' } },
+      legend: { display: series.length > 1 || round, labels: { boxWidth: 10 } },
+    },
+  };
+  if (type === 'radar' || type === 'polarArea') {
+    options.scales = { r: { grid: { color: grid }, angleLines: { color: grid }, pointLabels: { color: '#bfefff' }, ticks: { backdropColor: 'transparent', color: 'rgba(191,239,255,.5)' } } };
+  } else if (!round) {
+    const axisTitle = t => t ? { display: true, text: t } : undefined;
+    options.scales = {
+      x: { stacked: !!s.stacked, grid: { color: grid }, title: axisTitle(s.xLabel) },
+      y: { stacked: !!s.stacked, beginAtZero: s.beginAtZero ?? type === 'bar', grid: { color: grid }, title: axisTitle(s.yLabel) },
+    };
+    if (series.some(d => d.axis === 'right')) options.scales.y1 = { position: 'right', grid: { drawOnChartArea: false } };
+  }
+  return { type, data: { labels: s.labels, datasets }, options };
+}
+
+function renderChart(box, s) {
+  if (!window.Chart) return box.append(h('div', { class: 'art-err' }, 'Chart.js не загрузился — нужен интернет.'));
+  if (s.grid) {
+    const g = h('div', { class: 'chart-grid' });
+    box.append(g);
+    s.grid.forEach(sp => { const cell = h('div'); g.append(cell); renderChart(cell, sp); });
+    return;
+  }
+  const canvas = h('canvas');
+  box.append(h('div', { class: 'chart-box', style: `height:${s.height || 240}px` }, canvas));
+  new Chart(canvas, toChartConfig(s));
+}
+
+/* ---------- table ---------- */
+function tagColor(v) {
+  const t = String(v).toLowerCase();
+  if (/^(онлайн|вкл|актив|готов|в наличии|есть|ок|норм|успех|done|да)/.test(t)) return '#3dffa8';
+  if (/(офлайн|выкл|ошибк|нет в|критич|отказ|fail|нет$)/.test(t)) return '#ff5470';
+  if (/(ожида|пред|скоро|внимани|мало|в работе|pending)/.test(t)) return '#ffb547';
+  let n = 0; for (const ch of t) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[n % PALETTE.length];
+}
+
+function renderTable(box, s) {
+  let cols, rows;
+  if (Array.isArray(s)) {
+    cols = Object.keys(s[0] || {}).map(k => ({ label: k, type: typeof s[0][k] === 'number' ? 'number' : 'text' }));
+    rows = s.map(r => cols.map(c => r[c.label]));
+  } else {
+    cols = s.columns.map(c => typeof c === 'string' ? { label: c } : c);
+    rows = s.rows.map(r => Array.isArray(r) ? r : cols.map(c => r[c.key ?? c.label]));
+  }
+  const isNum = c => ['number', 'money', 'percent', 'delta'].includes(c.type);
+  let sortI = -1, dir = 1, q = '';
+
+  const cell = (c, v) => {
+    const td = h('td', { class: isNum(c) ? 'num' : null });
+    if (v == null || v === '') { td.textContent = '—'; return td; }
+    switch (c.type) {
+      case 'number': td.textContent = (+v).toLocaleString('ru-RU'); break;
+      case 'money': td.textContent = (+v).toLocaleString('ru-RU') + ' ' + (c.currency || '₽'); break;
+      case 'percent': td.textContent = v + '%'; break;
+      case 'delta': {
+        const good = c.invert ? v < 0 : v > 0, bad = c.invert ? v > 0 : v < 0;
+        td.textContent = (v > 0 ? '▲ +' : v < 0 ? '▼ ' : '') + v + '%';
+        td.classList.add(good ? 'up' : bad ? 'down' : 'flat');
+        break;
+      }
+      case 'badge': td.append(h('span', { class: 'badge', style: `color:${tagColor(v)}` }, String(v))); break;
+      case 'link': td.append(h('a', { href: safeUrl(v), target: '_blank', rel: 'noopener' }, c.text || String(v).replace(/^https?:\/\/(www\.)?/, '').slice(0, 30))); break;
+      default: td.textContent = v;
+    }
+    return td;
+  };
+
+  const tbody = h('tbody'), count = h('small');
+  const headRow = h('tr', {}, cols.map((c, i) => h('th', {
+    class: isNum(c) ? 'num' : null,
+    onclick: () => { dir = sortI === i ? -dir : 1; sortI = i; draw(); },
+  }, c.label)));
+
+  function draw() {
+    let list = rows.filter(r => !q || r.some(v => String(v ?? '').toLowerCase().includes(q)));
+    if (sortI >= 0) list = [...list].sort((a, b) => {
+      const x = a[sortI], y = b[sortI];
+      return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x ?? '').localeCompare(String(y ?? ''), 'ru', { numeric: true })) * dir;
+    });
+    tbody.replaceChildren(...list.map(r => h('tr', {}, cols.map((c, i) => cell(c, r[i])))));
+    headRow.querySelectorAll('th').forEach((th, i) => th.dataset.sort = i === sortI ? (dir > 0 ? '▲' : '▼') : '');
+    count.textContent = list.length === rows.length ? `${rows.length} строк` : `${list.length} из ${rows.length}`;
+  }
+
+  const csv = () => {
+    const cellText = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const text = [cols.map(c => c.label), ...rows].map(r => r.map(cellText).join(';')).join('\n');
+    h('a', { href: URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/csv' })), download: (s.title || 'table') + '.csv' }).click();
+  };
+
+  const filter = h('input', { class: 'field', placeholder: 'Фильтр…', oninput: e => { q = e.target.value.toLowerCase(); draw(); } });
+  box.append(
+    h('div', { class: 'tools' }, h('div', { class: 'art-title' }, s.title || ''), count, filter, h('button', { class: 'btn', onclick: csv }, 'CSV')),
+    h('div', { class: 'dt-wrap' }, h('table', { class: 'dt' }, h('thead', {}, headRow), tbody)),
+  );
+  draw();
+}
+
+/* ---------- form ---------- */
+function renderForm(box, s) {
+  titleOf(box, s);
+  if (s.description) box.append(h('p', { style: 'margin:-2px 0 12px;opacity:.7;font-size:12px' }, s.description));
+  const form = h('form', { class: 'jf' });
+
+  s.fields.forEach(f => {
+    const type = f.type || 'text';
+    const label = h('span', { class: f.required ? 'req' : null }, f.label || f.name);
+    const base = { name: f.name, class: 'field', required: !!f.required && type !== 'checkboxes', placeholder: f.placeholder };
+    let wrap;
+
+    if (type === 'checkbox') {
+      wrap = h('label', { class: 'f check' + (f.half ? ' half' : '') }, h('input', { type: 'checkbox', name: f.name, checked: !!f.value }), h('span', {}, f.label || f.name));
+    } else if (type === 'radio' || type === 'checkboxes') {
+      const opts = h('div', { class: 'opts' }, f.options.map(o => h('label', {},
+        h('input', { type: type === 'radio' ? 'radio' : 'checkbox', name: f.name, value: o, required: type === 'radio' && !!f.required,
+                     checked: f.value === o || (Array.isArray(f.value) && f.value.includes(o)) }),
+        String(o))));
+      wrap = h('div', { class: 'f' + (f.half ? ' half' : '') }, label, opts);
+    } else {
+      let input;
+      if (type === 'textarea') {
+        input = h('textarea', { ...base, rows: f.rows || 3 });
+      } else if (type === 'select') {
+        input = h('select', { ...base, multiple: !!f.multiple, size: f.multiple ? Math.min(f.options.length, 5) : null },
+          f.multiple ? [] : h('option', { value: '' }, f.placeholder || '— выберите —'),
+          f.options.map(o => h('option', { selected: f.value === o || (Array.isArray(f.value) && f.value.includes(o)) }, String(o))));
+      } else {
+        input = h('input', { ...base, type, min: f.min, max: f.max, step: f.step });
+        if (type === 'range') {
+          const out = h('b', {}, String(f.value ?? f.min ?? 0));
+          label.append(': ', out);
+          input.oninput = () => out.textContent = input.value;
+        }
+      }
+      if (f.value != null && type !== 'select') input.value = f.value;
+      wrap = h('label', { class: 'f' + (f.half ? ' half' : '') }, label, input);
+    }
+    form.append(wrap);
+  });
+
+  const sent = h('span', { class: 'sent' });
+  form.append(h('div', { class: 'actions' }, sent,
+    h('button', { class: 'btn', type: 'reset' }, 'ОЧИСТИТЬ'),
+    h('button', { class: 'btn' }, (s.submit || 'Отправить').toUpperCase())));
+
+  form.onsubmit = e => {
+    e.preventDefault();
+    const data = {};
+    const q = n => form.querySelector(`[name="${CSS.escape(n)}"]`);
+    s.fields.forEach(f => {
+      const n = f.name;
+      if (f.type === 'checkbox') data[n] = q(n).checked;
+      else if (f.type === 'checkboxes') data[n] = [...form.querySelectorAll(`[name="${CSS.escape(n)}"]:checked`)].map(i => i.value);
+      else if (f.type === 'radio') data[n] = form.querySelector(`[name="${CSS.escape(n)}"]:checked`)?.value ?? '';
+      else if (f.type === 'select' && f.multiple) data[n] = [...q(n).selectedOptions].map(o => o.value);
+      else data[n] = q(n).value;
+    });
+    [...form.elements].forEach(el => el.disabled = true);
+    sent.textContent = '✓ ОТПРАВЛЕНО ДЖАРВИСУ';
+    handleForm(s, data);
+  };
+  box.append(form);
+}
+
+/* ---------- kpi / progress / timeline / cards ---------- */
+function renderKpi(box, s) {
+  titleOf(box, s);
+  box.append(h('div', { class: 'kpis' }, itemsOf(s).map(k => {
+    const d = typeof k.delta === 'number' ? k.delta : parseFloat(k.delta);
+    const deltaText = typeof k.delta === 'number' ? `${d > 0 ? '▲ +' : d < 0 ? '▼ ' : ''}${d}${k.deltaUnit ?? '%'}` : k.delta;
+    const tone = (k.invert ? -d : d) > 0 ? 'up' : (k.invert ? -d : d) < 0 ? 'down' : '';
+    return h('div', { class: 'kpi' },
+      h('div', { class: 'l' }, k.label),
+      h('div', { class: 'v' }, String(k.value)),
+      k.delta != null && h('div', { class: 'd ' + tone }, deltaText),
+      k.hint && h('div', { class: 'h' }, k.hint));
+  })));
+}
+
+function renderProgress(box, s) {
+  titleOf(box, s);
+  itemsOf(s).forEach(p => {
+    const pct = Math.round(p.value / (p.max || 100) * 100);
+    box.append(h('div', { class: 'prog' + (pct >= 100 ? ' done' : '') },
+      h('label', {}, h('span', {}, p.label), h('span', {}, p.text || pct + '%')),
+      h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(pct, 100)}%` }))));
+  });
+}
+
+function renderTimeline(box, s) {
+  titleOf(box, s);
+  box.append(h('div', { class: 'tl' }, itemsOf(s).map(t => h('div', { class: 'tl-item ' + (t.status || 'done') },
+    h('div', { class: 'tl-time' }, t.time || ''),
+    h('div', { class: 'tl-title' }, t.title || ''),
+    t.text && h('div', { class: 'tl-text' }, t.text)))));
+}
+
+function renderCards(box, s) {
+  titleOf(box, s);
+  box.append(h('div', { class: 'cards' }, itemsOf(s).map(c => h(c.url ? 'a' : 'div', {
+    class: 'card', href: c.url ? safeUrl(c.url) : null, target: c.url ? '_blank' : null, rel: 'noopener',
+  },
+    c.image && safeMedia(c.image) && h('img', { class: 'card-img', src: safeMedia(c.image), alt: '', loading: 'lazy' }),
+    c.tag && h('span', { class: 'badge', style: `color:${tagColor(c.tag)};align-self:flex-start` }, c.tag),
+    h('div', { class: 't' }, c.title),
+    c.text && h('div', { class: 'x' }, c.text),
+    h('div', { class: 'm' }, h('span', {}, c.source || ''), h('span', {}, c.meta || ''))))));
+}
+
+/* ---------- html (Tailwind + Chart.js, sandboxed) ---------- */
+const frames = {};
+const FRAME_HEAD = `<!doctype html><html><head><meta charset="utf-8">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script>window.tailwind&&(tailwind.config={theme:{extend:{colors:{jarvis:{DEFAULT:'#00e5ff',orange:'#ffb547',panel:'#06202e',bg:'#02121c',text:'#bfefff'}},fontFamily:{sans:['SF Mono','Menlo','Consolas','monospace']}}}});<\/script>
+<script src="${CHART_URL}"><\/script>
+<script>const jarvis={send:t=>parent.postMessage({jarvis:1,type:'send',text:String(t)},'*')};
+if(window.Chart){Chart.defaults.color='#bfefff';Chart.defaults.borderColor='rgba(0,229,255,.1)';Chart.defaults.font.family='SF Mono, Menlo, monospace';}<\/script>
+<style>html,body{margin:0;background:transparent;color:#bfefff;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px}body{display:flow-root}</style>
+</head><body>`;
+const FRAME_TAIL = id => `<script>(()=>{const r=()=>parent.postMessage({jarvis:1,type:'height',id:'${id}',h:document.body.scrollHeight},'*');
+new ResizeObserver(r).observe(document.body);addEventListener('load',r);setTimeout(r,400);})();<\/script></body></html>`;
+
+function renderHtml(box, html) {
+  const id = 'f' + Math.random().toString(36).slice(2);
+  const f = h('iframe', { class: 'art-frame', sandbox: 'allow-scripts allow-forms allow-popups' });
+  f.srcdoc = FRAME_HEAD + html + FRAME_TAIL(id);
+  frames[id] = f;
+  box.append(f);
+}
+addEventListener('message', e => {
+  const d = e.data;
+  if (!d || d.jarvis !== 1 || !Object.values(frames).some(f => f.contentWindow === e.source)) return;
+  if (d.type === 'height' && frames[d.id]) frames[d.id].style.height = Math.min(d.h + 2, 3000) + 'px';
+  if (d.type === 'send') handle(String(d.text).slice(0, 2000));
+});
+
+/* ---------- media: image / video / youtube / audio / embed ---------- */
+const mediaItems = s => (Array.isArray(s) ? s : s.items || [s]).map(i => typeof i === 'string' ? { src: i } : i);
+
+function openLightbox(items, start) {
+  let i = start;
+  const img = h('img', { alt: '' }), cap = h('div', { class: 'lb-cap' }), count = h('div', { class: 'lb-count' });
+  const show = () => {
+    img.src = items[i].src;
+    cap.textContent = items[i].caption || '';
+    count.textContent = items.length > 1 ? `${i + 1} / ${items.length}` : '';
+  };
+  const step = d => { i = (i + d + items.length) % items.length; show(); };
+  const close = () => { lb.remove(); removeEventListener('keydown', onKey, true); };
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') step(1);
+    else if (e.key === 'ArrowLeft') step(-1);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  };
+  const nav = (cls, d, label) => items.length > 1 && h('button', { class: 'lb-nav ' + cls, onclick: e => { e.stopPropagation(); step(d); } }, label);
+  const lb = h('div', { class: 'lightbox', onclick: e => { if (e.target === lb) close(); } },
+    count, h('button', { class: 'lb-x', onclick: close }, '✕'), nav('prev', -1, '‹'), h('figure', {}, img, cap), nav('next', 1, '›'));
+  addEventListener('keydown', onKey, true);
+  document.body.append(lb);
+  show();
+}
+
+function renderImage(box, s) {
+  titleOf(box, s);
+  const items = mediaItems(s).filter(it => safeMedia(it.src));
+  const grid = h('div', { class: items.length === 1 ? 'img-single' : 'img-grid',
+                          style: s.columns ? `grid-template-columns:repeat(${+s.columns},1fr)` : null });
+  items.forEach((it, i) => grid.append(h('figure', {},
+    h('img', { src: it.src, alt: it.alt || it.caption || '', loading: 'lazy', onclick: () => openLightbox(items, i) }),
+    it.caption && h('figcaption', {}, it.caption))));
+  box.append(grid);
+}
+
+function videoSource(url, start) {
+  if (!url) return null;
+  let m;
+  if ((m = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/))) {
+    const t = start ?? url.match(/[?&]t=(\d+)/)?.[1];
+    return { provider: 'YouTube', id: m[1], link: `https://www.youtube.com/watch?v=${m[1]}`,
+             thumb: `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`,
+             embed: `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0&autoplay=1${t ? '&start=' + t : ''}` };
+  }
+  if ((m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/))) {
+    return { provider: 'Vimeo', link: `https://vimeo.com/${m[1]}`, embed: `https://player.vimeo.com/video/${m[1]}` };
+  }
+  if ((m = url.match(/rutube\.ru\/(?:video|play\/embed)\/([\w]+)/))) {
+    return { provider: 'RuTube', link: `https://rutube.ru/video/${m[1]}/`, embed: `https://rutube.ru/play/embed/${m[1]}` };
+  }
+  return null;
+}
+
+const PLAYER_ALLOW = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+
+function renderVideo(box, s) {
+  titleOf(box, s);
+  const items = mediaItems(s);
+  const grid = h('div', { class: items.length > 1 ? 'video-grid' : '' });
+  items.forEach(it => {
+    const url = it.url || (it.id ? `https://youtu.be/${it.id}` : it.src);
+    const src = videoSource(url, it.start);
+    const frame = h('div', { class: 'video-frame' });
+    const player = () => h('iframe', { src: src.embed, allow: PLAYER_ALLOW, allowfullscreen: true, referrerpolicy: 'strict-origin-when-cross-origin', title: it.title || src.provider });
+
+    if (src?.thumb) {
+      frame.append(h('img', { src: it.poster || src.thumb, alt: '', loading: 'lazy' }),
+        h('button', { class: 'video-play', title: 'Смотреть', onclick: () => frame.replaceChildren(player()) }, h('span', {}, '▶')));
+    } else if (src) {
+      frame.append(player());
+    } else if (safeMedia(url)) {
+      frame.append(h('video', { src: url, poster: it.poster && safeMedia(it.poster), controls: true, preload: 'metadata', playsinline: true }));
+    } else {
+      frame.append(h('div', { class: 'art-err' }, 'Неподдерживаемая ссылка на видео: ' + url));
+    }
+    grid.append(h('figure', {}, frame, h('div', { class: 'video-meta' },
+      h('span', {}, it.title || it.caption || ''),
+      src && h('a', { href: src.link, target: '_blank', rel: 'noopener' }, `${src.provider} ↗`))));
+  });
+  box.append(grid);
+}
+
+function renderAudio(box, s) {
+  titleOf(box, s);
+  mediaItems(s).forEach(it => safeMedia(it.src) && box.append(h('div', { class: 'audio-item' },
+    it.title && h('span', {}, '♪ ' + it.title),
+    h('audio', { src: it.src, controls: true, preload: 'metadata' }))));
+}
+
+function renderEmbed(box, s) {
+  const url = safeUrl(s.url);
+  if (url === '#') throw new Error('нужна https-ссылка');
+  if (s.title) box.append(h('div', { class: 'art-title' }, s.title));
+  box.append(h('iframe', { class: 'embed-frame', src: url, style: `height:${+s.height || 360}px`, allow: PLAYER_ALLOW,
+                           allowfullscreen: true, loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin' }));
+}
+
+const RENDERERS = {
+  chart: renderChart, table: renderTable, form: renderForm, kpi: renderKpi, progress: renderProgress,
+  timeline: renderTimeline, cards: renderCards,
+  image: renderImage, images: renderImage, video: renderVideo, youtube: renderVideo, audio: renderAudio, embed: renderEmbed,
+};
+
+/* ================= Инструкция для LLM ================= */
+
+const AGENT_PROMPT = `Ты — Джарвис, голосовой ассистент с визуальным интерфейсом. Отвечай на русском в Markdown (GFM: заголовки, списки, таблицы, код).
+Если данные удобнее показать визуально — вставляй блоки. Внутри блоков chart/table/form/kpi/progress/timeline/cards — только валидный JSON без комментариев.
+
+\`\`\`chart — график (Chart.js). Упрощённый формат:
+{"type":"line|area|bar|hbar|pie|doughnut|radar|polarArea|scatter","title":"...","labels":["..."],"series":[{"name":"...","data":[1,2,3],"type":"line","axis":"right"}],"stacked":false,"height":240}
+Несколько графиков сеткой: {"grid":[{...},{...}]}. Можно передать и полный конфиг Chart.js: {"type":"...","data":{...},"options":{...}}.
+
+\`\`\`table — таблица с сортировкой, фильтром и экспортом в CSV:
+{"title":"...","columns":[{"label":"...","type":"text|number|money|percent|delta|badge|link","currency":"₽","invert":false}],"rows":[["...",1,2]]}
+или массив объектов: [{"Колонка":"значение"}].
+
+\`\`\`form — форма; ответ пользователя придёт тебе сообщением {"form":"title","data":{...}}:
+{"title":"...","description":"...","submit":"...","fields":[{"name":"...","label":"...","type":"text|email|number|date|time|select|radio|checkbox|checkboxes|textarea|range","options":["..."],"multiple":false,"required":true,"half":true,"value":"...","min":0,"max":100,"step":1}]}
+
+\`\`\`kpi — [{"label":"...","value":"...","delta":12.5,"hint":"...","invert":false}]  (invert: true — когда рост это плохо, например цена или ошибки)
+\`\`\`progress — [{"label":"...","value":70,"max":100}]
+\`\`\`timeline — [{"time":"...","title":"...","text":"...","status":"done|active|pending"}]
+\`\`\`cards — [{"title":"...","text":"...","url":"https://...","source":"...","tag":"...","meta":"..."}]
+\`\`\`image / \`\`\`images — картинка или галерея (клик — полноэкранный просмотр):
+{"src":"https://...","caption":"..."} или [{"src":"...","caption":"..."}], опционально "columns":3
+\`\`\`video / \`\`\`youtube — плеер. YouTube, Vimeo, RuTube по ссылке или прямой mp4/webm:
+{"url":"https://www.youtube.com/watch?v=ID","title":"...","start":30} или {"id":"YOUTUBE_ID"} или {"src":"https://.../file.mp4","poster":"..."}; массив — сетка видео
+\`\`\`audio — [{"src":"https://.../file.mp3","title":"..."}]
+\`\`\`embed — встроить страницу (карта, Figma, Google Docs): {"url":"https://...","height":360,"title":"..."}
+Ссылка на YouTube/Vimeo/RuTube отдельной строкой сама превращается в плеер; ![alt](url) — обычная картинка; в cards можно добавить "image".
+Любой из блоков можно обернуть: {"title":"...","items":[...]}.
+
+\`\`\`html — свободная вёрстка, когда стандартных блоков не хватает. Доступны Tailwind CSS (цвета: jarvis, jarvis-orange, jarvis-panel, jarvis-bg, jarvis-text; фон прозрачный, тема тёмная), Chart.js (глобальный Chart) и функция jarvis.send(text) — отправить сообщение ассистенту. Скрипты разрешены.
+
+Короткий ответ — просто Markdown. Большой отчёт или дашборд — верни JSON:
+{"text":"1–2 предложения для озвучки","window":{"title":"Название окна","content":"Markdown с блоками"}}
+— он откроется отдельным окном.`;
+
+/* ================= Примеры ================= */
+
+const EX = {
+  report: {
+    icon: '◈', title: 'Отчёт агента', desc: 'Агент нашёл данные: KPI, графики, таблица, источники и форма', size: [760, 680],
+    alias: ['отчёт агента', 'видеокарт'],
+    content: `# Видеокарты RTX 50: где купить
+*Демо-данные · агент проверил 6 магазинов · 13 октября 2026*
+
+**Вывод:** лучшее соотношение цены и производительности у **RTX 5070 Ti** — от **89 990 ₽** в «ТехноМаркете». Цены на RTX 5080 за 8 недель снизились на **7%**, тренд продолжается.
+
+~~~kpi
+[{"label":"Предложений","value":"42","hint":"в 6 магазинах"},{"label":"Мин. 5070 Ti","value":"89 990 ₽","delta":-4.2,"invert":true,"hint":"за месяц"},{"label":"Мин. 5080","value":"124 500 ₽","delta":-7.1,"invert":true,"hint":"за 8 недель"},{"label":"В наличии","value":"78%","delta":5,"hint":"предложений"}]
+~~~
+
+## Цены по магазинам
+~~~chart
+{"type":"bar","title":"Минимальная цена, тыс. ₽","labels":["ТехноМаркет","ЦифроГрад","Пиксель","МегаЧип","Электрон","ГигаСтор"],"series":[{"name":"RTX 5070","data":[64.9,66.5,63.8,67.2,65.9,68.4]},{"name":"RTX 5070 Ti","data":[89.99,92.5,94,91.2,95.5,93]},{"name":"RTX 5080","data":[124.5,129.9,127.3,131,126.8,133.5]}]}
+~~~
+
+## Динамика за 8 недель
+~~~chart
+{"type":"line","title":"Средняя цена, тыс. ₽","labels":["Н1","Н2","Н3","Н4","Н5","Н6","Н7","Н8"],"series":[{"name":"RTX 5070","data":[69,68.5,68,67.1,66.4,66,65.8,65.2]},{"name":"RTX 5070 Ti","data":[97,96.2,95.5,94,93.8,92.4,91.5,90.7]},{"name":"RTX 5080","data":[138,136.5,135,133.2,131,129.8,128.1,127.4]}],"height":220}
+~~~
+
+~~~chart
+{"grid":[{"type":"doughnut","title":"Доля предложений","labels":["RTX 5070","RTX 5070 Ti","RTX 5080","RTX 5090"],"series":[{"data":[16,13,9,4]}],"height":220},{"type":"scatter","title":"Цена / FPS (4K)","xLabel":"тыс. ₽","yLabel":"FPS","series":[{"name":"5070","data":[{"x":65,"y":58}]},{"name":"5070 Ti","data":[{"x":90,"y":79}]},{"name":"5080","data":[{"x":125,"y":96}]},{"name":"5090","data":[{"x":245,"y":138}]}],"height":220}]}
+~~~
+
+## Все предложения
+~~~table
+{"title":"Лучшие предложения","columns":[{"label":"Модель"},{"label":"Магазин"},{"label":"Цена","type":"money"},{"label":"За месяц","type":"delta","invert":true},{"label":"Наличие","type":"badge"},{"label":"Ссылка","type":"link","text":"открыть"}],"rows":[
+["RTX 5070 Ti","ТехноМаркет",89990,-4.2,"В наличии","https://example.com/1"],
+["RTX 5070 Ti","МегаЧип",91200,-2.8,"В наличии","https://example.com/2"],
+["RTX 5070 Ti","ЦифроГрад",92500,-1.1,"Мало","https://example.com/3"],
+["RTX 5070","Пиксель",63800,-3.5,"В наличии","https://example.com/4"],
+["RTX 5070","ТехноМаркет",64900,-2.0,"В наличии","https://example.com/5"],
+["RTX 5070","Электрон",65900,0.4,"Ожидается","https://example.com/6"],
+["RTX 5080","ТехноМаркет",124500,-7.1,"В наличии","https://example.com/7"],
+["RTX 5080","Электрон",126800,-5.4,"Мало","https://example.com/8"],
+["RTX 5080","Пиксель",127300,-6.0,"Нет в наличии","https://example.com/9"],
+["RTX 5090","ГигаСтор",244990,1.8,"Предзаказ","https://example.com/10"]]}
+~~~
+
+## Источники
+~~~cards
+[{"title":"Обзор RTX 5070 Ti: золотая середина","text":"Тесты в 25 играх, сравнение с 4080 Super и RX 9070 XT.","url":"https://example.com/review","source":"hardware-review","tag":"Обзор","meta":"10 окт"},{"title":"Цены на GPU падают третий месяц подряд","text":"Аналитика рынка комплектующих за сентябрь.","url":"https://example.com/news","source":"tech-news","tag":"Новости","meta":"8 окт"},{"title":"Форум: стоит ли ждать Super-версии?","text":"Обсуждение слухов о выходе обновлённой линейки в 2027.","url":"https://example.com/forum","source":"forum","tag":"Слухи","meta":"5 окт"}]
+~~~
+
+## Следующий шаг
+~~~form
+{"title":"Отслеживать цену","description":"Джарвис проверит магазины каждое утро и сообщит, когда цена опустится ниже порога.","submit":"Включить слежку","fields":[{"name":"model","label":"Модель","type":"select","options":["RTX 5070","RTX 5070 Ti","RTX 5080","RTX 5090"],"value":"RTX 5080","required":true,"half":true},{"name":"price","label":"Порог, ₽","type":"number","value":120000,"half":true},{"name":"channel","label":"Куда сообщить","type":"radio","options":["Голосом","Telegram","Email"],"value":"Голосом"}]}
+~~~`,
+  },
+
+  markdown: {
+    icon: '¶', title: 'Markdown', desc: 'Заголовки, списки, чек-листы, цитаты, код, таблицы', alias: ['markdown', 'маркдаун', 'разметк'],
+    content: `# Markdown-отчёт
+Джарвис выводит **жирный**, *курсив*, \`inline-код\`, [ссылки](https://example.com) и ~~зачёркнутый~~ текст.
+
+> «Иногда нужно научиться бегать раньше, чем ходить.» — Тони Старк
+
+## Списки
+- Реактор: **стабилен**
+- Броня Mark VII: 87% готовности
+  - Репульсоры — в норме
+  - Стабилизаторы — калибровка
+1. Проверить сенсоры
+2. Обновить прошивку
+3. Запустить тест полёта
+
+## Чек-лист
+- [x] Собрать каркас
+- [x] Установить реактор
+- [ ] Покрасить в красно-золотой
+
+## Таблица
+| Модуль | Статус | Нагрузка |
+|---|:---:|---:|
+| Голос | 🟢 | 12% |
+| Зрение | 🟢 | 34% |
+| Навигация | 🟡 | 71% |
+| Оружие | 🔴 | 0% |
+
+## Код
+~~~python
+def greet(name: str) -> str:
+    return f"Добрый вечер, {name}. Все системы в норме."
+~~~
+
+---
+*Конец отчёта.*`,
+  },
+
+  charts: {
+    icon: '◭', title: 'Графики', desc: 'Line, area, bar, stacked, hbar, mixed, pie, radar, scatter', size: [720, 680], alias: ['график', 'диаграмм', 'чарт'],
+    content: `# Графики
+Агент передаёт упрощённый JSON — Джарвис сам подберёт цвета и оси. Если нужно больше контроля — полный конфиг Chart.js.
+
+~~~chart
+{"type":"area","title":"Энергия реактора, ГВт","labels":["00:00","03:00","06:00","09:00","12:00","15:00","18:00","21:00"],"series":[{"name":"Выработка","data":[3.2,3.1,3.4,4.8,5.6,5.2,4.6,3.9]},{"name":"Потребление","data":[2.1,1.9,2.4,4.1,5.0,4.7,3.8,2.9]}]}
+~~~
+
+~~~chart
+{"grid":[
+{"type":"bar","title":"Продажи по кварталам","labels":["Q1","Q2","Q3","Q4"],"series":[{"name":"2025","data":[12,19,15,22]},{"name":"2026","data":[16,23,21,30]}]},
+{"type":"bar","title":"Команды по дням (stacked)","stacked":true,"labels":["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],"series":[{"name":"Голос","data":[12,15,9,18,20,7,5]},{"name":"Текст","data":[8,6,11,9,12,4,3]},{"name":"Авто","data":[5,7,6,8,6,10,9]}]},
+{"type":"hbar","title":"Языки в проекте, %","labels":["Python","TypeScript","Go","Rust","Swift"],"series":[{"name":"Доля","data":[42,31,12,9,6]}]},
+{"type":"bar","title":"Выручка и маржа (mixed)","labels":["Янв","Фев","Мар","Апр","Май","Июн"],"series":[{"name":"Выручка, млн","data":[4.1,4.5,5.2,4.9,5.8,6.3]},{"name":"Маржа, %","type":"line","axis":"right","data":[22,24,23,27,29,31]}]},
+{"type":"doughnut","title":"Источники трафика","labels":["Поиск","Соцсети","Прямые","Реклама"],"series":[{"data":[45,25,20,10]}]},
+{"type":"radar","title":"Характеристики брони","labels":["Броня","Скорость","Огонь","Манёвр","Сенсоры"],"series":[{"name":"Mark VI","data":[70,80,65,75,60]},{"name":"Mark VII","data":[85,90,80,70,88]}]},
+{"type":"polarArea","title":"Нагрузка на модули","labels":["Голос","Зрение","Сеть","Память","Логика"],"series":[{"data":[12,34,21,45,28]}]},
+{"type":"scatter","title":"Рост / вес","xLabel":"см","yLabel":"кг","series":[{"name":"Команда","data":[{"x":172,"y":68},{"x":180,"y":82},{"x":165,"y":58},{"x":190,"y":95},{"x":176,"y":74},{"x":168,"y":63}]}]}
+]}
+~~~
+
+### Полный конфиг Chart.js
+~~~chart
+{"type":"line","data":{"labels":["1","2","3","4","5","6","7","8","9","10","11","12"],"datasets":[{"label":"Пульс пилота","data":[72,75,74,88,112,126,131,118,96,84,78,74],"borderColor":"#ff5470","backgroundColor":"rgba(255,84,112,.15)","fill":true,"tension":0.4,"pointRadius":0}]},"options":{"plugins":{"title":{"display":true,"text":"Пульс во время полёта, уд/мин"}},"scales":{"y":{"suggestedMin":60}}}}
+~~~`,
+  },
+
+  table: {
+    icon: '▥', title: 'Таблицы', desc: 'Сортировка, фильтр, CSV, бейджи, деньги, дельты', size: [720, 600], alias: ['таблиц'],
+    content: `# Таблицы
+Кликните по заголовку колонки для сортировки, введите текст в фильтр, выгрузите в CSV.
+
+~~~table
+{"title":"Устройства умного дома","columns":[{"label":"Устройство"},{"label":"Комната","type":"badge"},{"label":"Статус","type":"badge"},{"label":"Мощность, Вт","type":"number"},{"label":"За неделю","type":"delta"},{"label":"Цена","type":"money"}],"rows":[
+["Свет в гостиной","Гостиная","Вкл",42,-3.1,2490],
+["Термостат","Спальня","Вкл",15,0.8,12990],
+["Кофемашина","Кухня","Выкл",1450,12.4,45990],
+["Робот-пылесос","Весь дом","Ожидание",35,-8.2,32990],
+["Камера у входа","Прихожая","Онлайн",6,0,7990],
+["Колонка","Кабинет","Онлайн",9,1.2,14990],
+["Увлажнитель","Детская","Выкл",28,-15,8990],
+["Кондиционер","Гостиная","Вкл",980,22.5,54990],
+["Датчик протечки","Ванная","Онлайн",1,0,1990],
+["Замок","Прихожая","Ошибка",2,0,18990],
+["Сервер Jarvis","Мастерская","Онлайн",320,4.7,199990]]}
+~~~
+
+### Простой формат — массив объектов
+~~~table
+[{"Имя":"Тони Старк","Роль":"Инженер","Доступ":5},{"Имя":"Пеппер Поттс","Роль":"CEO","Доступ":5},{"Имя":"Хэппи Хоган","Роль":"Охрана","Доступ":3},{"Имя":"Питер Паркер","Роль":"Стажёр","Доступ":1}]
+~~~`,
+  },
+
+  form: {
+    icon: '▭', title: 'Формы', desc: 'Все типы полей; отправка уходит Джарвису', size: [560, 700], alias: ['форм'],
+    content: `# Формы
+Агент присылает схему — Джарвис рисует форму. После отправки данные уходят агенту как сообщение, и он отвечает.
+
+~~~form
+{"title":"Новая встреча","description":"Джарвис создаст событие и разошлёт приглашения.","submit":"Создать встречу","fields":[
+{"name":"title","label":"Название","type":"text","required":true,"placeholder":"Совещание по Mark VIII"},
+{"name":"date","label":"Дата","type":"date","required":true,"half":true},
+{"name":"time","label":"Время","type":"time","value":"10:00","half":true},
+{"name":"duration","label":"Длительность, мин","type":"range","min":15,"max":180,"step":15,"value":60},
+{"name":"people","label":"Участники","type":"select","multiple":true,"options":["Пеппер Поттс","Хэппи Хоган","Джеймс Роудс","Брюс Беннер"]},
+{"name":"place","label":"Место","type":"select","options":["Башня Старка","Онлайн","Мастерская"],"half":true},
+{"name":"email","label":"Email для копии","type":"email","placeholder":"tony@stark.com","half":true},
+{"name":"priority","label":"Приоритет","type":"radio","options":["Низкий","Обычный","Высокий"],"value":"Обычный"},
+{"name":"topics","label":"Темы","type":"checkboxes","options":["Бюджет","Безопасность","R&D","Пресса"]},
+{"name":"remind","label":"Напомнить за 15 минут","type":"checkbox","value":true},
+{"name":"notes","label":"Повестка","type":"textarea","placeholder":"Что обсуждаем…"}]}
+~~~
+
+~~~form
+{"title":"Быстрый опрос","submit":"Оценить","fields":[{"name":"score","label":"Насколько полезен Джарвис?","type":"radio","options":["1","2","3","4","5"],"required":true},{"name":"comment","label":"Комментарий","type":"text"}]}
+~~~`,
+  },
+
+  kpi: {
+    icon: '◰', title: 'KPI-дашборд', desc: 'Карточки метрик, прогресс, график, топ-лист', size: [720, 640], alias: ['kpi', 'показател', 'метрик', 'дашборд пример'],
+    content: `# Бизнес-дашборд · октябрь
+~~~kpi
+[{"label":"Выручка","value":"4,2 млн ₽","delta":12.5,"hint":"к сентябрю"},{"label":"Пользователи","value":"18 340","delta":4.1,"hint":"активных"},{"label":"Конверсия","value":"3,8%","delta":-0.6,"hint":"к сентябрю"},{"label":"Аптайм","value":"99,98%","delta":0.02,"hint":"за 30 дней"}]
+~~~
+
+~~~chart
+{"type":"area","title":"Выручка по дням, тыс. ₽","labels":["1","2","3","4","5","6","7","8","9","10","11","12","13"],"series":[{"name":"Октябрь","data":[120,135,128,160,172,150,98,140,165,180,176,190,205]},{"name":"Сентябрь","data":[110,118,125,130,128,122,90,115,138,142,150,149,160]}],"height":220}
+~~~
+
+~~~progress
+{"title":"Цели квартала","items":[{"label":"План продаж","value":72},{"label":"Сборка Mark VIII","value":45},{"label":"Миграция БД","value":100},{"label":"Найм инженеров","value":7,"max":10,"text":"7 из 10"}]}
+~~~
+
+~~~table
+{"title":"Топ товаров","columns":[{"label":"Товар"},{"label":"Категория","type":"badge"},{"label":"Продажи","type":"number"},{"label":"Выручка","type":"money"},{"label":"Динамика","type":"delta"}],"rows":[["Репульсор","Модули",1240,1860000,18.2],["Нано-костюм","Броня",12,1440000,-4.5],["ИИ-ассистент","Софт",5300,530000,32.1],["Дуговой реактор","Энергия",84,420000,2.0]]}
+~~~`,
+  },
+
+  timeline: {
+    icon: '⋮', title: 'Хронология', desc: 'Этапы, история, план проекта', size: [480, 560], alias: ['хронолог', 'таймлайн', 'истори'],
+    content: `# Эволюция брони
+~~~timeline
+[{"time":"2008","title":"Mark I","text":"Собран в пещере из подручных материалов.","status":"done"},
+{"time":"2008","title":"Mark III","text":"Первая красно-золотая броня, полёт и репульсоры.","status":"done"},
+{"time":"2012","title":"Mark VII","text":"Автономная сборка на лету.","status":"done"},
+{"time":"2018","title":"Mark L","text":"Нанотехнологии, броня хранится в реакторе.","status":"done"},
+{"time":"Сейчас","title":"Mark VIII","text":"Интеграция с Джарвисом и голосовым управлением.","status":"active"},
+{"time":"2027","title":"Mark IX","text":"Полностью автономный режим.","status":"pending"}]
+~~~`,
+  },
+
+  cards: {
+    icon: '▦', title: 'Результаты поиска', desc: 'Карточки ссылок, статьи, источники', size: [700, 520], alias: ['поиск', 'результат', 'карточк'],
+    content: `# Поиск: «твердотельные аккумуляторы»
+Агент нашёл **6** релевантных материалов за последний месяц.
+
+~~~cards
+[{"title":"Прорыв в плотности энергии: 500 Вт·ч/кг","text":"Лаборатория показала прототип ячейки с керамическим электролитом.","url":"https://example.com/a","source":"science-daily","tag":"Исследование","meta":"12 окт"},
+{"title":"Когда твердотельные батареи появятся в авто","text":"Разбор планов производителей до 2030 года.","url":"https://example.com/b","source":"auto-news","tag":"Аналитика","meta":"10 окт"},
+{"title":"Патент на сухое нанесение электродов","text":"Технология удешевляет производство на 30%.","url":"https://example.com/c","source":"patents","tag":"Патент","meta":"9 окт"},
+{"title":"Безопасность: тесты на прокол и нагрев","text":"Ячейки не воспламеняются при 300 °C.","url":"https://example.com/d","source":"lab-report","tag":"Тест","meta":"7 окт"},
+{"title":"Рынок до 2032: прогноз $8 млрд","text":"Отчёт консалтинговой компании.","url":"https://example.com/e","source":"market-report","tag":"Аналитика","meta":"4 окт"},
+{"title":"Видео: как устроена ячейка","text":"12-минутное объяснение на пальцах.","url":"https://example.com/f","source":"video","tag":"Видео","meta":"2 окт"}]
+~~~`,
+  },
+
+  tailwind: {
+    icon: '✦', title: 'HTML + Tailwind', desc: 'Свободная вёрстка: профили, тарифы, алерты, кнопки', size: [720, 680], alias: ['tailwind', 'вёрстк', 'верстк', 'html'],
+    content: `# Свободная вёрстка на Tailwind
+Когда стандартных блоков мало, агент пишет HTML с классами Tailwind. Кнопки ниже отправляют сообщения Джарвису через \`jarvis.send()\`.
+
+~~~html
+<div class="space-y-5">
+  <div class="flex items-center gap-4 rounded-2xl border border-jarvis/30 bg-gradient-to-br from-jarvis/10 to-transparent p-5">
+    <div class="grid h-14 w-14 place-items-center rounded-full border border-jarvis bg-jarvis/10 text-2xl">🛡</div>
+    <div class="flex-1">
+      <div class="text-sm tracking-[0.3em] text-jarvis">ТОНИ СТАРК</div>
+      <div class="text-xs opacity-60">Гений · миллиардер · филантроп</div>
+    </div>
+    <span class="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">онлайн</span>
+  </div>
+
+  <div class="grid grid-cols-3 gap-3">
+    <div class="rounded-xl border border-jarvis/20 p-4">
+      <div class="text-xs tracking-widest opacity-60">BASIC</div>
+      <div class="my-2 text-2xl text-jarvis">0 ₽</div>
+      <ul class="mb-4 space-y-1 text-xs opacity-80"><li>✓ Голосовые команды</li><li>✓ Заметки</li></ul>
+      <button onclick="jarvis.send('Выбираю тариф Basic')" class="w-full rounded-lg border border-jarvis/40 py-2 text-xs tracking-widest text-jarvis hover:bg-jarvis/10">ВЫБРАТЬ</button>
+    </div>
+    <div class="relative rounded-xl border-2 border-jarvis-orange p-4 shadow-[0_0_25px_rgba(255,181,71,.25)]">
+      <span class="absolute -top-3 left-4 rounded bg-jarvis-orange px-2 text-[10px] font-bold text-black">ХИТ</span>
+      <div class="text-xs tracking-widest opacity-60">PRO</div>
+      <div class="my-2 text-2xl text-jarvis-orange">990 ₽</div>
+      <ul class="mb-4 space-y-1 text-xs opacity-80"><li>✓ Всё из Basic</li><li>✓ Агенты и отчёты</li><li>✓ Умный дом</li></ul>
+      <button onclick="jarvis.send('Выбираю тариф Pro')" class="w-full rounded-lg bg-jarvis-orange py-2 text-xs font-bold tracking-widest text-black hover:brightness-110">ВЫБРАТЬ</button>
+    </div>
+    <div class="rounded-xl border border-jarvis/20 p-4">
+      <div class="text-xs tracking-widest opacity-60">STARK</div>
+      <div class="my-2 text-2xl text-jarvis">∞</div>
+      <ul class="mb-4 space-y-1 text-xs opacity-80"><li>✓ Всё из Pro</li><li>✓ Броня в комплекте</li></ul>
+      <button onclick="jarvis.send('Выбираю тариф Stark')" class="w-full rounded-lg border border-jarvis/40 py-2 text-xs tracking-widest text-jarvis hover:bg-jarvis/10">ВЫБРАТЬ</button>
+    </div>
+  </div>
+
+  <div class="space-y-2 text-sm">
+    <div class="rounded-lg border-l-4 border-jarvis bg-jarvis/10 px-4 py-2">ℹ Обновление прошивки доступно.</div>
+    <div class="rounded-lg border-l-4 border-jarvis-orange bg-jarvis-orange/10 px-4 py-2 text-jarvis-orange">⚠ Заряд брони 18%. Рекомендую подзарядку.</div>
+    <div class="rounded-lg border-l-4 border-red-500 bg-red-500/10 px-4 py-2 text-red-300">✕ Потеряна связь со спутником.</div>
+  </div>
+
+  <ol class="flex items-center gap-2 text-xs">
+    <li class="flex items-center gap-2 text-jarvis"><span class="grid h-6 w-6 place-items-center rounded-full bg-jarvis text-black">1</span>Сбор данных</li>
+    <li class="h-px flex-1 bg-jarvis/40"></li>
+    <li class="flex items-center gap-2 text-jarvis"><span class="grid h-6 w-6 place-items-center rounded-full bg-jarvis text-black">2</span>Анализ</li>
+    <li class="h-px flex-1 bg-jarvis/20"></li>
+    <li class="flex items-center gap-2 opacity-50"><span class="grid h-6 w-6 place-items-center rounded-full border border-jarvis">3</span>Отчёт</li>
+  </ol>
+</div>
+~~~`,
+  },
+
+  media: {
+    icon: '▶', title: 'Медиа', desc: 'Картинки, галереи, YouTube, MP4, аудио, карты', size: [720, 700],
+    alias: ['медиа', 'картин', 'фото', 'изображ', 'видео', 'ютуб', 'youtube'],
+    content: `# Медиа
+Картинки открываются на весь экран по клику (стрелки ← → листают, Esc закрывает). Видео YouTube грузится только после нажатия ▶.
+
+## Картинка
+~~~image
+{"src":"https://picsum.photos/id/1043/1200/650","caption":"Одна картинка с подписью"}
+~~~
+
+## Галерея
+~~~images
+{"title":"Фото, найденные агентом","items":[
+{"src":"https://picsum.photos/id/1015/900/675","caption":"Фото 1"},
+{"src":"https://picsum.photos/id/1016/900/675","caption":"Фото 2"},
+{"src":"https://picsum.photos/id/1018/900/675","caption":"Фото 3"},
+{"src":"https://picsum.photos/id/1019/900/675","caption":"Фото 4"},
+{"src":"https://picsum.photos/id/1036/900/675","caption":"Фото 5"},
+{"src":"https://picsum.photos/id/1039/900/675","caption":"Фото 6"},
+{"src":"https://picsum.photos/id/1044/900/675","caption":"Фото 7"},
+{"src":"https://picsum.photos/id/1035/900/675","caption":"Фото 8"}]}
+~~~
+
+## YouTube
+~~~youtube
+{"id":"aqz-KE-bpKQ","title":"Big Buck Bunny · Blender Foundation"}
+~~~
+
+## Несколько видео сеткой
+~~~video
+[{"url":"https://www.youtube.com/watch?v=jNQXAC9IVRw","title":"Me at the zoo — первое видео на YouTube"},{"src":"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4","title":"Обычный MP4-файл"}]
+~~~
+
+## Ссылка в тексте сама становится плеером
+https://vimeo.com/76979871
+
+## Аудио
+~~~audio
+[{"src":"https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3","title":"Рёв T-Rex (CC0)"}]
+~~~
+
+## Картинка в Markdown
+Обычный синтаксис \`![подпись](ссылка)\`:
+
+![Картинка из Markdown](https://picsum.photos/id/1018/1000/360)
+
+## Карточки с превью
+~~~cards
+[{"title":"Статья с обложкой","text":"В cards можно передать поле image.","image":"https://picsum.photos/id/180/600/340","url":"https://example.com/1","source":"example.com","tag":"Статья"},
+{"title":"Видео-разбор","text":"Превью + ссылка на источник.","image":"https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg","url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","source":"YouTube","tag":"Видео"},
+{"title":"Фотоотчёт","text":"Подборка снимков.","image":"https://picsum.photos/id/1025/600/340","url":"https://example.com/3","source":"example.com","tag":"Фото"}]
+~~~
+
+## Встраивание страницы (карта)
+~~~embed
+{"url":"https://www.openstreetmap.org/export/embed.html?bbox=37.58%2C55.74%2C37.66%2C55.77&layer=mapnik","height":300,"title":"Карта · OpenStreetMap"}
+~~~`,
+  },
+
+  live: {
+    icon: '∿', title: 'Живой виджет', desc: 'HTML + Chart.js + скрипт: обновление в реальном времени', size: [620, 520], alias: ['живой', 'мониторинг', 'live'],
+    content: `# Живой мониторинг
+Агент может прислать мини-приложение со своим JavaScript — оно работает в изолированном iframe.
+
+~~~html
+<div class="mb-3 grid grid-cols-3 gap-3">
+  <div class="rounded-xl border border-jarvis/30 p-3"><div class="text-[10px] tracking-widest opacity-60">НАГРУЗКА</div><div id="load" class="text-2xl text-jarvis">—</div></div>
+  <div class="rounded-xl border border-jarvis/30 p-3"><div class="text-[10px] tracking-widest opacity-60">ТЕМП. ЯДРА</div><div id="temp" class="text-2xl text-jarvis-orange">—</div></div>
+  <div class="rounded-xl border border-jarvis/30 p-3"><div class="text-[10px] tracking-widest opacity-60">СТАТУС</div><div id="state" class="text-2xl text-emerald-300">НОРМА</div></div>
+</div>
+<div class="h-56 rounded-xl border border-jarvis/30 p-3"><canvas id="c"></canvas></div>
+<div class="mt-3 flex gap-2">
+  <button id="pause" class="rounded-lg border border-jarvis/40 px-4 py-2 text-xs tracking-widest text-jarvis hover:bg-jarvis/10">ПАУЗА</button>
+  <button onclick="jarvis.send('Текущая нагрузка ядра ' + last + '%')" class="rounded-lg bg-jarvis px-4 py-2 text-xs font-bold tracking-widest text-black">СООБЩИТЬ ДЖАРВИСУ</button>
+</div>
+<script>
+  const data = Array.from({ length: 40 }, () => 50 + Math.random() * 15);
+  let last = Math.round(data.at(-1)), paused = false;
+  const chart = new Chart(document.getElementById('c'), {
+    type: 'line',
+    data: { labels: data.map((_, i) => i), datasets: [{ data, borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,.15)', fill: true, tension: .4, pointRadius: 0 }] },
+    options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { min: 0, max: 100 } } }
+  });
+  document.getElementById('pause').onclick = e => { paused = !paused; e.target.textContent = paused ? 'СТАРТ' : 'ПАУЗА'; };
+  setInterval(() => {
+    if (paused) return;
+    last = Math.round(Math.max(5, Math.min(98, data.at(-1) + (Math.random() - .5) * 14)));
+    data.push(last); data.shift(); chart.update();
+    document.getElementById('load').textContent = last + '%';
+    document.getElementById('temp').textContent = (40 + last * 0.5).toFixed(1) + '°';
+    const s = document.getElementById('state');
+    s.textContent = last > 85 ? 'ПЕРЕГРЕВ' : 'НОРМА';
+    s.className = 'text-2xl ' + (last > 85 ? 'text-red-400' : 'text-emerald-300');
+  }, 800);
+<\/script>
+~~~`,
+  },
+
+  prompt: {
+    icon: '⌬', title: 'Инструкция для модели', desc: 'System prompt: как LLM должна отвечать, чтобы всё это рисовалось', size: [640, 620], alias: ['инструкц', 'промпт', 'prompt'],
+    render(body) {
+      renderRich(body, `# Инструкция для модели
+Вставьте этот текст в **system prompt** вашей LLM. Тогда её ответы будут рендериться как графики, таблицы и формы. Проверить ответ модели можно в окне **Песочница**.`);
+      const btn = h('button', { class: 'btn', onclick: () => { navigator.clipboard.writeText(AGENT_PROMPT); btn.textContent = 'СКОПИРОВАНО ✓'; } }, 'КОПИРОВАТЬ');
+      body.append(btn, h('pre', {}, h('code', {}, AGENT_PROMPT)));
+    },
+  },
+};
+
+const SANDBOX_DEFAULT = `# Вставьте сюда ответ модели
+Markdown и блоки рендерятся справа в реальном времени.
+
+~~~kpi
+[{"label":"Задач","value":"12","delta":20},{"label":"Готово","value":"8","delta":-5}]
+~~~
+
+~~~chart
+{"type":"bar","title":"Задачи по дням","labels":["Пн","Вт","Ср","Чт","Пт"],"series":[{"name":"Создано","data":[3,5,2,6,4]},{"name":"Закрыто","data":[2,4,3,5,5]}]}
+~~~
+
+| Колонка | Значение |
+|---|---|
+| Можно | обычные таблицы |`;
+
+/* ================= Демо-агент (замените на LLM) ================= */
+
+function fmtVal(v) {
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (typeof v === 'boolean') return v ? 'Да' : 'Нет';
+  return v === '' || v == null ? '—' : String(v);
+}
+
+function mockAgent(p) {
+  if (typeof p === 'object' && p.form) {
+    const rows = p.fields.map(f => ({ 'Поле': f.label || f.name, 'Значение': fmtVal(p.data[f.name]) }));
+    return `**Принято, сэр.** Форма «${p.form}» обработана:\n\n~~~table\n${JSON.stringify(rows)}\n~~~`;
+  }
+  const t = String(p).toLowerCase();
+  if (/видеокарт|gpu|rtx/.test(t)) {
+    return { text: 'Готово, сэр. Проверил шесть магазинов, **отчёт** открыт в отдельном окне.', window: { example: 'report' } };
+  }
+  if (/продаж|выручк/.test(t)) {
+    return `Продажи за год, сэр. Рост **+18%** к прошлому году:
+
+~~~chart
+{"type":"area","labels":["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт"],"series":[{"name":"2026","data":[4.1,4.5,5.2,4.9,5.8,6.3,6.1,6.8,7.2,7.6]},{"name":"2025","data":[3.6,3.9,4.2,4.4,4.8,5.1,5.3,5.6,6.0,6.4]}],"height":200}
+~~~`;
+  }
+  if (/сравни|сравнен/.test(t)) {
+    return `Сравнение тарифов связи:
+
+~~~table
+{"columns":[{"label":"Тариф"},{"label":"Цена","type":"money"},{"label":"Интернет, ГБ","type":"number"},{"label":"Скорость","type":"badge"}],"rows":[["Старт",390,10,"4G"],["Оптимум",690,40,"5G"],["Максимум",1290,200,"5G"]]}
+~~~
+
+**Рекомендация:** «Оптимум» — лучший баланс цены и объёма.`;
+  }
+  if (/встреч|созвон|забронир/.test(t)) {
+    return `Конечно, сэр. Заполните детали:
+
+~~~form
+{"title":"Встреча","submit":"Создать","fields":[{"name":"title","label":"Тема","type":"text","required":true},{"name":"date","label":"Дата","type":"date","required":true,"half":true},{"name":"time","label":"Время","type":"time","value":"12:00","half":true},{"name":"online","label":"Онлайн","type":"checkbox","value":true}]}
+~~~`;
+  }
+  if (/видео|ролик|ютуб|youtube/.test(t)) {
+    return `Нашёл видео, сэр:
+
+~~~video
+[{"id":"aqz-KE-bpKQ","title":"Big Buck Bunny · Blender Foundation"},{"id":"jNQXAC9IVRw","title":"Me at the zoo"}]
+~~~`;
+  }
+  if (/фото|картин|изображ/.test(t)) {
+    return `Вот что удалось найти:
+
+~~~images
+[{"src":"https://picsum.photos/id/1015/900/675","caption":"Вариант 1"},{"src":"https://picsum.photos/id/1016/900/675","caption":"Вариант 2"},{"src":"https://picsum.photos/id/1018/900/675","caption":"Вариант 3"},{"src":"https://picsum.photos/id/1019/900/675","caption":"Вариант 4"}]
+~~~`;
+  }
+  if (/план|этап|роадмап/.test(t)) {
+    return `План проекта:
+
+~~~timeline
+[{"time":"Неделя 1","title":"Исследование","status":"done"},{"time":"Неделя 2","title":"Прототип","status":"active"},{"time":"Неделя 3","title":"Тесты","status":"pending"},{"time":"Неделя 4","title":"Релиз","status":"pending"}]
+~~~`;
+  }
+  return null;
+}
+
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const desktop = $('desktop'), dock = $('dock'), core = $('core'), cmd = $('cmd'), mic = $('mic');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('jarvis.' + k)) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem('jarvis.' + k, JSON.stringify(v)); }
+};
+
+let layout = store.get('layout', null);
+let customs = store.get('custom', []);
+let chatLog = store.get('chat', []);
+let notes = store.get('notes', '');
+let todos = store.get('todo', []);
+const wins = {};
+let z = 10;
+
+let saveTimer;
+const saveLayout = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('layout', layout), 200); };
+
+/* ================= Widgets ================= */
+
+const DEFS = {
+  chat:     { title: 'ДИАЛОГ',      icon: '◉', alias: ['диалог', 'чат', 'разговор'], size: [390, 480], flush: true, render: renderChat },
+  system:   { title: 'СИСТЕМА',     icon: '▤', alias: ['систем', 'статистик'],       size: [290, 230], render: renderSystem },
+  modules:  { title: 'МОДУЛИ',      icon: '⬡', alias: ['модул'],                     size: [290, 270], render: renderModules },
+  notes:    { title: 'ЗАМЕТКИ',     icon: '✎', alias: ['замет'],                     size: [340, 300], flush: true, render: renderNotes },
+  todo:     { title: 'ЗАДАЧИ',      icon: '☑', alias: ['задач', 'список', 'дела'],   size: [340, 320], render: renderTodo },
+  weather:  { title: 'ПОГОДА',      icon: '☁', alias: ['погод'],                     size: [340, 230], render: renderWeather },
+  calendar: { title: 'КАЛЕНДАРЬ',   icon: '▦', alias: ['календар'],                  size: [300, 300], render: renderCalendar },
+  timer:    { title: 'ТАЙМЕР',      icon: '◷', alias: ['таймер', 'секундомер'],      size: [300, 260], render: renderTimer },
+  web:      { title: 'БРАУЗЕР',     icon: '⌘', alias: ['браузер', 'веб', 'сайт'],    size: [560, 420], flush: true, render: renderWeb },
+  gallery:  { title: 'ГАЛЕРЕЯ',     icon: '❖', alias: ['галере', 'пример', 'визуализ'], size: [600, 520], render: renderGallery },
+  sandbox:  { title: 'ПЕСОЧНИЦА',   icon: '⚗', alias: ['песочниц', 'рендер'],        size: [900, 600], flush: true, render: renderSandbox },
+  help:     { title: 'КОМАНДЫ',     icon: '?', alias: ['помощ', 'команд', 'справк'], size: [400, 480], render: renderHelp },
+};
+
+function allIds() { return [...Object.keys(DEFS), ...customs.map(c => c.id)]; }
+function dockIds() { return [...allIds(), ...Object.keys(wins).filter(id => id.startsWith('ex-'))]; }
+function openIds() { return Object.keys(wins).filter(id => !layout[id]?.min); }
+function defOf(id) {
+  if (DEFS[id]) return DEFS[id];
+  if (id.startsWith('ex-')) {
+    const e = EX[id.slice(3)];
+    return e && { title: e.title.toUpperCase(), icon: e.icon, alias: [], size: e.size || [640, 600],
+                  render: b => e.render ? e.render(b) : renderRich(b, e.content) };
+  }
+  const c = customs.find(c => c.id === id);
+  if (!c) return null;
+  return { title: c.title.toUpperCase(), icon: c.type === 'rich' ? '◈' : '◆', alias: [c.title.toLowerCase()],
+           size: c.type === 'rich' ? [680, 600] : [360, 280],
+           flush: c.type === 'web', custom: true, render: b => renderCustom(b, c) };
+}
+
+function msgEl(m) {
+  const el = document.createElement('div');
+  el.className = 'msg' + (m.who === 'user' ? ' user' : '');
+  el.innerHTML = `<b>${m.who === 'user' ? 'ВЫ' : 'JARVIS'} · ${m.time}</b>`;
+  if (m.who === 'user') {
+    el.appendChild(document.createTextNode(m.text));
+  } else {
+    const body = document.createElement('div');
+    renderRich(body, m.text);
+    el.appendChild(body);
+    if (hasArtifacts(m.text)) el.classList.add('wide');
+  }
+  return el;
+}
+
+function renderGallery(body) {
+  body.append(
+    h('p', { style: 'opacity:.7;font-size:12px;margin-bottom:12px' },
+      'Что агент может вывести в ответ. Каждый пример — обычный Markdown с блоками; его можно открыть в Песочнице и поменять.'),
+    h('div', { class: 'gallery' }, Object.entries(EX).map(([k, e]) =>
+      h('button', { class: 'g-item', onclick: () => openWin('ex-' + k) }, h('i', {}, e.icon), h('b', {}, e.title), h('span', {}, e.desc)))),
+  );
+}
+
+function renderSandbox(body) {
+  const ta = h('textarea', { spellcheck: 'false', placeholder: 'Вставьте ответ модели (Markdown или JSON {text, window})' });
+  ta.value = store.get('sandbox', SANDBOX_DEFAULT);
+  const pv = h('div', { class: 'pv' });
+  const source = () => {
+    const a = parseAgentAnswer(ta.value);
+    return typeof a === 'string' ? a : (a.window?.content || a.text || '');
+  };
+  const draw = () => { try { renderRich(pv, source()); } catch (e) { pv.textContent = e.message; } };
+  let tm;
+  ta.oninput = () => { store.set('sandbox', ta.value); clearTimeout(tm); tm = setTimeout(draw, 400); };
+
+  const examples = h('select', { class: 'field', style: 'width:auto' }, h('option', { value: '' }, 'Загрузить пример…'),
+    Object.entries(EX).filter(([, e]) => e.content).map(([k, e]) => h('option', { value: k }, e.title)));
+  examples.onchange = () => { if (examples.value) { ta.value = EX[examples.value].content; ta.oninput(); draw(); examples.value = ''; } };
+
+  body.append(
+    h('div', { class: 'sbx-bar' }, examples, h('span', { style: 'flex:1' }),
+      h('button', { class: 'btn', onclick: () => addMsg(source(), 'jarvis') }, 'В ЧАТ'),
+      h('button', { class: 'btn', onclick: () => openRichWindow({ title: source().match(/^#\s+(.+)/m)?.[1] || 'Отчёт', content: source() }) }, 'В ОКНО')),
+    h('div', { class: 'sbx' }, ta, pv),
+  );
+  draw();
+}
+
+function renderChat(body) {
+  body.innerHTML = `<div class="messages"></div>
+    <form class="mini-input"><input class="field" placeholder="Сообщение Джарвису…"><button class="btn">➤</button></form>`;
+  const box = body.querySelector('.messages');
+  chatLog.forEach(m => box.appendChild(msgEl(m)));
+  requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
+  const form = body.querySelector('form'), input = form.querySelector('input');
+  form.onsubmit = e => { e.preventDefault(); handle(input.value); input.value = ''; };
+}
+
+function renderSystem(body) {
+  body.innerHTML = ['CPU', 'MEMORY', 'NETWORK', 'POWER'].map(k =>
+    `<div class="stat"><label>${k}<span data-v="${k}">—</span></label><div class="bar"><i data-k="${k}"></i></div></div>`).join('');
+  updateStats();
+}
+
+function renderModules(body) {
+  body.innerHTML = [
+    ['SPEECH RECOGNITION', SR ? 'READY' : 'N/A', !SR], ['VOICE SYNTHESIS', 'READY'], ['LANGUAGE CORE', 'ACTIVE'],
+    ['SMART HOME', 'LINKED'], ['CALENDAR', 'SYNCED'], ['SECURITY PROTOCOL', 'STANDBY', true],
+  ].map(([n, s, off]) => `<div class="module${off ? ' off' : ''}"><span>${n}</span><span>${s}</span></div>`).join('');
+}
+
+function renderNotes(body) {
+  const ta = document.createElement('textarea');
+  ta.className = 'notes'; ta.placeholder = 'Пишите здесь или скажите «заметка …»'; ta.value = notes;
+  ta.oninput = () => { notes = ta.value; store.set('notes', notes); };
+  body.appendChild(ta);
+}
+function addNote(t) {
+  notes += (notes && !notes.endsWith('\n') ? '\n' : '') + '• ' + t;
+  store.set('notes', notes);
+  const ta = document.querySelector('.win[data-id=notes] textarea');
+  if (ta) ta.value = notes;
+}
+
+function renderTodo(body) {
+  body.innerHTML = `<form class="mini-input top"><input class="field" placeholder="Новая задача…"><button class="btn">+</button></form><ul class="todo"></ul>`;
+  const form = body.querySelector('form'), input = form.querySelector('input');
+  form.onsubmit = e => { e.preventDefault(); if (input.value.trim()) addTodo(input.value.trim()); input.value = ''; };
+  drawTodos(body.querySelector('.todo'));
+}
+function drawTodos(ul = document.querySelector('.win[data-id=todo] .todo')) {
+  if (!ul) return;
+  ul.innerHTML = todos.length ? '' : '<div class="empty">Задач нет. Скажите «задача …»</div>';
+  todos.forEach((t, i) => {
+    const li = document.createElement('li');
+    li.className = t.done ? 'done' : '';
+    li.innerHTML = `<input type="checkbox" ${t.done ? 'checked' : ''}><span></span><button title="Удалить">✕</button>`;
+    li.querySelector('span').textContent = t.t;
+    li.querySelector('input').onchange = () => { t.done = !t.done; store.set('todo', todos); drawTodos(); };
+    li.querySelector('button').onclick = () => { todos.splice(i, 1); store.set('todo', todos); drawTodos(); };
+    ul.appendChild(li);
+  });
+}
+function addTodo(t) { todos.push({ t, done: false }); store.set('todo', todos); drawTodos(); }
+
+function renderWeather(body) {
+  const days = [['ПН', '☁', 12], ['ВТ', '☂', 9], ['СР', '☀', 14], ['ЧТ', '☀', 15], ['ПТ', '☁', 11]];
+  body.innerHTML = `<div class="wx-now"><div class="wx-temp">+12°</div>
+    <div>МОСКВА<br><span style="opacity:.6">Облачно · ветер 4 м/с · влажность 71%</span></div></div>
+    <div class="wx-days">${days.map(([d, i, t]) => `<div>${d}<b>${i}</b>+${t}°</div>`).join('')}</div>`;
+}
+
+function renderCalendar(body) {
+  const d = new Date(); d.setDate(1);
+  const draw = () => {
+    const y = d.getFullYear(), mo = d.getMonth(), today = new Date();
+    const first = (new Date(y, mo, 1).getDay() + 6) % 7, days = new Date(y, mo + 1, 0).getDate();
+    let cells = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'].map(x => `<div class="dow">${x}</div>`).join('');
+    cells += '<div></div>'.repeat(first);
+    for (let i = 1; i <= days; i++) {
+      const isToday = i === today.getDate() && mo === today.getMonth() && y === today.getFullYear();
+      cells += `<div class="day${isToday ? ' today' : ''}">${i}</div>`;
+    }
+    body.innerHTML = `<div class="cal-head"><button class="btn" data-n="-1">‹</button>
+      <span>${d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).toUpperCase()}</span>
+      <button class="btn" data-n="1">›</button></div><div class="cal">${cells}</div>`;
+    body.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { d.setMonth(d.getMonth() + +b.dataset.n); draw(); });
+  };
+  draw();
+}
+
+const timer = { total: 0, left: 0, running: false };
+function fmt(s) {
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60, p = n => String(n).padStart(2, '0');
+  return (h ? p(h) + ':' : '') + p(m) + ':' + p(x);
+}
+function startTimer(s) { timer.total = timer.left = s; timer.running = true; updTimer(); }
+function updTimer() {
+  document.querySelectorAll('.timer-display').forEach(e => e.textContent = fmt(timer.left));
+  document.querySelectorAll('.timer-bar i').forEach(e => e.style.width = (timer.total ? timer.left / timer.total * 100 : 0) + '%');
+  document.querySelectorAll('[data-t=toggle]').forEach(b => b.textContent = timer.running ? 'ПАУЗА' : 'СТАРТ');
+}
+setInterval(() => {
+  if (!timer.running) return;
+  if (--timer.left <= 0) {
+    timer.left = 0; timer.running = false;
+    const a = 'Время вышло, сэр.'; addMsg(a, 'jarvis'); speak(a);
+  }
+  updTimer();
+}, 1000);
+function renderTimer(body) {
+  body.innerHTML = `<div class="timer-display">00:00</div><div class="bar timer-bar"><i></i></div>
+    <div class="row">${[1, 5, 10, 25].map(m => `<button class="btn" data-m="${m}">${m} МИН</button>`).join('')}</div>
+    <div class="row"><button class="btn" data-t="toggle">СТАРТ</button><button class="btn" data-t="reset">СБРОС</button></div>`;
+  body.querySelectorAll('[data-m]').forEach(b => b.onclick = () => startTimer(b.dataset.m * 60));
+  body.querySelector('[data-t=toggle]').onclick = () => { if (timer.left) timer.running = !timer.running; updTimer(); };
+  body.querySelector('[data-t=reset]').onclick = () => { timer.running = false; timer.left = timer.total; updTimer(); };
+  updTimer();
+}
+
+function renderWeb(body) {
+  const url = store.get('webUrl', 'https://www.wikipedia.org');
+  body.innerHTML = `<form class="web-bar"><input class="field" value=""><button class="btn">GO</button></form><iframe class="web-frame"></iframe>`;
+  const form = body.querySelector('form'), input = form.querySelector('input'), frame = body.querySelector('iframe');
+  input.value = url; frame.src = url;
+  form.onsubmit = e => {
+    e.preventDefault();
+    let u = input.value.trim(); if (!/^https?:\/\//.test(u)) u = 'https://' + u;
+    input.value = frame.src = u; store.set('webUrl', u);
+  };
+}
+
+function renderHelp(body) {
+  body.innerHTML = `<div class="help">
+    <h4>ВВОД</h4>
+    <ul><li>Командная строка внизу экрана — текст или голос</li><li><code>Пробел</code> — микрофон, <code>⌘K</code> — фокус на строку</li></ul>
+    <h4>ОКНА</h4>
+    <ul><li><code>открой заметки</code> / <code>закрой погоду</code> / <code>открой всё</code></li>
+    <li><code>новое окно Проект</code> — своё окно</li><li><code>разложи окна</code>, <code>дашборд продуктивность</code></li>
+    <li>Тянуть за заголовок, размер — правый нижний угол, двойной клик — развернуть</li></ul>
+    <h4>ДАННЫЕ</h4>
+    <ul><li><code>заметка позвонить Пеппер</code></li><li><code>задача обновить броню</code></li><li><code>таймер 10 минут</code></li></ul>
+    <h4>ВИЗУАЛИЗАЦИИ (ДЕМО-АГЕНТ)</h4>
+    <ul><li><code>найди цены на видеокарты</code> — отчёт агента в окне</li>
+    <li><code>покажи продажи</code> — график в чате</li><li><code>сравни тарифы</code> — таблица</li>
+    <li><code>назначь встречу</code> — форма</li><li><code>план проекта</code> — хронология</li>
+    <li><code>найди видео</code>, <code>найди фото</code> — медиа в чате, <code>покажи медиа</code> — пример</li>
+    <li><code>открой галерею</code>, <code>покажи графики</code>, <code>открой песочницу</code></li></ul>
+    <h4>ВОПРОСЫ</h4>
+    <ul><li><code>который час</code>, <code>какая погода</code>, <code>кто ты</code></li></ul>
+    <p style="opacity:.5;margin-top:10px">Раскладка, заметки, задачи и диалог сохраняются в браузере.</p></div>`;
+}
+
+function renderCustom(body, c) {
+  if (c.type === 'web') {
+    body.innerHTML = '<iframe class="web-frame"></iframe>';
+    body.querySelector('iframe').src = /^https?:\/\//.test(c.content) ? c.content : 'https://' + c.content;
+  } else if (c.type === 'rich') {
+    renderRich(body, c.content);
+  } else if (c.type === 'html') {
+    body.innerHTML = c.content;
+  } else {
+    const div = document.createElement('div');
+    div.className = 'custom-text'; div.contentEditable = true; div.textContent = c.content;
+    div.oninput = () => { c.content = div.innerText; store.set('custom', customs); };
+    body.appendChild(div);
+  }
+}
+function createCustom(c) {
+  c.id ||= 'custom-' + Date.now();
+  customs.push(c); store.set('custom', customs);
+  openWin(c.id);
+}
+function openRichWindow(w) {
+  if (w.example) return openWin('ex-' + w.example);
+  const id = w.id || 'rich-' + Date.now();
+  const existing = customs.find(c => c.id === id);
+  if (existing) {
+    Object.assign(existing, { title: w.title || existing.title, content: w.content });
+    store.set('custom', customs);
+    closeWin(id); openWin(id);
+  } else {
+    createCustom({ id, title: w.title || 'Отчёт', type: 'rich', content: w.content || '' });
+  }
+}
+function deleteCustom(id) {
+  closeWin(id);
+  customs = customs.filter(c => c.id !== id); store.set('custom', customs);
+  delete layout[id]; saveLayout(); syncDock();
+}
+
+/* ================= Window manager ================= */
+
+function openWin(id) {
+  const def = defOf(id);
+  if (!def) return;
+  const n = Object.keys(wins).length;
+  const st = layout[id] ||= { x: 120 + n * 28, y: 90 + n * 28, w: def.size[0], h: def.size[1] };
+  st.open = true; st.min = false;
+
+  if (wins[id]) { wins[id].el.hidden = false; focus(id); saveLayout(); syncDock(); return; }
+
+  const el = document.createElement('div');
+  el.className = 'win'; el.dataset.id = id;
+  el.innerHTML = `<div class="win-head"><span>${def.icon}</span><span class="win-title"></span>
+    ${def.custom ? '<button data-a="del" title="Удалить окно">🗑</button>' : ''}
+    <button data-a="min" title="Свернуть">—</button><button data-a="max" title="Развернуть">□</button>
+    <button data-a="close" title="Закрыть">✕</button></div><div class="win-body${def.flush ? ' flush' : ''}"></div>`;
+  el.querySelector('.win-title').textContent = def.title;
+  Object.assign(el.style, { left: st.x + 'px', top: st.y + 'px', width: st.w + 'px', height: st.h + 'px' });
+  desktop.appendChild(el);
+  wins[id] = { el };
+  def.render(el.querySelector('.win-body'));
+
+  const head = el.querySelector('.win-head');
+  el.addEventListener('pointerdown', () => focus(id), true);
+  head.addEventListener('dblclick', e => { if (!e.target.closest('button')) el.classList.toggle('max'); });
+  head.addEventListener('click', e => {
+    const a = e.target.closest('button')?.dataset.a;
+    if (a === 'close') closeWin(id);
+    else if (a === 'min') minWin(id);
+    else if (a === 'max') el.classList.toggle('max');
+    else if (a === 'del' && confirm('Удалить окно «' + def.title + '»?')) deleteCustom(id);
+  });
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('button') || el.classList.contains('max')) return;
+    const r = el.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    head.setPointerCapture(e.pointerId);
+    const move = ev => {
+      st.x = Math.round(Math.min(Math.max(ev.clientX - dx, 56), innerWidth - 100));
+      st.y = Math.round(Math.min(Math.max(ev.clientY - dy, 56), innerHeight - 40));
+      el.style.left = st.x + 'px'; el.style.top = st.y + 'px';
+    };
+    const up = () => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', up); saveLayout(); };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', up);
+  });
+  new ResizeObserver(() => {
+    if (el.hidden || el.classList.contains('max') || !el.offsetWidth) return;
+    st.w = el.offsetWidth; st.h = el.offsetHeight; saveLayout();
+  }).observe(el);
+
+  focus(id); saveLayout(); syncDock();
+}
+
+function closeWin(id) {
+  if (!wins[id]) return;
+  wins[id].el.remove(); delete wins[id];
+  if (layout[id]) layout[id].open = false;
+  saveLayout(); syncDock();
+}
+function minWin(id) {
+  if (!wins[id]) return;
+  wins[id].el.hidden = true; layout[id].min = true;
+  saveLayout(); syncDock();
+}
+let focused = null;
+function focus(id) {
+  if (focused && wins[focused]) wins[focused].el.classList.remove('focused');
+  focused = id;
+  wins[id].el.style.zIndex = ++z;
+  wins[id].el.classList.add('focused');
+}
+
+function syncDock() {
+  dock.innerHTML = '';
+  const btn = (id, cls, icon, label, onclick) => {
+    const b = document.createElement('button');
+    b.className = 'dock-btn ' + cls; b.textContent = icon; b.dataset.label = label; b.onclick = onclick;
+    dock.appendChild(b);
+  };
+  dockIds().forEach((id, i) => {
+    if (i === Object.keys(DEFS).length) dock.appendChild(document.createElement('hr'));
+    const d = defOf(id), st = layout[id];
+    const cls = wins[id] ? (st.min ? 'min' : 'on') : '';
+    btn(id, cls, d.icon, d.title, () => {
+      if (!wins[id] || st.min) openWin(id);
+      else if (focused === id) minWin(id);
+      else focus(id);
+    });
+  });
+  dock.appendChild(document.createElement('hr'));
+  btn(null, 'add', '+', 'НОВОЕ ОКНО', openModal);
+}
+
+function place(id, x, y, w, h) {
+  openWin(id);
+  const st = layout[id], el = wins[id].el;
+  Object.assign(st, { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+  el.classList.remove('max');
+  Object.assign(el.style, { left: st.x + 'px', top: st.y + 'px', width: st.w + 'px', height: st.h + 'px' });
+  saveLayout();
+}
+function tile(ids) {
+  const n = ids.length; if (!n) return;
+  const X0 = 68, Y0 = 68, W = innerWidth - X0 - 12, H = innerHeight - Y0 - 122, gap = 12;
+  if (n <= 2) {
+    const w = Math.min(420, W / 2 - gap);
+    ids.forEach((id, i) => place(id, n === 1 || i === 1 ? X0 + W - w : X0, Y0, w, H));
+    return;
+  }
+  const cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  const cw = (W - gap * (cols - 1)) / cols, rh = (H - gap * (rows - 1)) / rows;
+  ids.forEach((id, i) => place(id, X0 + (i % cols) * (cw + gap), Y0 + Math.floor(i / cols) * (rh + gap), cw, rh));
+}
+
+const PRESETS = {
+  main: { name: 'Основной',       alias: 'основ',   ids: ['chat', 'system', 'modules', 'weather'] },
+  work: { name: 'Продуктивность', alias: 'продукт', ids: ['chat', 'todo', 'notes', 'calendar', 'timer'] },
+  data: { name: 'Аналитика',      alias: 'аналит',  ids: ['chat', 'ex-report', 'ex-kpi'] },
+  dev:  { name: 'Разработка',     alias: 'разраб',  ids: ['sandbox', 'gallery'] },
+  min:  { name: 'Минимум',        alias: 'миним',   ids: ['chat'] },
+  all:  { name: 'Всё',            alias: 'вс',      ids: null },
+};
+function applyPreset(k) {
+  const ids = PRESETS[k].ids || allIds().filter(id => !['help', 'sandbox', 'web'].includes(id));
+  Object.keys(wins).forEach(id => { if (!ids.includes(id)) closeWin(id); });
+  tile(ids);
+}
+Object.entries(PRESETS).forEach(([k, p]) => $('preset').add(new Option(p.name.toUpperCase(), k)));
+$('preset').onchange = e => { if (e.target.value) applyPreset(e.target.value); e.target.value = ''; };
+$('btnTile').onclick = () => tile(openIds());
+$('btnReset').onclick = () => {
+  Object.keys(wins).forEach(closeWin);
+  layout = {}; applyPreset('main');
+};
+
+function openModal() { $('modal').hidden = false; $('newForm').title.focus(); }
+function closeModal() { $('modal').hidden = true; $('newForm').reset(); }
+$('btnNew').onclick = openModal;
+$('cancelNew').onclick = closeModal;
+$('modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
+$('newForm').onsubmit = e => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  createCustom({ title: f.get('title').trim(), type: f.get('type'), content: f.get('content') });
+  closeModal();
+};
+
+/* ================= Assistant ================= */
+
+function setState(s) {
+  core.className = 'core ' + (s === 'idle' ? '' : s);
+  mic.classList.toggle('active', s === 'listening');
+  $('status').textContent = { idle: 'ОЖИДАНИЕ КОМАНДЫ', listening: 'СЛУШАЮ…', thinking: 'ОБРАБОТКА…', speaking: 'ОТВЕЧАЮ' }[s];
+}
+
+function addMsg(text, who) {
+  const m = { text, who, time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) };
+  chatLog.push(m); chatLog = chatLog.slice(-200); store.set('chat', chatLog);
+  if (who === 'jarvis') $('lastReply').textContent = plain(text);
+  const box = document.querySelector('.win[data-id=chat] .messages');
+  if (box) { box.appendChild(msgEl(m)); box.scrollTop = box.scrollHeight; }
+}
+
+function findWidget(name) {
+  return allIds().find(id => defOf(id).alias.some(a => name.includes(a)));
+}
+
+function runCommand(q) {
+  const t = q.toLowerCase().replace(/[.!?]+$/, '');
+  let m;
+  if ((m = t.match(/^(открой|покажи|запусти|включи)\s+(.+)/))) {
+    if (/^вс[её]/.test(m[2])) { allIds().forEach(openWin); return 'Открываю все окна.'; }
+    const ex = Object.keys(EX).find(k => EX[k].alias.some(a => m[2].includes(a)));
+    if (ex) { openWin('ex-' + ex); return `Открываю пример «${EX[ex].title}».`; }
+    const id = findWidget(m[2]);
+    if (id) { openWin(id); return `Открываю «${defOf(id).title.toLowerCase()}».`; }
+  }
+  if ((m = t.match(/^(закрой|убери|скрой)\s+(.+)/))) {
+    if (/^вс[её]/.test(m[2])) { Object.keys(wins).forEach(closeWin); return 'Все окна закрыты.'; }
+    const id = findWidget(m[2]);
+    if (id) { closeWin(id); return 'Закрыто.'; }
+    return 'Не нашёл такое окно, сэр.';
+  }
+  if ((m = q.match(/^(запиши\s+)?заметк[аиу][:,]?\s+(.+)/i))) { addNote(m[2]); openWin('notes'); return 'Записал, сэр.'; }
+  if ((m = q.match(/^(добавь\s+)?задач[аиу][:,]?\s+(.+)/i))) { addTodo(m[2]); openWin('todo'); return `Добавил задачу: ${m[2]}.`; }
+  if ((m = t.match(/таймер\s+(на\s+)?(\d+)\s*(сек|мин|час)?/))) {
+    const mult = m[3] === 'сек' ? 1 : m[3] === 'час' ? 3600 : 60;
+    startTimer(+m[2] * mult); openWin('timer');
+    return `Таймер запущен на ${fmt(+m[2] * mult)}.`;
+  }
+  if ((m = q.match(/^(новое|создай)\s+окно\s*(.*)/i))) {
+    if (m[2]) { createCustom({ title: m[2], type: 'text', content: '' }); return `Окно «${m[2]}» создано.`; }
+    openModal(); return 'Открываю конструктор окон.';
+  }
+  if (/разлож|упорядоч|расставь/.test(t)) { tile(openIds()); return 'Окна разложены.'; }
+  if ((m = t.match(/дашборд\s+(.+)/))) {
+    const k = Object.keys(PRESETS).find(k => m[1].includes(PRESETS[k].alias));
+    if (k) { applyPreset(k); return `Дашборд «${PRESETS[k].name}» активирован.`; }
+  }
+  return null;
+}
+
+function reply(q) {
+  const t = q.toLowerCase();
+  if (/врем|час/.test(t)) return 'Сейчас ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) + ', сэр.';
+  if (/дата|число|какой день/.test(t)) return 'Сегодня ' + new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }) + '.';
+  if (/привет|здравств|добр/.test(t)) return 'Здравствуйте, сэр. Чем займёмся?';
+  if (/погод/.test(t)) { openWin('weather'); return 'За окном плюс двенадцать, облачно. Рекомендую куртку.'; }
+  if (/кто ты|как тебя/.test(t)) return 'Я Джарвис, ваш персональный голосовой ассистент.';
+  if (/помо|что ты умеешь|команд/.test(t)) { openWin('help'); return 'Открыл список команд.'; }
+  return 'Принято, сэр. Это демо-режим: попробуйте «найди цены на видеокарты», «покажи продажи», «назначь встречу» или откройте галерею. Для свободных вопросов подключите LLM в функции ask().';
+}
+
+function parseAgentAnswer(raw) {
+  const s = String(raw).trim();
+  if (s.startsWith('{')) {
+    try { const o = JSON.parse(s); if (o.text || o.window) return o; } catch {}
+  }
+  return s;
+}
+
+// payload: строка пользователя или { form, fields, data } после отправки формы.
+// Ответ: Markdown-строка или { text, window: { title, content } }.
+async function ask(payload) {
+  // const r = await fetch('/api/ask', {
+  //   method: 'POST', headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify({ system: AGENT_PROMPT, payload, history: chatLog.slice(-20) }),
+  // });
+  // return parseAgentAnswer((await r.json()).answer);
+  return mockAgent(payload) ?? reply(String(payload));
+}
+
+function deliver(answer) {
+  const a = typeof answer === 'string' ? { text: answer } : answer;
+  if (a.window) openRichWindow(a.window);
+  addMsg(a.text || 'Готово, сэр.', 'jarvis');
+  speak(plain(a.text || 'Готово, сэр.'));
+}
+
+async function handle(raw) {
+  const q = raw.trim();
+  if (!q) return;
+  addMsg(q, 'user');
+  setState('thinking');
+  await sleep(300);
+  deliver(runCommand(q) ?? await ask(q));
+}
+
+async function handleForm(spec, data) {
+  addMsg(`📝 Отправлена форма «${spec.title || 'без названия'}»`, 'user');
+  setState('thinking');
+  await sleep(300);
+  deliver(await ask({ form: spec.title || 'Форма', fields: spec.fields, data }));
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return setState('idle');
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ru-RU'; u.pitch = 0.9;
+  const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith('ru'));
+  if (voice) u.voice = voice;
+  u.onstart = () => setState('speaking');
+  u.onend = u.onerror = () => setState('idle');
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+  setTimeout(() => { if (!speechSynthesis.speaking) setState('idle'); }, 1500);
+}
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false;
+if (SR) {
+  rec = new SR();
+  rec.lang = 'ru-RU'; rec.interimResults = true;
+  rec.onresult = e => {
+    const r = e.results[e.results.length - 1];
+    cmd.value = r[0].transcript;
+    if (r.isFinal) { handle(r[0].transcript); cmd.value = ''; }
+  };
+  rec.onend = () => { listening = false; if (core.classList.contains('listening')) setState('idle'); };
+  rec.onerror = () => { listening = false; setState('idle'); };
+}
+function toggleMic() {
+  if (!rec) { addMsg('Голосовой ввод не поддерживается этим браузером. Откройте в Chrome или пишите в строку внизу.', 'jarvis'); return; }
+  if (listening) return rec.stop();
+  speechSynthesis.cancel();
+  listening = true; setState('listening'); rec.start();
+}
+mic.onclick = toggleMic;
+$('cmdForm').onsubmit = e => { e.preventDefault(); handle(cmd.value); cmd.value = ''; };
+
+document.addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
+  if (e.key === 'Escape') closeModal();
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); cmd.focus(); }
+  if (e.code === 'Space' && !typing) { e.preventDefault(); toggleMic(); }
+});
+
+/* ================= Ambient ================= */
+
+function tick() {
+  const d = new Date();
+  $('time').textContent = d.toLocaleTimeString('ru-RU');
+  $('date').textContent = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+}
+setInterval(tick, 1000); tick();
+
+function updateStats() {
+  for (const [k, base, spread] of [['CPU', 25, 35], ['MEMORY', 50, 20], ['NETWORK', 10, 50], ['POWER', 100, 0]]) {
+    const v = Math.round(base + Math.random() * spread);
+    document.querySelectorAll(`[data-k="${k}"]`).forEach(e => e.style.width = v + '%');
+    document.querySelectorAll(`[data-v="${k}"]`).forEach(e => e.textContent = v + '%');
+  }
+}
+setInterval(updateStats, 2000);
+
+const wave = $('wave'), wctx = wave.getContext('2d');
+const resize = () => { wave.width = wave.clientWidth * devicePixelRatio; wave.height = wave.clientHeight * devicePixelRatio; };
+addEventListener('resize', resize); resize();
+let t = 0, level = 0;
+(function draw() {
+  t += 0.05;
+  const active = core.classList.contains('listening') || core.classList.contains('speaking');
+  level += ((active ? 1 : 0.1) - level) * 0.08;
+  const W = wave.width, H = wave.height, bars = 96, bw = W / bars;
+  const color = core.classList.contains('listening') ? '255,181,71' : '0,229,255';
+  wctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < bars; i++) {
+    const c = Math.abs(i - bars / 2) / (bars / 2);
+    const amp = (Math.sin(i * 0.35 + t * 3) * 0.5 + 0.5) * (1 - c * 0.7);
+    const h = Math.max(1.5, amp * H * level * (0.6 + Math.random() * 0.4));
+    wctx.fillStyle = `rgba(${color},${0.25 + amp * 0.75})`;
+    wctx.fillRect(i * bw + bw * 0.25, (H - h) / 2, bw * 0.5, h);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ================= Boot ================= */
+
+if (!chatLog.length) addMsg('Добрый вечер, сэр. Все системы в норме. Пишите или говорите в строку внизу. Скажите **«помощь»** — список команд, **«открой галерею»** — примеры графиков, таблиц и форм.', 'jarvis');
+else $('lastReply').textContent = plain([...chatLog].reverse().find(m => m.who === 'jarvis')?.text || '').slice(0, 200);
+
+if (!layout) { layout = {}; applyPreset('main'); }
+else Object.entries(layout).forEach(([id, st]) => {
+  if (!st.open || !defOf(id)) return;
+  const wasMin = st.min;
+  openWin(id);
+  if (wasMin) minWin(id);
+});
+syncDock();
+</script>
+</body>
+</html>

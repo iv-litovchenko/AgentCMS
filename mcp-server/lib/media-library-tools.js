@@ -86,6 +86,23 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
     (payload) => client.put("/api/agent/media-libraries", payload)
   );
 
+  reg(
+    "delete_media_library",
+    "Soft-delete media library hub folder to workspace recycle bin. Built-in presets (documents, slider, …) are protected.",
+    z.object({ path: workspaceRelPath }),
+    ({ path }) => client.delete("/api/agent/media-library", { path })
+  );
+
+  reg(
+    "rename_media_library",
+    "Rename media library folder under awn-media/ (new slug). Built-in presets are protected.",
+    z.object({
+      path: workspaceRelPath,
+      slug: z.string().min(1).describe("New folder name under awn-media/, e.g. shared-assets")
+    }),
+    ({ path, slug }) => client.post("/api/agent/media-libraries/rename", { path, slug })
+  );
+
   const mediaLibraryIndexTocSchema = z.object({
     overwrite: z
       .boolean()

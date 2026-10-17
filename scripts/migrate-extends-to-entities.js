@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const ROOT = path.join(process.cwd(), "workspaces/agent-cms-core/awn-data");
+const ROOT = path.join(process.cwd(), "workspaces/0-ws-core/awn-data");
 const TABLE = "awn-data/cms-base/entities/table.base.md";
 const ROW = "awn-data/cms-base/entities/row.base.md";
 const BASE = "awn-data/cms-base/entities/base.md";

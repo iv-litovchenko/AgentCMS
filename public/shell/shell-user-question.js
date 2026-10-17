@@ -209,6 +209,10 @@ export function initShellUserQuestion({
     return String(fallback || "").trim();
   }
 
+  function workspaceIdFromPayload(payload, fallback = "") {
+    return String(payload?.workspaceId ?? payload?.agentId ?? resolveAgentId(fallback) ?? "").trim();
+  }
+
   function setStatus(text) {
     if (typeof onStatus === "function") onStatus(String(text || "").trim());
   }
@@ -243,7 +247,7 @@ export function initShellUserQuestion({
       await apiFetch("/api/shell/user-question/complete", {
         agentId,
         method: "POST",
-        body: JSON.stringify({ agentId, requestId, ...payload })
+        body: JSON.stringify({ workspaceId: agentId, agentId, requestId, ...payload })
       });
       if (payload.cancelled) setStatus("Вопрос отменён");
       else setStatus("Ответ отправлен");
@@ -268,7 +272,7 @@ export function initShellUserQuestion({
     const requestId = String(payload?.requestId || "").trim();
     const questions = normalizeQuestions(payload?.questions);
     if (!requestId || !questions.length) return;
-    const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
+    const requestAgentId = workspaceIdFromPayload(payload);
     const currentAgentId = resolveAgentId();
     if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
     queue.push({ agentId: requestAgentId || currentAgentId, requestId, questions });

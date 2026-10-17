@@ -16,7 +16,7 @@ export function registerPlatformTools(reg, client) {
 
   reg(
     "get_platform_health",
-    "Platform/workspace health: search index layers summary for the active workspace (agentId), optional disk free space at repo root.",
+    "Platform/workspace health: search index layers summary for the active workspace (workspaceId), optional disk free space at repo root.",
     z.object({}),
     () => client.get("/api/platform/health", {}, { agentScope: true })
   );

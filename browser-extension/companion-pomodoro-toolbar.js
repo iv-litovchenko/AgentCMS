@@ -65,12 +65,89 @@
     let open = false;
     let clientState = null;
     let tickTimer = null;
+    let popPortal = null;
+    let layoutListenersBound = false;
+
+    function toolbarHost() {
+      return wrap.getRootNode()?.host || null;
+    }
+
+    function isExpandDown() {
+      return toolbarHost()?.classList?.contains("asc-expand-down") === true;
+    }
+
+    function ensurePopPortal() {
+      if (popPortal?.isConnected) return popPortal;
+      popPortal = document.getElementById("agent-companion-pomodoro-portal");
+      if (!popPortal) {
+        popPortal = document.createElement("div");
+        popPortal.id = "agent-companion-pomodoro-portal";
+        document.documentElement.appendChild(popPortal);
+      }
+      return popPortal;
+    }
+
+    function clearPopPortalStyles() {
+      pop.style.position = "";
+      pop.style.zIndex = "";
+      pop.style.left = "";
+      pop.style.top = "";
+      pop.style.width = "";
+      pop.style.right = "";
+      pop.style.bottom = "";
+    }
+
+    function positionPopPortal() {
+      if (!open || pop.hidden) return;
+      const rect = btn.getBoundingClientRect();
+      const width = Math.min(240, Math.max(160, window.innerWidth - 24));
+      pop.style.position = "fixed";
+      pop.style.zIndex = "2147483647";
+      pop.style.width = `${width}px`;
+      pop.style.right = "auto";
+      pop.style.bottom = "auto";
+      let left = rect.right - width;
+      left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+      pop.style.left = `${left}px`;
+      if (isExpandDown()) {
+        pop.style.top = `${rect.bottom + 8}px`;
+      } else {
+        const h = pop.offsetHeight || 120;
+        pop.style.top = `${Math.max(8, rect.top - h - 8)}px`;
+      }
+    }
+
+    function bindLayoutListeners() {
+      if (layoutListenersBound) return;
+      layoutListenersBound = true;
+      const reflow = () => positionPopPortal();
+      window.addEventListener("resize", reflow, { passive: true });
+      window.addEventListener("scroll", reflow, { capture: true, passive: true });
+    }
 
     function setPopOpen(next) {
       open = Boolean(next);
-      pop.hidden = !open;
       btn.setAttribute("aria-expanded", open ? "true" : "false");
       btn.classList.toggle("is-open", open);
+      document.documentElement.classList.toggle("asc-pomodoro-toolbar-pop-open", open);
+      const host = toolbarHost();
+      if (host?.classList) host.classList.toggle("asc-pomodoro-pop-open", open);
+
+      if (open) {
+        ensurePopPortal().appendChild(pop);
+        pop.hidden = false;
+        window.requestAnimationFrame(() => {
+          positionPopPortal();
+          window.requestAnimationFrame(positionPopPortal);
+        });
+        bindLayoutListeners();
+      } else {
+        pop.hidden = true;
+        clearPopPortalStyles();
+        wrap.appendChild(pop);
+      }
+
+      if (typeof global.syncCompanionCrosshair === "function") global.syncCompanionCrosshair();
     }
 
     function remainingMs(state) {

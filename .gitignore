@@ -4,6 +4,7 @@
 # Dependencies
 node_modules/
 node_modules_2/
+.venv-entity/
 
 # Build / packaging
 dist/
@@ -36,6 +37,17 @@ Desktop.ini
 .idea/
 .vscode/
 
+# User-created workspaces (bundled 0-* stay in repo)
+workspaces/*
+!workspaces/0-md/
+!workspaces/0-ws-core/
+!workspaces/0-ws-core/**
+!workspaces/0-ws-test/
+!workspaces/0-ws-test/**
+!workspaces/0-cli-sandbox/
+workspaces/0-cli-sandbox/*
+!workspaces/0-cli-sandbox/README.md
+
 # Cache & temp
 .cache/
 # Workspace runtime
@@ -46,5 +58,4 @@ Desktop.ini
 .agent-cms-global/server-runtime.json
 .run/
 tmp/
-temp/
 *.tmp

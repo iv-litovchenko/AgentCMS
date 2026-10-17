@@ -5,7 +5,7 @@ import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 const workspaceRelPath = z
   .string()
   .min(1)
-  .describe("Workspace-relative file or folder path, e.g. awn-container/tema/awn-storage/main/readme.md");
+  .describe("Workspace-relative file or folder path, e.g. awn-topics/tema/awn-storage/main/readme.md");
 
 const searchExtensions = z
   .union([z.array(z.string()), z.string()])
@@ -39,7 +39,7 @@ const searchWorkspaceSchema = z.object({
   match: z.enum(["relaxed", "strict"]).optional(),
   pathPrefix: workspaceRelPath
     .optional()
-    .describe("Limit search to workspace subtree, e.g. awn-container/tema-x. Empty = entire workspace."),
+    .describe("Limit search to workspace subtree, e.g. awn-topics/tema-x. Empty = entire workspace."),
   extensions: searchExtensions,
   limit: z.number().int().min(1).max(100).optional()
 });
@@ -70,7 +70,7 @@ function registerSearchWorkspaceTools(reg, client) {
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
         .optional()
-        .describe("Limit search to workspace subtree, e.g. awn-container/tema-x"),
+        .describe("Limit search to workspace subtree, e.g. awn-topics/tema-x"),
       extensions: searchExtensions,
       limit: z.number().int().min(1).max(50).optional()
     }),
@@ -90,7 +90,7 @@ function registerSearchWorkspaceTools(reg, client) {
       query: z.string().min(2).describe("Search phrase or question"),
       pathPrefix: workspaceRelPath
         .optional()
-        .describe("Limit to workspace subtree, e.g. awn-container/tema-archiv"),
+        .describe("Limit to workspace subtree, e.g. awn-topics/tema-archiv"),
       extensions: searchExtensions,
       where: z
         .array(
@@ -111,7 +111,18 @@ function registerSearchWorkspaceTools(reg, client) {
         .optional()
         .describe("Search layers (default: semantic + fulltext)"),
       limit: z.number().int().min(1).max(50).optional().describe("Max merged hits (default 20)"),
-      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
+      entityIds: z
+        .array(z.string().min(1))
+        .optional()
+        .describe("Restrict search to files mentioning ALL listed entity ids (AND)"),
+      entityWhere: z
+        .object({
+          type: z.string().optional().describe("Entity type filter before path union"),
+          q: z.string().optional().describe("Substring match on entity label")
+        })
+        .optional()
+        .describe("Resolve entities by type/label, then search only in their mention paths (OR across matches)")
     }),
     (payload) => client.post("/api/search/hybrid", payload)
   );
@@ -154,7 +165,14 @@ function registerSearchWorkspaceTools(reg, client) {
         .max(20)
         .optional()
         .describe("Max merged hits per query (default 8)"),
-      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
+      entityIds: z.array(z.string().min(1)).optional(),
+      entityWhere: z
+        .object({
+          type: z.string().optional(),
+          q: z.string().optional()
+        })
+        .optional()
     }),
     (payload) => client.post("/api/search/batch", payload)
   );
@@ -163,7 +181,18 @@ function registerSearchWorkspaceTools(reg, client) {
     "query_workspace_storage",
     "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({
-      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
+      dql: z
+        .string()
+        .optional()
+        .describe(
+          'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.hub.topic" WITH TEXT "аренда" LIMIT 50'
+        ),
+      withText: z
+        .string()
+        .optional()
+        .describe("Hybrid text search within DQL result paths (overrides WITH TEXT in dql string)"),
+      hybridLimit: z.number().int().min(1).max(50).optional(),
+      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-topics/finansy"),
       where: z
         .array(
           z.object({
@@ -216,14 +245,15 @@ function registerSearchWorkspaceTools(reg, client) {
     "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     z.object({}),
     async () => {
-      const [ocr, semantic, fulltext, storage, link] = await Promise.all([
+      const [ocr, semantic, fulltext, storage, link, entity] = await Promise.all([
         client.get("/api/ocr-index/status"),
         client.get("/api/search/semantic/status"),
         client.get("/api/search/fulltext/status"),
         client.get("/api/storage-index/status"),
-        client.get("/api/link-index/status")
+        client.get("/api/link-index/status"),
+        client.get("/api/entity-index/status")
       ]);
-      return { ocr, semantic, fulltext, storage, link };
+      return { ocr, semantic, fulltext, storage, link, entity };
     }
   );
 
@@ -268,6 +298,167 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "rebuild_workspace_entity_index",
+    "Rebuild workspace entity registry (regex/NER prototype) in .agent-cms/cache/indexes/entity/entities.sqlite. Extracts people, dates, urls, tags, wikilinks, money from note bodies + frontmatter.",
+    z.object({}),
+    () => client.post("/api/entity-index/reindex", {})
+  );
+
+  reg(
+    "query_workspace_entities",
+    "Facet search over extracted entities: list entities (default), mentions by entityId, or entities in a file path.",
+    z.object({
+      mode: z
+        .enum(["entities", "mentions", "by_entity", "by_path", "path"])
+        .optional()
+        .describe("entities = list/filter; mentions/by_entity = all mentions of entityId; by_path/path = entities in one file"),
+      q: z.string().optional().describe("Filter entity labels (substring)"),
+      type: z.string().optional().describe("Entity type: person, project, date, url, tag, topic, money, email, org"),
+      entityId: z.string().optional().describe("Required for mentions mode"),
+      path: z.string().optional().describe("Required for by_path mode"),
+      pathPrefix: z.string().optional().describe("Limit to subtree"),
+      limit: z.number().int().min(1).max(200).optional()
+    }),
+    (payload) => client.post("/api/entity-index/query", payload || {})
+  );
+
+  reg(
+    "merge_workspace_entity_alias",
+    "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next entity reindex).",
+    z.object({
+      match: z.string().min(1).describe("Alias text as written in notes, e.g. Вася"),
+      label: z.string().min(1).describe("Canonical label, e.g. Василий Петров"),
+      type: z.string().optional().describe("Entity type (default person)")
+    }),
+    (payload) => client.post("/api/entity-index/alias", payload)
+  );
+
+  reg(
+    "reject_workspace_entity",
+    "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next entity reindex.",
+    z.object({
+      label: z.string().min(1).describe("Entity label to hide, e.g. spam wikilink title"),
+      type: z
+        .string()
+        .optional()
+        .describe("Entity type scope, or * for all types (default *)")
+    }),
+    (payload) => client.post("/api/entity-index/reject", payload)
+  );
+
+  reg(
+    "seed_workspace_entity",
+    "Add a manual entity seed in entity-registry.yml (0 mentions until notes link it). Reindex to materialize in SQLite.",
+    z.object({
+      label: z.string().min(1).describe("Display name, e.g. ACME Corp"),
+      type: z.string().optional().describe("Registry type id: person, food, project, topic, …")
+    }),
+    (payload) => client.post("/api/entity-index/seed", payload)
+  );
+
+  reg(
+    "get_workspace_entity_registry",
+    "Read entity-registry.yml rules: types (with tag maps), seeds, aliases, reject.",
+    z.object({}),
+    () => client.get("/api/entity-index/registry")
+  );
+
+  const entityRegistryBodySchema = z.object({
+    version: z.number().int().optional(),
+    types: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          label: z.string().min(1),
+          tags: z.array(z.string()).optional(),
+          builtin: z.string().optional()
+        })
+      )
+      .optional(),
+    seeds: z
+      .array(z.object({ label: z.string().min(1), type: z.string().optional() }))
+      .optional(),
+    aliases: z
+      .array(
+        z.object({
+          match: z.string().min(1),
+          label: z.string().min(1),
+          type: z.string().optional()
+        })
+      )
+      .optional(),
+    reject: z
+      .array(z.object({ label: z.string().min(1), type: z.string().optional() }))
+      .optional()
+  });
+
+  reg(
+    "put_workspace_entity_registry",
+    "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer merge_workspace_entity_alias / seed / reject for small edits.",
+    z.object({
+      registry: entityRegistryBodySchema.describe("Full registry document (version 2)")
+    }),
+    (payload) => client.put("/api/entity-index/registry", payload)
+  );
+
+  reg(
+    "upsert_workspace_entity_type",
+    "Add or update one entity type in entity-registry.yml (label, hashtag → type mapping). Reindex to apply tag rules.",
+    z.object({
+      id: z.string().min(1).describe("Type id slug, e.g. food"),
+      label: z.string().min(1).describe("UI label, e.g. Еда"),
+      tags: z
+        .array(z.string())
+        .optional()
+        .describe("Hashtags without # that map notes to this type"),
+      builtin: z
+        .string()
+        .optional()
+        .describe("Optional builtin extractor map: person, project, topic, …")
+    }),
+    (payload) => client.post("/api/entity-index/type", payload)
+  );
+
+  reg(
+    "list_workspace_entity_catalog",
+    "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
+    z.object({
+      limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset"),
+      type: z.string().optional().describe("Filter by type id"),
+      q: z.string().optional().describe("Substring on label"),
+      pathPrefix: z.string().optional().describe("Only entities mentioned under this folder")
+    }),
+    ({ limit, offset, type, q, pathPrefix }) =>
+      client.get("/api/entity-index/catalog", {
+        limit,
+        offset,
+        type,
+        q,
+        pathPrefix
+      })
+  );
+
+  reg(
+    "explain_workspace_entity_search",
+    "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
+    z.object({
+      entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
+      entityId: z.string().optional().describe("Single entity id (shorthand)"),
+      entityWhere: z
+        .object({
+          type: z.string().optional(),
+          q: z.string().optional().describe("Label substring")
+        })
+        .optional()
+        .describe("Match entities by type + label, union of their mention paths"),
+      pathPrefix: z.string().optional().describe("Limit paths to subtree"),
+      previewLimit: z.number().int().min(1).max(200).optional().describe("Max paths in preview (default 40)")
+    }),
+    (payload) => client.post("/api/entity-index/explain", payload || {})
+  );
+
+  reg(
     "search_workspace_links",
     "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
     z.object({
@@ -295,7 +486,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md. Same as UI pipeline button.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()
@@ -312,15 +503,31 @@ function registerSearchWorkspaceTools(reg, client) {
     ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   );
 
+  const findByIdSchema = z.object({
+    id: z
+      .union([z.number().int().positive(), z.string().min(1)])
+      .describe('Global awn-id from frontmatter, e.g. 81, "81", or "#81" (not INDEX.md row id)')
+  });
+
+  const resolveWorkspaceIdHandler = ({ id }) =>
+    client.get("/api/workspace-id/resolve", {
+      id: String(id ?? "")
+        .trim()
+        .replace(/^#+/, "")
+    });
+
+  reg(
+    "find_by_id",
+    "Find workspace file path(s) by global awn-id number (frontmatter field awn-id). Example: 81 → path to manifest or note. Duplicate ids return paths[] and duplicate:true. Assign missing ids: assign_workspace_id.",
+    findByIdSchema,
+    resolveWorkspaceIdHandler
+  );
+
   reg(
     "resolve_workspace_id",
-    "Resolve workspace record path(s) by global awn-id (integer from settings.yml counter). Duplicate ids across records are allowed — returns paths[] when several match. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
-    z.object({
-      id: z
-        .union([z.number().int().positive(), z.string().min(1)])
-        .describe("Global awn-id integer, e.g. 1847")
-    }),
-    ({ id }) => client.get("/api/workspace-id/resolve", { id: String(id) })
+    "Same handler as find_by_id — resolve path(s) by global awn-id (workspace counter). Prefer find_by_id for discovery. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
+    findByIdSchema,
+    resolveWorkspaceIdHandler
   );
 
   reg(
@@ -330,7 +537,7 @@ function registerSearchWorkspaceTools(reg, client) {
       path: z
         .string()
         .min(1)
-        .describe("Workspace-relative path to file with frontmatter, e.g. awn-container/topic/manifest.md"),
+        .describe("Workspace-relative path to file with frontmatter, e.g. awn-topics/topic/manifest.md"),
       force: z.boolean().optional().describe("Replace existing awn-id (default false)")
     }),
     (payload) => client.post("/api/workspace-id/assign", payload)
@@ -350,14 +557,14 @@ export function registerMapTools(reg, client, pagePath) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
     description:
-      "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; topics → read_topic_* / get_content_map.",
+      "Deprecated. Prefer read_topic_index_toc (workspace overview) + list_folder (paths without manifest). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
     schema: getTopicMapSchema,
     handler: getTopicMapHandler
   });
 
   reg(
     "get_content_map",
-    "Content map for one page: items in all slots (or one slot) with title, description, properties (no body). Use for edit planning; heavier than read_content_index_toc.",
+    "Deprecated. Prefer read_content_index_toc (overview) and read_content with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
     z.object({
       path: pagePath,
       slot: z
@@ -431,7 +638,31 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   const workspaceTopicIndexTocDescription =
-    "Quick TOC for all workspace topics and areas: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.";
+    "Quick TOC for workspace topics: path + type + title + description (awn-topics/index.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
+
+  reg(
+    "list_topics",
+    "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_folder (includeFolders=true).",
+    z.object({
+      parentPath: pagePath
+        .optional()
+        .describe("Area/topic manifest or folder — omit for all manifest nodes in workspace"),
+      scope: z
+        .enum(["children", "subtree"])
+        .optional()
+        .describe("With parentPath: direct children (default) or entire subtree"),
+      includeFolders: z
+        .boolean()
+        .optional()
+        .describe("Include adoptable folders without manifest.md (default false)")
+    }),
+    ({ parentPath, scope, includeFolders }) =>
+      client.get("/api/agent/topics", {
+        ...(parentPath ? { parentPath } : {}),
+        ...(scope ? { scope } : {}),
+        ...(includeFolders === true ? { includeFolders: "true" } : {})
+      })
+  );
 
   registerTocTool(reg, {
     canonical: "read_topic_index_toc",
@@ -444,11 +675,11 @@ export function registerMapTools(reg, client, pagePath) {
     overwrite: z
       .boolean()
       .optional()
-      .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+      .describe("Replace existing awn-topics/index.md if present (default true). false → 409 when file exists.")
   });
 
   const refreshWorkspaceTopicIndexDescription =
-    "Refresh (rebuild and save) INDEX.md at workspace root from get_topic_map (path, type, title, description table). overwrite=false skips if file exists.";
+    "Refresh (rebuild and save) awn-topics/index.md from workspace page map (path, type, title, description table). overwrite=false skips if file exists.";
 
   registerTocTool(reg, {
     canonical: "refresh_topic_index_toc",
@@ -460,26 +691,32 @@ export function registerMapTools(reg, client, pagePath) {
       })
   });
 
+  const refreshWorkspaceManifestMapSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
+  });
+
+  const readWorkspaceManifestMapHandler = () => client.get("/api/agent/workspace-wsmap");
+
+  const refreshWorkspaceManifestMapHandler = ({ overwrite }) =>
+    client.post("/api/agent/workspace-wsmap", {
+      ...(overwrite === false ? { overwrite: false } : {})
+    });
+
   reg(
-    "read_workspace_wsmap",
-    "Metadata for WS-MAP.md: all index.md/INDEX.md paths in workspace (no file body).",
+    "read_workspace_map",
+    "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
     z.object({}),
-    () => client.get("/api/agent/workspace-wsmap")
+    readWorkspaceManifestMapHandler
   );
 
   reg(
-    "refresh_workspace_wsmap",
-    "Rebuild and save WS-MAP.md at workspace root by merging all index.md/INDEX.md files.",
-    z.object({
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
-    }),
-    ({ overwrite }) =>
-      client.post("/api/agent/workspace-wsmap", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
+    "refresh_workspace_map",
+    "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
+    refreshWorkspaceManifestMapSchema,
+    refreshWorkspaceManifestMapHandler
   );
 
   reg(

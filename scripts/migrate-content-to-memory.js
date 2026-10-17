@@ -10,8 +10,8 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const WORKSPACES = [
-  path.join(__dirname, "../workspaces/agent-cms-core"),
-  path.join(__dirname, "../workspaces/agent-cms-test")
+  path.join(__dirname, "../workspaces/0-ws-core"),
+  path.join(__dirname, "../workspaces/0-ws-test")
 ];
 
 const SKIP_DIRS = new Set([".git", "node_modules"]);

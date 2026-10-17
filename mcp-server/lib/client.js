@@ -102,7 +102,11 @@ export class AgentCmsClient {
         payload && typeof payload === "object"
           ? payload.error || payload.details || JSON.stringify(payload)
           : String(payload || response.statusText);
-      throw new Error(`API ${method} ${path} failed (${response.status}): ${reason}`);
+      const hint =
+        payload && typeof payload === "object" && payload.error && payload.hint
+          ? ` hint: ${JSON.stringify(payload.hint)}`
+          : "";
+      throw new Error(`API ${method} ${path} failed (${response.status}): ${reason}${hint}`);
     }
 
     return payload;

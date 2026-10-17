@@ -106,7 +106,7 @@ const cmsGlyphs = [
   [27, "search-tree", "Поиск", "Лупа + узел — menu search."],
   [28, "topic-ring", "Кольцо", "Узлы по кругу — topic picker."],
   [29, "knowledge-graph", "Graph", "Разрозненный граф — memory + tools."],
-  [30, "platform-core", "Core", "Гекс + дерево — agent-cms-core."],
+  [30, "platform-core", "Core", "Гекс + дерево — 0-ws-core."],
 ];
 
 const cmsInner = {

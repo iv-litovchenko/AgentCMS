@@ -4,12 +4,12 @@ const pageUrl = z.string().url().describe("Public http(s) URL");
 const workspacePath = z
   .string()
   .min(1)
-  .describe("Workspace-relative file path, e.g. awn-container/tema/awn-storage/media/doc.pdf");
+  .describe("Workspace-relative file path, e.g. awn-topics/tema/awn-storage/media/doc.pdf");
 
 export function registerAgentUtilsTools(reg, client) {
   reg(
     "test_mcp_connection",
-    "Ping Agent CMS: ok, agentId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
+    "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
     z.object({}),
     () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
     { agentScope: false }
@@ -72,14 +72,14 @@ export function registerAgentUtilsTools(reg, client) {
 
   reg(
     "get_agent_identity",
-    "Agent persona and permissions from awn-agent-kit/agent/ (manifest.md + main.md).",
+    "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
     z.object({}),
     () => client.get("/api/agent/identity/agent")
   );
 
   reg(
     "get_user_identity",
-    "User profile from awn-agent-kit/user/ (manifest.md + main.md).",
+    "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
     z.object({}),
     () => client.get("/api/agent/identity/user")
   );

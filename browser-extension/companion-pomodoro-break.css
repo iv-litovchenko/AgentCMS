@@ -28,6 +28,13 @@ html.asc-pomodoro-break-active #agent-shell-companion-toolbar {
   visibility: hidden !important;
 }
 
+html.asc-pomodoro-break-active #agent-companion-crosshair {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .asc-pomodoro-break-bg {
   position: absolute;
   inset: 0;

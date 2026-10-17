@@ -3,7 +3,7 @@ import { z } from "zod";
 const workspacePath = z
   .string()
   .min(1)
-  .describe("Workspace-relative path, e.g. awn-container/tema/awn-storage/scripts/foo.py");
+  .describe("Workspace-relative path, e.g. awn-topics/tema/awn-storage/scripts/foo.py");
 
 const pagePath = z
   .string()

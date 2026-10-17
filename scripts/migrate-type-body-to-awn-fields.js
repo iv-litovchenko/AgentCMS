@@ -6,7 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const AWN_DATA = path.join(process.cwd(), "workspaces/agent-cms-core/awn-data");
+const AWN_DATA = path.join(process.cwd(), "workspaces/0-ws-core/awn-data");
 
 const SKIP = new Set([
   "cms-base/entities/table.base.md"
