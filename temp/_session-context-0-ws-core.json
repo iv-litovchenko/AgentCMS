@@ -1,0 +1,542 @@
+{
+  "version": "0.0.4",
+  "mcpVersion": "0.2.0",
+  "agentId": "0-ws-core",
+  "agentRootRel": "workspaces/0-ws-core",
+  "kitFolder": "awn-topics/0-agent-kit",
+  "pathHints": {
+    "topicManifest": "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
+    "externalSlot": "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
+    "internalSlot": "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
+    "agentKit": "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
+    "storageLayers": "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
+    "storageFile": "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
+    "adoptFolder": "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
+    "adoptFolderBrowse": "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
+    "adoptFolderScan": "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
+  },
+  "menuSummary": {
+    "topicCount": 4,
+    "hasServiceTree": false,
+    "hasContainerTree": true,
+    "hasSharedTree": false
+  },
+  "awnSystem": {
+    "exists": true,
+    "root": "awn-system",
+    "typeSummary": {
+      "sources": [
+        "platform:0-ws-core/awn-system/types"
+      ],
+      "typeCount": 139,
+      "domains": [
+        "base",
+        "hubs",
+        "content",
+        "slots",
+        "fields",
+        "annotations",
+        "mixins",
+        "settings",
+        "md-blocks",
+        "database",
+        "presets",
+        "infoblock",
+        "data",
+        "hub",
+        "pages"
+      ],
+      "agentSystemRoot": "workspaces/0-ws-core/awn-system"
+    },
+    "docs": {
+      "registry": {
+        "path": "awn-system/registry.yml",
+        "exists": true,
+        "content": "version: 1\nmode: agent-owned\nagent: 0-ws-test\ndescription: CMS-модель агента — типы, слоты, поля. Runtime читает awn-system/types/\n\n# domains — источник правды по доменам («какие бывают компоненты»).\ndomains:\n  - base\n  - content\n  - annotations\n  - fields\n  - hubs\n  - slots\n  - mixins\n  - database\n  - md-blocks\n  - presets\n  - id: settings\n    label: Настройки\n    kind: type\n    icon: \"⚙\"\n\n# Четыре независимые области настроек (не merge):\n#   platform — .agent-cms-global/settings/platform.yml (корень проекта)\n#   workspace — .agent-cms/settings/workspace.yml (хранилище)\n#   integrations — .agent-cms/settings/integrations.yml (skills, MCP, плагины)\n#   user — .agent-cms/settings/user.yml (UI пользователя)\nsettings:\n  description: >\n    Platform — политика CMS (MCP, лимиты, индексы). Workspace — параметры хранилища.\n    Integrations — контейнеры внешних сервисов (skills, MCP tools, плагины).\n    User — UI/дерево для пользователя. Области не сливаются. MCP policy — .agent-cms-global/settings/platform.yml → awn_policy.\n  schema:\n    platform:\n      type: awn.settings.platform\n      path: awn-system/types/settings/platform.yml\n    workspace:\n      type: awn.settings.workspace\n      path: awn-system/types/settings/workspace.yml\n    integrations:\n      type: awn.settings.integrations\n      path: awn-system/types/settings/integrations.yml\n    user:\n      type: awn.settings.user\n      path: awn-system/types/settings/user.yml\n  values:\n    platform: .agent-cms-global/settings/platform.yml\n    workspace: .agent-cms/settings/workspace.yml\n    integrations: .agent-cms/settings/integrations.yml\n    user: .agent-cms/settings/user.yml\n\ndocs:\n  map: GLOBAL-DOC-MCP.md\n  response-style: GLOBAL-RESPONSE-STYLE.md\n  rules: GLOBAL-RULES.md\n  markdown-showcase: GLOBAL-DOC-MARKDOWN.md\n  agents: AGENTS.md\n\ncanonical-types: migrated\nmigration-date: \"2026-07-05\"\n"
+      }
+    },
+    "hint": "CMS-модель: GLOBAL-DOC-MCP.md + awn-system/types/slots/_base.yml (slot-categories)"
+  },
+  "platformSettings": {
+    "maintenance-mode": false,
+    "default-locale": "ru",
+    "mcp-mode": "standard",
+    "batch-enabled": true,
+    "batch-read-limit": 20,
+    "batch-write-limit": 10,
+    "batch-deny-exec": true,
+    "confirm-delete": true,
+    "confirm-exec": true,
+    "read-text-max-bytes": "120000",
+    "read-binary-max-bytes": "1500000",
+    "index-semantic-enabled": true,
+    "index-fulltext-enabled": true,
+    "index-storage-enabled": true,
+    "index-links-enabled": false,
+    "index-entities-enabled": true,
+    "index-entity-gliner-enabled": true,
+    "indexing-ocr-langs": "rus+eng",
+    "index-ocr-enabled": false,
+    "index-workspace-id-enabled": true,
+    "index-wsmap-enabled": true,
+    "index-storage-mode": "quick",
+    "index-storage-batch-size": 30,
+    "index-storage-sqlite-enabled": true,
+    "index-path-prefixes": [],
+    "index-exclude-patterns": ".git/\n.agent-cms/cache/\nnode_modules/\nawn-temp/\nawn-media-cloud/\nawn-google-drive/\n*.mdback",
+    "index-file-extensions": [
+      ".md",
+      ".sidecar.md"
+    ],
+    "search-default-scopes": [
+      "semantic",
+      "fulltext"
+    ],
+    "search-semantic-chunk-size": "900",
+    "search-semantic-chunk-overlap": "100",
+    "search-hybrid-semantic-weight": "60",
+    "search-hybrid-fulltext-weight": "40",
+    "auto-retain-facts": false,
+    "always-context-platform-readme": true,
+    "always-context-global-response-style": true,
+    "always-context-global-rules": true,
+    "always-context-global-markdown-showcase": false,
+    "always-context-md-files": [
+      "AGENTS.md"
+    ],
+    "always-context-ws-folder": "awn-topics/0-shared/0-context/awn-storage/",
+    "default-workspace-id": "agent-focus",
+    "media-cloud-default-provider": "google-drive",
+    "media-cloud-providers": [
+      {
+        "key": "google-drive",
+        "title": "Google Диск"
+      },
+      {
+        "key": "yandex-disk",
+        "title": "Яндекс Диск"
+      }
+    ]
+  },
+  "workspaceSettings": {
+    "agent-language": "ru",
+    "response-style": "agents-md",
+    "notify-on-complete": false,
+    "workspace-idle-screensaver-minutes": "3",
+    "workspace-pomodoro-enabled": true,
+    "workspace-pomodoro-work-minutes": "25",
+    "workspace-pomodoro-break-minutes": "5",
+    "awn-id-next": 33,
+    "awn-id-issued": 32,
+    "awn-id-updated-at": "2026-10-17T11:53:08.783Z",
+    "awn-id-model": "workspace-id-autoincrement-v1",
+    "awn-recycle-id-next": 2,
+    "awn-recycle-id-issued": 1,
+    "awn-recycle-id-updated-at": "2026-10-07T21:03:34.138Z",
+    "awn-recycle-id-model": "workspace-recycle-marker-v1",
+    "awn-recycle-id-pad-width": 8,
+    "registry-query-presets": [
+      {
+        "id": "always-context",
+        "name": "Всегда в контексте",
+        "about": "Записи с awn-runtime-load-always (storage-index). Системные MD — отдельно через list_workspace_always_context.",
+        "query": "where:\n  - field: awn-runtime-load-always\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\n  - awn-type\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "cron",
+        "name": "Cron",
+        "about": "Темы и записи с awn-runtime-cron (расписание в awn-runtime-cron-schedule).",
+        "query": "where:\n  - field: awn-runtime-cron\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\n  - awn-runtime-cron-schedule\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "heartbeat",
+        "name": "Сердцебиение",
+        "about": "Записи с awn-runtime-heartbeat — периодическая проверка агентом.",
+        "query": "where:\n  - field: awn-runtime-heartbeat\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "reminders",
+        "name": "Напоминания",
+        "about": "Записи с awn-runtime-reminder: true (только этот флаг, без привязки к датам).",
+        "query": "where:\n  - field: awn-runtime-reminder\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "nav-main",
+        "name": "На главной",
+        "about": "awn-main в frontmatter (SQL-like через storage-index).",
+        "query": "where:\n  - field: awn-main\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "nav-focus",
+        "name": "В фокусе",
+        "about": "awn-focus в frontmatter. Альтернатива: source nav-focus (кэш .agent-cms/state/nav-registry).",
+        "query": "where:\n  - field: awn-focus\n    eq: true\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "topics",
+        "name": "Темы",
+        "about": "Манифесты тем (awn-type awn.hub.topic), storage-index.",
+        "query": "where:\n  - field: awn-type\n    eq: awn.hub.topic\nfields:\n  - path\n  - awn-name\n  - awn-description\nsort:\n  field: path\n  dir: asc\nlimit: 500"
+      },
+      {
+        "id": "recent-records",
+        "name": "Последние записи",
+        "about": "Записи с awn-id, сортировка по убыванию id (недавно присвоенные). Опционально pathPrefix — только внутри темы.",
+        "query": "where:\n  - field: awn-id\n    gte: 1\nfields:\n  - path\n  - awn-name\n  - awn-type\n  - awn-id\nsort:\n  field: awn-id\n  dir: desc\nlimit: 50"
+      },
+      {
+        "id": "created-last-7-days",
+        "name": "Созданы за 7 дней",
+        "about": "awn-create (ISO) не старше 7 суток. relativeDays + relativeDaysField пересчитываются при run_workspace_registry_query.",
+        "query": "relativeDays: 7\nrelativeDaysField: awn-create\nfields:\n  - path\n  - awn-name\n  - awn-create\n  - awn-update\nsort:\n  field: awn-create\n  dir: desc\nlimit: 100"
+      }
+    ],
+    "ws-static-plugin-example": "",
+    "ws-static-example-1": "значение 1",
+    "ws-static-example-2": "значение 2",
+    "ws-static-example-3": "значение 3",
+    "dependencies-file": "dependencies.csv",
+    "dependencies-columns": [
+      {
+        "key": "host",
+        "title": "Хост",
+        "description": "cursor | claude | codex | shell | linux | mac | any",
+        "required": true
+      },
+      {
+        "key": "kind",
+        "title": "Тип",
+        "description": "any | runtime | npm | pip | brew | apt | docker | mcp | mcp-tool | skill | plugin | rule | hook | env | repo | doc | cli | self | other",
+        "required": true
+      },
+      {
+        "key": "name",
+        "title": "Название",
+        "description": "Короткое имя зависимости",
+        "required": true
+      },
+      {
+        "key": "description",
+        "title": "Описание",
+        "description": "Зачем нужно в проекте",
+        "required": false
+      },
+      {
+        "key": "path",
+        "title": "Путь / install",
+        "description": "Путь, package, команда установки или env-ключ",
+        "required": false
+      },
+      {
+        "key": "version",
+        "title": "Версия",
+        "description": ">=22, 1.2.3, latest",
+        "required": false
+      },
+      {
+        "key": "status",
+        "title": "Статус",
+        "description": "active | optional | missing | broken",
+        "required": false
+      },
+      {
+        "key": "required",
+        "title": "Обязательно",
+        "description": "yes | no",
+        "required": false
+      },
+      {
+        "key": "notes",
+        "title": "Заметки",
+        "description": "Кто ставил, дата, self-view агента",
+        "required": false
+      }
+    ],
+    "default-slot": "main",
+    "awn-temp-ttl-days": 0,
+    "voice-cms-topic-path": "awn-topics/0-agent-kit/0-agent/manifest.md",
+    "voice-cms-channel": "thread",
+    "voice-route-system-prompt": "Ты — личный ассистент пользователя в Agent CMS Voice.\n\nПравила:\n1. Факты о workspace и памяти — только через MCP Agent CMS (поиск, страницы, заметки, файлы). Не выдумывай.\n2. Ответы короткие и разговорные: пользователь часто на мобильном и говорит голосом.\n3. Язык ответа — как у пользователя (если не просит иного).\n4. Показывай результат, не сырой JSON, не имена инструментов и не детали MCP.\n5. Секреты, ключи API и пароли — не выводи и не озвучивай.\n6. Перед записью в workspace: если неочевидно, куда положить — спроси. Если подходящей страницы или темы нет — предложи создать новую и обсуди с пользователем название и место, прежде чем записывать.",
+    "voice-route-claude-cli-path": "claude",
+    "voice-route-claude-model": "",
+    "voice-route-claude-session-id": "",
+    "voice-route-claude-permission-mode": "",
+    "voice-route-codex-cli-path": "codex2",
+    "voice-route-codex-model": "",
+    "voice-route-codex-session-id": "",
+    "voice-route-codex-permission-mode": "",
+    "voice-route-qwenpaw-url": "http://127.0.0.1:8088",
+    "voice-route-qwenpaw-user-id": "default",
+    "voice-route-qwenpaw-agent-id": "Aya",
+    "voice-route-qwenpaw-approval-level": "AUTO",
+    "voice-route-qwenpaw-session-id": "agent-shell",
+    "voice-route-runtime": "claude",
+    "voice-proactive-mode": "off",
+    "voice-proactive-idle-seconds-min": 120,
+    "voice-proactive-idle-seconds-max": 240,
+    "voice-proactive-cooldown-seconds": 900,
+    "voice-proactive-quiet-hours-enabled": false,
+    "voice-proactive-quiet-hours-start": "23:00",
+    "voice-proactive-quiet-hours-end": "07:00",
+    "voice-proactive-prompt": "",
+    "voice-input-enabled": false,
+    "voice-input-mode": "meeting",
+    "voice-input-capture": "microphone",
+    "voice-input-global-listen": false,
+    "voice-input-to-compose": false,
+    "voice-input-response-enabled": true,
+    "voice-wake-name": "",
+    "voice-stt-engine": "browser",
+    "voice-stt-lang": "en-US",
+    "voice-stt-prompt": "В сообщении пользователя может быть смесь обычного текста и голосовых блоков:\n\n```awn-stt\n…сырая расшифровка речи…\n```\n\nТекст вне ```awn-stt … ``` — набран вручную, трактуй буквально.\nВнутри блока — сказано голосом: возможны «э-э», «эээ», «мм», «ну», ошибки распознавания и пунктуации.\n\nПонимай смысл по всему сообщению целиком; восстанавливай формулировку мысленно, не выдумывая новых фактов.\nЕсли смысл голосового блока неясен — спроси уточнение.\nНе удаляй и не переписывай разметку ```awn-stt``` в цитатах пользователя.",
+    "voice-stt-whisper-model": "base",
+    "voice-stt-elevenlabs-api-key": "",
+    "voice-stt-elevenlabs-model": "scribe_v2",
+    "voice-tts-enabled": false,
+    "voice-tts-engine": "edge",
+    "voice-tts-playback-mode": "dialog",
+    "voice-tts-prompt": "Каждый ответ пользователю используй в формате (строго, в таком порядке):\n\n1) Текст для озвучки — plain text, без emoji и markdown. Только то, что можно сказать вслух. Без секретов и ключей. Длина не ограничена — озвучь весь смысл ответа.\n\n2) Отдельной строкой маркер конца голосовой части:\n\n[tts-break]\n\n3) Подробный ответ для экрана (markdown, списки, код). Если главное уже сказано голосом — начни с короткой отсылки: «Подробнее ниже» или «Смотри детали ниже».\n\nФормат обязателен для любых ответов, включая уточняющие вопросы.\nБез HTML-комментариев <!-- -->.",
+    "voice-tts-rate": 1,
+    "voice-tts-pitch": 1,
+    "voice-tts-include-captions": true,
+    "voice-tts-browser-lang": "ru-RU",
+    "voice-tts-browser-voice": "",
+    "voice-tts-edge-voice": "ru-RU-SvetlanaNeural",
+    "voice-tts-edge-rate": 1,
+    "voice-tts-piper-model": "",
+    "voice-tts-piper-binary": "piper",
+    "voice-tts-elevenlabs-api-key": "",
+    "voice-tts-elevenlabs-voice-id": "EXAVITQu4vr4xnSDxMaL",
+    "voice-tts-elevenlabs-model": "eleven_multilingual_v2",
+    "voice-tts-elevenlabs-rate": 1,
+    "voice-compose-templates": [
+      {
+        "id": "very-brief",
+        "key": "very-brief",
+        "group": "Стиль ответа",
+        "label": "Ответ очень кратко",
+        "text": "Ответь очень кратко — одним-двумя предложениями."
+      },
+      {
+        "id": "brief",
+        "key": "brief",
+        "group": "Стиль ответа",
+        "label": "Ответ кратко",
+        "text": "Ответь кратко, без лишних деталей."
+      },
+      {
+        "id": "detailed",
+        "key": "detailed",
+        "group": "Стиль ответа",
+        "label": "Ответ развернуто",
+        "text": "Ответь развёрнуто, с подробностями и примерами."
+      }
+    ],
+    "voice-file-hub-max-attach-mb": "25",
+    "voice-media-camera-enabled": false,
+    "voice-media-camera-on-speech": true,
+    "voice-media-camera-facing": "user",
+    "voice-media-screen-enabled": false,
+    "voice-media-screen-on-speech": true,
+    "voice-window-character-model": "robot",
+    "voice-window-compact-mode": false,
+    "voice-window-topmost": true,
+    "voice-window-pet-overlay": false,
+    "voice-window-transparent": false,
+    "voice-window-background": "wallpaper",
+    "voice-window-background-image-url": "",
+    "voice-window-compact-dialog-qa": true,
+    "voice-window-dialog-auto-scroll": true,
+    "voice-window-keep-awake": true,
+    "voice-window-processing-sound": "off"
+  },
+  "serviceDocs": [
+    {
+      "slotKey": "agent",
+      "manifestPath": "awn-topics/0-agent-kit/agent/manifest.md",
+      "exists": false,
+      "content": null
+    },
+    {
+      "slotKey": "user",
+      "manifestPath": "awn-topics/0-agent-kit/user/manifest.md",
+      "exists": false,
+      "content": null
+    },
+    {
+      "slotKey": "agent.voice.tts",
+      "manifestPath": "awn-topics/0-agent-kit/agent.voice.tts/manifest.md",
+      "exists": false,
+      "content": null
+    },
+    {
+      "slotKey": "agent.voice.stt",
+      "manifestPath": "awn-topics/0-agent-kit/agent.voice.stt/manifest.md",
+      "exists": false,
+      "content": null
+    }
+  ],
+  "topicRegistry": {
+    "version": 1,
+    "model": "topic-registry",
+    "hint": "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или list_workspace_always_context.",
+    "topics": [
+      {
+        "manifestPath": "arhiv-voprosov/manifest.md",
+        "label": "Архив вопросов",
+        "displayPath": "arhiv-voprosov/arhiv-voprosov",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "dokumentatsii/manifest.md",
+        "label": "Документации",
+        "displayPath": "dokumentatsii/dokumentatsii",
+        "description": "User docs, Best Practices, Markdown showcase и черновики — в слоте main",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "obsuzhdeniya/manifest.md",
+        "label": "Обсуждения",
+        "displayPath": "obsuzhdeniya/obsuzhdeniya",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      },
+      {
+        "manifestPath": "zadachi-plany-i-idei/manifest.md",
+        "label": "Задачи, планы и идеи",
+        "displayPath": "zadachi-plany-i-idei/zadachi-plany-i-idei",
+        "description": "",
+        "awnType": "awn.hub.topic"
+      }
+    ],
+    "topicCount": 4
+  },
+  "topicCount": 4,
+  "dataStoresSummary": {
+    "version": 1,
+    "model": "data-stores-summary",
+    "hint": "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
+    "storeCount": 8,
+    "dataStoreCount": 6,
+    "groupCount": 2,
+    "collectionCount": 6,
+    "singleCount": 0,
+    "recordCount": 302,
+    "entries": [
+      {
+        "path": "awn-databases/0-taxonomies",
+        "kind": "group",
+        "group": "",
+        "title": "Таксономии (справочники)",
+        "description": "Таксономии (справочники)",
+        "recordCount": 261
+      },
+      {
+        "path": "awn-databases/0-taxonomies/0-categories",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Категории",
+        "description": "Категории",
+        "recordCount": 34
+      },
+      {
+        "path": "awn-databases/0-taxonomies/0-colors",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Палитра",
+        "description": "Палитра",
+        "recordCount": 6
+      },
+      {
+        "path": "awn-databases/0-taxonomies/0-tags",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Теги",
+        "description": "Теги",
+        "recordCount": 205
+      },
+      {
+        "path": "awn-databases/0-taxonomies/priorities",
+        "kind": "collection",
+        "group": "0-taxonomies",
+        "title": "Приоритеты",
+        "description": "Приоритеты",
+        "recordCount": 16
+      },
+      {
+        "path": "awn-databases/0-ui",
+        "kind": "group",
+        "group": "",
+        "title": "UI (интерфейс)",
+        "description": "UI (интерфейс)",
+        "recordCount": 41
+      },
+      {
+        "path": "awn-databases/0-ui/0-home-titles",
+        "kind": "collection",
+        "group": "0-ui",
+        "title": "Заголовки «Главная»",
+        "description": "Заголовки «Главная»",
+        "recordCount": 13
+      },
+      {
+        "path": "awn-databases/0-ui/0-slogans",
+        "kind": "collection",
+        "group": "0-ui",
+        "title": "Слоганы шапки",
+        "description": "Слоганы шапки",
+        "recordCount": 28
+      }
+    ],
+    "summaryLine": "6 инфоблоков · 2 групп · 302 записей"
+  },
+  "dataStoreCount": 6,
+  "dataRecordCount": 302,
+  "alwaysContext": {
+    "version": 1,
+    "model": "always-context",
+    "hint": "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+    "items": [
+      {
+        "entityKind": "system",
+        "manifestPath": null,
+        "slot": null,
+        "ref": "AGENTS.md",
+        "label": "AGENTS.md",
+        "displayPath": "AGENTS.md",
+        "description": "",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": ""
+      },
+      {
+        "entityKind": "platform-always",
+        "manifestPath": null,
+        "slot": null,
+        "ref": "GLOBAL-RESPONSE-STYLE.md",
+        "label": "GLOBAL-RESPONSE-STYLE.md",
+        "displayPath": "GLOBAL-RESPONSE-STYLE.md",
+        "description": "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "# Префикс ответа\n\nНачинай каждый ответ человеку с префикса и пробела:\n\n- `🗄️` — ответ опирается на данные из workspace (поиск, чтение страниц/контента, факты).\n- `🌐` — опирается на данные из интернета (search_web, read_web_page, get_link_preview).\n- `🌐🗄️` — оба источника.\n- `💭` — только рассуждение, общие знания или уточняющий вопрос.\n\nСтавь 🗄️/🌐, только если в этом ходе вызвал tool и реально использовал его результат.\nПрефикс один, только в начале; он не заменяет ссылки на источники.\n\nПример: `🗄️ По вашим заметкам «Финансы»: доход за август — …`\n\n# Номер ответа\n\nПеред префиксом ставь порядковый номер ответа в текущем диалоге: `#N`.\n\n- Первый ответ в новом диалоге — `#1`, каждый следующий — на 1 больше.\n- Чтобы получить N, посмотри номер своего предыдущего ответа в истории и прибавь 1. Если предыдущего номера не видно (история сжата или обрезана), посчитай свои ответы человеку в истории.\n- Номер один на весь ответ, даже если в ходе было много вызовов tools; промежуточные сообщения между вызовами не нумеруются.\n\nФормат: `#N <префикс> текст`.\n\nПример: `#3 🗄️ По вашим заметкам «Финансы»: доход за август — …`\n\n# Как ссылаться на данные хранилища\n\n**Файлы и страницы.** Формат: «Название» `путь`.\n- Название — из `awn-name` (или `label`), путь — поле `path` / `displayPath` из ответа tool, относительно корня workspace (без `workspaces/<id>/`).\n- Первое упоминание — название + путь, дальше — только «Название».\n- Путь всегда в `code`, без жирного. Не собирай путь вручную и не сокращай его.\n- Нет названия — только `путь`.\n\n**Строки.** Если tool вернул `locationHint` — пиши как есть: `путь` L12-18.\n\n**Имена tools** (`search_workspace_hybrid` и т.п.) в ответе не называй — пиши, что сделал: «нашёл», «прочитал», «записал». Исключение: человек спрашивает про MCP или отладку — тогда имя в `code`.\n\n**Не выводи** сырой JSON, `awn-id`, `slot` / `ref` / `entityKind`, служебный frontmatter — только если попросили.\n\n# Шаблоны\n\nНашёл:\n\n```text\n#N 🗄️ Нашёл 3 записи:\n- «Финансы 2026» `finance/awn-storage/2026.md` L40-52 — доход за август\n- …\n```\n\nЗаписал или изменил:\n\n```text\n#N 🗄️ Обновил «Финансы 2026» `finance/awn-storage/2026.md`: добавил строку за сентябрь.\n```\n\nНе нашёл:\n\n```text\n#N 🗄️ В хранилище ничего не нашёл по «…». Искал в: … Уточни название или где лежит.\n```\n\nБольше 7 результатов — покажи топ-5 и сколько ещё.\n"
+      },
+      {
+        "entityKind": "platform-always",
+        "manifestPath": null,
+        "slot": null,
+        "ref": "GLOBAL-RULES.md",
+        "label": "GLOBAL-RULES.md",
+        "displayPath": "GLOBAL-RULES.md",
+        "description": "Глобальные правила для всех хранилищ (корень репозитория)",
+        "runtimeLoadAlways": true,
+        "exists": true,
+        "content": "# GLOBAL-RULES — как со мной работать\n\n## Правила\n\n1. **Память на диске** — если речь о моих заметках, планах или файлах, сначала загляни в хранилище (MCP), а не опирайся на «как было в чате».\n2. **Не выдумывай** — не придумывай пути, записи и факты; если не нашёл — скажи прямо и спроси.\n3. **Согласуй риск** — перед удалением, массовой правкой или необратимым шагом — коротко спроси меня.\n4. **Пиши как человеку** — на моём языке, коротко и по делу, без лишней «воды».\n\nПравила выше можно править под себя — это **мой** общий тон для всех workspace.\n"
+      }
+    ],
+    "itemCount": 3
+  },
+  "alwaysContextCount": 3,
+  "hint": "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace + RULES + RESPONSE-STYLE). Доки платформы: get_session_documentation. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+}

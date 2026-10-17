@@ -13470,7 +13470,8 @@ async function buildWorkspaceWsmapMarkdown() {
     formatEntriesTable: (rows) =>
       formatContentIndexEntriesMarkdown(rows, {
         emptyHint: "_В workspace не найдено manifest-узлов._",
-        tableVariant: "wsmap"
+        tableVariant: "wsmap",
+        linkTitle: false
       })
   });
 }
@@ -14286,11 +14287,11 @@ function formatContentIndexEntriesMarkdown(
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
     const slotLabelCell = escapeContentIndexTableCell(entry.slotLabel) || "—";
     const pathLabelRaw = String(entry.path || entry.linkPath || "").trim();
-    const pathLabel = includeWsmap
-      ? pathLabelRaw || "—"
-      : pathLabelRaw;
+    const pathLabel = pathLabelRaw || "—";
     const pathCell = `\`${escapeContentIndexTableCell(pathLabel)}\``;
-    const titleCell = formatContentIndexTitleCell(entry, { linkTitle });
+    const titleCell = formatContentIndexTitleCell(entry, {
+      linkTitle: includeWsmap ? false : linkTitle
+    });
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
