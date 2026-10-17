@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 86 tools",
+  versionLabel: "Per-chat agentId · 90 tools (87 canonical + 3 legacy aliases)",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -75,20 +75,23 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
-          name: "list_workspace_always_context",
-          description: "Workspace always-context (same block as session): runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*.",
+          name: "get_workspace_always_context_registry",
+          legacyName: "list_workspace_always_context",
+          description: "Реестр always-context (items с content): load-always, system md, ws-folder.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
         {
-          name: "list_workspace_cron",
-          description: "Индекс awn-runtime-cron (+ schedule).",
+          name: "get_workspace_cron_registry",
+          legacyName: "list_workspace_cron",
+          description: "Реестр awn-runtime-cron (+ schedule), без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/cron-registry"
         },
         {
-          name: "list_workspace_heartbeat",
-          description: "Индекс awn-runtime-heartbeat.",
+          name: "get_workspace_heartbeat_registry",
+          legacyName: "list_workspace_heartbeat",
+          description: "Реестр awn-runtime-heartbeat, без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
         },

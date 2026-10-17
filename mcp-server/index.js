@@ -140,7 +140,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: topicRegistry, alwaysContext (workspace runtime-load-always + system md + ws-folder), service manifests. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime: list_workspace_cron / list_workspace_heartbeat.",
+    "START HERE: topicRegistry, alwaysContext (workspace runtime-load-always + system md + ws-folder), service manifests. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
@@ -159,26 +159,39 @@ function createServer() {
     handler: getUiFocusHandler
   });
 
+  const getWorkspaceAlwaysContextRegistryHandler = () => client.get("/api/agent/always-context");
+  const getWorkspaceAlwaysContextRegistrySchema = z.object({});
+  const getWorkspaceAlwaysContextRegistryDescription =
+    "Always-context registry (same alwaysContext block as get_session_context): items include full content for runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*. Full session: get_session_context.";
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_always_context_registry",
+    legacy: "list_workspace_always_context",
+    description: getWorkspaceAlwaysContextRegistryDescription,
+    schema: getWorkspaceAlwaysContextRegistrySchema,
+    handler: getWorkspaceAlwaysContextRegistryHandler
+  });
   reg(
-    "list_workspace_always_context",
-    "Same alwaysContext block as in get_session_context: runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*.",
-    z.object({}),
-    () => client.get("/api/agent/always-context")
+    "refresh_workspace_always_context",
+    "Deprecated alias for get_workspace_always_context_registry.",
+    getWorkspaceAlwaysContextRegistrySchema,
+    getWorkspaceAlwaysContextRegistryHandler
   );
 
-  reg(
-    "list_workspace_cron",
-    "Cron index: topics and records with awn-runtime-cron (+ schedule).",
-    z.object({}),
-    () => client.get("/api/agent/cron-registry")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_cron_registry",
+    legacy: "list_workspace_cron",
+    description: "Registry of topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/cron-registry")
+  });
 
-  reg(
-    "list_workspace_heartbeat",
-    "Heartbeat index: topics and records with awn-runtime-heartbeat.",
-    z.object({}),
-    () => client.get("/api/agent/heartbeat-registry")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_heartbeat_registry",
+    legacy: "list_workspace_heartbeat",
+    description: "Registry of topics/records with awn-runtime-heartbeat. Index only, not file bodies.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/heartbeat-registry")
+  });
 
   registerSettingsTools(reg, client);
   registerPlatformTools(reg, client);

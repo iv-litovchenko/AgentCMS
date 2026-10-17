@@ -11962,7 +11962,7 @@ async function buildAgentTopicRegistry() {
   return {
     version: 1,
     model: "topic-registry",
-    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или list_workspace_always_context.",
+    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или get_workspace_always_context_registry.",
     topics,
     topicCount: topics.length
   };
@@ -14898,7 +14898,8 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: list_workspace_always_context",
+  alwaysContext:
+    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: get_workspace_always_context_registry",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -15154,7 +15155,7 @@ async function buildAgentSessionContext() {
     alwaysContextCount: alwaysContext.itemCount,
     hint:
       "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace runtime-load-always + system md + ws-folder). " +
-      "Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+      "Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. Cron: get_workspace_cron_registry. Heartbeat: get_workspace_heartbeat_registry."
   };
 }
 

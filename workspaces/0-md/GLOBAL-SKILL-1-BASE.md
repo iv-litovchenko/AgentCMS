@@ -20,7 +20,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `get_agent_identity` / `get_user_identity`.
 
-**«Перезагрузи контекст»** = снова `get_session_context` и при необходимости `list_workspace_always_context`, `read_topic_index_toc`, `read_content_index_toc`.
+**«Перезагрузи контекст»** = снова `get_session_context` и при необходимости `get_workspace_always_context_registry`, `read_topic_index_toc`, `read_content_index_toc`.
 
 ---
 
@@ -226,9 +226,9 @@ Workspace — папка с md-файлами. Хабы:
 
 | Поле | Значение | Реестр |
 |------|----------|--------|
-| `awn-runtime-load-always: true` | Всегда в контексте | `list_workspace_always_context` |
-| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `list_workspace_cron` |
-| `awn-runtime-heartbeat: true` | Периодическая проверка | `list_workspace_heartbeat` |
+| `awn-runtime-load-always: true` | Всегда в контексте | `get_workspace_always_context_registry` |
+| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `get_workspace_cron_registry` |
+| `awn-runtime-heartbeat: true` | Периодическая проверка | `get_workspace_heartbeat_registry` |
 | `awn-runtime-reminder: true` | В «Напоминания» | — |
 | `awn-runtime-commands: true` | В инструкции есть команды | — |
 

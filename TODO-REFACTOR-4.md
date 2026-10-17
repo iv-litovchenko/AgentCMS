@@ -168,9 +168,9 @@ workspace/                              … awn.hub.topic.ws
 ├── get_session_context                    … topicRegistry, always-context, RULES
 ├── read_platform_doc                      … README, GLOBAL-SKILL-*.md (по запросу)
 ├── get_ui_focus (legacy get_user_active_context_now) … фокус UI → path/slot/ref
-├── list_workspace_always_context          … always-load файлы workspace
-├── list_workspace_cron                    … awn-runtime-cron
-├── list_workspace_heartbeat               … awn-runtime-heartbeat
+├── get_workspace_always_context_registry  … always-load + content (legacy list_/refresh_workspace_always_context)
+├── get_workspace_cron_registry            … awn-runtime-cron (legacy list_workspace_cron)
+├── get_workspace_heartbeat_registry       … awn-runtime-heartbeat (legacy list_workspace_heartbeat)
 └── test_mcp_connection                    … ping CMS + версии
 
 🏢 Registry workspace (без workspaceId в args; path/workspaceId в теле где нужно, legacy agentId)

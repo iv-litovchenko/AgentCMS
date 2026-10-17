@@ -58,7 +58,7 @@ get_session_context
 │
 ├── list_platform_docs · read_platform_doc — README, GLOBAL-SKILL-*.md (скиллы 0–6)
 ├── скиллы в клиенте (Claude/Cursor) — вне CMS
-├── list_workspace_cron · list_workspace_heartbeat — индексы runtime по workspace
+├── get_workspace_cron_registry · get_workspace_heartbeat_registry — индексы runtime
 ├── get_workspace_storage_info — stats, git, index status, counts
 ├── read_topic_index_toc · read_content_index_toc · read_workspace_map — оглавления
 ├── read_topic_body / read_content — любое содержимое по запросу
@@ -73,7 +73,7 @@ get_session_context
 
 | Tool | Связь |
 | ---- | ----- |
-| `list_workspace_always_context` | тот же блок, что `alwaysContext` в session-context |
+| `get_workspace_always_context_registry` | тот же блок, что `alwaysContext` (legacy: `list_workspace_always_context`, `refresh_workspace_always_context`) |
 | `get_ui_focus` (legacy `get_user_active_context_now`) | фокус UI, не стартовый пакет |
 
 ---

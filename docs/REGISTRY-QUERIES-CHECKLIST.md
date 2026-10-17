@@ -42,9 +42,9 @@
 │   └── run id=always-context / nav-focus → rows > 0 на тестовых manifest
 │
 ├── Соседние реестры (не дублировать, сравнить результат)
-│   ├── list_workspace_cron        ≈ run id=cron
-│   ├── list_workspace_heartbeat   ≈ run id=heartbeat
-│   ├── list_workspace_always_context  ≠ always-context (ещё системные MD)
+│   ├── get_workspace_cron_registry        ≈ run id=cron (legacy list_workspace_cron)
+│   ├── get_workspace_heartbeat_registry   ≈ run id=heartbeat (legacy list_workspace_heartbeat)
+│   ├── get_workspace_always_context_registry   ≠ always-context query (ещё system md; legacy list_/refresh_workspace_always_context)
 │   ├── GET /api/agent/topic-registry  ≈ можно добавить query source runtime-topic
 │   ├── index-exclude-registry     (пока нет пресета — добавить в YAML вручную)
 │   └── large-context              (пока нет пресета)
