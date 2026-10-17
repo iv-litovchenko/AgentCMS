@@ -4,7 +4,7 @@
 
 **✅** сделано · **❌** не сделано.
 
-**Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md`**, **`GLOBAL-SKILL-1-BASE.md`**.
+**Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-SKILL-0-MCP-WELCOME.md`**, **`GLOBAL-SKILL-1-BASE.md`**.
 
 **Сейчас:** всё через **`read_content` / `write_content`** (+ `format: base64`, `import_content_from_url`, `extract_document_text`). **Не срочно** — можно начать с **`upload_asset` + `publicUrl`**.
 

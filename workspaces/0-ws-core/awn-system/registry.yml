@@ -50,15 +50,15 @@ settings:
     user: .agent-cms/settings/user.yml
 
 docs:
-  welcome: workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md
-  map: workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md
-  base: workspaces/0-md/GLOBAL-SKILL-1-BASE.md
-  response-style: workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md
-  rules: workspaces/0-md/GLOBAL-SKILL-3-RULES.md
-  markdown: workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md
-  search: workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md
-  modules: workspaces/0-md/GLOBAL-SKILL-6-MODULES.md
-  markdown-showcase: workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md
+  welcome: GLOBAL-SKILL-0-MCP-WELCOME.md
+  map: GLOBAL-SKILL-0-MCP-WELCOME.md
+  base: GLOBAL-SKILL-1-BASE.md
+  response-style: GLOBAL-SKILL-2-RESPONSE-STYLE.md
+  rules: GLOBAL-SKILL-3-RULES.md
+  markdown: GLOBAL-SKILL-4-MARKDOWN.md
+  search: GLOBAL-SKILL-5-SEARCH.md
+  modules: GLOBAL-SKILL-6-MODULES.md
+  markdown-showcase: GLOBAL-SKILL-4-MARKDOWN.md
   agents: AGENTS.md
 
 canonical-types: migrated

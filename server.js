@@ -1200,8 +1200,6 @@ function sendJson(res, statusCode, payload, extraHeaders = null) {
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
 const {
-  GLOBAL_PLATFORM_MD_REL,
-  getGlobalPlatformMdDirAbs,
   resolveGlobalPlatformMdAbs,
   globalPlatformMdDisplayPath
 } = require("./lib/paths/global-platform-md");
@@ -15089,7 +15087,7 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       registry: await readText("registry.yml")
     },
-    hint: `CMS-модель: ${GLOBAL_PLATFORM_MD_REL}/GLOBAL-SKILL-1-BASE.md + awn-system/types/slots/_base.yml (slot-categories)`
+    hint: `CMS-модель: GLOBAL-SKILL-1-BASE.md + awn-system/types/slots/_base.yml (slot-categories)`
   };
 }
 

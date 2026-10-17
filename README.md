@@ -171,7 +171,7 @@
 - **по полям** — каталог записей по типу, тегам, статусу и другим YAML-полям (SQL-подобные запросы);
 - **по связям** — граф: кто ссылается на файл, куда ведут `[[wikilinks]]` и relation-поля (это не текстовый поиск).
 
-Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
+Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md).
 
 Все перечисленные термины **подробнее на интерактивной карте** (Mermaid, кликабельные узлы): [README.diagram.md](README.diagram.md) — на главной CMS открывается та же диаграмма.
 
@@ -201,7 +201,7 @@
 > - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
 > - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
 >
-> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
+> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md).
 >
 > All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
@@ -297,17 +297,17 @@ Copyright © 2026 Agent CMS
 
 🇷🇺 **[ru]**
 
-Исходники скиллов — папка [`workspaces/0-md/`](workspaces/0-md/). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
+Исходники скиллов — **`GLOBAL-SKILL-*.md` в корне репозитория**. Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
 | Файл | Скилл | Зачем |
 | --- | --- | --- |
-| [GLOBAL-SKILL-0-MCP-WELCOME.md](workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов |
-| [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools |
-| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭) |
-| [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила |
-| [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
-| [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
-| [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов |
+| [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭) |
+| [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила |
+| [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
+| [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
+| [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
 
 **Как установить**
 
@@ -315,7 +315,7 @@ Copyright © 2026 Agent CMS
 2. **Cursor** — для каждого скилла создайте папку с `SKILL.md` и скопируйте **целиком** текст соответствующего `GLOBAL-SKILL-*.md`:
    - в проекте: `.cursor/skills/<name>/SKILL.md` (имя папки = поле `name`, напр. `agent-cms`, `agent-cms-welcome`);
    - или личные скиллы в Cursor Agent Store / `~/.cursor/skills/<name>/SKILL.md`.
-3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из `workspaces/0-md/` или zip с тем же содержимым. Минимум: **1** (`agent-cms`); **0** (`agent-cms-welcome`) — по желанию.
+3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из корня репо или zip с тем же содержимым. Минимум: **1** (`agent-cms`); **0** (`agent-cms-welcome`) — по желанию.
 4. Рекомендуется установить скиллы **2** (стиль) и **3** (правила) в клиенте — они **не** входят в `get_session_context`.
 5. **Без установки** (запасной путь): `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` и т.д.
 
@@ -325,25 +325,25 @@ Copyright © 2026 Agent CMS
 
 > 🇬🇧 **[en]**
 >
-> Skill sources live in [`workspaces/0-md/`](workspaces/0-md/). Each file is markdown with YAML frontmatter (`name`, `description`).
+> Skill sources: **`GLOBAL-SKILL-*.md` at the repository root**. Each file is markdown with YAML frontmatter (`name`, `description`).
 >
 > | File | Skill | Purpose |
 > | --- | --- | --- |
-> | [GLOBAL-SKILL-0-MCP-WELCOME.md](workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Intro, MCP start, skill map |
-> | [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Workspace and MCP tools |
-> | [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Reply style (🗄️ / 🌐 / 💭) |
-> | [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Global rules |
-> | [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
-> | [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
-> | [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
+> | [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Intro, MCP start, skill map |
+> | [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Workspace and MCP tools |
+> | [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Reply style (🗄️ / 🌐 / 💭) |
+> | [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Global rules |
+> | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
+> | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
+> | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
 >
-> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
+> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from the repo root; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
 🇷🇺 **[ru]**
 
-Те же файлы в [`workspaces/0-md/`](workspaces/0-md/) — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
+Те же файлы в корне репо — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
@@ -351,7 +351,7 @@ Copyright © 2026 Agent CMS
 
 > 🇬🇧 **[en]**
 >
-> Same files in [`workspaces/0-md/`](workspaces/0-md/) — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
+> Same files at the repository root — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
 >
 > See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
