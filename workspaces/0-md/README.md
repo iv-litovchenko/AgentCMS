@@ -11,6 +11,4 @@
 | `GLOBAL-SKILL-4-MARKDOWN.md` | Скилл `agent-cms-markdown` — разметка при записи md |
 | `GLOBAL-SKILL-5-SEARCH.md` | Скилл `agent-cms-search` — поиск, индексы, DQL |
 | `GLOBAL-SKILL-6-MODULES.md` | Скилл `agent-cms-modules` — модули (git и др.) |
-| `GLOBAL-MARKDOWN-SHOWCASE.md` | Демо разметки для человека (кнопка **MD**) |
-
 MCP: `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`. Старые имена (`GLOBAL-SKILL.md`, …) — алиасы на чтение.

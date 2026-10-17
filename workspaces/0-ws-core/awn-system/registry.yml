@@ -57,7 +57,7 @@ docs:
   markdown: workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md
   search: workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md
   modules: workspaces/0-md/GLOBAL-SKILL-6-MODULES.md
-  markdown-showcase: workspaces/0-md/GLOBAL-MARKDOWN-SHOWCASE.md
+  markdown-showcase: workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md
   agents: AGENTS.md
 
 canonical-types: migrated

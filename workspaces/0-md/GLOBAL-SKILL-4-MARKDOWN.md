@@ -5,13 +5,15 @@ description: Какую markdown-разметку использовать пр�
 
 # Markdown в Agent CMS
 
-Preview — markdown-it. Пиши обычный markdown; ниже — расширения платформы. Демо для человека — `GLOBAL-MARKDOWN-SHOWCASE.md` (кнопка **MD**).
+Preview — markdown-it, `breaks: true`: одиночный перенос строки в исходнике даёт `<br>`. Пустая строка между абзацами по-прежнему нужна; лишние пустые строки для «воздуха» не ставь. Пиши обычный markdown; ниже — расширения платформы. Кнопка **MD** у человека открывает этот файл.
 
 | Что | Синтаксис |
 |-----|-----------|
-| Маркер | `==текст==` (жёлтый), `=={red}текст==`; цвета: `red` `green` `blue` `gray` `orange` `purple` |
+| Маркер | `==текст==` (жёлтый), `=={red}текст==`; цвета: `red` `green` `blue` `gray` `orange` `purple`; HTML-эквивалент `<mark class="md-highlight md-highlight--blue">` (обычный `<mark>` — жёлтый) |
 | Alert | `> [!NOTE]` · `TIP` · `IMPORTANT` · `WARNING` · `CAUTION`; свой заголовок: `> [!WARNING] Внимание` |
-| Диаграмма | блок ` ```mermaid ` (`flowchart`, `sequenceDiagram`, `gantt`…); в WYSIWYG остаётся текстом |
+| Краткое описание | `> [!AWN-DESC] Текст для превью.` → пустая строка → `---` → полный текст ниже |
+| Диаграмма | блок ` ```mermaid `: `flowchart`, `sequenceDiagram`, `gantt`, `classDiagram`, `erDiagram`, `stateDiagram`, `pie`, `mindmap`; в WYSIWYG остаётся текстом |
+| Таблица по DQL | блок ` ```awn-query ` (или ` ```dataview `) с DQL внутри — см. скилл `agent-cms-search` |
 | Чеклист | `- [ ]` / `- [x]` |
 | Wikilink | `[[Нода]]`, `[[Путь/К ноде\|Подпись]]`, `[[Страница#Заголовок]]` |
 | Картинка | `![alt](awn-storage/assets/pasted/файл.png)`; варианты оформления — раздел ниже |
@@ -45,7 +47,7 @@ Preview — markdown-it. Пиши обычный markdown; ниже — расш
 </div>
 ```
 
-Живые примеры всех вариантов — `GLOBAL-MARKDOWN-SHOWCASE.md`. Нет указаний от человека — обычная `![]()` без обёртки.
+Нет указаний от человека — обычная `![]()` без обёртки.
 
 **Не используй** `~~зачёркивание~~` — в preview не рендерится.
 
@@ -63,7 +65,16 @@ awn-create: 2026-09-27
 ```
 ````
 
+````markdown
+```awn-marker-question
+awn-status: открыто
+awn-repeat: 2026-10-15
+---
+Как отличить `awn-marker-term` от обычной цитаты?
+```
+````
+
 - До `---` — мета `ключ: значение`, после — тело.
-- `<type>`: `idea` · `important` · `note` · `todo` · `question` · `mistake` · `term` · `repeat`.
+- `<type>`: `idea` · `important` · `note` · `todo` · `question` · `mistake` · `term` · `repeat` · `stiker` (короткая заметка-стикер).
 - Мета: `awn-create`, `awn-update` (даты), `awn-status` (`открыто` / `закрыто` / `отложено`…), `awn-repeat` (дата пересмотра). Синонимы: `добавлено`, `обновлено`, `статус`, `повторить`. Свои поля — любые, не валидируются.
 - Пометки — личные записи человека: сам не добавляй и не меняй, пока не попросили.
