@@ -93,6 +93,25 @@
     }
   }
 
+  async function ensurePreviewLibraries(handler) {
+    const loader = global.AgentCmsScriptLoader;
+    if (handler === "docx") {
+      if (typeof global.mammoth?.convertToHtml === "function") return;
+      if (typeof loader?.loadMammoth !== "function") {
+        throw new Error("Библиотека mammoth не загружена");
+      }
+      await loader.loadMammoth();
+      return;
+    }
+    if (handler === "xlsx") {
+      if (typeof global.XLSX?.read === "function") return;
+      if (typeof loader?.loadXlsx !== "function") {
+        throw new Error("Библиотека xlsx не загружена");
+      }
+      await loader.loadXlsx();
+    }
+  }
+
   async function fetchAssetBuffer(url) {
     const response = await fetch(url, { credentials: "same-origin" });
     if (!response.ok) {
@@ -232,6 +251,8 @@
       );
       return;
     }
+
+    await ensurePreviewLibraries(handler);
 
     const { buffer, size } = await fetchAssetBuffer(url);
     if (metaNode && size) {

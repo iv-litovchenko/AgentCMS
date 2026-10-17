@@ -95,6 +95,20 @@
     }
   }
 
+  async function loadMammoth() {
+    await loadScript("/_resources/vendor/mammoth.browser.min.js");
+    if (typeof global.mammoth?.convertToHtml !== "function") {
+      throw new Error("mammoth not available after load");
+    }
+  }
+
+  async function loadXlsx() {
+    await loadScript("/_resources/vendor/xlsx.full.min.js");
+    if (typeof global.XLSX?.read !== "function") {
+      throw new Error("xlsx not available after load");
+    }
+  }
+
   async function loadAgentRmmLiveBrain() {
     await loadScript("/_resources/vendor/d3.min.js?v=1");
     await loadScript("/editor/js/panels/agent-rmm-live-brain.js?v=4");
@@ -108,6 +122,8 @@
     loadStylesheet,
     loadMermaid,
     loadToastUiEditor,
+    loadMammoth,
+    loadXlsx,
     loadAgentRmmLiveBrain
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -47,6 +47,7 @@ editor boot
 - [ ] F5 на `/0-ws-core`: **parse/compile** заметно ниже baseline (замер в DevTools).
 - [x] **d3 + agent-rmm-live-brain** — lazy (`editor-script-loader.js`), не в `index.html` на F5.
 - [x] **mermaid + toastui (JS + CSS)** — lazy при preview/diagram и режиме WYSIWYG.
+- [x] **mammoth + xlsx** — lazy при просмотре docx/xls в `DocumentViewer`.
 - [x] `npm run build:editor` → `public/editor/main.built.js` (+ sourcemap).
 - [ ] Landing/graph chunks — dynamic import из `main.js` (следующий PR).
 - [ ] Поведение UI без регрессий: menu, save, landing, graph — smoke checklist.
