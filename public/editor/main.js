@@ -2759,8 +2759,8 @@ function stripStorageAssetsPrefix(relPath) {
 function findStorageAssetsMarkerIndex(relPath) {
   const normalized = String(relPath || "").toLowerCase();
   return Math.max(
-    normalized.indexOf("/awn-storage/assets/"),
-    normalized.indexOf("/storage/assets/")
+    normalized.indexOf("/awn-storage/editor/assets/"),
+    normalized.indexOf("/storage/editor/assets/")
   );
 }
 
@@ -2785,7 +2785,7 @@ const SCHEMA_MOD_FILE = "schema.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BUNDLE_ROADMAP_FILE = "roadmap.md";
 const BUNDLE_LOG_FILE = "log.md";
-const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
+const BROKEN_IMAGE_PLACEHOLDER_SRC = "/editor/image-missing.svg";
 const PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS = 3500;
 const PREVIEW_LOAD_TIMEOUT_DEFAULT_MS = 5000;
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
@@ -10098,8 +10098,8 @@ async function removeAgentPreviewFile(agentPath) {
 const AGENT_SLIDER_FOLDER_REF = "awn-media/0-slider/awn-storage/files";
 const AGENT_SLIDER_MANIFEST_REF = "awn-media/0-slider/manifest.md";
 const LEGACY_AGENT_SLIDER_FOLDER_REFS = new Set([
-  "awn-storage/assets/slider",
-  "storage/assets/slider",
+  "awn-storage/editor/assets/slider",
+  "storage/editor/assets/slider",
   "awn-media/slider/awn-storage/assets",
   "awn-media/slider/awn-storage/files"
 ]);
@@ -13776,7 +13776,7 @@ function createAppLandingSystemMapDiagram() {
   footer.className = "app-landing-system-map-footer";
   const draftLink = document.createElement("a");
   draftLink.className = "app-landing-system-map-draft-btn";
-  draftLink.href = "/index2.html";
+  draftLink.href = "/editor/index2.html";
   draftLink.target = "_blank";
   draftLink.rel = "noopener noreferrer";
   draftLink.textContent = "Расширенная карта системы";
@@ -49411,7 +49411,7 @@ const PROPS_FIELD_META = {
   },
   "awn-preview": {
     label: "Превью",
-    hint: "awn-storage/assets/preview/ (загрузка через миниатюру)"
+    hint: "awn-storage/editor/assets/preview/ (загрузка через миниатюру)"
   },
   "awn-web-url": {
     label: "Веб-источник",
@@ -49419,7 +49419,7 @@ const PROPS_FIELD_META = {
   },
   "awn-attachments": {
     label: "Вложения",
-    hint: "awn-storage/assets/attachments/; список в шапке, в папке без записи — блок снизу"
+    hint: "awn-storage/editor/assets/attachments/; список в шапке, в папке без записи — блок снизу"
   },
   "awn-color": {
     label: "Цвет",
@@ -57399,7 +57399,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.base": "Базовый набор полей — наследуется всеми типами, в файлах не указывается",
   "awn.mixin.preview": "Опциональный миксин — поле awn-preview для картинки превью",
   "awn.mixin.web-url": "Опциональный миксин — поле awn-web-url для ссылки на оригинал в интернете",
-  "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/assets/attachments/)",
+  "awn.mixin.attachments": "Миксин awn-attachments — вложения темы и записи (awn-storage/editor/assets/attachments/)",
   "awn.mixin.runtime":
     "Миксин runtime — awn-runtime-load-always, cron и heartbeat для реестра агента",
   "awn.hub.topic.ws": "Корневой манифест workspace — manifest.md в корне агента",
@@ -60273,7 +60273,7 @@ function getDocAsideMiniDocSpec() {
       return {
         title: "Бриф, контекст и инструкция · markdown",
         items: [
-          "Картинки в тексте: <code>![alt](awn-storage/assets/pasted/…)</code>",
+          "Картинки в тексте: <code>![alt](awn-storage/editor/assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
           `Вставка из буфера → ${formatMiniDocPathHint(`${STORAGE_ROOT_FOLDER}/<слот>/${STORAGE_SUBFOLDER_ASSETS}/${PASTED_ASSETS_SUBDIR}/`)}`
         ]
@@ -66685,7 +66685,7 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     orphansTitle.className = "props-form-attachments-orphans-title";
     orphansTitle.textContent = "В папке, не в списке";
     orphansTitle.title =
-      "Файлы в awn-storage/assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
+      "Файлы в awn-storage/editor/assets/attachments/, которых нет в awn-attachments — «+» в шапку, ↵ или перетащите в редактор";
     orphansSection.appendChild(orphansTitle);
 
     const orphansList = document.createElement("div");
@@ -98144,14 +98144,14 @@ let mermaidChromeModulePromise = null;
 
 function loadMermaidThemeModule() {
   if (!mermaidThemeModulePromise) {
-    mermaidThemeModulePromise = import("/js/mermaid/mermaid-diagram-theme.js");
+    mermaidThemeModulePromise = import("/editor/js/mermaid/mermaid-diagram-theme.js");
   }
   return mermaidThemeModulePromise;
 }
 
 function loadMermaidChromeModule() {
   if (!mermaidChromeModulePromise) {
-    mermaidChromeModulePromise = import("/js/mermaid/mermaid-diagram-chrome.js?v=0.5.975");
+    mermaidChromeModulePromise = import("/editor/js/mermaid/mermaid-diagram-chrome.js?v=0.5.975");
   }
   return mermaidChromeModulePromise;
 }
@@ -98555,7 +98555,7 @@ async function ensureMermaidFullscreenButton(frame, block) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/js/mermaid/mermaid-diagram-lightbox.js?v=0.5.975").then((mod) => {
+      void import("/editor/js/mermaid/mermaid-diagram-lightbox.js?v=0.5.975").then((mod) => {
         mod.openMermaidDiagramLightbox(frame, {
           onRefresh: () => refreshMermaidDiagramFrame(frame)
         });
@@ -98585,7 +98585,7 @@ async function ensureMermaidResetZoomButton(frame) {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
+      void import("/editor/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then((mod) => mod.resetMermaidDiagramPanZoom(frame));
     });
     bar.appendChild(btn);
   } else {
@@ -98630,7 +98630,7 @@ async function renderMermaidBlock(block, theme = "light", options = {}) {
   const preserveView = Boolean(options.preserveView);
   const keepChromeState = Boolean(options.keepChromeState);
   const panzoomMod = preserveView
-    ? await import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975")
+    ? await import("/editor/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975")
     : null;
   const viewSnapshot = preserveView ? panzoomMod.snapshotMermaidDiagramView(frame) : null;
   const frameTheme = themeMod.applyMermaidFrameTheme(frame, theme, "light");
@@ -98671,7 +98671,7 @@ async function renderMermaidBlock(block, theme = "light", options = {}) {
       void ensureMermaidResetZoomButton(frame);
     };
     if (panzoomMod) applyPanZoom(panzoomMod);
-    else void import("/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then(applyPanZoom);
+    else void import("/editor/js/mermaid/mermaid-diagram-panzoom.js?v=0.5.975").then(applyPanZoom);
     return true;
   } catch (error) {
     console.warn("Mermaid render failed:", error);

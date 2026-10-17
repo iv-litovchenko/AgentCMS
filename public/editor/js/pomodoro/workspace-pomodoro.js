@@ -34,7 +34,7 @@
     if (breakEmojiRotator) return Promise.resolve(breakEmojiRotator);
     if (!breakEmojiNode) return Promise.resolve(null);
     if (!breakEmojiRotatorPromise) {
-      breakEmojiRotatorPromise = import("/js/pomodoro/pomodoro-break-emoji.js?v=3")
+      breakEmojiRotatorPromise = import("/editor/js/pomodoro/pomodoro-break-emoji.js?v=3")
         .then((mod) => {
           breakEmojiRotator = mod.createPomodoroBreakEmojiRotator(breakEmojiNode, { intervalMs: 3000 });
           return breakEmojiRotator;
@@ -48,7 +48,7 @@
     if (breakCheckpoint) return Promise.resolve(breakCheckpoint);
     if (!breakCheckpointInput) return Promise.resolve(null);
     if (!breakCheckpointPromise) {
-      breakCheckpointPromise = import("/js/pomodoro/pomodoro-break-checkpoint.js?v=1")
+      breakCheckpointPromise = import("/editor/js/pomodoro/pomodoro-break-checkpoint.js?v=1")
         .then((mod) => {
           breakCheckpoint = mod.createPomodoroBreakCheckpoint({
             inputEl: breakCheckpointInput,

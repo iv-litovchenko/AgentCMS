@@ -8831,17 +8831,17 @@ body.workspace-idle-screensaver-active {
 }
 
 .app-landing-orbit-dive-canvas-bg-slide.is-1 {
-  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-1.png");
+  background-image: url("/editor/assets/orbit-dive-bg/orbit-dive-bg-1.png");
   animation-delay: 0s;
 }
 
 .app-landing-orbit-dive-canvas-bg-slide.is-2 {
-  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-2.png");
+  background-image: url("/editor/assets/orbit-dive-bg/orbit-dive-bg-2.png");
   animation-delay: 6s;
 }
 
 .app-landing-orbit-dive-canvas-bg-slide.is-3 {
-  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-3.png");
+  background-image: url("/editor/assets/orbit-dive-bg/orbit-dive-bg-3.png");
   animation-delay: 12s;
 }
 
@@ -30376,7 +30376,7 @@ body.workspace-pomodoro-break-active {
   border: 0;
   border-radius: 10px;
   background-color: #fef2f2;
-  background-image: url("/image-missing.svg");
+  background-image: url("/editor/image-missing.svg");
   background-repeat: no-repeat;
   background-position: center;
   background-size: auto 100%;

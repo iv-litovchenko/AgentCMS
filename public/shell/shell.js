@@ -1,4 +1,4 @@
-import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/shared/agent-select.js";
+import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/_resources/agent-select.js";
 import { syncShellHeroAgentPreview } from "/shell/shell-hero-agent-preview.js?v=1";
 import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";

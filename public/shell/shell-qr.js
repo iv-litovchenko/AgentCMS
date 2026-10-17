@@ -4,7 +4,7 @@ let qrLibPromise = null;
 
 function loadQrLib() {
   if (!qrLibPromise) {
-    qrLibPromise = import("./vendor/qrcode.mjs");
+    qrLibPromise = import("./_resources/vendor/qrcode.mjs");
   }
   return qrLibPromise;
 }

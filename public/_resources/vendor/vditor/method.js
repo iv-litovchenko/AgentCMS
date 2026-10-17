@@ -156,7 +156,7 @@ var SMILESRender = function (element, cdn, theme) {
     if (cdn === void 0) { cdn = _constants__WEBPACK_IMPORTED_MODULE_0__/* .Constants.CDN */ .g.CDN; }
     var SMILESElements = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.SMILESRenderAdapter.getElements(element);
     if (SMILESElements.length > 0) {
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/smiles-drawer/smiles-drawer.min.js?v=2.1.7"), "vditorAbcjsScript").then(function () {
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/smiles-drawer/smiles-drawer.min.js?v=2.1.7"), "vditorAbcjsScript").then(function () {
             var sd = new SmiDrawer({}, {});
             SMILESElements.forEach(function (item) {
                 var code = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.SMILESRenderAdapter.getCode(item).trim();
@@ -192,7 +192,7 @@ var abcRender = function (element, cdn) {
     if (cdn === void 0) { cdn = _constants__WEBPACK_IMPORTED_MODULE_0__/* .Constants.CDN */ .g.CDN; }
     var abcElements = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.abcRenderAdapter.getElements(element);
     if (abcElements.length > 0) {
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/abcjs/abcjs_basic.min.js"), "vditorAbcjsScript").then(function () {
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/abcjs/abcjs_basic.min.js"), "vditorAbcjsScript").then(function () {
             abcElements.forEach(function (item) {
                 if (item.parentElement.classList.contains("vditor-wysiwyg__pre") ||
                     item.parentElement.classList.contains("vditor-ir__marker--pre")) {
@@ -328,7 +328,7 @@ var chartRender = function (element, cdn, theme) {
     if (cdn === void 0) { cdn = _constants__WEBPACK_IMPORTED_MODULE_0__/* .Constants.CDN */ .g.CDN; }
     var echartsElements = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.chartRenderAdapter.getElements(element);
     if (echartsElements.length > 0) {
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/echarts/echarts.min.js?v=5.5.1"), "vditorEchartsScript").then(function () {
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/echarts/echarts.min.js?v=5.5.1"), "vditorEchartsScript").then(function () {
             echartsElements.forEach(function (e) { return __awaiter(void 0, void 0, void 0, function () {
                 var text, option, error_1;
                 return __generator(this, function (_a) {
@@ -455,7 +455,7 @@ var flowchartRender = function (element, cdn) {
     if (flowchartElements.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/flowchart.js/flowchart.min.js"), "vditorFlowchartScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/flowchart.js/flowchart.min.js"), "vditorFlowchartScript").then(function () {
         flowchartElements.forEach(function (item) {
             if (item.getAttribute("data-processed") === "true") {
                 return;
@@ -489,7 +489,7 @@ var graphvizRender = function (element, cdn) {
     if (graphvizElements.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/graphviz/viz.js"), "vditorGraphVizScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/graphviz/viz.js"), "vditorGraphVizScript").then(function () {
         graphvizElements.forEach(function (e) {
             var code = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.graphvizRenderAdapter.getCode(e);
             if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
@@ -543,11 +543,11 @@ var highlightRender = function (hljsOption, element, cdn) {
         style = "github";
     }
     var vditorHljsStyle = document.getElementById("vditorHljsStyle");
-    var href = "".concat(cdn, "/dist/js/highlight.js/styles/").concat(style, ".min.css");
+    var href = "".concat(cdn, "/dist/editor/js/highlight.js/styles/").concat(style, ".min.css");
     if (vditorHljsStyle && vditorHljsStyle.getAttribute('href') !== href) {
         vditorHljsStyle.remove();
     }
-    (0,_util_addStyle__WEBPACK_IMPORTED_MODULE_1__/* .addStyle */ .c)("".concat(cdn, "/dist/js/highlight.js/styles/").concat(style, ".min.css"), "vditorHljsStyle");
+    (0,_util_addStyle__WEBPACK_IMPORTED_MODULE_1__/* .addStyle */ .c)("".concat(cdn, "/dist/editor/js/highlight.js/styles/").concat(style, ".min.css"), "vditorHljsStyle");
     if (hljsOption.enable === false) {
         return;
     }
@@ -555,8 +555,8 @@ var highlightRender = function (hljsOption, element, cdn) {
     if (codes.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/highlight.js/highlight.min.js?v=11.7.0"), "vditorHljsScript").then(function () {
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/highlight.js/third-languages.js?v=1.0.1"), "vditorHljsThirdScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/highlight.js/highlight.min.js?v=11.7.0"), "vditorHljsScript").then(function () {
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/highlight.js/third-languages.js?v=1.0.1"), "vditorHljsThirdScript").then(function () {
             element.querySelectorAll("pre > code").forEach(function (block) {
                 // ir & wysiwyg 区域不渲染
                 if (block.parentElement.classList.contains("vditor-ir__marker--pre") ||
@@ -665,7 +665,7 @@ var markmapRender = function (element, cdn) {
     if (markmapElements.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/markmap/markmap.min.js"), "vditorMarkerScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/markmap/markmap.min.js"), "vditorMarkerScript").then(function () {
         markmapElements.forEach(function (item) {
             var code = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.markmapRenderAdapter.getCode(item);
             if (item.getAttribute("data-processed") === "true" || code.trim() === "") {
@@ -721,9 +721,9 @@ var mathRender = function (element, options) {
     }
     options = Object.assign({}, defaultOptions, options);
     if (options.math.engine === "KaTeX") {
-        (0,_util_addStyle__WEBPACK_IMPORTED_MODULE_2__/* .addStyle */ .c)("".concat(options.cdn, "/dist/js/katex/katex.min.css?v=0.16.9"), "vditorKatexStyle");
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScript */ .G)("".concat(options.cdn, "/dist/js/katex/katex.min.js?v=0.16.9"), "vditorKatexScript").then(function () {
-            (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScript */ .G)("".concat(options.cdn, "/dist/js/katex/mhchem.min.js?v=0.16.9"), "vditorKatexChemScript").then(function () {
+        (0,_util_addStyle__WEBPACK_IMPORTED_MODULE_2__/* .addStyle */ .c)("".concat(options.cdn, "/dist/editor/js/katex/katex.min.css?v=0.16.9"), "vditorKatexStyle");
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScript */ .G)("".concat(options.cdn, "/dist/editor/js/katex/katex.min.js?v=0.16.9"), "vditorKatexScript").then(function () {
+            (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScript */ .G)("".concat(options.cdn, "/dist/editor/js/katex/mhchem.min.js?v=0.16.9"), "vditorKatexChemScript").then(function () {
                 mathElements.forEach(function (mathElement) {
                     if (mathElement.parentElement.classList.contains("vditor-wysiwyg__pre") ||
                         mathElement.parentElement.classList.contains("vditor-ir__marker--pre")) {
@@ -772,7 +772,7 @@ var mathRender = function (element, options) {
         if (!window.MathJax) {
             window.MathJax = {
                 loader: {
-                    paths: { mathjax: "".concat(options.cdn, "/dist/js/mathjax") },
+                    paths: { mathjax: "".concat(options.cdn, "/dist/editor/js/mathjax") },
                 },
                 startup: {
                     typeset: false,
@@ -785,7 +785,7 @@ var mathRender = function (element, options) {
             Object.assign(window.MathJax, options.math.mathJaxOptions);
         }
         // 循环加载会抛异常
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScriptSync */ .J)("".concat(options.cdn, "/dist/js/mathjax/tex-svg-full.js"), "protyleMathJaxScript");
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_3__/* .addScriptSync */ .J)("".concat(options.cdn, "/dist/editor/js/mathjax/tex-svg-full.js"), "protyleMathJaxScript");
         var renderMath_1 = function (mathElement, next) {
             var math = (0,_util_code160to32__WEBPACK_IMPORTED_MODULE_4__/* .code160to32 */ .X)(mathElement.textContent).trim();
             var mathOptions = window.MathJax.getMetricsFor(mathElement);
@@ -1000,7 +1000,7 @@ var mermaidRender = function (element, cdn, theme) {
     if (mermaidElements.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/mermaid/mermaid.min.js?v=11.6.0"), "vditorMermaidScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/mermaid/mermaid.min.js?v=11.6.0"), "vditorMermaidScript").then(function () {
         var config = {
             securityLevel: "loose",
             altFontFamily: "sans-serif",
@@ -1079,7 +1079,7 @@ var mindmapRender = function (element, cdn, theme) {
     if (cdn === void 0) { cdn = _constants__WEBPACK_IMPORTED_MODULE_0__/* .Constants.CDN */ .g.CDN; }
     var mindmapElements = _adapterRender__WEBPACK_IMPORTED_MODULE_1__.mindmapRenderAdapter.getElements(element);
     if (mindmapElements.length > 0) {
-        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/echarts/echarts.min.js?v=5.5.1"), "vditorEchartsScript").then(function () {
+        (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/echarts/echarts.min.js?v=5.5.1"), "vditorEchartsScript").then(function () {
             mindmapElements.forEach(function (e) {
                 if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
                     e.parentElement.classList.contains("vditor-ir__marker--pre")) {
@@ -1298,7 +1298,7 @@ var plantumlRender = function (element, cdn) {
     if (plantumlElements.length === 0) {
         return;
     }
-    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/js/plantuml/plantuml-encoder.min.js"), "vditorPlantumlScript").then(function () {
+    (0,_util_addScript__WEBPACK_IMPORTED_MODULE_2__/* .addScript */ .G)("".concat(cdn, "/dist/editor/js/plantuml/plantuml-encoder.min.js"), "vditorPlantumlScript").then(function () {
         plantumlElements.forEach(function (e) {
             if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
                 e.parentElement.classList.contains("vditor-ir__marker--pre")) {
@@ -1414,7 +1414,7 @@ var setCodeTheme = function (codeTheme, cdn) {
         codeTheme = "github";
     }
     var vditorHljsStyle = document.getElementById("vditorHljsStyle");
-    var href = "".concat(cdn, "/dist/js/highlight.js/styles/").concat(codeTheme, ".min.css");
+    var href = "".concat(cdn, "/dist/editor/js/highlight.js/styles/").concat(codeTheme, ".min.css");
     if (!vditorHljsStyle) {
         (0,_util_addStyle__WEBPACK_IMPORTED_MODULE_1__/* .addStyle */ .c)(href, "vditorHljsStyle");
     }
@@ -2466,7 +2466,7 @@ var mergeOptions = function (options) {
 };
 var md2html = function (mdText, options) {
     var mergedOptions = mergeOptions(options);
-    return (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/js/lute/lute.min.js"), "vditorLuteScript").then(function () {
+    return (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/editor/js/lute/lute.min.js"), "vditorLuteScript").then(function () {
         var lute = (0,setLute/* setLute */.X)({
             autoSpace: mergedOptions.markdown.autoSpace,
             gfmAutoLink: mergedOptions.markdown.gfmAutoLink,
@@ -2523,7 +2523,7 @@ var previewRender = function (previewElement, markdown, options) { return __awai
                         document.head.removeChild(el);
                     }
                 });
-                return [4 /*yield*/, (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/js/i18n/").concat(mergedOptions.lang, ".js"), i18nScriptID_1)];
+                return [4 /*yield*/, (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/editor/js/i18n/").concat(mergedOptions.lang, ".js"), i18nScriptID_1)];
             case 3:
                 _a.sent();
                 _a.label = 4;
@@ -2533,7 +2533,7 @@ var previewRender = function (previewElement, markdown, options) { return __awai
                 _a.label = 6;
             case 6:
                 if (!mergedOptions.icon) return [3 /*break*/, 8];
-                return [4 /*yield*/, (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/js/icons/").concat(mergedOptions.icon, ".js"), "vditorIconScript")];
+                return [4 /*yield*/, (0,addScript/* addScript */.G)("".concat(mergedOptions.cdn, "/dist/editor/js/icons/").concat(mergedOptions.icon, ".js"), "vditorIconScript")];
             case 7:
                 _a.sent();
                 _a.label = 8;

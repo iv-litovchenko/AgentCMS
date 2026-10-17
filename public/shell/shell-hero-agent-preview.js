@@ -1,4 +1,4 @@
-import { loadAgentSelectData } from "/shared/agent-select.js";
+import { loadAgentSelectData } from "/_resources/agent-select.js";
 
 let agentsCache = null;
 let agentsCachePromise = null;

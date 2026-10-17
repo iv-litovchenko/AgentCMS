@@ -500,7 +500,7 @@ Agent CMS можно запускать в браузере (`npm start`) или
 | `npm run shell:open` | Открыть `dist/agent-shell/Agent Shell.app` |
 | `npm run shell:sidecar` | Голосовой sidecar (STT/TTS, без Electron) |
 
-После `npm install` скрипт **postinstall** копирует vendor-зависимости в `public/vendor/`.
+После `npm install` скрипт **postinstall** копирует vendor-зависимости в `public/_resources/vendor/`.
 
 ### Deep links `agentcms://`
 

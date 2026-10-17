@@ -14,12 +14,12 @@
     <link rel="manifest" href="/shell/manifest.webmanifest" />
     <link rel="stylesheet" href="/shell/shell.css?v=646" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
-    <script src="/js/core/project-version.js?v=1"></script>
+    <script src="/editor/js/core/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
     <script type="importmap">
       {
         "imports": {
-          "three": "/shell/vendor/three.module.js",
+          "three": "/shell/_resources/vendor/three.module.js",
           "@shell/settings-save": "/shell/shell-settings-save.js?v=323",
           "@shell/reply": "/shell/shell-reply.js?v=422",
           "@shell/markdown": "/shell/shell-markdown.js?v=434",
@@ -72,7 +72,7 @@
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=7",
           "@shell/user-question": "/shell/shell-user-question.js?v=5",
           "@shell/file-hub": "/shell/shell-file-hub.js?v=44",
-          "@js/file-hub-queue": "/js/file-hub/file-hub-queue-api.js?v=4",
+          "@js/file-hub-queue": "/editor/js/file-hub/file-hub-queue-api.js?v=4",
           "@shell/pomodoro": "/shell/shell-pomodoro.js?v=8",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
@@ -212,7 +212,7 @@
                 title="Agent CMS Editor — workspace в браузере"
                 aria-label="Открыть Agent CMS Editor"
               >
-                <img class="shell-path-action-icon" src="/favicon.svg" width="16" height="16" alt="" aria-hidden="true" />
+                <img class="shell-path-action-icon" src="/_resources/favicon.svg" width="16" height="16" alt="" aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -3580,11 +3580,11 @@ CMS workspace</pre>
       <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
     </div>
 
-    <script src="/vendor/material-file-icons/map.js?v=1"></script>
-    <script src="/js/editor/material-file-icons.js?v=1"></script>
-    <script src="/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
-    <script src="/js/app/app-lock.js?v=15"></script>
-    <script src="/js/core/platform-status.js"></script>
+    <script src="/_resources/vendor/material-file-icons/map.js?v=1"></script>
+    <script src="/editor/js/editor/material-file-icons.js?v=1"></script>
+    <script src="/editor/js/pomodoro/idle-screensaver-breaks-client.js?v=1"></script>
+    <script src="/editor/js/app/app-lock.js?v=15"></script>
+    <script src="/editor/js/core/platform-status.js"></script>
     <script src="/shell/shell.js?v=690" type="module"></script>
   </body>
 </html>

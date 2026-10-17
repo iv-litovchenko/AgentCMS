@@ -18518,12 +18518,19 @@ async function serveMaintenanceHtml(res) {
 
 function isMaintenanceStaticBypassPath(safePath) {
   if (!safePath) return false;
-  if (safePath === "maintenance.html") return true;
-  if (safePath === "404.html") return true;
-  if (safePath === "js/core/platform-status.js") return true;
-  if (safePath === "js/core/project-version.js") return true;
-  if (safePath === "styles.css") return true;
-  if (safePath === "favicon.svg" || safePath === "favicon.png" || safePath === "apple-touch-icon.png") {
+  if (safePath === "maintenance.html" || safePath === "_resources/maintenance.html") return true;
+  if (safePath === "404.html" || safePath === "_resources/404.html") return true;
+  if (safePath === "editor/js/core/platform-status.js") return true;
+  if (safePath === "editor/js/core/project-version.js") return true;
+  if (safePath === "editor/styles.css") return true;
+  if (
+    safePath === "favicon.svg" ||
+    safePath === "favicon.png" ||
+    safePath === "apple-touch-icon.png" ||
+    safePath === "_resources/favicon.svg" ||
+    safePath === "_resources/favicon.png" ||
+    safePath === "_resources/apple-touch-icon.png"
+  ) {
     return true;
   }
   return false;
@@ -18650,7 +18657,12 @@ async function serveStatic(reqPath, res, req) {
     return;
   }
 
-  if (safePath === "maintenance.html" || reqPath === "/maintenance" || reqPath === "/maintenance/") {
+  if (
+    safePath === "maintenance.html" ||
+    safePath === "_resources/maintenance.html" ||
+    reqPath === "/maintenance" ||
+    reqPath === "/maintenance/"
+  ) {
     if (!(await isPlatformMaintenanceActive())) {
       res.writeHead(302, { Location: "/" });
       res.end();
@@ -18677,7 +18689,7 @@ async function serveStatic(reqPath, res, req) {
     return;
   }
 
-  if (safePath === "js/core/project-version.js") {
+  if (safePath === "editor/js/core/project-version.js") {
     const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
     await writeProjectVersionJsResponse(res);
     return;

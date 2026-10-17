@@ -276,7 +276,7 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
     return;
   }
 
-  if (safePath === "js/core/project-version.js") {
+  if (safePath === "editor/js/core/project-version.js") {
     const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
     await writeProjectVersionJsResponse(res);
     return;
@@ -328,13 +328,7 @@ async function serveStatic(reqPath, res) {
     return;
   }
 
-  if (
-    resolved.startsWith("/_resources/") ||
-    resolved.startsWith("/_shared/") ||
-    resolved.startsWith("/shared/") ||
-    resolved.startsWith("/vendor/") ||
-    resolved.startsWith("/cms/")
-  ) {
+  if (resolved.startsWith("/_resources/") || resolved.startsWith("/editor/")) {
     await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
     return;
   }

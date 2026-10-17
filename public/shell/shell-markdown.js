@@ -7,7 +7,7 @@ import {
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
 import { parseSttMessageSegments, STT_FENCE_OPEN } from "@shell/stt-format";
 import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
-import { ensureMermaidDiagramPanZoom } from "/js/mermaid/mermaid-diagram-panzoom.js";
+import { ensureMermaidDiagramPanZoom } from "/editor/js/mermaid/mermaid-diagram-panzoom.js";
 import {
   MERMAID_THEME_BUTTON_HTML,
   applyMermaidFrameTheme,
@@ -15,7 +15,7 @@ import {
   nextMermaidFrameTheme,
   normalizeMermaidFrameTheme,
   syncMermaidThemeToggleUi
-} from "/js/mermaid/mermaid-diagram-theme.js";
+} from "/editor/js/mermaid/mermaid-diagram-theme.js";
 
 let shellMarkdownIt = null;
 let markdownLibsPromise = null;
@@ -23,11 +23,11 @@ let highlightLibsPromise = null;
 let mermaidLibsPromise = null;
 let mathLibsPromise = null;
 
-const SHELL_HLJS_STYLE = "/vendor/vditor/js/highlight.js/styles/androidstudio.min.css";
-const SHELL_MERMAID_SRC = "/vendor/mermaid.min.js";
-const SHELL_KATEX_CSS = "/vendor/vditor/js/katex/katex.min.css";
-const SHELL_KATEX_JS = "/vendor/vditor/js/katex/katex.min.js";
-const SHELL_KATEX_MHCHEM = "/vendor/vditor/js/katex/mhchem.min.js";
+const SHELL_HLJS_STYLE = "/_resources/vendor/vditor/js/highlight.js/styles/androidstudio.min.css";
+const SHELL_MERMAID_SRC = "/_resources/vendor/mermaid.min.js";
+const SHELL_KATEX_CSS = "/_resources/vendor/vditor/js/katex/katex.min.css";
+const SHELL_KATEX_JS = "/_resources/vendor/vditor/js/katex/katex.min.js";
+const SHELL_KATEX_MHCHEM = "/_resources/vendor/vditor/js/katex/mhchem.min.js";
 
 const HIGHLIGHT_TONES = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
 
@@ -302,7 +302,7 @@ function ensureShellHighlightLibs() {
   if (typeof window.hljs?.highlightElement === "function") return Promise.resolve();
   if (!highlightLibsPromise) {
     highlightLibsPromise = Promise.all([
-      loadScriptOnce("/vendor/highlight.min.js"),
+      loadScriptOnce("/_resources/vendor/highlight.min.js"),
       loadStylesheetOnce(SHELL_HLJS_STYLE)
     ]).catch((error) => {
       highlightLibsPromise = null;
@@ -342,10 +342,10 @@ function ensureShellMarkdownLibs() {
   if (typeof window.markdownit === "function") return Promise.resolve();
   if (!markdownLibsPromise) {
     markdownLibsPromise = Promise.all([
-      loadScriptOnce("/vendor/markdown-it.min.js"),
-      loadScriptOnce("/js/markdown/markdown-github-alerts.js"),
-      loadScriptOnce("/js/markdown/markdown-it-task-lists.js"),
-      loadScriptOnce("/js/markdown/markdown-it-footnote.min.js")
+      loadScriptOnce("/_resources/vendor/markdown-it.min.js"),
+      loadScriptOnce("/editor/js/markdown/markdown-github-alerts.js"),
+      loadScriptOnce("/editor/js/markdown/markdown-it-task-lists.js"),
+      loadScriptOnce("/editor/js/markdown/markdown-it-footnote.min.js")
     ]).catch((error) => {
       markdownLibsPromise = null;
       throw error;

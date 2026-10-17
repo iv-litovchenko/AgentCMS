@@ -399,7 +399,7 @@ const cmsCards = sortPicksFirst(cmsVariants, CMS_PICKS)
       file,
       title,
       desc,
-      srcPrefix: "/cms/icons",
+      srcPrefix: "/_resources/cms/icons",
       extraClass: [
         CMS_PICKS.has(n) ? "icon-preview-card--pick" : "",
         "icon-preview-card--cms",
@@ -411,7 +411,7 @@ const cmsCards = sortPicksFirst(cmsVariants, CMS_PICKS)
   .join("\n\n");
 
 const shellFavoriteCards = pickGridCards(SHELL_PICKS, shellVariants, "/shell/icons", "shell");
-const cmsFavoriteCards = pickGridCards(CMS_PICKS, cmsVariants, "/cms/icons", "cms");
+const cmsFavoriteCards = pickGridCards(CMS_PICKS, cmsVariants, "/_resources/cms/icons", "cms");
 
 const html = `<!doctype html>
 <html lang="ru">

@@ -1,6 +1,6 @@
 (function initMaterialFileIcons(global) {
   const fallbackCfg = {
-    base: "/vendor/material-file-icons/",
+    base: "/_resources/vendor/material-file-icons/",
     default: "file.svg",
     byExt: {}
   };
@@ -23,7 +23,7 @@
 
   function resolveIconUrl(relativePath) {
     const cfg = getConfig();
-    const base = cfg.base || "/vendor/material-file-icons/";
+    const base = cfg.base || "/_resources/vendor/material-file-icons/";
     return `${base}${resolveIconFile(relativePath)}`;
   }
 
