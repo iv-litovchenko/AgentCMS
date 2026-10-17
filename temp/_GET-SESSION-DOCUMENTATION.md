@@ -26,6 +26,6 @@
 
 **Args:** `docs` — опционально один файл или список / через запятую.
 
-**Не включает:** GLOBAL-DOC-MCP-INSTRUCTION, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, workspace alwaysContext.
+**Не включает:** GLOBAL-MCP-INSTRUCTION, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, workspace alwaysContext.
 
 Источник: `server.js` → `buildAgentSessionDocumentationRegistry()`.

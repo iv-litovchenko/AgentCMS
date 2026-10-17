@@ -24,7 +24,7 @@
 └── hint
 ```
 
-**Не включает:** README, GLOBAL-DOC-MARKDOWN, GLOBAL-DOC-MCP-INSTRUCTION, cron/heartbeat, тела произвольных тем.
+**Не включает:** README, GLOBAL-DOC-MARKDOWN, GLOBAL-MCP-INSTRUCTION, cron/heartbeat, тела произвольных тем.
 
 **Дубль:** `list_workspace_always_context` = только блок `alwaysContext`.
 

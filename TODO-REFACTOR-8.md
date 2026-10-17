@@ -4,7 +4,7 @@
 
 **✅** сделано · **❌** не сделано.
 
-**Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-DOC-MCP-INSTRUCTION.md`**, **`GLOBAL-SKILL.md`**.
+**Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-MCP-INSTRUCTION.md`**, **`GLOBAL-SKILL.md`**.
 
 **Сейчас:** всё через **`read_content` / `write_content`** (+ `format: base64`, `import_content_from_url`, `extract_document_text`). **Не срочно** — можно начать с **`upload_asset` + `publicUrl`**.
 
@@ -71,7 +71,7 @@
 | ❌ | **`read_asset` / `list_assets`** (+ `import_asset_from_url`) |
 | ❌ | **`read_text_content` / `write_text_content`** (aliases + policy канон) |
 | ❌ | **`merge_notes` / `split_note`** — после появления сценариев |
-| ❌ | **`GLOBAL-DOC-MCP-INSTRUCTION`**, **`GLOBAL-SKILL.md`**, **`TODO-REFACTOR-4`** |
+| ❌ | **`GLOBAL-MCP-INSTRUCTION`**, **`GLOBAL-SKILL.md`**, **`TODO-REFACTOR-4`** |
 
 **Приоритет:** сначала **upload + URL**; merge/split — отдельно. Единый mega-hub API **не** делать (5 семейств hub + **`placement`** понятнее агенту).
 

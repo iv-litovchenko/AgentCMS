@@ -1,6 +1,6 @@
 # Функция работы с файлами
 
-**Глобальные документы:** [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md) · [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) · [GLOBAL-RULES.md](GLOBAL-RULES.md) · [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
+**Глобальные документы:** [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md) · [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) · [GLOBAL-RULES.md](GLOBAL-RULES.md) · [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
 
 
 1.1 ✅ Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 
@@ -23,7 +23,7 @@
 - Placement: page / channel / media / root. Internal-слоты и `main-single-csv` — по-прежнему целиком; `format: base64` и `offsetBytes` — как раньше.
 - `startLine` / `limitLines` — номера строк **файла с frontmatter**, совпадают с `startLine` в `search_workspace_*` (fulltext и semantic). Если `startLine` внутри frontmatter — читается с начала тела.
 - Ответ: `startLine`, `endLine`, `totalLines`, `bodyStartLine` (.md), `hasMore`, `truncated`, `nextStartLine`, `hash`, `codeFence`.
-- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md).
+- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md).
 - Не сделано из `read_universal`: чтение по доле файла (percent) и по якорю.
 - Схема параметров публикуется в MCP; неизвестные параметры → ошибка; `kind: topic` = `page`; `ref` без `.md` → повтор с `.md` (`refResolved`).
 

@@ -1,4 +1,4 @@
-# GLOBAL-DOC-MCP-INSTRUCTION — карта Agent CMS для агента
+# GLOBAL-MCP-INSTRUCTION — карта Agent CMS для агента
 
 Выдаётся через `get_session_documentation`. Описания и параметры tools — в самом MCP; здесь только модель данных, договорённости и то, чего нет в схемах.
 Стиль ответов — `GLOBAL-RESPONSE-STYLE.md`. Общие правила — `GLOBAL-RULES.md`. Markdown preview — `GLOBAL-DOC-MARKDOWN.md`.

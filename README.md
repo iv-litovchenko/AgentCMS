@@ -129,7 +129,7 @@
 - **по полям** — каталог записей по типу, тегам, статусу и другим YAML-полям (SQL-подобные запросы);
 - **по связям** — граф: кто ссылается на файл, куда ведут `[[wikilinks]]` и relation-поля (это не текстовый поиск).
 
-Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md).
+Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md).
 
 Все перечисленные термины **подробнее на интерактивной карте** (Mermaid, кликабельные узлы): [README.diagram.md](README.diagram.md) — на главной CMS открывается та же диаграмма.
 
@@ -159,7 +159,7 @@
 > - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
 > - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
 >
-> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md).
+> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md).
 >
 > All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
@@ -255,7 +255,7 @@ Copyright © 2026 Agent CMS
 
 Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
 
-- [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md) — карта MCP, workspace, правила работы с хранилищем
+- [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md) — карта MCP, workspace, правила работы с хранилищем
 - [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
 - [GLOBAL-RULES.md](GLOBAL-RULES.md) — глобальные правила для всех хранилищ
 - [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — поддерживаемая разметка в preview редактора
@@ -268,7 +268,7 @@ Copyright © 2026 Agent CMS
 >
 > Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
 >
-> - [GLOBAL-DOC-MCP-INSTRUCTION.md](GLOBAL-DOC-MCP-INSTRUCTION.md) — MCP map, workspace, storage rules
+> - [GLOBAL-MCP-INSTRUCTION.md](GLOBAL-MCP-INSTRUCTION.md) — MCP map, workspace, storage rules
 > - [GLOBAL-RESPONSE-STYLE.md](GLOBAL-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
 > - [GLOBAL-RULES.md](GLOBAL-RULES.md) — global rules for all workspaces
 > - [GLOBAL-DOC-MARKDOWN.md](GLOBAL-DOC-MARKDOWN.md) — markup supported in the editor preview
