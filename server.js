@@ -48,6 +48,7 @@ const {
   WORKSPACE_WSMAP_LEGACY_FILE,
   walkWorkspaceManifestFiles,
   collectAllWorkspaceManifestRels,
+  collectWorkspaceRootEntries,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
 const {
@@ -13364,9 +13365,14 @@ async function buildWorkspaceManifestWsmapEntries() {
 }
 
 async function buildWorkspaceWsmapMarkdown() {
-  const entries = await buildWorkspaceManifestWsmapEntries();
+  const agentRoot = getAgentRoot();
+  const [entries, rootEntries] = await Promise.all([
+    buildWorkspaceManifestWsmapEntries(),
+    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
+  ]);
   return buildWsmapMarkdown({
     entries,
+    rootEntries,
     formatEntriesTable: (rows) =>
       formatContentIndexEntriesMarkdown(rows, {
         emptyHint: "_В workspace не найдено manifest-узлов._",
@@ -13379,14 +13385,20 @@ async function buildAgentWorkspaceWsmap() {
   const indexPath = getWorkspaceWsmapRelPath();
   const indexExists = await workspaceRelFileExists(indexPath);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
-  const entries = await buildWorkspaceManifestWsmapEntries();
+  const agentRoot = getAgentRoot();
+  const [entries, rootEntries] = await Promise.all([
+    buildWorkspaceManifestWsmapEntries(),
+    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
+  ]);
   const entryCount = entries.length;
+  const rootEntryCount = rootEntries.length;
 
   return {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …). " +
+      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …) " +
+      "и список файлов/папок в корне вне hub-каталогов awn-*. " +
       "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
     whenToUse: {
       read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
@@ -13400,7 +13412,9 @@ async function buildAgentWorkspaceWsmap() {
     },
     entries,
     entryCount,
-    sourceCount: entryCount
+    sourceCount: entryCount,
+    rootEntries,
+    rootEntryCount
   };
 }
 
@@ -13443,11 +13457,13 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       created: !payload.indexFile.exists,
       overwritten: Boolean(payload.indexFile.exists),
       entryCount: payload.entryCount,
-      sourceCount: payload.entryCount
+      sourceCount: payload.entryCount,
+      rootEntryCount: payload.rootEntryCount
     },
     indexFile: { path: indexPath, exists: true, source: "file" },
     entryCount: payload.entryCount,
-    sourceCount: payload.entryCount
+    sourceCount: payload.entryCount,
+    rootEntryCount: payload.rootEntryCount
   };
 }
 
@@ -33135,5 +33151,6 @@ module.exports = {
   startServer,
   stopServer,
   getAppRoot,
-  getProjectRoot
+  getProjectRoot,
+  writeAgentWorkspaceWsmap
 };
