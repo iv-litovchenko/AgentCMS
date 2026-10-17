@@ -93827,8 +93827,25 @@ function destroyFolderBrowseFancybox() {
   }
 }
 
-function initFolderBrowseFancybox(container, items = []) {
-  if (typeof Fancybox === "undefined" || !container) return;
+let fancyboxLoadPromise = null;
+
+async function ensureFancyboxLoaded() {
+  if (typeof Fancybox !== "undefined" && typeof Fancybox.bind === "function") return true;
+  const loader = globalThis.AgentCmsScriptLoader;
+  if (typeof loader?.loadFancybox !== "function") return false;
+  if (!fancyboxLoadPromise) {
+    fancyboxLoadPromise = loader.loadFancybox().catch((error) => {
+      fancyboxLoadPromise = null;
+      throw error;
+    });
+  }
+  await fancyboxLoadPromise;
+  return typeof Fancybox !== "undefined" && typeof Fancybox.bind === "function";
+}
+
+async function initFolderBrowseFancybox(container, items = []) {
+  if (!container) return;
+  if (!(await ensureFancyboxLoaded())) return;
   destroyFolderBrowseFancybox();
   const gallery = Array.isArray(items) ? items : [];
   Fancybox.bind(container, "[data-fancybox='folder-browse']", {
@@ -94671,7 +94688,7 @@ function renderFolderBrowseImagesSection(section, items, folderPath) {
     grid.appendChild(card);
   }
   body.appendChild(grid);
-  initFolderBrowseFancybox(body.closest(".folder-browse-hub") || body, items);
+  void initFolderBrowseFancybox(body.closest(".folder-browse-hub") || body, items);
 }
 
 function renderFolderBrowseFoldersSection(section, items) {
@@ -95180,7 +95197,7 @@ async function renderFolderBrowseFileView() {
       link.appendChild(img);
       wrap.appendChild(link);
       body.appendChild(wrap);
-      initFolderBrowseFancybox(hub, images);
+      void initFolderBrowseFancybox(hub, images);
     } else if (kind === "page") {
       body.className += " file-content-preview";
       body.textContent = "Загрузка…";

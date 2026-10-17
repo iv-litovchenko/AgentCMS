@@ -109,6 +109,15 @@
     }
   }
 
+  async function loadFancybox() {
+    await loadStylesheet("/_resources/vendor/fancybox/fancybox.css");
+    await loadScript("/_resources/vendor/fancybox/fancybox.umd.js");
+    const Fancybox = global.Fancybox;
+    if (typeof Fancybox?.bind !== "function") {
+      throw new Error("Fancybox not available after load");
+    }
+  }
+
   async function loadAgentRmmLiveBrain() {
     await loadScript("/_resources/vendor/d3.min.js?v=1");
     await loadScript("/editor/js/panels/agent-rmm-live-brain.js?v=4");
@@ -124,6 +133,7 @@
     loadToastUiEditor,
     loadMammoth,
     loadXlsx,
+    loadFancybox,
     loadAgentRmmLiveBrain
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
