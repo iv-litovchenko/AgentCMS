@@ -22,7 +22,7 @@
 13. Выяснить нужнали эта функция из старой документации "get_api_reference"
 14. Agent id VS workspace id (у нас теперь это все больше хранилища а не агенты) - и не путать workspace-key(slug) != worksspace-id(awn-id)
 15 Разбей инструменты поиска на разные понятные mcp
-16 Оптимизируй глобальную документацию — чтобы не жрала токены; см. [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md), [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md), [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md), [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md)
+16 Оптимизируй глобальную документацию — чтобы не жрала токены; см. [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md), [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md), [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md), [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md)
 17 Убрать localhost:8488/agent-agent-test/extension/?companion=1 этот параметр "extension/?companion=1" и посмотреть на что он влияет есть ли от него зависимости (доработать показ того где мы находимяся Editor | Side Panel |  Mobile Browser |  Tab Agent | CMS Window)
 18 Решить что делать со "свободной памятью" и для чего она нужна в дереве страниц?
 19 Cursor - как нам его интегрировать и как использовать?

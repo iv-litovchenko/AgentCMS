@@ -1,6 +1,6 @@
 # Функция работы с файлами
 
-**Глобальные документы:** [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) · [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) · [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) · [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
+**Глобальные документы:** [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) · [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) · [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) · [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) · [README.md](README.md) · [TODO.md](TODO.md)
 
 
 1.1 ✅ Записать часть файла переписать заменить все же надо поменять потому что это ахтунг записывать весь файл целиком 
@@ -23,7 +23,7 @@
 - Placement: page / channel / media / root. Internal-слоты и `main-single-csv` — по-прежнему целиком; `format: base64` и `offsetBytes` — как раньше.
 - `startLine` / `limitLines` — номера строк **файла с frontmatter**, совпадают с `startLine` в `search_workspace_*` (fulltext и semantic). Если `startLine` внутри frontmatter — читается с начала тела.
 - Ответ: `startLine`, `endLine`, `totalLines`, `bodyStartLine` (.md), `hasMore`, `truncated`, `nextStartLine`, `hash`, `codeFence`.
-- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md).
+- Код: `mcp-server/lib/content-read-window.js`, `readContentBody` в `content-core.js`, схема в `content-tools.js`; описание в [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
 - Не сделано из `read_universal`: чтение по доле файла (percent) и по якорю.
 - Схема параметров публикуется в MCP; неизвестные параметры → ошибка; `kind: topic` = `page`; `ref` без `.md` → повтор с `.md` (`refResolved`).
 

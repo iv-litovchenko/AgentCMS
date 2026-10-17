@@ -129,7 +129,7 @@
 - **по полям** — каталог записей по типу, тегам, статусу и другим YAML-полям (SQL-подобные запросы);
 - **по связям** — граф: кто ссылается на файл, куда ведут `[[wikilinks]]` и relation-поля (это не текстовый поиск).
 
-Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md).
+Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
 
 Все перечисленные термины **подробнее на интерактивной карте** (Mermaid, кликабельные узлы): [README.diagram.md](README.diagram.md) — на главной CMS открывается та же диаграмма.
 
@@ -159,7 +159,7 @@
 > - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
 > - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
 >
-> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md).
+> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md).
 >
 > All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
@@ -255,7 +255,7 @@ Copyright © 2026 Agent CMS
 
 Глобальные markdown-файлы платформы в **корне репозитория** — RAG, always-context, локальное дообучение:
 
-- [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) — карта MCP, workspace, правила работы с хранилищем
+- [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) — карта MCP, workspace, правила работы с хранилищем
 - [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) — стиль ответов агента (префиксы 🗄️ / 🌐 / 💭)
 - [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) — глобальные правила для всех хранилищ
 - [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — поддерживаемая разметка в preview редактора
@@ -268,7 +268,7 @@ Copyright © 2026 Agent CMS
 >
 > Global platform markdown files in the **repository root** — RAG, always-context, local fine-tuning:
 >
-> - [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) — MCP map, workspace, storage rules
+> - [GLOBAL-SKILL-1-BASE.md](workspaces/0-md/GLOBAL-SKILL-1-BASE.md) — MCP map, workspace, storage rules
 > - [GLOBAL-SKILL-2-RESPONSE-STYLE.md](workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) — agent reply style (🗄️ / 🌐 / 💭 prefixes)
 > - [GLOBAL-SKILL-3-RULES.md](workspaces/0-md/GLOBAL-SKILL-3-RULES.md) — global rules for all workspaces
 > - [GLOBAL-SKILL-4-MARKDOWN.md](workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — markup supported in the editor preview

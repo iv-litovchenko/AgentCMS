@@ -44,4 +44,19 @@ literal   ::= string | number | boolean | ident
 - CSV rows: indexed in `catalog.sqlite` + **csv-fulltext-index** (tokens + hash-tfidf semantic). Fallback: scan cells (`csv-cell`).
 - Raw SQL from clients is rejected.
 
-See `TODO.SQL.md` and `workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md` § 8.1.
+See `TODO.SQL.md`. Agent-facing summary: `workspaces/0-md/GLOBAL-SKILL-1-BASE.md` (section 14).
+
+## Integration
+
+| Channel | Call |
+|---------|------|
+| MCP | `query_workspace_storage({ workspaceId, dql: "..." })` |
+| REST | `POST /api/storage-index/query` body `{ "dql": "..." }` |
+| Preset | `registry-queries.yml` → `source: dql`, field `dql:` → `run_workspace_registry_query` |
+| Preview | fenced `` ```awn-query `` / `` ```dataview `` → `dql-table.js` |
+
+- **Fields:** frontmatter + virtual `file.name`, `file.folder`, `file.mtime`, `file.size`, `file.inlink-count`, `file.outlinks` / `file.inlinks` (link-index, memory engine).
+- **Response:** `dql-query` | `dql-group` | `dql-hybrid`; `engine: sqlite | memory`. Raw SQL (`sql` / `rawSql`) → 500.
+- **UI:** **DQL** button → modal **Text / Constructor / Views**. Views are stored in `.agent-cms/settings/dql-views.yml` (`GET|POST|DELETE /api/storage-index/dql-views`). Constructor → `POST /api/storage-index/dql-build`.
+- **Preview transform:** `@transform {"pick":["path","awn-name"]}` (no JS eval).
+- **Rebuild:** `rebuild_workspace_storage_index`. SQLite: setting `index-storage-sqlite-enabled` (default on).

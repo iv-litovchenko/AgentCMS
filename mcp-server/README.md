@@ -56,7 +56,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
 | **Индексы и поиск** | Оглавление, hub-каталог, найти по workspace, пересобрать кэш | `read_*_index_toc`, `refresh_*_index_toc`, `read_workspace_map`, `search_workspace_*`, `rebuild_workspace_*`, … (legacy: `get_topic_map`, `get_content_map`) |
 
-Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md` §3).
+Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `workspaces/0-md/GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
 
 ### Канон (PAGE · SLOT · CONTENT)
 
@@ -84,7 +84,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 ## Документация
 
-- Агентская шпаргалка: `workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md` → **`get_session_documentation`** (не always-context)
+- Вводная при подключении: `workspaces/0-md/MCP-INSTRUCTIONS.md` (MCP `instructions`); базовый скилл: `workspaces/0-md/GLOBAL-SKILL-1-BASE.md` → **`read_platform_doc`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск
