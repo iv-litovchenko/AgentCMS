@@ -25,7 +25,7 @@ npm install
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 | `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
-| `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/workspaces/0-md/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
+| `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | _(inline по умолчанию)_ | Полностью заменить текст MCP `instructions` файлом (читается при старте процесса) |
 | `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |
 
 ## Термины
@@ -84,7 +84,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 ## Документация
 
-- Вводная при подключении: `workspaces/0-md/MCP-INSTRUCTIONS.md` (MCP `instructions`); базовый скилл: `workspaces/0-md/GLOBAL-SKILL-1-BASE.md` → **`read_platform_doc`** (не always-context)
+- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; полный welcome — скилл `workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md` (установить в клиенте). Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск

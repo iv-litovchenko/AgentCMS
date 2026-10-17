@@ -50,7 +50,8 @@ settings:
     user: .agent-cms/settings/user.yml
 
 docs:
-  map: workspaces/0-md/MCP-INSTRUCTIONS.md
+  welcome: workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md
+  map: workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md
   base: workspaces/0-md/GLOBAL-SKILL-1-BASE.md
   response-style: workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md
   rules: workspaces/0-md/GLOBAL-SKILL-3-RULES.md

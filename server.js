@@ -758,7 +758,7 @@ const {
   DEPENDENCIES_CSV_FILE
 } = agentRegistry;
 
-const GLOBAL_DOC_MCP_FILE = "MCP-INSTRUCTIONS.md";
+const GLOBAL_DOC_WELCOME_FILE = "GLOBAL-SKILL-0-MCP-WELCOME.md";
 const GLOBAL_DOC_BASE_FILE = "GLOBAL-SKILL-1-BASE.md";
 const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL-SKILL-2-RESPONSE-STYLE.md";
 const GLOBAL_RULES_FILE = "GLOBAL-SKILL-3-RULES.md";
@@ -15036,7 +15036,7 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — workspace always-context (без MCP-INSTRUCTIONS/README); MCP: list_workspace_always_context",
+  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: list_workspace_always_context",
   sessionDocumentation:
     "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -31577,7 +31577,7 @@ async function handleApiForAgent(req, res, url) {
 }
 
 const PLATFORM_GLOBAL_DOC_FILES = new Set([
-  GLOBAL_DOC_MCP_FILE,
+  GLOBAL_DOC_WELCOME_FILE,
   GLOBAL_DOC_BASE_FILE,
   GLOBAL_RESPONSE_STYLE_FILE,
   GLOBAL_RULES_FILE,
