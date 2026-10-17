@@ -51,7 +51,10 @@ editor boot
 - [x] **fancybox** — lazy при folder-browse lightbox.
 - [x] **Prod/minify boot:** `?editorBuilt=1` или `localStorage agentcms-editor-built=1` → `/editor/main.built.js`.
 - [x] `npm run build:editor` → `public/editor/main.built.js` (+ sourcemap).
-- [ ] Landing/graph chunks — dynamic import из `main.js` (следующий PR).
+- [x] Landing chunk (старт): `landing-system-map.js` + `import()` при главной/platform.
+- [ ] Landing chunk (продолжение): orbit/flow/hub из `main.js`.
+- [x] Graph chunk (каркас): `workspace-graph-chunk.js` + lazy import при map/graph.
+- [ ] Graph chunk (продолжение): перенос renderAgentMap* / renderAgentGraph* из main.
 - [ ] Поведение UI без регрессий: menu, save, landing, graph — smoke checklist.
 
 ---

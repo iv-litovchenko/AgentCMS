@@ -126,6 +126,22 @@
     }
   }
 
+  let landingChunkPromise = null;
+  async function loadLandingChunk() {
+    if (!landingChunkPromise) {
+      landingChunkPromise = import("/editor/js/landing/landing-runtime.js?v=1");
+    }
+    return landingChunkPromise;
+  }
+
+  let workspaceGraphChunkPromise = null;
+  async function loadWorkspaceGraphChunk() {
+    if (!workspaceGraphChunkPromise) {
+      workspaceGraphChunkPromise = import("/editor/js/workspace/workspace-graph-chunk.js?v=1");
+    }
+    return workspaceGraphChunkPromise;
+  }
+
   global.AgentCmsScriptLoader = {
     loadScript,
     loadStylesheet,
@@ -134,6 +150,8 @@
     loadMammoth,
     loadXlsx,
     loadFancybox,
-    loadAgentRmmLiveBrain
+    loadAgentRmmLiveBrain,
+    loadLandingChunk,
+    loadWorkspaceGraphChunk
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
