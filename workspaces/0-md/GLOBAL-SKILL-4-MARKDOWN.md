@@ -1,50 +1,43 @@
 # GLOBAL-SKILL-4-MARKDOWN — поддерживаемая markdown-разметка
 
-Глобальный документ платформы (`GLOBAL-SKILL-4-MARKDOWN.md`): опционально попадает в always-context агентов (настройка `always-context-global-markdown-showcase`, по умолчанию выкл).
-
-Справочник элементов для preview (markdown-it). Кнопка **MD** в шапке редактора открывает этот же файл.
+Справочник элементов для preview (markdown-it). Кнопка **MD** в шапке редактора открывает этот файл. В always-context агентов попадает опционально (`always-context-global-markdown-showcase`, по умолчанию выкл).
 
 ---
 
-## Заголовки
+## Базовое
 
-# H1 — главный заголовок
-## H2 — раздел
-### H3 — подраздел
-#### H4 — пункт
-##### H5 — мелкий заголовок
-###### H6 — самый мелкий
+# H1 · ## H2 · ### H3 · #### H4 · ##### H5 · ###### H6
 
----
+Абзац с **жирным**, *курсивом*, ***жирным курсивом***, `inline code`. `breaks: true` — перенос строки в исходнике даёт `<br>`.
 
-## Абзацы и переносы
+| Что | Синтаксис | Preview |
+|-----|-----------|---------|
+| Жирный / курсив / оба | `**т**` / `*т*` / `***т***` | да |
+| Inline-код | `` `код` `` | да |
+| Зачёркнутый | `~~т~~` | нет (нужен плагин; в WYSIWYG сохраняется как `~~…~~`) |
 
-Обычный абзац с **жирным**, *курсивом*, ***жирным курсивом*** и `inline code`.
+[Ссылка](https://example.com) · автоссылка https://github.com/markdown-it/markdown-it
 
-В markdown-it включён `breaks: true` — перенос строки в исходнике
-даёт `<br>` в preview (как здесь).
+- Маркированный список
+  - Вложенный
+1. Нумерованный
+   1. Вложенный
 
-### Inline-оформление (WYSIWYG и markdown)
+> Цитата
+>
+> > Вложенная
 
-| Что | Синтаксис | Кнопка WYSIWYG | Preview |
-|-----|-----------|----------------|---------|
-| Жирный | `**текст**` | **Bold** | да |
-| Курсив | `*текст*` | *Italic* | да |
-| Жирный курсив | `***текст***` | Bold + Italic | да |
-| Зачёркнутый | `~~текст~~` | Strike | нет* |
-| Inline-код | `` `код` `` | Code | да |
+Горизонтальная линия — `---`. HTML включён (`html: true`): `<div style="color:red">Красный</div>`.
 
-\* В WYSIWYG зачёркивание сохраняется как `~~…~~`, но в Preview markdown-it пока не рендерит `<del>` — нужен плагин.
-
-Примеры: **жирный**, *курсив*, ***оба сразу***, ~~зачёркнутый (в preview как plain text)~~, `const x = 1`.
+```javascript
+console.log("блок кода с подсветкой");
+```
 
 ---
 
 ## Выделение маркером (`==…==`)
 
-Кастомное правило Agent CMS — фоновая подсветка inline-текста. Работает в **Preview**, **WYSIWYG** и при экспорте markdown.
-
-### Синтаксис
+Правило Agent CMS: фон для inline-текста. Работает в Preview, WYSIWYG и при экспорте.
 
 | Синтаксис | Цвет |
 |-----------|------|
@@ -56,237 +49,80 @@
 | `=={orange}текст==` | оранжевый |
 | `=={purple}текст==` | фиолетовый |
 
-### Примеры
+==жёлтый== · =={red}красный== · =={green}зелёный== · =={blue}синий== · =={gray}серый== · =={orange}оранжевый== · =={purple}фиолетовый==
 
-==жёлтый по умолчанию== · =={red}красный== · =={green}зелёный== · =={blue}синий== · =={gray}серый== · =={orange}оранжевый== · =={purple}фиолетовый==
-
-В одном абзаце: ==важная мысль==, =={red}срочно==, =={green}готово==.
-
-### WYSIWYG-редактор
-
-В панели инструментов — кнопка **«Выделить текст»** (иконка маркера) и выпадающий выбор цвета. Выделите фрагмент и нажмите кнопку — в markdown сохранится `==…==` или `=={tone}…==`.
-
-### HTML-эквивалент
-
-При `html: true` можно писать напрямую:
-
-```html
-<mark class="md-highlight md-highlight--blue">синий маркер</mark>
-```
-
-Обычный `<mark>текст</mark>` тоже рендерится с жёлтым фоном.
-
-> Не путать с **жирным** (`**…**`), *курсивом* (`*…*`) и зачёркиванием (`~~…~~`) — см. таблицу выше.
+HTML-эквивалент: `<mark class="md-highlight md-highlight--blue">текст</mark>`; обычный `<mark>` — жёлтый.
 
 ---
 
-## Ссылки
+## Изображения
 
-- [Ссылка на Agent CMS](https://example.com)
-- Автоссылка: https://github.com/markdown-it/markdown-it
+![Placeholder](https://placehold.co/120x80/e2e8f0/334155?text=img)
 
----
-
-## Списки
-
-### Маркированный
-
-- Пункт один
-- Пункт два
-  - Вложенный A
-  - Вложенный B
-- Пункт три
-
-### Нумерованный
-
-1. Первый
-2. Второй
-   1. Вложенный 2.1
-   2. Вложенный 2.2
-3. Третий
-
----
-
-## Цитата (blockquote)
-
-> Цитата первого уровня.
->
-> > Вложенная цитата.
->
-> Конец блока.
-
----
-
-## Код
-
-Inline: `const answer = 42;`
-
-Блок кода:
-
-```javascript
-function greet(name) {
-  return `Hello, ${name}!`;
-}
-
-console.log(greet("Agent CMS"));
-```
-
-```yaml
-title: Пример YAML
-tags:
-  - demo
-  - markdown
-status: draft
-```
-
----
-
-## Горизонтальная линия
-
-Текст выше линии.
-
----
-
-Текст ниже линии.
-
----
-
-## Изображение
-
-![Placeholder 120×80](https://placehold.co/120x80/e2e8f0/334155?text=img)
-
-### Локальные вложения (Assets/Pasted)
-
-Вставьте изображение в редактор (Source или Edit) — файл сохранится в `_Storage/Assets/Pasted/` и появится ссылка:
+Вставка из редактора сохраняет файл в `awn-storage/assets/pasted/` и даёт ссылку:
 
 ```markdown
-![screenshot](awn-storage/Assets/Pasted/20260608150516.png)
+![screenshot](awn-storage/assets/pasted/20260608150516.png)
 ```
 
-Preview автоматически подставит URL `/api/media/file?…`.
+Preview подставляет URL `/api/media/file?…`.
 
----
+### Оформление (обёртка `<div class="img-style-…">` вокруг `<img>`)
 
-## Оформление картинок (7 вариантов)
+| Класс | Поведение |
+|-------|-----------|
+| `img-style-card` | `max-width: min(50%, 520px)`, `max-height: 360px`, `object-fit: contain` |
+| `img-style-clamp` | `max-width: clamp(180px, 45vw, 520px)` — **используется в обзоре темы** |
+| `img-style-figure` | `<figure>` + `<figcaption>` — подписи «Вложение 1, 2, 3…» |
+| `img-style-grid` | сетка, `object-fit: cover` — несколько скринов подряд |
+| `img-style-lightbox` | миниатюра (`max-height: 280px`), клик — оверлей |
+| `img-style-overview` / `img-style-editor` | компактный обзор / полная ширина в редакторе |
+| `img-style-auto` | по `naturalWidth/naturalHeight`: > 1.4 — `is-wide` (70%), иначе `is-compact` (240px) |
 
-Демо на одном изображении (по 3 копии в каждом примере). Откройте через кнопку **MD**.
+Пример (`clamp`):
 
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">1. Карточка с ограничением</p>
-<p class="preview-image-demo-note"><code>max-width: min(50%, 520px)</code>, <code>max-height: 360px</code>, <code>object-fit: contain</code> — скрин не раздувает блок, мелкая картинка не исчезает.</p>
-<div class="img-style-card">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
-</div>
-
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">2. Адаптивная ширина (clamp)</p>
-<p class="preview-image-demo-note"><code>max-width: clamp(180px, 45vw, 520px)</code> — подстраивается под экран и размер картинки. <strong>Используется в обзоре темы.</strong></p>
 <div class="img-style-clamp">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
+<img src="https://placehold.co/600x300/e2e8f0/334155?text=clamp" alt="Пример 1">
+<img src="https://placehold.co/600x300/e2e8f0/334155?text=clamp" alt="Пример 2">
 </div>
 
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">3. Figure + подпись</p>
-<p class="preview-image-demo-note">Обёртка <code>&lt;figure&gt;</code> + <code>&lt;figcaption&gt;</code> — удобно для вложений «Вложение 1, 2, 3…».</p>
+Пример (`figure`):
+
 <div class="img-style-figure">
-<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1"><figcaption>Вложение 1 · menu-bad-readability</figcaption></figure>
-<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2"><figcaption>Вложение 2 · keywords-main-page</figcaption></figure>
-<figure><img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3"><figcaption>Вложение 3 · tasks-medknizhki</figcaption></figure>
-</div>
-</div>
-
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">4. Сетка (несколько скринов)</p>
-<p class="preview-image-demo-note"><code>display: grid</code>, <code>object-fit: cover</code> — компактно, когда вложений несколько подряд.</p>
-<div class="img-style-grid">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
-</div>
-
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">5. Lightbox (клик → полный размер)</p>
-<p class="preview-image-demo-note">В обзоре — миниатюра (<code>max-height: 280px</code>). Клик по картинке открывает оверлей.</p>
-<div class="img-style-lightbox">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
-</div>
-
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">6. Два режима: обзор vs редактор</p>
-<p class="preview-image-demo-note">Слева — компактный обзор темы, справа — preview редактора на всю ширину.</p>
-<div class="img-style-compare">
-<div class="img-style-compare-col">
-<p class="img-style-compare-label">Обзор</p>
-<div class="img-style-overview">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
-</div>
-<div class="img-style-compare-col">
-<p class="img-style-compare-label">Редактор / Preview</p>
-<div class="img-style-editor">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
-</div>
-</div>
-</div>
-
-<div class="preview-image-demo">
-<p class="preview-image-demo-title">7. Авто: широкие vs компактные</p>
-<p class="preview-image-demo-note">JS смотрит <code>naturalWidth / naturalHeight</code>: если &gt; 1.4 — класс <code>is-wide</code> (70%), иначе <code>is-compact</code> (240px). Птица здесь — landscape, все три будут «wide».</p>
-<div class="img-style-auto">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 1">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 2">
-<img src="https://png.pngtree.com/thumb_back/fh260/background/20230610/pngtree-picture-of-a-blue-bird-on-a-black-background-image_2937385.jpg" alt="Синяя птица 3">
-</div>
+<figure><img src="https://placehold.co/600x300/e2e8f0/334155?text=figure" alt="Вложение 1"><figcaption>Вложение 1 · подпись</figcaption></figure>
 </div>
 
 ---
 
 ## GitHub Alerts
 
-Официальные типы GitHub (blockquote + `[!TYPE]`). Регистр не важен.
+Blockquote + `[!TYPE]` (регистр не важен): `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`.
 
 > [!NOTE]
-> Highlights information that users should take into account, even when skimming.
+> Информация, которую стоит учесть.
 
 > [!TIP]
-> Optional information to help a user be more successful.
+> Необязательная подсказка.
 
 > [!IMPORTANT]
-> Crucial information necessary for users to succeed.
+> Ключевая информация.
 
 > [!WARNING]
-> Critical content demanding immediate user attention due to potential risks.
+> Критичный контент, риск.
 
 > [!CAUTION]
-> Negative potential consequences of an action.
+> Негативные последствия действия.
 
-Свой заголовок после типа:
+Свой заголовок:
 
 > [!WARNING] Внимание
-> Можно заменить стандартный заголовок Warning.
+> Заменяет стандартный заголовок.
 
 ---
 
 ## Диаграммы (Mermaid)
 
-Блоки с языком `mermaid` рендерятся в preview через [Mermaid](https://mermaid.js.org/) — как в Obsidian.
-
-### Flowchart
+Блоки `mermaid` рендерятся в Preview, overview и навигации (в WYSIWYG блок остаётся текстом).
 
 ```mermaid
 flowchart LR
@@ -296,38 +132,13 @@ flowchart LR
   C -->|нет| E[Обычный код]
 ```
 
-### Sequence diagram
-
-```mermaid
-sequenceDiagram
-  participant U as Пользователь
-  participant E as Редактор
-  participant P as Preview
-  U->>E: Пишет ```mermaid
-  E->>P: Переключение в Preview
-  P->>P: mermaid.run()
-  P-->>U: Диаграмма на экране
-```
-
-### Gantt
-
-```mermaid
-gantt
-  title Пример roadmap
-  dateFormat YYYY-MM-DD
-  section CMS
-  Markdown preview     :done, a1, 2026-05-01, 7d
-  Mermaid diagrams     :active, a2, 2026-05-20, 5d
-  Wikilinks            :a3, after a2, 7d
-```
-
-> Диаграммы работают в **Preview**, overview и навигации. В режиме **Edit** (WYSIWYG) блок остаётся текстом.
+Поддерживаются и другие типы Mermaid: `sequenceDiagram`, `gantt` и т. д.
 
 ---
 
-## Чеклист (task list)
+## Чеклист
 
-Подключён плагин `markdown-it-task-lists`. Работает в Preview и в WYSIWYG (кнопка task на панели).
+Плагин `markdown-it-task-lists` (Preview и WYSIWYG).
 
 - [ ] Не сделано
 - [x] Сделано
@@ -337,21 +148,15 @@ gantt
 
 ## Wikilinks (Obsidian-style)
 
-Кастомное правило в `getMarkdownIt()`. Ссылка на другую ноду workspace, если путь найден.
+Ссылка на другую ноду workspace, если путь найден; иначе класс `wikilink--unresolved`.
 
-[[Другая нода]]
-[[Путь/К ноде|Подпись ссылки]]
-[[Страница#Заголовок]]
-
-Неразрешённые ссылки отображаются как `wikilink--unresolved`.
+[[Другая нода]] · [[Путь/К ноде|Подпись]] · [[Страница#Заголовок]]
 
 ---
 
 ## Маркеры и пометки (`awn-marker-*`)
 
-Многострочные **личные пометки** в конспекте — **блок кода** с языком `awn-marker-<type>`. В **Preview** CMS (и обзоре темы) рендерятся цветными карточками; в **WYSIWYG** и в Cursor/Obsidian остаётся обычный fenced block (без поломки разметки). Вставка из палитры: **«Маркеры и пометки»**.
-
-### Синтаксис блока
+Многострочные личные пометки — **блок кода** с языком `awn-marker-<type>`. В Preview CMS и обзоре темы — цветные карточки; в WYSIWYG, Cursor и Obsidian — обычный fenced block. Вставка из палитры: «Маркеры и пометки».
 
 ````markdown
 ```awn-marker-idea
@@ -359,122 +164,41 @@ awn-status: отложено
 awn-create: 2026-09-27
 приоритет: низкий
 ---
-Текст пометки — несколько абзацев, списки, **выделение**.
-
+Текст пометки — абзацы, списки, **выделение**.
 ```
 ````
 
-| Часть | Описание |
-|--------|----------|
-| ` ```awn-marker-<type> ` | Открытие: тип в имени языка (`idea`, `todo`, …) |
-| Строки до `---` | Мета-поля `ключ: значение` |
-| `---` | Разделитель мета и тела |
-| Тело | Обычный markdown |
-| ` ``` ` | Закрытие блока |
+- Строки до `---` — мета `ключ: значение`; `---` — разделитель; дальше — тело (markdown).
+- **`<type>`** (порядок в палитре): `idea` идея · `important` важно · `note` заметка · `todo` задача · `question` вопрос · `mistake` ошибка · `term` термин · `repeat` повторить.
+- **Канонические мета-поля** (необязательные): `awn-create` (дата появления), `awn-update` (последнее изменение), `awn-status` (`открыто`, `закрыто`, `отложено`…), `awn-repeat` (когда пересмотреть).
+- **Синонимы:** `добавлено`, `обновлено`, `статус`, `повторить`.
+- **Произвольные поля** (`приоритет`, `источник`, `тег`…) — в preview чипы со значением; не валидируются.
 
-### Типы `<type>` (порядок в палитре)
-
-| type | Смысл |
-|------|--------|
-| `idea` | Идея |
-| `important` | Важно |
-| `note` | Заметка |
-| `todo` | Задача (чеклист) |
-| `question` | Вопрос |
-| `mistake` | Ошибка |
-| `term` | Термин / глоссарий |
-| `repeat` | Повторить |
-
-### Мета-поля
-
-**Канонические (все необязательные):**
-
-| Ключ | Назначение |
-|------|------------|
-| `awn-create` | Когда пометка появилась (дата) |
-| `awn-update` | Последнее изменение |
-| `awn-status` | Состояние: `открыто`, `закрыто`, `отложено`, … |
-| `awn-repeat` | Когда повторить / пересмотреть (дата) |
-
-**Произвольные поля** — любые другие строки `ключ: значение` до `---` (`приоритет`, `источник`, `тег` …). В preview CMS — чипы только со **значением** (имя поля в подсказке). Система их не валидирует.
-
-Синонимы в мета: `добавлено`, `обновлено`, `статус`, `повторить` (эквиваленты `awn-create`, `awn-update`, `awn-status`, `awn-repeat`).
-
-### Примеры (исходник)
-
-````markdown
-```awn-marker-idea
-awn-status: отложено
----
-Пример **идеи** — в Preview CMS цвет как у GitHub Alert «Tip».
-```
-````
+Ещё пример:
 
 ````markdown
 ```awn-marker-question
 awn-status: открыто
-awn-create: 2026-09-27
 awn-repeat: 2026-10-15
 ---
 Как отличить `awn-marker-term` от обычной цитаты?
 ```
 ````
 
-````markdown
-```awn-marker-repeat
-awn-status: открыто
-awn-repeat: 2026-10-01
----
-Жизненный цикл `Connection` — схема в голове.
-```
-````
-
 ---
 
-## Элементы без поддержки в Preview (пока)
-
-Ниже — синтаксис, который **ещё не рендерится** в markdown-it preview (в WYSIWYG часть из этого может редактироваться).
-
-### Таблица (GFM) — нужен плагин
+## Таблицы (GFM)
 
 | Колонка A | Колонка B |
 |-----------|-----------|
 | alpha     | beta      |
-| 1         | 2         |
-
-### Зачёркивание — нужен плагин
-
-~~Этот текст зачёркнут~~
-
-В WYSIWYG кнопка **Strike** сохраняет `~~…~~`, но в Preview зачёркивание пока не отображается.
-
-### HTML — включён (`html: true`)
-
-<div style="color:red">Красный HTML</div>
 
 ---
 
-## Как добавить своё правило
+## Для разработчика
 
-В `public/main.js`, функция `getMarkdownIt()` — примеры уже в коде:
-
-- `md_highlight` — `==…==` и `=={tone}…==`
-- `wikilink` — `[[…]]`
-- `markdownItTaskLists` — чеклисты
-- `markdownItGitHubAlerts` — `[!NOTE]` и др.
-
-```javascript
-// Пример нового inline-правила
-md.inline.ruler.before("link", "my_rule", (state, silent) => {
-  // ... разбор токена ...
-  return true;
-});
-md.renderer.rules.my_rule = (tokens, idx) => {
-  return `<span class="my-rule">${tokens[idx].content}</span>`;
-};
-```
+Правила markdown-it — в `public/main.js`, `getMarkdownIt()`: `md_highlight` (`==…==`), `wikilink` (`[[…]]`), `markdownItTaskLists`, `markdownItGitHubAlerts`. Новое inline-правило: `md.inline.ruler.before("link", "my_rule", …)` + `md.renderer.rules.my_rule`.
 
 ---
 
 *Конец showcase. Канон: `GLOBAL-SKILL-4-MARKDOWN.md`.*
-

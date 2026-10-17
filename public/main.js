@@ -5589,6 +5589,27 @@ function resolveDocumentationTopicPath(relPath) {
   return `${DOCUMENTATION_TOPIC_DIR}/${DOCUMENTATION_MAIN_SLOT}/${rel}`;
 }
 
+const PLATFORM_GLOBAL_USER_GUIDE_PREFIX = "platform-global:";
+
+/** Markdown preview context for user-docs / header modals (images live under dokumentatsii storage). */
+function resolveUserGuidePreviewNodePath(guideRelPath = "") {
+  const rel = String(guideRelPath || "").trim().replace(/\\/g, "/");
+  if (rel.startsWith(PLATFORM_GLOBAL_USER_GUIDE_PREFIX)) {
+    return resolveDocumentationTopicPath("opisanie-sistemy-agent-cms.md");
+  }
+  if (rel) return resolveDocumentationTopicPath(rel);
+  return resolveDocumentationTopicPath("opisanie-sistemy-agent-cms.md");
+}
+
+function buildDocumentationMarkdownPreviewOptions(guideRelPath = "") {
+  const nodePath = resolveUserGuidePreviewNodePath(guideRelPath);
+  return {
+    hideFrontmatter: true,
+    linkBasePath: nodePath,
+    nodePath
+  };
+}
+
 async function fetchDocumentationTopicMarkdown(topicPath) {
   const response = await fetch(buildDocumentationApiUrl("/api/file", {
     path: resolveDocumentationTopicPath(topicPath)
@@ -134998,7 +135019,11 @@ async function openMdShowcaseModal() {
     if (!mdShowcaseCache) {
       mdShowcaseCache = await fetchPlatformGlobalMarkdown("GLOBAL-SKILL-4-MARKDOWN.md");
     }
-    setMarkdownPreviewHtml(mdShowcaseContentNode, mdShowcaseCache, HEADER_DOC_PREVIEW_OPTIONS);
+    setMarkdownPreviewHtml(
+      mdShowcaseContentNode,
+      mdShowcaseCache,
+      buildDocumentationMarkdownPreviewOptions("platform-global:GLOBAL-SKILL-4-MARKDOWN.md")
+    );
     mdShowcaseModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить GLOBAL-SKILL-4-MARKDOWN.md: ${error.message}`, "error");
@@ -135074,7 +135099,7 @@ async function loadComponentsIdeasContent() {
     setMarkdownPreviewHtml(
       componentsIdeasContentNode,
       componentsIdeasMarkdownCache,
-      HEADER_DOC_PREVIEW_OPTIONS
+      buildDocumentationMarkdownPreviewOptions(COMPONENTS_IDEAS_TOPIC_PATH)
     );
 
     const imagesResponse = await fetch("/api/public/images");
@@ -135187,7 +135212,7 @@ async function loadUserGuideIntoModal(relPath, index, { force = false } = {}) {
   setMarkdownPreviewHtml(
     userDocsContentNode,
     await fetchUserGuideMarkdown(path, force),
-    HEADER_DOC_PREVIEW_OPTIONS
+    buildDocumentationMarkdownPreviewOptions(path)
   );
 }
 
@@ -135219,7 +135244,11 @@ async function openBestPracticesModal() {
     if (!bestPracticesCache) {
       bestPracticesCache = await fetchDocumentationTopicMarkdown("agent-best-practices.md");
     }
-    setMarkdownPreviewHtml(bestPracticesContentNode, bestPracticesCache, HEADER_DOC_PREVIEW_OPTIONS);
+    setMarkdownPreviewHtml(
+      bestPracticesContentNode,
+      bestPracticesCache,
+      buildDocumentationMarkdownPreviewOptions("agent-best-practices.md")
+    );
     bestPracticesModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить Best Practices: ${error.message}`, "error");
