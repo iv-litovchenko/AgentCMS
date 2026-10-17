@@ -137,7 +137,7 @@
   let workspaceGraphChunkPromise = null;
   async function loadWorkspaceGraphChunk() {
     if (!workspaceGraphChunkPromise) {
-      workspaceGraphChunkPromise = import("/editor/js/workspace/workspace-graph-chunk.js?v=1");
+      workspaceGraphChunkPromise = import("/editor/js/workspace/workspace-graph-chunk.js?v=2");
     }
     return workspaceGraphChunkPromise;
   }

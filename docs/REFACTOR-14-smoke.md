@@ -17,7 +17,7 @@
 
 ## Workspace views
 
-- [ ] Map / map2 / map3 / graph — `workspace-graph-chunk.js`, UI как раньше
+- [ ] Map / map2 / map3 / graph — lazy `workspace-graph-chunk.js?v=2`, UI как раньше
 - [ ] Folder-browse lightbox → fancybox
 - [ ] Document viewer docx/xlsx → mammoth/xlsx
 

@@ -53,8 +53,7 @@ editor boot
 - [x] `npm run build:editor` → `public/editor/main.built.js` (+ sourcemap).
 - [x] Landing chunk (старт): `landing-system-map.js` + `import()` при главной/platform.
 - [x] Landing chunk: **flow**, **hub/grid**, **orbit** (`landing-orbit.js`, ~53 KB).
-- [x] Graph chunk (каркас): `workspace-graph-chunk.js` + lazy import при map/graph.
-- [ ] Graph chunk (продолжение): перенос renderAgentMap* / renderAgentGraph* из main.
+- [x] Graph chunk: `workspace-graph-chunk.js` — map/map2/map3/graph (~33 KB), lazy import.
 - [ ] Поведение UI без регрессий — см. `docs/REFACTOR-14-smoke.md`.
 
 ---

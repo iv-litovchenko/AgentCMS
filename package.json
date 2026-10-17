@@ -38,7 +38,8 @@
     "shell:icons": "node scripts/render-app-icons.js",
     "dist:clean": "rm -rf dist",
     "dist:migrate": "node scripts/migrate-dist-layout.js",
-    "build:editor": "node scripts/build-editor.js"
+    "build:editor": "node scripts/build-editor.js",
+    "measure:editor": "node scripts/measure-editor-boot.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",
