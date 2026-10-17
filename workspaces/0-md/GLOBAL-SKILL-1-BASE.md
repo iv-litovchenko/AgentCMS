@@ -1,13 +1,13 @@
 ---
 name: agent-cms
-description: Работа с Agent CMS через MCP — общим хранилищем человека и агента (workspace, каналы, темы, слоты, базы, репозитории, медиатеки, журнал, факты, глоссарий, справочник, крон, зависимости, sidecar, поиск, DQL, корзина, git-модуль). Используй, когда человек просит что-то сделать в хранилище — прочитать, найти, создать, разобрать, отредактировать, удалить, закоммитить, — а также при упоминании workspace, workspaceId, awn-*, manifest.md, awn-storage или tools вроде read_content / write_content / get_session_context.
+description: Работа с Agent CMS через MCP — общим хранилищем человека и агента (workspace, каналы, темы, слоты, базы, репозитории, медиатеки, журнал, факты, глоссарий, справочник, крон, зависимости, sidecar, корзина). Используй, когда человек просит что-то сделать в хранилище — прочитать, найти, создать, разобрать, отредактировать, удалить, закоммитить, — а также при упоминании workspace, workspaceId, awn-*, manifest.md, awn-storage или tools вроде read_content / write_content / get_session_context.
 ---
 
 # Agent CMS — базовый скилл
 
-Как устроено хранилище и какими tools с ним работать. Правила и антипаттерны — `agent-cms-rules`, стиль ответов — `agent-cms-response-style`, markdown-разметка — `GLOBAL-SKILL-4-MARKDOWN.md`.
+Как устроено хранилище и какими tools с ним работать. Правила и антипаттерны — `agent-cms-rules`, стиль ответов — `agent-cms-response-style`, markdown — `agent-cms-markdown`, поиск — `agent-cms-search`, модули (git) — `agent-cms-modules`.
 
-Разделы: 1 Старт · 2 Карта · 3 Темы · 4 Слоты · 5 Контент · 6 Базы · 7 Каналы · 8 Репозитории · 9 Медиатеки · 10 Память · 11 Крон · 12 Зависимости · 13 Sidecar · 14 Поиск · 15 Файлы и выполнение · 16 Корзина · 17 Git · 18 Хранилища и настройки.
+Разделы: 1 Старт · 2 Карта · 3 Темы · 4 Слоты · 5 Контент · 6 Базы · 7 Каналы · 8 Репозитории · 9 Медиатеки · 10 Память · 11 Крон · 12 Зависимости · 13 Sidecar · 14 Поиск (→ скилл 5) · 15 Файлы и выполнение · 16 Корзина · 17 Модули (→ скилл 6) · 18 Хранилища и настройки.
 
 ---
 
@@ -250,41 +250,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 14. Поиск и навигация
 
-Оглавления, поиск и индексы — отдельные tools, не `read_content`.
-
-| Задача | Tool |
-|--------|------|
-| Обзор | `list_topics`; INDEX — `read_topic_index_toc`; все manifest — `read_workspace_map`; папки без manifest — `list_folder` |
-| Тема / слот | `read_content_index_toc` |
-| Каталоги хабов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` (+ `refresh_*`) |
-| Поиск (по умолчанию) | `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch` |
-| Точный текст, имена файлов / по смыслу | `search_workspace_content` / `search_workspace_semantic` |
-| Внутри темы | `resolve_workspace_path` → `topic.folderPath` → `pathPrefix` |
-| Backlinks и исходящие | **только** `search_workspace_links` (нужен `rebuild_workspace_link_index`) |
-| Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
-| Люди, даты, суммы, теги | `query_workspace_entities`, `list_workspace_entity_catalog` |
-| Выборка по frontmatter | `query_workspace_storage({ dql })` |
-| Готовые выборки | `list_workspace_registry_queries` → `run_workspace_registry_query({ id })` |
-| Лента и аудит | `list_workspace_feed`, `list_recent_activity`, `audit_workspace_memory` |
-
-Хиты поиска содержат `startLine` / `endLine` → `read_content` с `kind: root`, `startLine`, `limitLines`. Лёгкая мета — `part=meta`.
-
-**Индексы:** после правки файла — `sync_workspace_index_file`; полный `rebuild_workspace_indexes` — только после массовых изменений. По слоям: `rebuild_workspace_fulltext_index` / `_semantic_index` / `_storage_index` / `_link_index` / `_entity_index`. Состояние — `get_workspace_index_status` / `get_workspace_index_monitor`.
-
-**Реестр сущностей** (после `rebuild_workspace_entity_index`): `merge_workspace_entity_alias`, `reject_workspace_entity`, `seed_workspace_entity`, `upsert_workspace_entity_type`, `get_` / `put_workspace_entity_registry` (весь файл — для крупных правок), `explain_workspace_entity_search`.
-
-### DQL для `query_workspace_storage`
-
-Строка DQL, **не SQL**.
-
-```
-FROM path/prefix
-WHERE status = "open" AND (priority > 2 OR tags CONTAINS "x") AND file.mtime LAST 7 DAYS
-FLATTEN tags · GROUP BY field COUNT|SUM|MIN|MAX · SORT f DESC, g ASC · LIMIT n · SELECT a, b
-WITH TEXT "…"   — hybrid-поиск только по отобранным путям
-```
-
-Поля: frontmatter + `file.name`, `file.folder`, `file.mtime`, `file.size`, `file.inlink-count`, `file.outlinks`, `file.inlinks`.
+Поиск, оглавления (`*_index_toc`), backlinks, сущности, DQL, индексы — скилл `agent-cms-search` (`GLOBAL-SKILL-5-SEARCH.md`). Читай его, когда нужно что-то найти или сделать выборку.
 
 ---
 
@@ -317,21 +283,9 @@ WITH TEXT "…"   — hybrid-поиск только по отобранным �
 
 ---
 
-## 17. Git-модуль
+## 17. Модули
 
-Git **самого хранилища** (клоны в `awn-repositories/` — через `exec_command` / `exec_shell`). Кроме `module_git_status` и `module_git_diff` всё заблокировано при `mcp-mode=readonly`.
-
-- `module_git_status` — ветка, изменения, коммиты, партии.
-- `module_git_diff` (`path` — один файл), `module_git_commit`, `module_git_push` (по умолчанию `origin`, текущая ветка, `-u`), `module_git_pull`, `module_git_remote` (`action: set|remove`, `name`, `url`), `module_git_init` (ветка `main`).
-- `module_git_pull`: стратегия из настроек (`module-git-pull-strategy`); переопределение — `rebase: true` или `strategy: merge|rebase`.
-
-**Коммит партиями** (как «Сохранить» в UI):
-
-1. `module_git_status` → `changes` (`commitBatchId`, `commitAllowed`, `sizeBytes`).
-2. `module_git_commit({ batchIds: [...], messageSuffix? })`: «записи» → `["records"]`, «изображения» → `["images"]`. Партия больше лимита — `["images#1"]`, затем `["images#2"]`. Без `batchIds` — все партии по порядку, коммит на партию, пустые пропускаются.
-3. Id партий: `records`, `records-history`, `images`, `sources`, `documents`, `media`, `design-2d`, `design-3d`, `design-bim`, `archives`, `other`, `configs`, `out-of-batch`.
-
-Старый режим: `batched: false` + `message` — один коммит по фильтру расширений.
+Git-модуль хранилища (`module_git_*`) и другие модули платформы — скилл `agent-cms-modules` (`GLOBAL-SKILL-6-MODULES.md`). Только по просьбе человека.
 
 ---
 

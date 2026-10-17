@@ -36,11 +36,13 @@
 
 ## Скиллы Agent CMS
 
-Подробности — в 4 скиллах. Для работы они должны быть установлены в твоём клиенте.
+Подробности — в 6 скиллах. Для работы они должны быть установлены в твоём клиенте.
 
 **Где взять:** установи скиллы из GitHub-репозитория https://github.com/iv-litovchenko/AgentCMS (папка `workspaces/0-md`). Если установить не получается, прочитай нужный файл через `read_platform_doc({ path })` (список — `list_platform_docs`).
 
 1. [`GLOBAL-SKILL-1-BASE.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-1-BASE.md) — работа с инструментами (читать первым, если задача про хранилище).
 2. [`GLOBAL-SKILL-2-RESPONSE-STYLE.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-2-RESPONSE-STYLE.md) — как отвечать.
 3. [`GLOBAL-SKILL-3-RULES.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-3-RULES.md) — правила человека.
-4. [`GLOBAL-SKILL-4-MARKDOWN.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — возможности форматирования (по необходимости).
+4. [`GLOBAL-SKILL-4-MARKDOWN.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-4-MARKDOWN.md) — какую markdown-разметку использовать при записи (по необходимости).
+5. [`GLOBAL-SKILL-5-SEARCH.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) — как искать: поиск, индексы, DQL.
+6. [`GLOBAL-SKILL-6-MODULES.md`](https://github.com/iv-litovchenko/AgentCMS/blob/main/workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) — модули платформы (git и др.).
