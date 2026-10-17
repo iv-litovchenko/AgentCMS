@@ -98,7 +98,7 @@
 
 **Граница с `placement` (refactor-4):** CRUD **одного** объекта в слоте или по пути — только `read_content` / `write_content` / `list_content` / `list_slots` (+ lifecycle). **Не** через `placement`: markdown-оглавления (`read_*_index_toc`, `refresh_*_index_toc`, hub `read/refresh_*_index_toc`, `read_workspace_map`), поиск (`search_workspace_*`, `query_workspace_storage`, `search_workspace_links`), offline-кэш (`.agent-cms/cache/indexes/*`, `rebuild_workspace_*`, `get_workspace_index_status`). Legacy `get_topic_map` / `get_content_map` — deprecated. Единого `placement.kind: index` **нет** — именованные tools остаются каноном. Search/rebuild **не** добавлять в `read_content` без отдельного продуктового решения.
 
-- Пользователь не назвал путь → `get_user_active_context_now`: в ответе готовые `path` / `slot` / `ref`, не угадывай.
+- Пользователь не назвал путь → `get_ui_focus` (legacy: `get_user_active_context_now`): готовые `path` / `slot` / `ref`, не угадывай.
 - Дали только путь к файлу → `resolve_workspace_path`: тема, область, слот и готовые MCP-аргументы.
 - Обзор workspace → `list_topics` или `read_topic_index_toc`; папки без manifest → `list_folder`. Обзор темы/слота → `read_content_index_toc`; properties одной записи → `read_content` (`part=properties|meta`).
 
@@ -324,7 +324,7 @@ MCP policy задаётся только в `platform`. Секреты в settin
 
 1. Файлы в корень темы не класть — только в слот (кроме гибкого слота).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
-3. Типы и пути не угадывать — `get_type`, `resolve_workspace_path`, `get_user_active_context_now`.
+3. Типы и пути не угадывать — `get_type`, `resolve_workspace_path`, `get_ui_focus`.
 4. Табличный реестр — в инфоблок, не в `main/`; заметку без общей схемы — не в инфоблок.
 
 ### Неясно, куда положить материал

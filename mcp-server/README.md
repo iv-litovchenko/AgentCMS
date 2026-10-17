@@ -45,7 +45,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 > Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
 
-Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
+Затем при необходимости: `get_ui_focus` → `read_*` / `write_*` по задаче.
 
 **Без `workspaceId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
 
@@ -62,7 +62,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
+| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_ui_focus`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
 | Platform | `get_platform_info`, `get_platform_health` (нужен `workspaceId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
 | Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
 | Тема (manifest) | `read/write_topic_*`, `read/write_topic_property`, `read/write_topic_config`, `topic_exists`, `get_topic_meta`, `read/write_topic_env`, `create_topic`, `delete_topic`, `rename_topic`, `move_topic` |

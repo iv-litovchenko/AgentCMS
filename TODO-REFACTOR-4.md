@@ -167,7 +167,7 @@ workspace/                              … awn.hub.topic.ws
 ├── list_workspaces / list_vaults          … реестр хранилищ (id, name, path)
 ├── get_session_context                    … topicRegistry, always-context, RULES
 ├── get_session_documentation              … GLOBAL-DOC-MCP, README (по вызову)
-├── get_user_active_context_now            … фокус UI → готовые path/slot/ref
+├── get_ui_focus (legacy get_user_active_context_now) … фокус UI → path/slot/ref
 ├── list_workspace_always_context          … always-load файлы workspace
 ├── list_workspace_cron                    … awn-runtime-cron
 ├── list_workspace_heartbeat               … awn-runtime-heartbeat

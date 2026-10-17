@@ -25,6 +25,7 @@ batch_invoke:
     - batch_invoke
     - search_workspace_batch
     - get_session_context
+    - get_ui_focus
     - get_user_active_context_now
     - list_workspaces
     - list_vaults

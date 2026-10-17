@@ -46,6 +46,7 @@ import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
+import { registerCanonicalWithLegacyAlias } from "./lib/register-tool-alias.js";
 
 const pagePath = z
   .string()
@@ -163,12 +164,19 @@ function createServer() {
       })
   );
 
-  reg(
-    "get_user_active_context_now",
-    "What the user is viewing in Agent CMS UI: focus.entity, ready MCP args (path/slot/ref). Call when the user did not specify a path.",
-    z.object({}),
-    () => client.get("/api/agent/active-context")
-  );
+  const getUiFocusHandler = () => client.get("/api/agent/active-context");
+  const getUiFocusSchema = z.object({});
+  const getUiFocusDescription =
+    "Human focus in Agent CMS browser UI (not Cursor): focus.entity (page|slot|content|system|browse|home|none), " +
+    "mcp hints (path/slot/ref). Call when the user did not name a path. Response may include stale if UI was not synced (~5 min). " +
+    "REST: GET /api/agent/active-context.";
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_ui_focus",
+    legacy: "get_user_active_context_now",
+    description: getUiFocusDescription,
+    schema: getUiFocusSchema,
+    handler: getUiFocusHandler
+  });
 
   reg(
     "list_workspace_always_context",
