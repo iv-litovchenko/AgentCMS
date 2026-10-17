@@ -10,7 +10,7 @@
 
 ## Главная (`/`)
 
-- [ ] Orbit / grid / hub / **flow** — переключение видов
+- [ ] Orbit / **grid** / **hub** / **flow** — переключение видов (grid/hub/flow — lazy chunk)
 - [ ] Flow: скелетон → карточки recent updates
 - [ ] Platform-секция: карта системы (system map chunk)
 - [ ] `landing-runtime.js`, `landing-flow.js`, `landing-system-map.js` в Network

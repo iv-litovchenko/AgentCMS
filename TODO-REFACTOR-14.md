@@ -52,8 +52,8 @@ editor boot
 - [x] **Prod/minify boot:** `?editorBuilt=1` или `localStorage agentcms-editor-built=1` → `/editor/main.built.js`.
 - [x] `npm run build:editor` → `public/editor/main.built.js` (+ sourcemap).
 - [x] Landing chunk (старт): `landing-system-map.js` + `import()` при главной/platform.
-- [x] Landing chunk: **flow** (`landing-flow.js`).
-- [ ] Landing chunk (продолжение): orbit/hub из `main.js`.
+- [x] Landing chunk: **flow** (`landing-flow.js`), **hub/grid** (`landing-hub.js`).
+- [ ] Landing chunk (продолжение): **orbit** из `main.js`.
 - [x] Graph chunk (каркас): `workspace-graph-chunk.js` + lazy import при map/graph.
 - [ ] Graph chunk (продолжение): перенос renderAgentMap* / renderAgentGraph* из main.
 - [ ] Поведение UI без регрессий — см. `docs/REFACTOR-14-smoke.md`.

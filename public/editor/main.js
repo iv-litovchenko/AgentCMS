@@ -13384,7 +13384,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=2";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=3";
 
 let landingChunkHostRegistered = false;
 const WORKSPACE_GRAPH_CHUNK_URL = "/editor/js/workspace/workspace-graph-chunk.js?v=1";
@@ -13430,10 +13430,36 @@ async function ensureLandingChunkReady() {
       getAgentPickerInitials,
       getRegistryAgentPreviewUrl,
       formatNodeMetaDateTime,
-      openFocusItem
+      openFocusItem,
+      HUB_FOCUS_TWIG_LIMIT,
+      appLandingHubNode,
+      appLandingAgentsNode,
+      groupFocusItemsByAgent,
+      splitLandingOrchestratorAgent,
+      buildLandingGroupsLayout,
+      get landingAgentsGroupsCache() {
+        return landingAgentsGroupsCache;
+      },
+      get landingAgentsUngroupedCache() {
+        return landingAgentsUngroupedCache;
+      },
+      showToast,
+      selectAgentOption
     });
   }
   return mod;
+}
+
+function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
+  void ensureLandingChunkReady().then((mod) => {
+    mod.renderAppLandingHub?.(focusItems);
+  });
+}
+
+function renderAppLandingList(focusItems = getProcessedLandingFocusItems()) {
+  void ensureLandingChunkReady().then((mod) => {
+    mod.renderAppLandingList?.(focusItems);
+  });
 }
 
 function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
@@ -15561,234 +15587,6 @@ function groupFocusItemsByAgent(items = []) {
   return byAgent;
 }
 
-function createAppLandingHubTwig(focusItem) {
-  const agent =
-    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
-      id: focusItem.agentId,
-      name: focusItem.agentName
-    };
-  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
-  const label = focusItem.name || getLabelFromPath(focusItem.nodePath) || focusItem.agentName || "Тема";
-  const nodePath = String(focusItem.nodePath || "").trim();
-  const status = getFocusPropDisplayValue(focusItem, "awn-status");
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "app-landing-hub-twig";
-  if (nodePath) btn.dataset.focusPath = nodePath;
-  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
-  if (!registryActive) btn.classList.add("is-registry-off");
-  btn.title = nodePath || label;
-  btn.setAttribute(
-    "aria-label",
-    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
-  );
-
-  const dot = document.createElement("span");
-  dot.className = "app-landing-hub-twig-dot";
-  dot.setAttribute("aria-hidden", "true");
-
-  const text = document.createElement("span");
-  text.className = "app-landing-hub-twig-label";
-  text.textContent = label;
-
-  btn.append(dot, text);
-  if (status) {
-    const statusNode = document.createElement("span");
-    statusNode.className = "app-landing-hub-twig-status";
-    statusNode.textContent = status;
-    btn.appendChild(statusNode);
-  }
-
-  btn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    void openFocusItem(focusItem);
-  });
-  return btn;
-}
-
-function createAppLandingHubRow(agent, focusItems = [], options = {}) {
-  const isList = options.variant === "list";
-  const registryActive = isAgentRegistryActive(agent);
-  const isOrchestrator = agent.orchestrator === true;
-  const label = agent.name || agent.id;
-
-  const row = document.createElement("article");
-  row.className = "app-landing-hub-row";
-  if (isList) row.classList.add("app-landing-hub-row--list");
-  if (!registryActive) row.classList.add("is-registry-off");
-  if (isOrchestrator) row.classList.add("is-orchestrator");
-  row.setAttribute("role", "listitem");
-  row.dataset.agentId = agent.id;
-
-  const agentBtn = document.createElement("button");
-  agentBtn.type = "button";
-  agentBtn.className = "app-landing-hub-agent";
-  agentBtn.title = registryActive
-    ? `Открыть workspace ${label}`
-    : `${label} — неактивен, включите в реестре`;
-
-  const node = document.createElement("span");
-  node.className = "app-landing-hub-node";
-  mountPreviewOrFallback(node, {
-    previewUrl: getRegistryAgentPreviewUrl(agent),
-    emoji: resolveAwnEmoji(agent),
-    fallbackText: getAgentPickerInitials(agent),
-    emojiClass: "app-landing-hub-node-emoji",
-    initialsClass: "app-landing-hub-node-initials"
-  });
-
-  const copy = document.createElement("span");
-  copy.className = "app-landing-hub-agent-copy";
-  const nameNode = document.createElement("span");
-  nameNode.className = "app-landing-hub-agent-name";
-  nameNode.textContent = label;
-  const hintNode = document.createElement("span");
-  hintNode.className = "app-landing-hub-agent-hint";
-  hintNode.textContent = isOrchestrator ? "Оркестратор" : "Workspace";
-  copy.append(nameNode, hintNode);
-  agentBtn.append(node, copy);
-  agentBtn.addEventListener("click", () => {
-    if (!registryActive) {
-      showToast("Агент выключен — включите в реестре (⚙)", "error");
-      return;
-    }
-    selectAgentOption(agent.id);
-  });
-
-  const branches = document.createElement("div");
-  branches.className = "app-landing-hub-branches";
-
-  if (focusItems.length) {
-    const twigs = document.createElement("div");
-    twigs.className = `app-landing-hub-twigs${isList ? " app-landing-hub-twigs--list" : ""}`;
-    twigs.setAttribute("role", "list");
-    twigs.setAttribute("aria-label", `Темы — ${label}`);
-
-    const limit = isList ? 16 : HUB_FOCUS_TWIG_LIMIT;
-    const shown = focusItems.slice(0, limit);
-    for (const focusItem of shown) {
-      twigs.appendChild(createAppLandingHubTwig(focusItem));
-    }
-
-    const overflow = focusItems.length - shown.length;
-    if (overflow > 0) {
-      const more = document.createElement("span");
-      more.className = "app-landing-hub-more";
-      more.textContent = `+${overflow}`;
-      more.title = `Ещё ${overflow} тем у ${label}`;
-      twigs.appendChild(more);
-    }
-
-    if (!isList) {
-      const stem = document.createElement("span");
-      stem.className = "app-landing-hub-stem";
-      stem.setAttribute("aria-hidden", "true");
-      branches.append(stem, twigs);
-    } else {
-      branches.appendChild(twigs);
-    }
-  } else {
-    const empty = document.createElement("span");
-    empty.className = "app-landing-hub-empty";
-    empty.textContent = "Нет тем";
-    branches.appendChild(empty);
-  }
-
-  row.append(agentBtn, branches);
-  return row;
-}
-
-function appendAppLandingHubAgents(container, agents, focusByAgent, options = {}) {
-  for (const agent of agents) {
-    container.appendChild(createAppLandingHubRow(agent, focusByAgent.get(agent.id) || [], options));
-  }
-}
-
-function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
-  if (!appLandingHubNode) return;
-  if (getLandingAgentsView() !== "hub") return;
-
-  appLandingHubNode.replaceChildren();
-  const focusByAgent = groupFocusItemsByAgent(focusItems);
-  const agents = getAgentsForLandingGrid();
-
-  if (!agents.length) {
-    const empty = document.createElement("p");
-    empty.className = "app-landing-hub-page-empty";
-    empty.textContent = "Нет агентов. Нажмите «+ Агент» или откройте реестр (⚙).";
-    appLandingHubNode.appendChild(empty);
-    syncFocusPanelActiveState();
-    return;
-  }
-
-  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
-
-  if (orchestrator) {
-    const orchSection = document.createElement("section");
-    orchSection.className = "app-landing-hub-section app-landing-hub-section--orchestrator";
-    orchSection.appendChild(createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || []));
-    appLandingHubNode.appendChild(orchSection);
-  }
-
-  if (landingAgentsGroupsCache.length > 0) {
-    const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
-
-    for (const group of grouped) {
-      if (!group.agents?.length) continue;
-      const section = document.createElement("section");
-      section.className = "app-landing-hub-section";
-      const title = document.createElement("h3");
-      title.className = "app-landing-hub-section-title";
-      title.textContent = group.title || "Группа";
-      section.appendChild(title);
-      appendAppLandingHubAgents(section, group.agents, focusByAgent);
-      appLandingHubNode.appendChild(section);
-    }
-
-    if (ungrouped.length) {
-      const section = document.createElement("section");
-      section.className = "app-landing-hub-section";
-      const title = document.createElement("h3");
-      title.className = "app-landing-hub-section-title";
-      title.textContent = landingAgentsUngroupedCache.title || "Без группы";
-      section.appendChild(title);
-      appendAppLandingHubAgents(section, ungrouped, focusByAgent);
-      appLandingHubNode.appendChild(section);
-    }
-  } else {
-    appendAppLandingHubAgents(appLandingHubNode, rest, focusByAgent);
-  }
-
-  syncFocusPanelActiveState();
-}
-
-function renderAppLandingList(focusItems = getProcessedLandingFocusItems()) {
-  if (!appLandingAgentsNode) return;
-  if (getLandingAgentsView() !== "grid") return;
-
-  appLandingAgentsNode.replaceChildren();
-  appLandingAgentsNode.className = "app-landing-agents app-landing-agents--list app-landing-grid-panel";
-  const focusByAgent = groupFocusItemsByAgent(focusItems);
-  const agents = getAgentsForLandingGrid();
-
-  if (!agents.length) {
-    const empty = document.createElement("p");
-    empty.className = "app-landing-list-empty";
-    empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр (⚙).";
-    appLandingAgentsNode.appendChild(empty);
-    return;
-  }
-
-  const { orchestrator, rest } = splitLandingOrchestratorAgent(agents);
-  if (orchestrator) {
-    appLandingAgentsNode.appendChild(
-      createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || [], { variant: "list" })
-    );
-  }
-  appendAppLandingHubAgents(appLandingAgentsNode, rest, focusByAgent, { variant: "list" });
-  syncFocusPanelActiveState();
-}
 
 
 /** Orbit: клик по пузырю сразу открывает workspace; twigs на hover и dive-дерево — отложены */
