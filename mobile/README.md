@@ -8,8 +8,8 @@
 |------|---------|
 | `mobile/iphone-shell/` | Нативное iOS-приложение (SwiftUI) |
 | `mobile/SHELL-API.md` | Контракт API (общий для web и iOS) |
-| `public/shell/shell-contract.js` | Константы фаз, SSE, paths |
-| `public/shell/shell-client.js` | HTTP/SSE клиент для mobile web |
+| `public/shell/js/shell-contract.js` | Константы фаз, SSE, paths |
+| `public/shell/js/shell-client.js` | HTTP/SSE клиент для mobile web |
 | `public/shell/` | Universal Shell (desktop · browser · mobile · PWA) |
 | `desktop/agent-shell/` | Electron-оболочка для macOS |
 

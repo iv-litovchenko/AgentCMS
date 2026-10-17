@@ -7,7 +7,7 @@
 | Web | `public/shell/` + `shell-client.js` |
 | iOS | `mobile/iphone-shell/AgentShell/Services/` |
 
-Web-константы: `public/shell/shell-contract.js`.
+Web-константы: `public/shell/js/shell-contract.js`.
 
 ## REST
 

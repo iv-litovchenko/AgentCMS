@@ -1,4 +1,4 @@
-/** Серверная копия — держите в sync с public/shell/shell-runtimes.js */
+/** Серверная копия — держите в sync с public/shell/js/shell-runtimes.js */
 
 const SHELL_RUNTIMES = [
   "claude",
