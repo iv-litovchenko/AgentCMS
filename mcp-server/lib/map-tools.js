@@ -638,7 +638,7 @@ export function registerMapTools(reg, client, pagePath) {
   });
 
   const workspaceTopicIndexTocDescription =
-    "Quick TOC for workspace topics: path + type + title + description (INDEX.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
+    "Quick TOC for workspace topics: path + type + title + description (awn-topics/index.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
 
   reg(
     "list_topics",
@@ -675,11 +675,11 @@ export function registerMapTools(reg, client, pagePath) {
     overwrite: z
       .boolean()
       .optional()
-      .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+      .describe("Replace existing awn-topics/index.md if present (default true). false → 409 when file exists.")
   });
 
   const refreshWorkspaceTopicIndexDescription =
-    "Refresh (rebuild and save) INDEX.md at workspace root from workspace page map (path, type, title, description table). overwrite=false skips if file exists.";
+    "Refresh (rebuild and save) awn-topics/index.md from workspace page map (path, type, title, description table). overwrite=false skips if file exists.";
 
   registerTocTool(reg, {
     canonical: "refresh_topic_index_toc",

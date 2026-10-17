@@ -175,13 +175,13 @@ module.exports = {
         },
         {
           name: "read_topic_index_toc",
-          description: "Оглавление INDEX.md в корне workspace: path, type, title, description (темы и области).",
+          description: "Оглавление awn-topics/index.md: path, type, title, description (темы и области).",
           parameters: "—",
           http: "GET /api/agent/workspace-page-index"
         },
         {
           name: "refresh_topic_index_toc",
-          description: "Обновить INDEX.md в корне workspace (таблица path/type/title/description).",
+          description: "Обновить awn-topics/index.md (таблица path/type/title/description).",
           parameters: "overwrite?",
           http: "POST /api/agent/workspace-page-index"
         },

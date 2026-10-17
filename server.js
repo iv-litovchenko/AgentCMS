@@ -32,6 +32,13 @@ const {
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
 const {
+  getWorkspacePageIndexRelPath,
+  getWorkspacePageIndexLegacyRelPaths,
+  getWorkspacePageIndexHistoryManifestRel,
+  resolveWorkspacePageIndexFileOnDisk,
+  isWorkspaceTocMarkdownRel
+} = require("./lib/workspace/workspace-page-index-path");
+const {
   resolveWorkspaceIdFromArgs,
   resolveWorkspaceIdFromPayload,
   resolveWorkspaceIdFromSearchParams
@@ -365,6 +372,7 @@ const {
   rewriteLegacyTopicPathsInRelPath,
   AWN_TOPICS_AGENT_KIT_REL,
   AWN_TOPICS_SHARED_REL,
+  AWN_TOPICS_INDEX_REL,
   isTopicHubSectionManifestRel
 } = require("./lib/config/manifest-paths");
 const {
@@ -12840,7 +12848,7 @@ async function buildAgentPageMap(options = {}) {
       "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
     whenToUse: {
       list_topics: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
-      read_topic_index_toc: "Канон: обзор страниц workspace (INDEX.md, без обхода папок без manifest).",
+      read_topic_index_toc: `Канон: обзор страниц workspace (${AWN_TOPICS_INDEX_REL}, без обхода папок без manifest).`,
       list_folder: "Папки без manifest.md и произвольные пути.",
       get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на list_topics + read_topic_index_toc + list_folder."
     },
@@ -12947,7 +12955,7 @@ async function buildAgentTopicsList(options = {}) {
       "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
     whenToUse: {
       list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
-      read_topic_index_toc: "Таблица INDEX.md в корне workspace (комментарии, конфигурации, stats).",
+      read_topic_index_toc: `Таблица ${AWN_TOPICS_INDEX_REL} (комментарии, конфигурации, stats).`,
       list_folder: "Папки без manifest.md (не входят в list_topics по умолчанию)."
     },
     parentPath,
@@ -13073,7 +13081,6 @@ async function updateAgentTopicCard(inputPath, options = {}) {
 
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["discussion", "dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
-const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
 const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./lib/config/storage-slot-routing");
 
 const BUNDLE_SLOT_INDEX_LABELS = {
@@ -13252,10 +13259,6 @@ function getTopicStorageIndexRelPath(manifestRelPath) {
   return normalized ? `${normalized}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
 }
 
-function getWorkspacePageIndexRelPath() {
-  return WORKSPACE_PAGE_INDEX_FILE;
-}
-
 async function resolveWorkspacePageIndexManifestRel() {
   const menu = await buildAgentMenu(getAgentRoot());
   return String(menu?.indexPath || MANIFEST_FILE).replace(/\\/g, "/");
@@ -13310,10 +13313,17 @@ async function buildWorkspacePageIndexMarkdown({ pages }) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+async function resolveWorkspacePageIndexHistoryManifestRel() {
+  const hubManifest = getWorkspacePageIndexHistoryManifestRel();
+  if (await workspaceRelFileExists(hubManifest)) return hubManifest;
+  return resolveWorkspacePageIndexManifestRel();
+}
+
 async function buildAgentWorkspacePageIndex() {
   const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const indexOnDisk = await resolveWorkspacePageIndexFileOnDisk(workspaceRelFileExists);
   const indexPath = getWorkspacePageIndexRelPath();
-  const indexExists = await workspaceRelFileExists(indexPath);
+  const indexExists = indexOnDisk.exists;
   const entries = await enrichWorkspaceIndexEntries(
     await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pageMap.pages)),
     pageMap.pages
@@ -13352,13 +13362,14 @@ async function buildAgentWorkspacePageIndex() {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
       refresh_topic_index_toc:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
+        `Обновить (пересобрать и сохранить) ${AWN_TOPICS_INDEX_REL} (таблица awn-id/type/path/title/комментарии/конфигурации).`
     },
     path: manifestPath,
     indexFile: {
       path: indexPath,
       exists: indexExists,
-      source: indexExists ? "file" : "generated"
+      source: indexExists ? "file" : "generated",
+      ...(indexOnDisk.legacy ? { legacyPath: indexOnDisk.path } : {})
     },
     entries,
     entryCount: entries.length,
@@ -13372,7 +13383,7 @@ async function buildAgentWorkspacePageIndex() {
 async function writeAgentWorkspacePageIndex(options = {}) {
   const overwrite = options.overwrite !== false;
   const payload = await buildAgentWorkspacePageIndex();
-  const indexPath = payload.indexFile.path;
+  const indexPath = getWorkspacePageIndexRelPath();
   if (payload.indexFile.exists && !overwrite) {
     return {
       error: "Workspace index file already exists",
@@ -13381,14 +13392,28 @@ async function writeAgentWorkspacePageIndex(options = {}) {
       indexFile: { path: indexPath, exists: true }
     };
   }
-  const manifestRel = await resolveWorkspacePageIndexManifestRel();
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) {
+    return { error: "Agent not selected", status: 400 };
+  }
+  const manifestRel = await resolveWorkspacePageIndexHistoryManifestRel();
   const pageMap = await buildAgentPageMap({ includeSlots: false });
   const markdown = await buildWorkspacePageIndexMarkdown({ pages: pageMap.pages });
+  const indexAbs = path.join(agentRoot, indexPath);
+  await fs.mkdir(path.dirname(indexAbs), { recursive: true });
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  for (const legacyPath of getWorkspacePageIndexLegacyRelPaths()) {
+    if (isSameWorkspaceIndexPath(legacyPath, indexPath)) continue;
+    const legacyAbs = normalizeWorkspacePath(legacyPath);
+    if (legacyAbs && legacyAbs !== indexAbs && (await workspaceRelFileExists(legacyPath))) {
+      await fs.rm(legacyAbs, { force: true }).catch(() => {});
+    }
+  }
+  queueWorkspaceIndexFileSync(indexPath);
   return {
     version: 1,
     model: "workspace-page-index-write",
-    hint: "INDEX.md обновлён в корне workspace. Просмотр без записи → GET /api/agent/workspace-page-index.",
+    hint: `${AWN_TOPICS_INDEX_REL} обновлён. Просмотр без записи → GET /api/agent/workspace-page-index.`,
     whenToUse: payload.whenToUse,
     path: payload.path,
     overwrite,
@@ -13470,8 +13495,7 @@ async function buildWorkspaceWsmapMarkdown() {
     formatEntriesTable: (rows) =>
       formatContentIndexEntriesMarkdown(rows, {
         emptyHint: "_В workspace не найдено manifest-узлов._",
-        tableVariant: "wsmap",
-        linkTitle: false
+        tableVariant: "wsmap"
       })
   });
 }
@@ -13678,7 +13702,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
   ];
   for (const entry of entries) {
     const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
-    const titleCell = formatContentIndexTitleCell(entry, { linkTitle: true });
+    const titleCell = formatContentIndexTitleCell(entry);
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
@@ -13941,7 +13965,7 @@ function encodeContentIndexLinkTarget(value) {
   return encodeURI(raw).replace(/#/g, "%23");
 }
 
-function formatContentIndexTitleCell(entry, { linkTitle = true } = {}) {
+function formatContentIndexTitleCell(entry, { linkTitle = false } = {}) {
   const titleRaw = String(entry.title || entry.path || "").trim();
   const title = escapeContentIndexTableCell(titleRaw) || "—";
   if (!linkTitle) return title;
@@ -14262,7 +14286,7 @@ function resolveContentIndexEntrySlotLabel(slotKey) {
 
 function formatContentIndexEntriesMarkdown(
   entries,
-  { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
+  { emptyHint = "_Нет записей._", linkTitle = false, tableVariant = "content" } = {}
 ) {
   if (!entries?.length) return emptyHint;
   const includeWsmap = tableVariant === "wsmap";
@@ -14289,9 +14313,7 @@ function formatContentIndexEntriesMarkdown(
     const pathLabelRaw = String(entry.path || entry.linkPath || "").trim();
     const pathLabel = pathLabelRaw || "—";
     const pathCell = `\`${escapeContentIndexTableCell(pathLabel)}\``;
-    const titleCell = formatContentIndexTitleCell(entry, {
-      linkTitle: includeWsmap ? false : linkTitle
-    });
+    const titleCell = formatContentIndexTitleCell(entry, { linkTitle });
     const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
     const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
     const linesCell = formatContentIndexLineCount(entry.lineCount);
@@ -15023,9 +15045,9 @@ const SESSION_CONTEXT_API_MAP = {
   contentIndexWrite:
     "POST /api/agent/content-index — обновить index.md (body: path, slot?, overwrite?)",
   workspacePageIndex:
-    "GET /api/agent/workspace-page-index — оглавление INDEX.md (awn-id, path, type, комментарии, конфигурации; страницы workspace)",
+    `GET /api/agent/workspace-page-index — оглавление ${AWN_TOPICS_INDEX_REL} (awn-id, path, type, комментарии, конфигурации; страницы workspace)`,
   workspacePageIndexWrite:
-    "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
+    `POST /api/agent/workspace-page-index — обновить ${AWN_TOPICS_INDEX_REL} (body: overwrite?)`,
   workspaceWsmap:
     "GET /api/agent/workspace-wsmap — метаданные WS-MAP.md (реестр manifest-узлов, без body)",
   workspaceWsmapWrite:
@@ -25546,7 +25568,8 @@ async function handleApiForAgent(req, res, url) {
     let absolute = normalizeWorkspacePath(canonicalRelPath);
     if (!absolute) return sendJson(res, 400, { error: "Invalid file path" });
     const isDocumentationTopic = docsRegistry.isDocumentationTopicMdRelPath(canonicalRelPath);
-    if (!isManifestMdAbsolute(absolute) && !isDocumentationTopic) {
+    const isTocMarkdown = isWorkspaceTocMarkdownRel(canonicalRelPath);
+    if (!isManifestMdAbsolute(absolute) && !isDocumentationTopic && !isTocMarkdown) {
       return sendJson(res, 400, { error: "Only manifest markdown files are allowed (*.md, _registration.md)" });
     }
 

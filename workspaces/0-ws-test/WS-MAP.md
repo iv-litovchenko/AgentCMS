@@ -1,6 +1,6 @@
 # Карта хранилища (WS-MAP)
 
-Собрано: 2026-10-17T13:49:46.185Z
+Собрано: 2026-10-17T14:12:05.895Z
 Узлов manifest: 165
 
 Лёгкий реестр **всех** `manifest.md` в workspace (обход диска, не меню и не get_topic_map): ID, статус, тип, путь (до `manifest.md`), название (текст), описание. Для записей внутри темы — `read_content_index_toc` по пути темы. Пересборка: sidebar «Карта», pipeline или MCP `refresh_workspace_map`.

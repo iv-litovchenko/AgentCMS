@@ -2729,7 +2729,8 @@ const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
-const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
+const WORKSPACE_PAGE_INDEX_REL_PATH = "awn-topics/index.md";
+const WORKSPACE_PAGE_INDEX_LEGACY_FILE = "INDEX.md";
 const WORKSPACE_WSMAP_FILE = "WS-MAP.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
@@ -4538,6 +4539,9 @@ function resolveSystemFileEditorViewMode(name, { edit = false } = {}) {
 }
 
 function getChpuWorkspacePathFromState() {
+  if (activeWorkspaceTocRelPath) {
+    return workspaceRelToChpuPath(activeWorkspaceTocRelPath);
+  }
   if (activeSystemFile) {
     let chpuPath = systemFileToChpuPath(activeSystemFile);
     if (isSystemFileEditing()) {
@@ -4721,7 +4725,13 @@ function buildAppPathFromState() {
     return `/${encodeURIComponent(agentId)}`;
   }
 
-  if (!activePath && !activeSystemFile && !activeFolderBrowsePath && !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)) {
+  if (
+    !activePath &&
+    !activeSystemFile &&
+    !activeWorkspaceTocRelPath &&
+    !activeFolderBrowsePath &&
+    !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)
+  ) {
     return `/${encodeURIComponent(agentId)}`;
   }
 
@@ -6096,21 +6106,26 @@ function getLinkTargetFileRelPath(nodePath) {
 }
 
 function getCurrentEditorLinkBasePath() {
+  if (activeWorkspaceTocRelPath) return activeWorkspaceTocRelPath;
   if (activeSystemFile) {
     const normalized = normalizeSystemFileName(activeSystemFile);
-    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    if (isWorkspacePageIndexRelPath(normalized)) return normalized;
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE) return "";
     return normalized;
   }
+  if (isWorkspacePageIndexRelPath(activePath)) return getWorkspacePageIndexRelPath();
   return getPropsContextPath(activePath) || getResolvedNodePath(activePath) || "";
 }
 
 function resolveMarkdownPreviewNodePath() {
   if (activeSystemFile) {
     const normalized = normalizeSystemFileName(activeSystemFile);
-    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE) return "";
     return normalized;
   }
-  return getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  const apiPath = getActiveNodeApiPath() || activePath || "";
+  if (isWorkspacePageIndexRelPath(apiPath)) return getWorkspacePageIndexRelPath();
+  return getPropsContextPath() || getActiveTitleEditorPath() || apiPath;
 }
 
 function joinWorkspaceRelativePath(baseRel, hrefRel) {
@@ -19597,6 +19612,8 @@ const OVERVIEW_META_PROP_KEYS = [
 ];
 
 let activeSystemFile = null;
+/** Hub/workspace TOC markdown (e.g. awn-topics/index.md) — not a topic manifest path. */
+let activeWorkspaceTocRelPath = null;
 let systemFileEditActive = false;
 let systemFileFrontmatterCache = "";
 let activePath = null;
@@ -19613,6 +19630,10 @@ function clearActiveSystemFile() {
   activeSystemFile = null;
   systemFileFrontmatterCache = "";
   systemFileEditActive = false;
+}
+
+function clearActiveWorkspaceTocView() {
+  activeWorkspaceTocRelPath = null;
 }
 
 let toastTimer = null;
@@ -33710,6 +33731,7 @@ function isGitRepoLooseMdEditing() {
 
 function isPlainServiceStyleOpen() {
   if (activeSystemFile) return true;
+  if (activeWorkspaceTocRelPath) return true;
   if (isAgentSystemFileEditing()) return true;
   return isGitRepoLooseFilePath(activePath) && !isGitRepoLooseMdEditing();
 }
@@ -33720,6 +33742,7 @@ function isServiceStyleContentOpen() {
 
 function getServiceStyleContentLabel() {
   if (activeSystemFile) return activeSystemFile;
+  if (activeWorkspaceTocRelPath) return activeWorkspaceTocRelPath;
   if (isAgentSystemFileEditing()) {
     return activePath.split("/").filter(Boolean).pop() || activePath;
   }
@@ -68853,7 +68876,7 @@ function applySystemFileUi() {
   setTitleLockedDisplay(getServiceStyleContentLabel());
   editorViewClusterNode?.classList.remove("hidden");
   editorViewClusterNode?.classList.remove("is-line-numbers-only");
-  const readOnlyIndex = isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile);
+  const readOnlyIndex = isReadOnlyWorkspacePageIndexView();
   if (readOnlyIndex) {
     systemFileEditActive = false;
     editorViewMode = "preview";
@@ -72999,9 +73022,39 @@ function getTopicStorageIndexRelPath(topicPath) {
   return containerDir ? `${containerDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
 }
 
+function isWorkspacePageIndexRelPath(relPath) {
+  const normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return false;
+  if (normalized === WORKSPACE_PAGE_INDEX_REL_PATH.toLowerCase()) return true;
+  if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE.toLowerCase()) return true;
+  return false;
+}
+
+function isReadOnlyWorkspacePageIndexView() {
+  if (activeWorkspaceTocRelPath) return true;
+  if (activeSystemFile) {
+    const normalized = normalizeSystemFileName(activeSystemFile);
+    if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE || normalized === WORKSPACE_WSMAP_FILE) {
+      return true;
+    }
+  }
+  const apiPath = String(getActiveNodeApiPath() || activePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  return isWorkspacePageIndexRelPath(apiPath);
+}
+
 function isReadOnlyWorkspacePageIndexSystemFile(name = activeSystemFile) {
   const normalized = normalizeSystemFileName(name);
-  return normalized === WORKSPACE_PAGE_INDEX_FILE || normalized === WORKSPACE_WSMAP_FILE;
+  if (normalized === WORKSPACE_PAGE_INDEX_LEGACY_FILE || normalized === WORKSPACE_WSMAP_FILE) {
+    return true;
+  }
+  return isReadOnlyWorkspacePageIndexView();
 }
 
 function isStorageIndexMdEntryContext(context) {
@@ -73011,7 +73064,7 @@ function isStorageIndexMdEntryContext(context) {
     .trim();
   const baseName = (rel.split("/").pop() || rel).toLowerCase();
   if (baseName === STORAGE_SLOT_INDEX_FILE.toLowerCase()) return true;
-  if (normalizeSystemFileName(baseName) === WORKSPACE_PAGE_INDEX_FILE) return true;
+  if (isWorkspacePageIndexRelPath(rel)) return true;
   const memoryKind = String(context.memoryKind || "").trim();
   return (
     memoryKind === "topic-index" ||
@@ -82457,20 +82510,29 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
 }
 
 function getWorkspacePageIndexRelPath() {
-  return WORKSPACE_PAGE_INDEX_FILE;
+  return WORKSPACE_PAGE_INDEX_REL_PATH;
 }
 
 async function probeWorkspacePageIndexExists() {
-  return Boolean(await resolveExistingWorkspacePageIndexRelPath());
+  if (await resolveExistingWorkspacePageIndexRelPath()) return true;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"));
+    if (!response.ok) return false;
+    const payload = await response.json();
+    return Boolean(payload?.indexFile?.exists);
+  } catch {
+    return false;
+  }
 }
 
 async function resolveExistingWorkspacePageIndexRelPath() {
-  const relPath = getWorkspacePageIndexRelPath();
-  try {
-    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-    if (response.ok) return relPath;
-  } catch {
-    // ignore
+  for (const relPath of [getWorkspacePageIndexRelPath(), WORKSPACE_PAGE_INDEX_LEGACY_FILE]) {
+    try {
+      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+      if (response.ok) return relPath;
+    } catch {
+      // ignore
+    }
   }
   return null;
 }
@@ -82507,10 +82569,21 @@ async function refreshWorkspacePageIndexOverview() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ overwrite: true })
     });
-    if (!response.ok) return false;
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = String(body?.error || body?.details || "").trim();
+      } catch {
+        // ignore
+      }
+      console.warn("workspace-page-index refresh failed", response.status, detail);
+      return false;
+    }
     workspaceGeneratedPageIndexCache.delete(activeWorkspaceId || "main");
     return true;
-  } catch {
+  } catch (error) {
+    console.warn("workspace-page-index refresh failed", error);
     return false;
   }
 }
@@ -82528,8 +82601,52 @@ async function refreshWorkspaceWsmapOverview() {
   }
 }
 
-async function openWorkspacePageIndexOverview() {
-  await selectSystemFile(WORKSPACE_PAGE_INDEX_FILE);
+async function openWorkspacePageIndexOverview(options = {}) {
+  const relPath = getWorkspacePageIndexRelPath();
+  hideHomeView();
+  nodeOverviewRenderSeq += 1;
+  clearActiveSystemFile();
+  clearActiveWorkspaceTocView();
+  activeWorkspaceTocRelPath = relPath;
+  activePath = null;
+  activeLabel = "Оглавление тем";
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  folderBrowseExpandedPagePath = null;
+  activeExternalFilePath = null;
+  nodeSettingsViewActive = false;
+  nodeMemoryViewActive = false;
+  clearMediaSidecarEditor();
+  editorViewMode = "preview";
+  systemFileEditActive = false;
+  setPropsYamlContent("");
+  showContentLoading({ variant: "default", message: "Загрузка оглавления…" });
+  fileContentInputNode.value = "";
+  updateActiveButton();
+  refreshEditorViewContent();
+
+  try {
+    let content = "";
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    if (response.ok) {
+      const data = await response.json();
+      content = String(data.content || "");
+    } else {
+      content = await buildWorkspacePageIndexMarkdownFromApi();
+      workspaceGeneratedPageIndexCache.set(activeWorkspaceId || "main", content);
+    }
+    fileContentInputNode.value = content;
+    applyModeUi();
+    refreshEditorViewContent();
+    commitEditorSaveBaseline();
+  } catch (error) {
+    fileContentInputNode.value = `Ошибка чтения оглавления: ${error.message}`;
+    applyModeUi();
+    commitEditorSaveBaseline();
+  } finally {
+    hideContentLoading({ force: true });
+    if (!options.skipRouteSync) syncAppRouteToUrl({ replace: true });
+  }
 }
 
 function ensureSidebarWorkspacePageIndexRow() {
@@ -82576,7 +82693,6 @@ function ensureSidebarWorkspacePageIndexRow() {
     refreshBtn.className =
       "sidebar-workspace-page-index-refresh node-navigation-workspace-counter-topic-index-refresh";
     refreshBtn.textContent = "⟲";
-    refreshBtn.setAttribute("aria-label", "Обновить оглавление workspace");
     row.appendChild(refreshBtn);
   }
 
@@ -82588,8 +82704,9 @@ function ensureSidebarWorkspacePageIndexRow() {
     footer.classList.toggle("is-generated", !hasIndex);
     footer.title = hasIndex
       ? `Открыть ${indexRelPath}`
-      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
-    refreshBtn.title = "Обновить INDEX.md и собрать WS-MAP.md (реестр manifest.md) в workspace";
+      : `Открыть preview оглавления (⟲ — сохранить ${indexRelPath} на диск)`;
+    refreshBtn.title = `Пересобрать и сохранить ${indexRelPath}`;
+    refreshBtn.setAttribute("aria-label", `Обновить ${indexRelPath}`);
   };
 
   const setWorkspacePageIndexRefreshLoading = (loading) => {
@@ -82625,31 +82742,19 @@ function ensureSidebarWorkspacePageIndexRow() {
     if (refreshBtn.disabled || refreshBtn.classList.contains("is-loading")) return;
     setWorkspacePageIndexRefreshLoading(true);
     void refreshWorkspacePageIndexOverview()
-      .then((indexOk) =>
-        refreshWorkspaceWsmapOverview().then((wsmapOk) => ({ indexOk, wsmapOk }))
-      )
-      .then(({ indexOk, wsmapOk }) => {
+      .then(async (indexOk) => {
         if (!row.isConnected) return;
-        if (indexOk) {
-          row.dataset.workspaceHasIndex = "1";
-          syncWorkspacePageIndexRowState();
-          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_PAGE_INDEX_FILE) {
-            void selectSystemFile(WORKSPACE_PAGE_INDEX_FILE, { skipRouteSync: true });
-          }
-          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_WSMAP_FILE && wsmapOk) {
-            void selectSystemFile(WORKSPACE_WSMAP_FILE, { skipRouteSync: true });
-          }
-          void loadSystemFiles();
-          if (indexOk && wsmapOk) {
-            showToast("INDEX.md и WS-MAP.md обновлены", "success");
-          } else if (indexOk) {
-            showToast("INDEX.md обновлён; WS-MAP.md не собран", "warning");
-          } else {
-            showToast("Не удалось обновить оглавление workspace", "error");
-          }
+        if (!indexOk) {
+          showToast("Не удалось обновить оглавление тем", "error");
           return;
         }
-        showToast("Не удалось обновить оглавление workspace", "error");
+        const exists = await probeWorkspacePageIndexExists();
+        row.dataset.workspaceHasIndex = exists ? "1" : "0";
+        syncWorkspacePageIndexRowState();
+        if (isReadOnlyWorkspacePageIndexView()) {
+          void openWorkspacePageIndexOverview({ skipRouteSync: true });
+        }
+        showToast(`${getWorkspacePageIndexRelPath()} обновлён`, "success");
       })
       .catch(() => {
         if (row.isConnected) showToast("Не удалось обновить оглавление workspace", "error");
@@ -100654,7 +100759,7 @@ function applyEditorViewMode() {
 function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
-  if (activeSystemFile && isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile) && mode !== "preview") {
+  if (isReadOnlyWorkspacePageIndexView() && mode !== "preview") {
     return;
   }
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
@@ -106778,11 +106883,20 @@ function updateActiveButton() {
   syncMenuPinBranchUi();
   syncSidebarRoadmapGlobeToolbarUi();
   syncMenuMediaLibraryActiveState();
+  const wsIndexOpen = document.querySelector(".sidebar-workspace-page-index-open");
+  if (wsIndexOpen) {
+    wsIndexOpen.classList.toggle(
+      "active",
+      Boolean(activeWorkspaceTocRelPath) &&
+        activeWorkspaceTocRelPath.toLowerCase() === getWorkspacePageIndexRelPath().toLowerCase()
+    );
+  }
 }
 
 async function selectSystemFile(name, options = {}) {
   const normalizedName = normalizeSystemFileName(name);
   if (!normalizedName) return;
+  clearActiveWorkspaceTocView();
   if (isReadOnlyWorkspacePageIndexSystemFile(normalizedName)) {
     options = { ...options, edit: false };
   }
@@ -107591,6 +107705,7 @@ async function selectFile(label, filePath) {
     await selectRepoLooseFile(label, filePath);
     return;
   }
+  clearActiveWorkspaceTocView();
   if (!filePath) {
     fileContentInputNode.value = "Ошибка чтения файла: пустой путь";
     return;
