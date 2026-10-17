@@ -5,16 +5,34 @@
 - [Кросс-платформенная цифровая память для человека и его ИИ-агентов (Cross-platform digital memory for you and your AI agents)](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
 - [Приложения и клиенты (Apps and clients)](#-приложения-и-клиенты-gb-apps-and-clients)
 - [Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище. (One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.)](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
+
+---
+
 - [Зачем (Why)](#-зачем-gb-why)
 - [Для кого (Who it’s for)](#-для-кого-gb-who-its-for)
 - [Как устроено — основные термины (How it works — key terms)](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
+
+---
+
 - [Принципы (Principles)](#-принципы-gb-principles)
 - [Стек (Stack)](#-стек-gb-stack)
+
+---
+
 - [Установка — первый старт и запуск, только macOS (Install — first run and launch, macOS only)](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
+
+---
+
 - [Лицензия (License)](#-лицензия-gb-license)
 - [Ссылки (Links)](#-ссылки-gb-links)
+
+---
+
 - [Скиллы для агентов (Claude / Cursor) (Agent skills for Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (References for agents and indexing — models, go learn 😀)](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
+
+---
+
 - [Мечта (Vision)](#-мечта-gb-vision)
 - [С чего начать? (Where to start?)](#-с-чего-начать-gb-where-to-start)
 
@@ -293,7 +311,7 @@ Copyright © 2026 Agent CMS
 2. **Cursor** — для каждого скилла создайте папку с `SKILL.md` и скопируйте **целиком** текст соответствующего `GLOBAL-SKILL-*.md`:
    - в проекте: `.cursor/skills/<name>/SKILL.md` (имя папки = поле `name`, напр. `agent-cms`, `agent-cms-welcome`);
    - или личные скиллы в Cursor Agent Store / `~/.cursor/skills/<name>/SKILL.md`.
-3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из `workspaces/0-md/` или zip с тем же содержимым. Минимум: **0** + **1**.
+3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из `workspaces/0-md/` или zip с тем же содержимым. Минимум: **1** (base); **0** (welcome) — по желанию.
 4. Рекомендуется установить скиллы **2** (стиль) и **3** (правила) в клиенте — они **не** входят в `get_session_context`.
 5. **Без установки** (запасной путь): `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` и т.д.
 
@@ -315,7 +333,7 @@ Copyright © 2026 Agent CMS
 > | [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
 > | [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
 >
-> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **0** + **1**, ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
+> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **1** (base), **0** (welcome) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
