@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.4.0 (per-chat agentId · list_databases … · content placement database)
+# Agent CMS — MCP Server v0.4.0 (per-chat workspaceId · list_databases … · content placement database)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 
@@ -21,30 +21,32 @@ npm install
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
-| `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
+| `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если workspaceId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 | `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — зарегистрировать устаревшие имена (`read_content_body`, `read_file`, `list_channel_items`, …) |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
 | `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | `<repo>/MCP-INSTRUCTIONS.md` | Другой файл с server instructions (читается при старте процесса MCP) |
 
-## Термины (синонимы `agentId`)
+## Термины
 
-**workspace** · **agent** · **vault** · **хранилище** · **рабочее пространство** — одно и то же: id из `list_workspaces` (alias `list_vaults`).
+**`workspaceId`** — канонический параметр (id из `list_workspaces`, напр. `0-ws-test`). Legacy alias: **`agentId`** (не путать с темой **0-agent** / identity).
+
+**workspace** · **vault** · **хранилище** · **рабочее пространство** — синонимы хранилища.
 
 ## Старт нового чата
 
 ```
 list_workspaces
-get_session_context({ agentId: "<выбранный-id>" })
+get_session_context({ workspaceId: "<выбранный-id>" })
 ```
 
-Дальше **каждый** workspace-scoped tool с тем же `agentId`. Пример фразы пользователя:
+Дальше **каждый** workspace-scoped tool с тем же **`workspaceId`**. Пример фразы пользователя:
 
-> Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным agentId, дальше всегда передавай этот agentId во все MCP tools.
+> Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
 
 Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
 
-**Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
+**Без `workspaceId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
 
 ### Два слоя API
 
@@ -59,8 +61,8 @@ get_session_context({ agentId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `agentId`; остальное **с `agentId`** |
-| Platform | `get_platform_info`, `get_platform_health` (нужен `agentId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
+| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
+| Platform | `get_platform_info`, `get_platform_health` (нужен `workspaceId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
 | Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
 | Тема (manifest) | `read/write_topic_*`, `read/write_topic_property`, `read/write_topic_config`, `topic_exists`, `get_topic_meta`, `read/write_topic_env`, `create_topic`, `delete_topic`, `rename_topic`, `move_topic` |
 | Слот | `list_slots` |

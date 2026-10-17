@@ -24,7 +24,7 @@
 
 **Только MCP tools.** Запрещены сторонние tools, `curl` к API, чтение/запись файлов workspace в обход MCP. Команды — через `run_script` / `exec_command` / `exec_shell`.
 
-**Каждый чат:** `list_workspaces` → `get_session_context({ agentId })` → дальше **все** tools с тем же `agentId` (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в Shell UI на MCP не влияет.
+**Каждый чат:** `list_workspaces` → `get_session_context({ workspaceId })` → дальше **все** tools с тем же **`workspaceId`** (legacy alias: `agentId`; не путать с темой **0-agent** / identity). Селектор хранилища в Shell UI на MCP не влияет.
 
 **Устаревшие алиасы не используй:** `read_dialogs` / `append_dialog` → `read_discussion` / `append_discussion`; `list_system_files` / `read_system_file` / `write_system_file` → `list_root_files` / `read_root_file` / `write_root_file`; `list_vaults` → `list_workspaces`; `*_zzz` — заглушки. (`page_*` / `get_page_*` сняты — только `topic_*` / `get_topic_*`.) **Deprecated maps:** `get_topic_map` → `list_topics` + `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties|meta`).
 
@@ -51,8 +51,9 @@
 **Работа с контентом — `read_content` / `write_content` / `list_content` / `list_slots` с `placement`.** У этих tools (и у `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `import_content_from_url`, `*_content_property`) схема параметров публикуется в MCP; неизвестные параметры (в т.ч. внутри `placement`) отклоняются ошибкой `Unrecognized key(s)`. Формат:
 
 ```json
-{ "agentId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
-{ "agentId": "…", "placement": { "kind": "root", "path": "AGENTS.md" } }
+{ "workspaceId": "0-ws-test", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
+{ "workspaceId": "…", "placement": { "kind": "root", "path": "AGENTS.md" } }
+(принимается и legacy `"agentId"`.)
 ```
 
 - `placement.kind`: `topic` | `channel` | `media` | `database` | `repository` — нужны `path` (slug без `awn-channels/` / `awn-databases/` / …) + `slot` (+ `ref`); `root` — только `path` (файл от корня workspace). Legacy: `path` с префиксом hub и `kind: topic` → kind выводится автоматически.

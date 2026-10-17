@@ -31,6 +31,7 @@ const {
 } = require("./lib/http/https-redirect");
 const { buildPageUrlPayload } = require("./lib/routing/page-url");
 const { isSameWorkspaceIndexPath } = require("./lib/workspace/workspace-index-path");
+const { resolveWorkspaceIdFromArgs } = require("./lib/workspace/resolve-workspace-id-from-args");
 const {
   WORKSPACE_WS_MAP_FILE,
   WORKSPACE_WSMAP_LEGACY_FILE,
@@ -17607,10 +17608,12 @@ async function buildAgentWorkspaceStats() {
 
 function buildAgentMcpPing() {
   const agentRoot = getAgentRoot();
+  const workspaceId = getActiveAgentId();
   return {
     ok: true,
     serverTime: new Date().toISOString(),
-    agentId: getActiveAgentId(),
+    workspaceId,
+    agentId: workspaceId,
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./lib/version/product-version").getProductVersion(),
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
@@ -32849,10 +32852,15 @@ async function handleApi(req, res, url) {
     }
   }
 
-  const agentId = url.searchParams.get("agent") || getDefaultAgentId();
-  const agent = resolveAgent(agentId);
+  const scopedId =
+    resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    }) || getDefaultAgentId();
+  const agent = resolveAgent(scopedId);
   if (!agent) {
-    return sendJson(res, 400, { error: "Unknown agent", agentId });
+    return sendJson(res, 400, { error: "Unknown agent", agentId: scopedId, workspaceId: scopedId });
   }
 
   return runWithAgent(agent.id, () => withWorkspaceActivityContext(req, url, () => handleApiForAgent(req, res, url)));

@@ -6,7 +6,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
 import {
-  resolveAgentId,
+  normalizeWorkspaceScopedArgs,
+  resolveWorkspaceId,
   runWithAgentId,
   withAgentIdSchema,
   WORKSPACE_ID_SYNONYMS
@@ -93,7 +94,7 @@ function createServer() {
     if (formatResult) toolRegistry.formatters.set(name, formatResult);
     const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
     const scopeNote = agentScope
-      ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
+      ? ` Required: workspaceId (legacy alias: agentId; ${WORKSPACE_ID_SYNONYMS}).` +
         (cfg.defaultAgent ? ` Dev-only env fallback: ${cfg.defaultAgent}.` : "")
       : "";
     server.registerTool(
@@ -102,9 +103,10 @@ function createServer() {
       wrap(
         async (args) => {
           if (!agentScope) return fn(args);
-          const agentId = resolveAgentId(args, cfg.defaultAgent);
-          await assertWorkspaceMcpToolAllowed(client, agentId, name, args);
-          return runWithAgentId(agentId, () => fn(args));
+          const scopedArgs = normalizeWorkspaceScopedArgs(args, cfg.defaultAgent);
+          const workspaceId = scopedArgs.workspaceId;
+          await assertWorkspaceMcpToolAllowed(client, workspaceId, name, scopedArgs);
+          return runWithAgentId(workspaceId, () => fn(scopedArgs));
         },
         { formatResult }
       )
@@ -117,7 +119,7 @@ function createServer() {
 
   reg(
     "list_workspaces",
-    "START NEW CHAT: list all workspaces (agents / vaults / хранилища / рабочие пространства). Returns id, name, path, defaultAgentId. Pick agentId before get_session_context.",
+    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before get_session_context.",
     z.object({}),
     listWorkspacesHandler,
     { agentScope: false }

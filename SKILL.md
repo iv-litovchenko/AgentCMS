@@ -30,8 +30,8 @@ Agent CMS — общее хранилище для человека и ИИ-аг
 
 ## 2. Старт
 
-1. `list_workspaces` → выбери id → `get_session_context({ agentId })`.
-2. `agentId` обязателен в **каждом** workspace-вызове (синонимы: workspace · agent · vault · хранилище). Селектор хранилища в UI на MCP не влияет.
+1. `list_workspaces` → выбери id → `get_session_context({ workspaceId })`.
+2. **`workspaceId`** обязателен в **каждом** workspace-вызове (legacy alias: `agentId`; не путать с темой **0-agent**). Селектор хранилища в UI на MCP не влияет.
 3. Обзор: `list_topics` (узлы дерева тем), `read_topic_index_toc` (INDEX.md) или `read_workspace_map` (все `manifest.md` плоским списком).
 4. Пользователь не назвал путь → `get_user_active_context_now`: что он сейчас открыл в UI, с готовыми `path` / `slot` / `ref`.
 

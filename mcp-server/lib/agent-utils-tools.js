@@ -9,7 +9,7 @@ const workspacePath = z
 export function registerAgentUtilsTools(reg, client) {
   reg(
     "test_mcp_connection",
-    "Ping Agent CMS: ok, agentId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
+    "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
     z.object({}),
     () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
     { agentScope: false }
