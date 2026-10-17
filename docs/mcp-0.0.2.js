@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 87 tools",
+  versionLabel: "Per-chat agentId · 86 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -11,7 +11,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool). Живой список tools — mcp-server/ после перезапуска.",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
-    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
+    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId. Доки: list_platform_docs / read_platform_doc.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content; kind topic|channel|media|database|repository|root (legacy page на входе); legacy path+slot без placement → topic.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
@@ -75,14 +75,8 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
-          name: "get_session_documentation",
-          description: "README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
-          parameters: "docs? (filter file names)",
-          http: "GET /api/agent/session-documentation?docs="
-        },
-        {
           name: "list_workspace_always_context",
-          description: "Workspace always-context (same block as session): runtime-load-always, RULES, RESPONSE-STYLE, ws/.",
+          description: "Workspace always-context (same block as session): runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },

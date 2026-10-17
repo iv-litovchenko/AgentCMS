@@ -136,32 +136,13 @@ function createServer() {
 
   registerWorkspaceTools(reg, client);
 
-  // ── Старт / контекст (5) ───────────────────────────────────────────────────
+  // ── Старт / контекст (4) ───────────────────────────────────────────────────
 
   reg(
     "get_session_context",
-    "START HERE: topicRegistry, alwaysContext (workspace + RULES + RESPONSE-STYLE), service manifests. Docs: get_session_documentation. Runtime: list_workspace_cron / list_workspace_heartbeat.",
+    "START HERE: topicRegistry, alwaysContext (workspace runtime-load-always + system md + ws-folder), service manifests. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime: list_workspace_cron / list_workspace_heartbeat.",
     z.object({}),
     () => client.get("/api/agent/session-context")
-  );
-
-  reg(
-    "get_session_documentation",
-    "Platform docs on demand: README.md, GLOBAL-SKILL-4-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
-    z.object({
-      docs: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe(
-          "Optional filter: file names or comma-separated, e.g. README.md. Omit for all enabled docs."
-        )
-    }),
-    ({ docs }) =>
-      client.get("/api/agent/session-documentation", {
-        ...(docs != null
-          ? { docs: Array.isArray(docs) ? docs.join(",") : String(docs) }
-          : {})
-      })
   );
 
   const getUiFocusHandler = () => client.get("/api/agent/active-context");
@@ -180,7 +161,7 @@ function createServer() {
 
   reg(
     "list_workspace_always_context",
-    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-SKILL-0/README.",
+    "Same alwaysContext block as in get_session_context: runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );

@@ -16,7 +16,7 @@ get_session_context
 │   ├── version, mcpVersion
 │   ├── workspaceId / agentId, agentRootRel, kitFolder
 │   ├── pathHints — подсказки путей (слоты, adopt, sidecar…)
-│   └── hint — куда смотреть дальше (cron/docs отдельными tools)
+│   └── hint — куда смотреть дальше (cron / platform docs отдельными tools)
 │
 ├── menuSummary (без дерева меню)
 │   ├── topicCount
@@ -33,8 +33,8 @@ get_session_context
 │   │   ├── topic manifest.md (флаг на теме)
 │   │   └── content .md в слотах main/inbox/notes/… (флаг на записи)
 │   ├── system .md из platform always-context-md-files (по умолчанию AGENTS.md в корне ws)
-│   ├── GLOBAL-SKILL-3-RULES.md · GLOBAL-SKILL-2-RESPONSE-STYLE.md (если toggles platform включены)
 │   └── ws-folder — рекурс .md из always-context-ws-folder
+│       (GLOBAL-SKILL-* сюда не входят — скиллы клиента / read_platform_doc)
 │       └── по умолчанию awn-topics/0-shared/0-context/awn-storage/
 │
 ├── serviceDocs — manifest.md служебных preset-тем (полный текст)
@@ -56,14 +56,16 @@ get_session_context
 ```
 вне get_session_context
 │
-├── get_session_documentation — README.md, GLOBAL-SKILL-4-MARKDOWN.md (toggles platform)
-├── GLOBAL-MCP-INSTRUCTION.md — по skill / read_platform_doc (не автоматом в старт)
+├── list_platform_docs · read_platform_doc — README, GLOBAL-SKILL-*.md (скиллы 0–6)
+├── скиллы в клиенте (Claude/Cursor) — вне CMS
 ├── list_workspace_cron · list_workspace_heartbeat — индексы runtime по workspace
 ├── get_workspace_storage_info — stats, git, index status, counts
 ├── read_topic_index_toc · read_content_index_toc · read_workspace_map — оглавления
 ├── read_topic_body / read_content — любое содержимое по запросу
 └── apiMap / полный REST-каталог — не отдаётся (агент → MCP tools)
 ```
+
+~~`get_session_documentation`~~ — **удалён** (дублировал `read_platform_doc`).
 
 ---
 
@@ -72,7 +74,6 @@ get_session_context
 | Tool | Связь |
 | ---- | ----- |
 | `list_workspace_always_context` | тот же блок, что `alwaysContext` в session-context |
-| `get_session_documentation` | только platform docs по demand |
 | `get_ui_focus` (legacy `get_user_active_context_now`) | фокус UI, не стартовый пакет |
 
 ---
@@ -81,8 +82,8 @@ get_session_context
 
 - [ ] Явно разделить **light** (meta + registry + counts) и **heavy** (alwaysContext + serviceDocs).
 - [ ] Лимит размера / предупреждение при переполнении always-context.
-- [ ] Синхронизировать описание с [GLOBAL-MCP-INSTRUCTION.md](workspaces/0-md/GLOBAL-MCP-INSTRUCTION.md) и UI «Always context» count.
-- [ ] Документировать toggles: `always-context-global-rules`, `always-context-md-files`, `always-context-ws-folder`, …
+- [ ] Синхронизировать описание с UI «Always context» count.
+- [ ] Документировать toggles: `always-context-md-files`, `always-context-ws-folder`, …
 
 ## Чат
 

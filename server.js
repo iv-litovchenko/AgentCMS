@@ -520,7 +520,6 @@ const {
   isPlatformIndexEnabled,
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
-  isPlatformAlwaysContextEnabled,
   getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder,
   getMediaCloudProviders,
@@ -765,43 +764,6 @@ const GLOBAL_RULES_FILE = "GLOBAL-SKILL-3-RULES.md";
 const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-SKILL-4-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
-
-const SESSION_ALWAYS_PLATFORM_FILES = [
-  {
-    file: GLOBAL_RESPONSE_STYLE_FILE,
-    settingKey: "always-context-global-response-style",
-    description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
-    root: "global-md"
-  },
-  {
-    file: GLOBAL_RULES_FILE,
-    settingKey: "always-context-global-rules",
-    description: "Глобальные правила для всех хранилищ",
-    root: "global-md"
-  }
-];
-
-/** Platform docs loaded on demand via get_session_documentation (not in session-context). */
-const SESSION_DOCUMENTATION_PLATFORM_FILES = [
-  {
-    file: PLATFORM_README_FILE,
-    settingKey: "always-context-platform-readme",
-    description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
-    root: "project"
-  },
-  {
-    file: GLOBAL_DOC_MARKDOWN_FILE,
-    settingKey: "always-context-global-markdown-showcase",
-    description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
-    root: "global-md"
-  }
-];
-
-/** @deprecated use SESSION_ALWAYS_PLATFORM_FILES + SESSION_DOCUMENTATION_PLATFORM_FILES */
-const PLATFORM_ALWAYS_CONTEXT_FILES = [
-  ...SESSION_DOCUMENTATION_PLATFORM_FILES,
-  ...SESSION_ALWAYS_PLATFORM_FILES
-];
 
 const ALWAYS_CONTEXT_WS_EXTENSIONS = new Set([".md", ".yml", ".yaml", ".txt"]);
 
@@ -12064,47 +12026,6 @@ async function collectAlwaysContextWsFolderItems(agentRoot, folderRel) {
   return results;
 }
 
-async function loadSessionPlatformDocItems(platformSettings, entries, { entityKind = "platform-doc" } = {}) {
-  const items = [];
-  for (const entry of entries) {
-    if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
-      continue;
-    }
-    try {
-      const platformRoot = getAppRoot();
-      const docRoot =
-        entry.root === "project"
-          ? platformRoot
-          : entry.root === "global-md"
-            ? getGlobalPlatformMdDirAbs(platformRoot)
-            : getPlatformAgentRootAbsolute(platformRoot);
-      const docAbsolute = path.join(docRoot, entry.file);
-      if (!(await fileExists(docAbsolute))) continue;
-      const content = await fs.readFile(docAbsolute, "utf-8");
-      items.push({
-        entityKind,
-        manifestPath: null,
-        slot: null,
-        ref: entry.file,
-        label: entry.file,
-        displayPath:
-          entry.root === "project"
-            ? entry.file
-            : entry.root === "global-md"
-              ? globalPlatformMdDisplayPath(entry.file)
-              : `workspaces/0-ws-core/${entry.file}`,
-        description: entry.description,
-        runtimeLoadAlways: entityKind === "platform-always",
-        exists: true,
-        content
-      });
-    } catch {
-      // skip unreadable platform doc
-    }
-  }
-  return items;
-}
-
 async function buildAgentAlwaysContextRegistry() {
   let platformSettings = {};
   try {
@@ -12156,13 +12077,6 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
-  // Platform rules + response style (session-context); MCP map / README → get_session_documentation.
-  items.push(
-    ...(await loadSessionPlatformDocItems(platformSettings, SESSION_ALWAYS_PLATFORM_FILES, {
-      entityKind: "platform-always"
-    }))
-  );
-
   const wsFolder = getPlatformAlwaysContextWsFolder(platformSettings);
   if (wsFolder && agentRoot) {
     const wsItems = await collectAlwaysContextWsFolderItems(agentRoot, wsFolder);
@@ -12173,63 +12087,11 @@ async function buildAgentAlwaysContextRegistry() {
     version: 1,
     model: "always-context",
     hint:
-      "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. " +
-      "Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+      "Workspace always-context: awn-runtime-load-always + workspace system .md (AGENTS.md, …) + ws-folder. " +
+      "GLOBAL-SKILL-* — скиллы клиента или read_platform_doc (не в session-context).",
     items,
     itemCount: items.length
   };
-}
-
-async function buildAgentSessionDocumentationRegistry(options = {}) {
-  let platformSettings = {};
-  try {
-    platformSettings = await getPlatformSettings(getProjectRoot());
-  } catch {
-    platformSettings = {};
-  }
-
-  const requested = parseSessionDocumentationDocFilter(options.docs || options.doc || options.files);
-  let entries = SESSION_DOCUMENTATION_PLATFORM_FILES;
-  if (requested.size) {
-    entries = entries.filter((entry) => requested.has(normalizeSessionDocumentationDocId(entry.file)));
-  }
-
-  const items = await loadSessionPlatformDocItems(platformSettings, entries, {
-    entityKind: "session-documentation"
-  });
-
-  return {
-    version: 1,
-    model: "session-documentation",
-    hint:
-      "Platform documentation on demand (not in get_session_context). Settings: always-context-platform-readme, always-context-global-markdown-showcase.",
-    items,
-    itemCount: items.length,
-    availableDocs: SESSION_DOCUMENTATION_PLATFORM_FILES.map((e) => e.file)
-  };
-}
-
-function normalizeSessionDocumentationDocId(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .toLowerCase();
-}
-
-function parseSessionDocumentationDocFilter(raw) {
-  const set = new Set();
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
-  for (const item of list) {
-    const id = normalizeSessionDocumentationDocId(item);
-    if (id) set.add(id);
-  }
-  return set;
 }
 
 async function buildAgentCronRegistry() {
@@ -15037,8 +14899,6 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: list_workspace_always_context",
-  sessionDocumentation:
-    "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -15293,8 +15153,8 @@ async function buildAgentSessionContext() {
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace + RULES + RESPONSE-STYLE). " +
-      "Доки платформы: get_session_documentation. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+      "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace runtime-load-always + system md + ws-folder). " +
+      "Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
   };
 }
 
@@ -23797,21 +23657,6 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read always-context registry",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent/session-documentation") {
-    try {
-      const docsParam = url.searchParams.get("docs") || url.searchParams.get("doc") || "";
-      const payload = await buildAgentSessionDocumentationRegistry({
-        docs: docsParam || undefined
-      });
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read session documentation",
         details: String(error.message || error)
       });
     }

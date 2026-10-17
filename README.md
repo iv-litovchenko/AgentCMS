@@ -1,5 +1,25 @@
 # AGENT CMS (0.0.1-beta)
 
+## Содержание
+
+- [О проекте](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
+- [Приложения и клиенты](#-приложения-и-клиенты-gb-apps-and-clients)
+- [Один workspace — три входа](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
+- [Зачем](#-зачем-gb-why)
+- [Для кого](#-для-кого-gb-who-its-for)
+- [Как устроено — основные термины](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
+- [Принципы](#-принципы-gb-principles)
+- [Стек](#-стек-gb-stack)
+- [Установка (macOS)](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
+- [Лицензия](#-лицензия-gb-license)
+- [Ссылки](#-ссылки-gb-links)
+- [Скиллы для агентов](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
+- [Справочники для агентов и индексации](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
+- [Мечта](#-мечта-gb-vision)
+- [С чего начать?](#-с-чего-начать-gb-where-to-start)
+
+---
+
 ## 🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов (🇬🇧 Cross-platform digital memory for you and your AI agents)
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
@@ -274,7 +294,7 @@ Copyright © 2026 Agent CMS
    - в проекте: `.cursor/skills/<name>/SKILL.md` (имя папки = поле `name`, напр. `agent-cms`, `agent-cms-welcome`);
    - или личные скиллы в Cursor Agent Store / `~/.cursor/skills/<name>/SKILL.md`.
 3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из `workspaces/0-md/` или zip с тем же содержимым. Минимум: **0** + **1**.
-4. Скиллы **2** и **3** могут подмешиваться через **always-context** в Agent CMS (`get_session_context`); в Claude без этого лучше установить их вручную.
+4. Рекомендуется установить скиллы **2** (стиль) и **3** (правила) в клиенте — они **не** входят в `get_session_context`.
 5. **Без установки** (запасной путь): `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` и т.д.
 
 После `git pull` обновите копии в клиенте и перезапустите MCP.
@@ -295,7 +315,7 @@ Copyright © 2026 Agent CMS
 > | [GLOBAL-SKILL-5-SEARCH.md](workspaces/0-md/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
 > | [GLOBAL-SKILL-6-MODULES.md](workspaces/0-md/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
 >
-> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **0** + **1**. (4) Skills **2**/**3** may come from CMS always-context; install manually in Claude if not. (5) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
+> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from `workspaces/0-md/`; minimum **0** + **1**, ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
