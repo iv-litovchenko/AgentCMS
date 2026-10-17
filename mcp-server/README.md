@@ -89,6 +89,20 @@ get_session_context({ agentId: "<выбранный-id>" })
 ```bash
 npm start          # из корня Agent CMS
 node mcp-server/index.js   # stdio
+node mcp-server/http.js    # Streamable HTTP → http://127.0.0.1:3490/mcp (Cursor URL)
 ```
 
-Из корня: `npm run mcp`
+### Remote MCP (HTTP)
+
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `AGENT_CMS_MCP_HTTP_HOST` | `127.0.0.1` | `0.0.0.0` для LAN/Docker |
+| `AGENT_CMS_MCP_HTTP_PORT` | `3490` | |
+| `AGENT_CMS_MCP_TOKEN` | — | Bearer / `X-Agent-Cms-Mcp-Token` |
+| `AGENT_CMS_BASE_URL` | см. выше | CMS API для tools |
+
+```bash
+AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
+```
+
+Из корня: `npm run mcp` (stdio) · `npm run mcp:http`
