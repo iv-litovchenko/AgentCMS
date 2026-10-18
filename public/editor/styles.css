@@ -1316,7 +1316,7 @@ body.workspace-idle-screensaver-active {
 .app.home-view.app-home-discuss-open .workspace-pane {
   display: flex !important;
   grid-column: 4;
-  grid-row: 2 / 3;
+  grid-row: 2 / 4;
   min-width: 0;
   min-height: 0;
   border-right: 0;
@@ -1554,7 +1554,7 @@ body.workspace-idle-screensaver-active {
 .app.app-landing-view.app-landing-discuss-open .workspace-pane {
   display: flex !important;
   grid-column: 2;
-  grid-row: 2 / 3;
+  grid-row: 2 / 4;
   min-width: 0;
   min-height: 0;
   border-right: 0;
@@ -70331,37 +70331,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #4338ca;
 }
 
-.context-buffer-panel-toggle-btn.is-active {
-  border-color: #6366f1;
-  background: #eef2ff;
-  color: #4338ca;
-}
-
-.header-tool-btn.discuss-panel-toggle-btn,
-.header-tool-btn.context-buffer-panel-toggle-btn {
+.header-tool-btn.discuss-panel-toggle-btn {
   position: relative;
-}
-
-.context-buffer-header-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: #6366f1;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.context-buffer-header-badge.hidden {
-  display: none;
 }
 
 .discuss-panel-context-badge {
@@ -82400,7 +82371,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .context-buffer-band--global {
   grid-row: 3;
-  grid-column: 3 / -1;
+  grid-column: 3;
   align-self: stretch;
   z-index: 45;
   margin: 0;
@@ -82424,14 +82395,6 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .app.not-found-view .context-buffer-band--global {
   display: none !important;
-}
-
-.context-buffer-band.is-hidden {
-  display: none !important;
-}
-
-.app.home-view.app-home-discuss-open .context-buffer-band--global {
-  grid-column: 3;
 }
 
 .context-buffer-band:not(.context-buffer-band--global) {
@@ -82458,10 +82421,6 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .context-buffer-band.is-collapsed .context-buffer-body {
-  display: none;
-}
-
-.context-buffer-band.is-collapsed .context-buffer-actions {
   display: none;
 }
 
