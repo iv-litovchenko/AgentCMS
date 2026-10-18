@@ -10112,7 +10112,7 @@ let landingFlowLoadSeq = 0;
 
 const LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH = 2;
 const LANDING_HUB_ORBIT_MENU_MAX_DEPTH = LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH + 1;
-const LANDING_FLOW_RECENT_LIMIT = 30;
+const LANDING_FLOW_RECENT_LIMIT = 80;
 
 const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
 const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
@@ -12756,7 +12756,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=13";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=16";
 
 function resetLandingChunkHostRegistration() {
   landingChunkHostRegistered = false;
