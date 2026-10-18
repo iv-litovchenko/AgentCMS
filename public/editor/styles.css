@@ -2147,6 +2147,7 @@ body.workspace-idle-screensaver-active {
   display: grid;
   grid-template-columns: repeat(var(--board-cols, 12), minmax(0, 1fr));
   grid-template-rows: repeat(var(--board-rows, 3), var(--board-cell-size, 106px));
+  grid-auto-flow: row;
   gap: 0;
   width: 100%;
   max-width: 100%;
@@ -2177,8 +2178,8 @@ body.workspace-idle-screensaver-active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 4px 5px 3px;
+  gap: 1px;
+  padding: 3px 4px 2px;
   scroll-snap-align: unset;
   cursor: pointer;
   overflow: hidden;
@@ -2193,7 +2194,7 @@ body.workspace-idle-screensaver-active {
   justify-content: center;
   width: 100%;
   min-height: 0;
-  max-height: calc(var(--board-cell-size, 106px) * 0.58);
+  max-height: calc(var(--board-cell-size, 106px) * 0.54);
   padding: 0;
 }
 
@@ -2244,39 +2245,70 @@ body.workspace-idle-screensaver-active {
   justify-content: flex-end;
   width: 100%;
   min-width: 0;
+  max-height: calc(var(--board-cell-size, 106px) * 0.42);
   margin: 0;
-  padding: 0 4px 2px;
+  padding: 0 2px 1px;
   pointer-events: none;
   box-sizing: border-box;
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card-label {
   display: -webkit-box;
-  width: auto;
-  max-width: calc(var(--board-cell-size, 106px) - 6px);
+  width: 100%;
+  max-width: calc(var(--board-cell-size, 106px) - 10px);
   box-sizing: border-box;
-  padding: 3px 8px;
+  padding: 2px 5px;
   border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(248, 250, 252, 0.96);
   color: #334155;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.15;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   word-break: break-word;
+  overflow-wrap: anywhere;
   box-shadow:
     0 2px 8px rgba(2, 6, 23, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card:hover .app-landing-main-topic-card-window,
-.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-window {
+.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-window,
+.app-landing-main-topics-track--board
+  .app-landing-main-topic-card.is-storage-slot-highlighted
+  .app-landing-main-topic-card-window {
   transform: scale(1.04);
+  border-color: color-mix(
+    in srgb,
+    var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 82%,
+    #ffffff
+  );
+  background: color-mix(
+    in srgb,
+    var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 52%,
+    rgba(15, 23, 42, 0.28)
+  );
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--landing-storage-slot-color, #6366f1) 45%, #ffffff),
+    0 0 18px color-mix(in srgb, var(--landing-storage-slot-color, #6366f1) 55%, transparent),
+    0 6px 16px rgba(15, 23, 42, 0.22);
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card:hover .app-landing-main-topic-card-media,
+.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-media,
+.app-landing-main-topics-track--board
+  .app-landing-main-topic-card.is-storage-slot-highlighted
+  .app-landing-main-topic-card-media {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 82%, #0f172a),
+    var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8))
+  );
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card.is-active .app-landing-main-topic-card-window {
@@ -2331,6 +2363,15 @@ body.workspace-idle-screensaver-active {
 .app-landing-main-topics-track--board .app-landing-main-topic-card.is-attention-dimmed {
   opacity: 0.42;
   filter: grayscale(0.35);
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card.is-storage-slot-dimmed {
+  opacity: 0.36;
+  filter: grayscale(0.45);
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card.is-storage-slot-highlighted {
+  z-index: 2;
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card.is-attention-highlighted .app-landing-main-topic-card-window {

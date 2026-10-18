@@ -11234,6 +11234,37 @@ function bindAppLandingMainTopicsOpenDelegation() {
     event.preventDefault();
     void openFocusItem(item);
   });
+
+  const syncStorageHighlightFromCard = (card) => {
+    if (!card || card.classList.contains("app-landing-main-topic-card--skeleton")) {
+      clearLandingMainTopicStorageSlotHighlight();
+      return;
+    }
+    const slot = String(card.dataset.storageSlot || "").trim();
+    if (slot) setLandingMainTopicStorageSlotHighlight(slot);
+    else clearLandingMainTopicStorageSlotHighlight();
+  };
+
+  list.addEventListener("pointerover", (event) => {
+    const card = event.target.closest(".app-landing-main-topic-card");
+    if (!card || !list.contains(card)) return;
+    syncStorageHighlightFromCard(card);
+  });
+  list.addEventListener("pointerleave", (event) => {
+    const next = event.relatedTarget;
+    if (next && list.contains(next)) return;
+    clearLandingMainTopicStorageSlotHighlight();
+  });
+  list.addEventListener("focusin", (event) => {
+    const card = event.target.closest(".app-landing-main-topic-card");
+    if (!card || !list.contains(card)) return;
+    syncStorageHighlightFromCard(card);
+  });
+  list.addEventListener("focusout", (event) => {
+    const next = event.relatedTarget;
+    if (next && list.contains(next)) return;
+    clearLandingMainTopicStorageSlotHighlight();
+  });
 }
 
 function resolveFocusPreviewUrl(rawUrl, agentId) {
@@ -11542,38 +11573,51 @@ function createLandingMainTopicBoardEmptyCell() {
   return cell;
 }
 
-function landingMainTopicsBoardHashSeed(text) {
-  let hash = 2166136261;
-  const value = String(text || "");
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0 || 1;
+function normalizeLandingMainTopicBoardSortLabel(label) {
+  const raw = String(label || "").trim();
+  if (!raw) return "";
+  const withoutPrefix = raw.replace(/^\[[^\]]+\]\s*/u, "").trim();
+  return withoutPrefix || raw;
 }
 
-function createLandingMainTopicsBoardRng(seed) {
-  let state = landingMainTopicsBoardHashSeed(seed);
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
+function getLandingMainTopicBoardSortLabel(focusItem) {
+  const label = String(focusItem?.name || focusItem?.agentName || focusItem?.agentId || "").trim();
+  return normalizeLandingMainTopicBoardSortLabel(label);
 }
 
-function shuffleLandingMainTopicsBoardSlots(count, seed) {
-  const slots = Array.from({ length: count }, (_, index) => index);
-  const rnd = createLandingMainTopicsBoardRng(seed);
-  for (let i = slots.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rnd() * (i + 1));
-    [slots[i], slots[j]] = [slots[j], slots[i]];
-  }
-  return slots;
+function compareLandingMainTopicItemsAlphabetically(a, b) {
+  const byLabel = getLandingMainTopicBoardSortLabel(a).localeCompare(
+    getLandingMainTopicBoardSortLabel(b),
+    "ru",
+    { sensitivity: "base" }
+  );
+  if (byLabel !== 0) return byLabel;
+  const pathA = getLandingFocusItemNodePath(a) || "";
+  const pathB = getLandingFocusItemNodePath(b) || "";
+  return pathA.localeCompare(pathB, "ru", { sensitivity: "base" });
+}
+
+function getLandingMainTopicBoardTileSortLabel(tileEl) {
+  const fromLabel = tileEl?.querySelector(".app-landing-main-topic-card-label")?.textContent?.trim() || "";
+  if (fromLabel) return normalizeLandingMainTopicBoardSortLabel(fromLabel);
+  return normalizeLandingMainTopicBoardSortLabel(tileEl?.getAttribute("aria-label")?.trim() || "");
+}
+
+function sortLandingMainTopicBoardTilesAlphabetically(tiles) {
+  return [...tiles].sort((a, b) =>
+    getLandingMainTopicBoardTileSortLabel(a).localeCompare(
+      getLandingMainTopicBoardTileSortLabel(b),
+      "ru",
+      { sensitivity: "base" }
+    )
+  );
 }
 
 function assignLandingMainTopicsBoardCellSlot(el, slotIndex, cols) {
   const columnCount = Math.max(1, cols);
   const row = Math.floor(slotIndex / columnCount);
   const col = slotIndex % columnCount;
+  el.style.removeProperty("grid-area");
   el.style.gridColumn = String(col + 1);
   el.style.gridRow = String(row + 1);
   const dark = (row + col) % 2 === 1;
@@ -11595,14 +11639,13 @@ function syncLandingMainTopicsBoardGrid() {
   const cols = measureLandingMainTopicsBoardCols(track);
   const width = track.clientWidth || track.getBoundingClientRect().width || cols * LANDING_MAIN_TOPICS_BOARD_CELL_MIN_PX;
   const cellSize = Math.max(72, Math.floor(width / cols));
-  const tiles = Array.from(track.querySelectorAll(".app-landing-main-topic-card"));
+  const tiles = sortLandingMainTopicBoardTilesAlphabetically(
+    Array.from(track.querySelectorAll(".app-landing-main-topic-card"))
+  );
   const tileCount = tiles.length;
   if (!tileCount) return;
 
-  const rows = Math.max(
-    LANDING_MAIN_TOPICS_BOARD_MIN_ROWS,
-    Math.ceil(tileCount / cols)
-  );
+  const rows = Math.max(LANDING_MAIN_TOPICS_BOARD_MIN_ROWS, Math.ceil(tileCount / cols));
   let totalCells = cols * rows;
   const maxCells = tileCount + LANDING_MAIN_TOPICS_BOARD_MAX_EMPTY_CELLS;
   if (totalCells > maxCells) {
@@ -11613,22 +11656,10 @@ function syncLandingMainTopicsBoardGrid() {
   track.style.setProperty("--board-rows", String(Math.ceil(totalCells / cols)));
   track.style.setProperty("--board-cell-size", `${cellSize}px`);
 
-  const placementSeed = [
-    cols,
-    totalCells,
-    ...tiles
-      .map((tile) => tile.dataset.focusPath || tile.dataset.agentId || "")
-      .sort()
-  ].join("\0");
-
-  const shuffledSlots = shuffleLandingMainTopicsBoardSlots(totalCells, placementSeed);
-  const tileSlots = shuffledSlots.slice(0, tileCount);
-  const tileBySlot = new Map(tileSlots.map((slot, index) => [slot, tiles[index]]));
-
   const fragment = document.createDocumentFragment();
   for (let slot = 0; slot < totalCells; slot += 1) {
-    const tile = tileBySlot.get(slot);
-    if (tile) {
+    if (slot < tileCount) {
+      const tile = tiles[slot];
       assignLandingMainTopicsBoardCellSlot(tile, slot, cols);
       fragment.appendChild(tile);
       continue;
@@ -11739,10 +11770,13 @@ function createLandingMainTopicChip(focusItem) {
 
   const windowNode = document.createElement("span");
   const storageSlotKey = resolveLandingMainTopicStorageSlotKey(nodePath);
+  const storageSlotColor = getLandingMainTopicStorageSlotColor(storageSlotKey);
+  btn.dataset.storageSlot = storageSlotKey;
   windowNode.className = `app-landing-main-topic-card-window app-landing-main-topic-card-window--slot-${storageSlotKey}`;
   windowNode.dataset.storageSlot = storageSlotKey;
   windowNode.title = getLandingMainTopicStorageSlotLabel(storageSlotKey);
   windowNode.style.setProperty("--orbit-attention-color", attentionColor);
+  windowNode.style.setProperty("--landing-storage-slot-color", storageSlotColor);
   windowNode.appendChild(media);
   if (awnId) {
     btn.classList.add("has-awn-id");
@@ -11770,7 +11804,9 @@ function renderLandingMainTopics(items) {
   if (!appLandingFocusListNode) return;
   if (globalMainItemsLoading) return;
 
-  const visibleItems = dedupeLandingMainTopicItems(Array.isArray(items) ? items : []);
+  const visibleItems = dedupeLandingMainTopicItems(Array.isArray(items) ? items : []).sort(
+    compareLandingMainTopicItemsAlphabetically
+  );
   const hasAnyItems = globalMainItemsCache.length > 0;
   setLandingMainTopicsLoadingUi(false);
   syncLandingMainTopicsVisibility(hasAnyItems);
@@ -99853,6 +99889,47 @@ function getLandingMainTopicStorageSlotLabel(slotKey) {
   if (key === "topic") return "Тема";
   const mode = key === "main" ? "external" : key;
   return getDataStorageSlotForMode(mode)?.label || key;
+}
+
+const LANDING_MAIN_TOPIC_STORAGE_SLOT_COLORS = {
+  main: "#2563eb",
+  topic: "#6366f1",
+  media: "#8b5cf6",
+  notes: "#22c55e",
+  inbox: "#f59e0b",
+  outbox: "#d97706",
+  references: "#f97316",
+  artefacts: "#ea580c",
+  repository: "#fb923c",
+  scripts: "#06b6d4",
+  templates: "#0891b2",
+  discussion: "#ec4899",
+  comments: "#db2777",
+  "task-queue": "#64748b"
+};
+
+function getLandingMainTopicStorageSlotColor(slotKey) {
+  const key = String(slotKey || "").trim().toLowerCase();
+  return LANDING_MAIN_TOPIC_STORAGE_SLOT_COLORS[key] || "#64748b";
+}
+
+function setLandingMainTopicStorageSlotHighlight(slotKey) {
+  const key = String(slotKey || "").trim();
+  const hasHighlight = Boolean(key);
+  const list = appLandingFocusListNode;
+  if (!list) return;
+
+  list.querySelectorAll(".app-landing-main-topic-card").forEach((card) => {
+    if (card.classList.contains("app-landing-main-topic-card--skeleton")) return;
+    const slot = card.dataset.storageSlot || "";
+    const isMatch = slot === key;
+    card.classList.toggle("is-storage-slot-highlighted", hasHighlight && isMatch);
+    card.classList.toggle("is-storage-slot-dimmed", hasHighlight && !isMatch);
+  });
+}
+
+function clearLandingMainTopicStorageSlotHighlight() {
+  setLandingMainTopicStorageSlotHighlight("");
 }
 
 const LANDING_AGENT_ATTENTION_PALETTE = [
