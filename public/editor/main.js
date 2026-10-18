@@ -12756,7 +12756,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=16";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=19";
 
 function resetLandingChunkHostRegistration() {
   landingChunkHostRegistered = false;

@@ -2,7 +2,7 @@
  * Landing flow view (refactor 14) — lazy chunk.
  *
  * Layout: vertical timeline grouped by day (Сегодня / Вчера / date).
- * Each entry keeps compact flow cards (preview, title, agent); time sits on the rail.
+ * Each time slot: grid of horizontal compact cards (thumb left, title + agent); rail on the left.
  * Only .md and .csv paths; slots group updates within the same hour in one row.
  */
 
@@ -151,6 +151,27 @@ function groupFlowItemsByTimeSlot(items) {
   return [...map.values()].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 }
 
+function appendFlowGridTilePhotoMedia(btn, previewUrl) {
+  const media = document.createElement("span");
+  media.className = "app-landing-flow-card-media app-landing-flow-card-media--photo-only";
+
+  const img = document.createElement("img");
+  img.alt = "";
+  img.draggable = false;
+  img.decoding = "async";
+  img.addEventListener(
+    "error",
+    () => {
+      media.remove();
+      btn.classList.add("app-landing-flow-card--no-media");
+    },
+    { once: true }
+  );
+  img.src = previewUrl;
+  media.appendChild(img);
+  return media;
+}
+
 function createAppLandingFlowCard(focusItem, { timeline = false, compact = false } = {}) {
   const h = requireHost();
   const agentsCache = /** @type {Array<{id?: string}>} */ (h.agentsCache || []);
@@ -195,69 +216,10 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
     registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
   );
 
-  if (timeline && compact) {
-    const strip = document.createElement("span");
-    strip.className = "app-landing-flow-card-strip";
-
-    const icon = document.createElement("span");
-    icon.className = "app-landing-flow-card-strip-icon";
-    const nodeEmoji = h.resolveAwnEmoji(awnProps);
-    const agentEmoji = h.resolveAwnEmoji(agent.awnProps);
-    const previewUrl = h.resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
-    h.mountPreviewOrFallback(icon, {
-      previewUrl,
-      emoji: nodeEmoji || agentEmoji,
-      fallbackText: h.getAgentPickerInitials({ name: label, id: focusItem.agentId }),
-      emojiClass: "app-landing-flow-card-emoji",
-      initialsClass: "app-landing-flow-card-fallback",
-      emptyClass: "app-landing-flow-card-strip-icon-empty",
-      nodePath,
-      iconClass: "node-cover-icon--in-flow-card"
-    });
-
-    const titleNode = document.createElement("span");
-    titleNode.className = "app-landing-flow-card-title app-landing-flow-card-strip-title";
-    titleNode.textContent = label;
-
-    const agentChip = document.createElement("span");
-    agentChip.className = "app-landing-flow-card-agent app-landing-flow-card-strip-agent";
-    const agentAvatar = document.createElement("span");
-    agentAvatar.className = "app-landing-flow-card-agent-avatar";
-    h.mountPreviewOrFallback(agentAvatar, {
-      previewUrl: h.getRegistryAgentPreviewUrl(agent),
-      emoji: h.resolveAwnEmoji(agent),
-      fallbackText: h.getAgentPickerInitials(agent),
-      emojiClass: "app-landing-flow-card-agent-emoji",
-      initialsClass: "app-landing-flow-card-agent-initials"
-    });
-    const agentName = document.createElement("span");
-    agentName.className = "app-landing-flow-card-agent-name";
-    agentName.textContent = agentLabel;
-    agentChip.append(agentAvatar, agentName);
-
-    strip.append(icon, titleNode, agentChip);
-    btn.append(strip);
-    btn.addEventListener("click", () => {
-      void h.openFocusItem(focusItem);
-    });
-    return btn;
-  }
-
-  const media = document.createElement("span");
-  media.className = "app-landing-flow-card-media";
   const nodeEmoji = h.resolveAwnEmoji(awnProps);
   const agentEmoji = h.resolveAwnEmoji(agent.awnProps);
   const previewUrl = h.resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
-  h.mountPreviewOrFallback(media, {
-    previewUrl,
-    emoji: nodeEmoji || agentEmoji,
-    fallbackText: h.getAgentPickerInitials({ name: label, id: focusItem.agentId }),
-    emojiClass: "app-landing-flow-card-emoji",
-    initialsClass: "app-landing-flow-card-fallback",
-    emptyClass: "app-landing-flow-card-media-empty",
-    nodePath,
-    iconClass: "node-cover-icon--in-flow-card"
-  });
+  const isGridTile = timeline && compact;
 
   const body = document.createElement("span");
   body.className = "app-landing-flow-card-body";
@@ -314,7 +276,31 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
   }
 
   body.append(titleNode, meta);
-  btn.append(media, body);
+
+  if (isGridTile) {
+    btn.classList.add("app-landing-flow-card--grid-tile");
+    if (previewUrl) {
+      btn.append(appendFlowGridTilePhotoMedia(btn, previewUrl), body);
+    } else {
+      btn.classList.add("app-landing-flow-card--no-media");
+      btn.append(body);
+    }
+  } else {
+    const media = document.createElement("span");
+    media.className = "app-landing-flow-card-media";
+    h.mountPreviewOrFallback(media, {
+      previewUrl,
+      emoji: nodeEmoji || agentEmoji,
+      fallbackText: h.getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+      emojiClass: "app-landing-flow-card-emoji",
+      initialsClass: "app-landing-flow-card-fallback",
+      emptyClass: "app-landing-flow-card-media-empty",
+      nodePath,
+      iconClass: "node-cover-icon--in-flow-card"
+    });
+    btn.append(media, body);
+  }
+
   btn.addEventListener("click", () => {
     void h.openFocusItem(focusItem);
   });
@@ -384,37 +370,17 @@ function createAppLandingFlowTimelineSkeletonEntry(index) {
   row.className = "app-landing-flow-time-row";
   const cardCount = index % 2 === 0 ? 2 : 3;
   for (let i = 0; i < cardCount; i += 1) {
-    row.appendChild(createAppLandingFlowCompactSkeletonCard(index + i));
+    const card = createAppLandingFlowSkeletonCard(index + i, { omitMedia: true });
+    card.classList.add(
+      "app-landing-flow-card--timeline",
+      "app-landing-flow-card--compact",
+      "app-landing-flow-card--grid-tile",
+      "app-landing-flow-card--no-media"
+    );
+    row.appendChild(card);
   }
   entry.append(rail, row);
   return entry;
-}
-
-function createAppLandingFlowCompactSkeletonCard(index) {
-  const card = document.createElement("div");
-  card.className =
-    "app-landing-flow-card app-landing-flow-card--timeline app-landing-flow-card--compact app-landing-flow-card--skeleton";
-  card.style.setProperty("--flow-skeleton-delay", `${(index % 4) * 0.14}s`);
-  card.setAttribute("aria-hidden", "true");
-
-  const strip = document.createElement("span");
-  strip.className = "app-landing-flow-card-strip";
-
-  const icon = document.createElement("span");
-  icon.className =
-    "app-landing-flow-card-strip-icon app-landing-flow-skeleton-block app-landing-flow-skeleton-block--strip-icon";
-
-  const titleLine = document.createElement("span");
-  titleLine.className =
-    "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--title app-landing-flow-card-strip-title";
-
-  const agentLine = document.createElement("span");
-  agentLine.className =
-    "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--agent app-landing-flow-card-strip-agent";
-
-  strip.append(icon, titleLine, agentLine);
-  card.append(strip);
-  return card;
 }
 
 export function setAppLandingFlowLoadingUi(loading) {
@@ -427,14 +393,11 @@ export function setAppLandingFlowLoadingUi(loading) {
   h.appLandingViewFlowBtn?.setAttribute("aria-busy", isFlowLoading ? "true" : "false");
 }
 
-function createAppLandingFlowSkeletonCard(index) {
+function createAppLandingFlowSkeletonCard(index, { omitMedia = false } = {}) {
   const card = document.createElement("div");
   card.className = "app-landing-flow-card app-landing-flow-card--skeleton";
   card.style.setProperty("--flow-skeleton-delay", `${(index % 4) * 0.14}s`);
   card.setAttribute("aria-hidden", "true");
-
-  const media = document.createElement("span");
-  media.className = "app-landing-flow-card-media app-landing-flow-skeleton-block";
 
   const body = document.createElement("span");
   body.className = "app-landing-flow-card-body";
@@ -449,7 +412,13 @@ function createAppLandingFlowSkeletonCard(index) {
   agentLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--agent";
 
   body.append(titleLine, metaLine, agentLine);
-  card.append(media, body);
+  if (omitMedia) {
+    card.append(body);
+  } else {
+    const media = document.createElement("span");
+    media.className = "app-landing-flow-card-media app-landing-flow-skeleton-block";
+    card.append(media, body);
+  }
   return card;
 }
 

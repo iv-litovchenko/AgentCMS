@@ -3,7 +3,7 @@
  * Classic main.js dynamic import() is unreliable in some embedded webviews;
  * this module graph is loaded via <script type="module"> from index.html.
  */
-import * as landingChunk from "./landing-runtime.js?v=16";
+import * as landingChunk from "./landing-runtime.js?v=19";
 
 const g = globalThis;
 g.__agentCmsLandingChunkModule = landingChunk;
