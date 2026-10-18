@@ -10755,7 +10755,7 @@ function syncFocusPanelActiveState() {
   }
 
   for (const item of document.querySelectorAll(
-    ".agent-focus-item[data-focus-path], .home-focus-graph-node[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-main-topic-card[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
+    ".agent-focus-item[data-focus-path], .home-focus-graph-node[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-focus-card[data-focus-path], .app-landing-main-topic-card[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
   )) {
     const isActive =
       !activeSystemFile &&
@@ -11059,32 +11059,178 @@ function createFocusItem(focusItem, variant = "landing") {
   return item;
 }
 
-async function openFocusItem(focusItem) {
+function collectFocusItemOpenCandidates(focusItem) {
+  const nodePath = normalizeMenuNodePath(String(focusItem?.nodePath || "").trim());
+  const seen = new Set();
+  const out = [];
+  const push = (item) => {
+    if (!item || typeof item !== "object") return;
+    const agentId = String(item.agentId || "").trim();
+    if (!agentId) return;
+    const path = normalizeMenuNodePath(String(item.nodePath || "").trim());
+    const key = `${agentId}\0${path || nodePath}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(item);
+  };
+
+  push(focusItem);
+  if (nodePath) {
+    for (const item of globalFlowItemsCache) {
+      if (normalizeMenuNodePath(String(item.nodePath || "")) === nodePath) push(item);
+    }
+    for (const item of globalMainItemsCache) {
+      if (normalizeMenuNodePath(String(item.nodePath || "")) === nodePath) push(item);
+    }
+  }
+
+  const activeId = getActiveWorkspaceId();
+  out.sort((left, right) => {
+    if (left.agentId === activeId && right.agentId !== activeId) return -1;
+    if (right.agentId === activeId && left.agentId !== activeId) return 1;
+    return 0;
+  });
+  return out.length ? out : focusItem ? [focusItem] : [];
+}
+
+async function openFocusItemOnce(focusItem) {
   const agent = agentsCache.find((entry) => entry.id === focusItem?.agentId);
   if (!agent || !isAgentRegistryActive(agent)) {
-    showToast("Агент выключен — включите в реестре (⚙)", "error");
-    return;
+    throw new Error("AGENT_INACTIVE");
   }
 
   const nodePath = String(focusItem?.nodePath || "").trim();
   const label = focusItem?.name || getLabelFromPath(nodePath) || agent.name || agent.id;
 
-  try {
-    if (activeWorkspaceId !== agent.id) {
-      await switchActiveAgent(agent.id);
-    } else if (!appLandingPaneNode?.classList.contains("hidden")) {
-      hideAppLandingView();
-      showHomeView();
-    }
-    if (nodePath && nodePath !== "_registration.md") {
-      await openNodeFromMenu(label, nodePath);
-    } else {
-      showAgentHomeView();
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showToast(message ? `Не удалось открыть: ${message}` : "Не удалось открыть", "error");
+  if (activeWorkspaceId !== agent.id) {
+    await switchActiveAgent(agent.id);
+  } else if (!appLandingPaneNode?.classList.contains("hidden")) {
+    hideAppLandingView();
+    showHomeView();
   }
+  if (nodePath && nodePath !== "_registration.md") {
+    await openNodeFromMenu(label, nodePath);
+  } else {
+    showAgentHomeView();
+  }
+}
+
+async function openFocusItem(focusItem) {
+  const candidates = collectFocusItemOpenCandidates(focusItem);
+  if (!candidates.length) return;
+
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      await openFocusItemOnce(candidate);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (error instanceof Error && error.message === "AGENT_INACTIVE") {
+        continue;
+      }
+    }
+  }
+
+  if (lastError instanceof Error && lastError.message === "AGENT_INACTIVE") {
+    showToast("Агент выключен — включите в реестре (⚙)", "error");
+    return;
+  }
+  const message = lastError instanceof Error ? lastError.message : String(lastError || "");
+  showToast(message ? `Не удалось открыть: ${message}` : "Не удалось открыть", "error");
+}
+
+function resolveLandingFocusItemFromDom(el) {
+  const focusPath = normalizeMenuNodePath(String(el?.dataset?.focusPath || "").trim());
+  const agentId = String(el?.dataset?.agentId || "").trim();
+  if (!focusPath) return null;
+
+  const pools = [globalMainItemsCache, globalFlowItemsCache];
+  if (agentId) {
+    for (const pool of pools) {
+      const exact = pool.find(
+        (entry) =>
+          String(entry.agentId || "") === agentId &&
+          normalizeMenuNodePath(String(entry.nodePath || "")) === focusPath
+      );
+      if (exact) return exact;
+    }
+  }
+  for (const pool of pools) {
+    const byPath = pool.find(
+      (entry) => normalizeMenuNodePath(String(entry.nodePath || "")) === focusPath
+    );
+    if (byPath) return byPath;
+  }
+  if (!agentId) return null;
+  return {
+    agentId,
+    nodePath: focusPath,
+    name: getLabelFromPath(focusPath)
+  };
+}
+
+function bindAppLandingFlowGridOpenDelegation() {
+  const grid = appLandingFlowGridNode || document.getElementById("app-landing-flow-grid");
+  if (!grid || grid.dataset.flowOpenBound === "1") return;
+  grid.dataset.flowOpenBound = "1";
+  grid.addEventListener("click", (event) => {
+    const card = event.target.closest(".app-landing-flow-card");
+    if (!card || !grid.contains(card) || card.classList.contains("app-landing-flow-card--skeleton")) {
+      return;
+    }
+    const item = resolveLandingFocusItemFromDom(card);
+    if (!item) return;
+    event.preventDefault();
+    void openFocusItem(item);
+  });
+}
+
+function bindAppLandingFocusGridOpenDelegation() {
+  const grid = appLandingAgentsNode || document.getElementById("app-landing-agents");
+  if (!grid || grid.dataset.focusOpenBound === "1") return;
+  grid.dataset.focusOpenBound = "1";
+  grid.addEventListener("click", (event) => {
+    const card = event.target.closest(".app-landing-focus-card");
+    if (!card || !grid.contains(card)) {
+      return;
+    }
+    const item = resolveLandingFocusItemFromDom(card);
+    if (!item) return;
+    event.preventDefault();
+    void openFocusItem(item);
+  });
+}
+
+function bindAppLandingHubOpenDelegation() {
+  const hub = appLandingHubNode || document.getElementById("app-landing-hub");
+  if (!hub || hub.dataset.hubOpenBound === "1") return;
+  hub.dataset.hubOpenBound = "1";
+  hub.addEventListener("click", (event) => {
+    const twig = event.target.closest(".app-landing-hub-twig");
+    if (!twig || !hub.contains(twig)) return;
+    const item = resolveLandingFocusItemFromDom(twig);
+    if (!item) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void openFocusItem(item);
+  });
+}
+
+function bindAppLandingMainTopicsOpenDelegation() {
+  const list = appLandingFocusListNode || document.getElementById("app-landing-focus-list");
+  if (!list || list.dataset.mainTopicsOpenBound === "1") return;
+  list.dataset.mainTopicsOpenBound = "1";
+  list.addEventListener("click", (event) => {
+    const card = event.target.closest(".app-landing-main-topic-card");
+    if (!card || !list.contains(card) || card.classList.contains("app-landing-main-topic-card--skeleton")) {
+      return;
+    }
+    const item = resolveLandingFocusItemFromDom(card);
+    if (!item) return;
+    event.preventDefault();
+    void openFocusItem(item);
+  });
 }
 
 function resolveFocusPreviewUrl(rawUrl, agentId) {
@@ -11389,6 +11535,7 @@ function createLandingMainTopicChip(focusItem) {
   btn.type = "button";
   btn.className = "app-landing-main-topic-card";
   btn.setAttribute("role", "listitem");
+  btn.dataset.agentId = focusItem.agentId;
   if (nodePath) btn.dataset.focusPath = nodePath;
   if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
   if (!registryActive) btn.classList.add("is-registry-off");
@@ -11423,9 +11570,6 @@ function createLandingMainTopicChip(focusItem) {
 
   copy.append(titleNode, metaNode);
   btn.append(media, copy);
-  btn.addEventListener("click", () => {
-    void openFocusItem(focusItem);
-  });
   return btn;
 }
 
@@ -11590,6 +11734,8 @@ async function loadGlobalFlowItems({ showLoading = false } = {}) {
   if (loadSeq !== landingFlowLoadSeq) return;
   if (getLandingAgentsView() === "flow") {
     setAppLandingFlowLoadingUi(false);
+    appLandingFlowGridNode?.classList.remove("is-loading");
+    appLandingFlowNode?.classList.remove("is-loading");
     renderAppLandingFlow(globalFlowItemsCache);
   }
 }
@@ -12756,7 +12902,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=19";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=23";
 
 function resetLandingChunkHostRegistration() {
   landingChunkHostRegistered = false;
@@ -12934,6 +13080,8 @@ async function ensureLandingChunkReady() {
       getRegistryAgentPreviewUrl,
       formatNodeMetaDateTime,
       openFocusItem,
+      getActiveWorkspaceId,
+      workspaceRelToChpuPath,
       HUB_FOCUS_TWIG_LIMIT,
       get appLandingHubNode() {
         return landingHostDomNode(appLandingHubNode, "app-landing-hub");
@@ -134555,6 +134703,10 @@ appLandingViewGridBtn?.addEventListener("click", () => setLandingAgentsView("gri
 appLandingViewOrbitBtn?.addEventListener("click", () => setLandingAgentsView("orbit"));
 appLandingViewHubBtn?.addEventListener("click", () => setLandingAgentsView("hub"));
 appLandingViewFlowBtn?.addEventListener("click", () => setLandingAgentsView("flow"));
+bindAppLandingFlowGridOpenDelegation();
+bindAppLandingFocusGridOpenDelegation();
+bindAppLandingHubOpenDelegation();
+bindAppLandingMainTopicsOpenDelegation();
 appLandingBgLightBtn?.addEventListener("click", () => setLandingBg("light"));
 appLandingBgSkyBtn?.addEventListener("click", () => setLandingBg("sky"));
 appLandingSettingsBtn?.addEventListener("click", openAgentsSettingsView);

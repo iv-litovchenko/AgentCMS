@@ -39,7 +39,7 @@ function isFlowEligibleFocusItem(focusItem) {
   return FLOW_ELIGIBLE_EXTENSIONS.has(getFlowPathExtension(focusItem?.nodePath));
 }
 
-function normalizeFlowDedupeKey(nodePath) {
+function normalizeFlowPathKey(nodePath) {
   return String(nodePath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
@@ -47,17 +47,69 @@ function normalizeFlowDedupeKey(nodePath) {
     .toLowerCase();
 }
 
-/** Same workspace path from different agents → keep the newest (API order). */
-function dedupeFlowItemsByNodePath(items) {
+/** One card per CHPU record (same slug/path after CHPU normalization). */
+function getFlowItemDedupeKey(focusItem) {
+  const h = requireHost();
+  let nodePath = String(focusItem?.nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!nodePath) return "";
+
+  const ext = getFlowPathExtension(nodePath);
+  if (ext === "csv") {
+    nodePath = nodePath.replace(/\.csv$/i, "");
+  }
+
+  const toChpu = h.workspaceRelToChpuPath;
+  if (typeof toChpu === "function") {
+    const chpu = String(toChpu(nodePath) || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim()
+      .toLowerCase();
+    if (chpu) return `chpu:${chpu}`;
+  }
+
+  return `path:${normalizeFlowPathKey(nodePath)}`;
+}
+
+function pickBetterFlowDuplicate(current, incoming, activeAgentId) {
+  const activeId = String(activeAgentId || "").trim();
+  const score = (item) => {
+    let value = Date.parse(getFlowItemUpdatedIso(item)) || 0;
+    if (activeId && String(item?.agentId || "") === activeId) {
+      value += 1e15;
+    }
+    return value;
+  };
+  return score(incoming) >= score(current) ? incoming : current;
+}
+
+/** Same CHPU record / path from different agents → prefer active workspace, then newest. */
+function dedupeFlowItemsByRecordKey(items) {
+  const h = requireHost();
+  const activeId =
+    typeof h.getActiveWorkspaceId === "function" ? String(h.getActiveWorkspaceId() || "") : "";
+  const bestByKey = new Map();
+  for (const item of items) {
+    const key = getFlowItemDedupeKey(item);
+    if (!key) continue;
+    const prev = bestByKey.get(key);
+    bestByKey.set(key, prev ? pickBetterFlowDuplicate(prev, item, activeId) : item);
+  }
+
   const seen = new Set();
   const out = [];
   for (const item of items) {
-    const key = normalizeFlowDedupeKey(item?.nodePath);
-    if (key) {
-      if (seen.has(key)) continue;
-      seen.add(key);
+    const key = getFlowItemDedupeKey(item);
+    if (!key) {
+      out.push(item);
+      continue;
     }
-    out.push(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(bestByKey.get(key) || item);
   }
   return out;
 }
@@ -301,9 +353,6 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
     btn.append(media, body);
   }
 
-  btn.addEventListener("click", () => {
-    void h.openFocusItem(focusItem);
-  });
   return btn;
 }
 
@@ -441,6 +490,8 @@ export function renderAppLandingFlow(focusItems) {
   if (h.getLandingAgentsView() !== "flow") return;
 
   setAppLandingFlowLoadingUi(false);
+  h.appLandingFlowGridNode?.classList.remove("is-loading");
+  h.appLandingFlowNode?.classList.remove("is-loading");
   h.appLandingFlowGridNode.replaceChildren();
   const agents = h.getAgentsForLandingGrid();
 
@@ -487,7 +538,10 @@ export function renderAppLandingFlow(focusItems) {
 
     const heading = document.createElement("h3");
     heading.className = "app-landing-flow-day-label";
-    heading.textContent = group.label;
+    const headingText = document.createElement("span");
+    headingText.className = "app-landing-flow-day-label-text";
+    headingText.textContent = group.label;
+    heading.appendChild(headingText);
 
     const list = document.createElement("div");
     list.className = "app-landing-flow-day-items";
