@@ -103974,7 +103974,8 @@ function applyMenuSortRow(row, kind, options = {}) {
     handle.title = "Сортировка недоступна для группирующих папок";
     handle.setAttribute("aria-label", "Сортировка недоступна");
   } else {
-    handle.title = "Перетащите для сортировки или перемещения в другую область/тему";
+    handle.title =
+      "Сортировка: перетащите ⠿. Ссылка в чат/буфер: перетащите название темы или статус";
     handle.setAttribute("aria-label", "Перетащите для сортировки или перемещения");
   }
   handle.textContent = "⠿";
@@ -103985,12 +103986,8 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  const sortingEnabled = canSortMenu();
   const markDraggable = (btn) => {
-    if (sortingEnabled) {
-      btn.draggable = false;
-      return;
-    }
+    if (!btn?.dataset?.path && !btn?.dataset?.folderPath && !btn?.dataset?.systemFile) return;
     btn.draggable = true;
     if (!btn.dataset.linkDragHint) {
       btn.dataset.linkDragHint = "1";
@@ -103998,7 +103995,7 @@ function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
     }
   };
   root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach((btn) => {
-    if (isMenuContextMenuTarget(btn)) markDraggable(btn);
+    markDraggable(btn);
   });
   root.querySelectorAll(MENU_ADOPT_FOLDER_DRAG_SELECTOR).forEach(markDraggable);
   root.querySelectorAll(MENU_SYSTEM_FILE_DRAG_SELECTOR).forEach(markDraggable);

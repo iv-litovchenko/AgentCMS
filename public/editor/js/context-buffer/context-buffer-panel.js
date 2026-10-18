@@ -11,16 +11,28 @@
   };
 
   const COLLAPSED_STORAGE_KEY = "agentcms.contextBufferBand.collapsed.v1";
+  const PANEL_HIDDEN_STORAGE_KEY = "agent-cms-context-buffer-hidden";
 
   let getActiveAgentId = () => "main";
   let showToast = null;
   let getCurrentPageItem = null;
   let bandNode = null;
   let toggleBtn = null;
+  let headerToggleBtn = null;
+  let headerBadgeNode = null;
+  let panelHidden = false;
 
   function isContextBufferBandCollapsed() {
     try {
       return localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function readPanelHiddenState() {
+    try {
+      return localStorage.getItem(PANEL_HIDDEN_STORAGE_KEY) === "1";
     } catch {
       return false;
     }
@@ -45,9 +57,43 @@
     syncContextBufferBandCollapsed(collapsed);
   }
 
+  function updatePanelUi() {
+    if (!bandNode) return;
+    bandNode.classList.toggle("is-hidden", panelHidden);
+    headerToggleBtn?.classList.toggle("is-active", !panelHidden);
+    headerToggleBtn?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
+    const title = panelHidden
+      ? "Показать буфер контекста для агента"
+      : "Скрыть буфер контекста для агента";
+    headerToggleBtn?.setAttribute("title", title);
+  }
+
+  function setPanelHidden(next) {
+    panelHidden = Boolean(next);
+    updatePanelUi();
+    try {
+      localStorage.setItem(PANEL_HIDDEN_STORAGE_KEY, panelHidden ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function showContextBufferPanel() {
+    if (!panelHidden) return;
+    setPanelHidden(false);
+  }
+
   function expandContextBufferBand() {
+    showContextBufferPanel();
     if (!bandNode?.classList.contains("is-collapsed")) return;
     setContextBufferBandCollapsed(false);
+  }
+
+  function syncHeaderBadge(count) {
+    if (!headerBadgeNode) return;
+    const n = Number(count) || 0;
+    headerBadgeNode.textContent = String(n);
+    headerBadgeNode.classList.toggle("hidden", n <= 0);
   }
 
   function dragPayloadToBufferItem(payload) {
@@ -123,10 +169,13 @@
       const data = await global.ContextBufferClient.fetchBuffer(null, getActiveAgentId);
       const items = data.items || [];
       renderItems(listNode, items);
-      if (countNode) countNode.textContent = String(items.length);
+      const count = items.length;
+      if (countNode) countNode.textContent = String(count);
+      syncHeaderBadge(count);
     } catch {
       renderItems(listNode, []);
       if (countNode) countNode.textContent = "0";
+      syncHeaderBadge(0);
     }
   }
 
@@ -189,6 +238,14 @@
     });
   }
 
+  function bindHeaderToggle() {
+    if (!headerToggleBtn || headerToggleBtn.dataset.bound === "1") return;
+    headerToggleBtn.dataset.bound = "1";
+    headerToggleBtn.addEventListener("click", () => {
+      setPanelHidden(!panelHidden);
+    });
+  }
+
   function init(options = {}) {
     getActiveAgentId = typeof options.getActiveAgentId === "function" ? options.getActiveAgentId : getActiveAgentId;
     showToast = options.showToast || null;
@@ -197,12 +254,17 @@
 
     bandNode = document.getElementById("context-buffer-band");
     toggleBtn = document.getElementById("context-buffer-toggle-btn");
+    headerToggleBtn = document.getElementById("context-buffer-panel-toggle-btn");
+    headerBadgeNode = document.getElementById("context-buffer-header-badge");
     const addCurrentBtn = document.getElementById("context-buffer-add-current-btn");
     const clearBtn = document.getElementById("context-buffer-clear-btn");
     const refreshBtn = document.getElementById("context-buffer-refresh-btn");
 
+    panelHidden = readPanelHiddenState();
+    updatePanelUi();
     syncContextBufferBandCollapsed();
     setupDropZone(bandNode);
+    bindHeaderToggle();
 
     toggleBtn?.addEventListener("click", (event) => {
       event.stopPropagation();

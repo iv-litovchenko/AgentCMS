@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T21:44:35.142Z",
-  "hash": "f145b11c",
-  "main": "main.f145b11c.built.js",
-  "mainUrl": "/editor/main.f145b11c.built.js",
-  "sourcemap": "main.f145b11c.built.js.map",
+  "generatedAt": "2026-10-18T22:24:52.688Z",
+  "hash": "ba0265ce",
+  "main": "main.ba0265ce.built.js",
+  "mainUrl": "/editor/main.ba0265ce.built.js",
+  "sourcemap": "main.ba0265ce.built.js.map",
   "fallbackMain": "main.built.js",
   "fallbackMainUrl": "/editor/main.built.js",
   "bundleEntry": "js/boot/editor-entry.js",
-  "bytes": 3218780
+  "bytes": 3219937
 }

@@ -1198,7 +1198,7 @@ body.workspace-idle-screensaver-active {
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) var(--sidebar-resize-bar-width) 1fr;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   height: 100dvh;
   height: 100vh;
   min-height: 100vh;
@@ -28803,7 +28803,7 @@ a.header-tool-btn {
 
 .app-footer {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 4;
   padding: 10px 20px 12px;
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -30086,7 +30086,7 @@ body.workspace-pomodoro-break-active {
 
 .sidebar-shell {
   grid-column: 1;
-  grid-row: 2 / 3;
+  grid-row: 2 / 4;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -33954,7 +33954,7 @@ body.workspace-pomodoro-break-active {
 
 .sidebar-resize-bar {
   grid-column: 2;
-  grid-row: 2 / 3;
+  grid-row: 2 / 4;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -70331,8 +70331,37 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #4338ca;
 }
 
-.header-tool-btn.discuss-panel-toggle-btn {
+.context-buffer-panel-toggle-btn.is-active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.header-tool-btn.discuss-panel-toggle-btn,
+.header-tool-btn.context-buffer-panel-toggle-btn {
   position: relative;
+}
+
+.context-buffer-header-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.context-buffer-header-badge.hidden {
+  display: none;
 }
 
 .discuss-panel-context-badge {
@@ -70523,6 +70552,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 .app-print-mode #discuss-aside,
 .app-print-mode .discuss-aside,
 .app-print-mode .discuss-aside-resizer,
+.app-print-mode #context-buffer-band,
+.app-print-mode .context-buffer-band,
 .app-print-mode #workspace-path-header,
 .app-print-mode .workspace-scroll-chrome-store,
 .app-print-mode .workspace-scroll-chrome,
@@ -82367,29 +82398,43 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: transparent;
 }
 
-#app-root.home-view .context-buffer-band {
-  display: none;
-}
-
-.doc-body-main > .context-buffer-band--docked {
-  flex: 0 0 auto;
-  order: 90;
-  z-index: 34;
+.context-buffer-band--global {
+  grid-row: 3;
+  grid-column: 3 / -1;
+  align-self: stretch;
+  z-index: 45;
   margin: 0;
-  padding: 0.45rem var(--doc-content-gutter, 16px) 0.4rem;
-  border: 0;
-  border-top: 1px solid rgba(99, 102, 241, 0.35);
+  padding: 0.45rem 16px 0.4rem;
+  border: none;
+  border-top: 1px solid var(--border);
   border-radius: 0;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(238, 242, 255, 0.98) 100%);
-  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.99) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 -1px 0 rgba(99, 102, 241, 0.12);
   backdrop-filter: blur(6px);
+  min-width: 0;
+  pointer-events: auto;
 }
 
-.doc-body-main:has(.doc-body-status-bar:not(.hidden)) > .context-buffer-band--docked {
-  order: 89;
+.app.app-landing-view .context-buffer-band--global {
+  grid-column: 1 / -1;
 }
 
-.context-buffer-band {
+.app.not-found-view .context-buffer-band--global {
+  display: none !important;
+}
+
+.context-buffer-band.is-hidden {
+  display: none !important;
+}
+
+.app.home-view.app-home-discuss-open .context-buffer-band--global {
+  grid-column: 3;
+}
+
+.context-buffer-band:not(.context-buffer-band--global) {
   flex-shrink: 0;
   margin-top: 0.5rem;
   padding: 0.5rem 0.65rem 0.45rem;
@@ -82398,7 +82443,16 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: rgba(238, 242, 255, 0.65);
 }
 
-.context-buffer-band.is-drag-over {
+.context-buffer-band--global.is-drag-over {
+  border-top-color: rgba(79, 70, 229, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(99, 102, 241, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 -1px 0 rgba(99, 102, 241, 0.2);
+  background: rgba(224, 231, 255, 0.96);
+}
+
+.context-buffer-band:not(.context-buffer-band--global).is-drag-over {
   border-color: rgba(79, 70, 229, 0.75);
   background: rgba(224, 231, 255, 0.95);
 }
@@ -82415,7 +82469,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-bottom: 0;
 }
 
-.context-buffer-band--docked.is-collapsed {
+.context-buffer-band--global.is-collapsed {
   padding-top: 0.3rem;
   padding-bottom: 0.28rem;
 }
