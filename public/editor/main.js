@@ -11602,9 +11602,47 @@ function normalizeLandingMainTopicBoardSortLabel(label) {
   return withoutPrefix || raw;
 }
 
+function inferLandingMainTopicFolderLabelFromStoragePath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/");
+  const match = normalized.match(/awn-topics\/(?:[^/]+\/)*([^/]+)\/(?:awn-storage|storage)\//i);
+  if (!match) return "";
+  return stripTopicPrefix(match[1]) || match[1];
+}
+
+function getLandingMainTopicDisplayLabel(focusItem) {
+  const nodePath = normalizeMenuNodePath(getLandingFocusItemNodePath(focusItem));
+  if (!nodePath) {
+    return String(focusItem?.name || focusItem?.agentName || focusItem?.agentId || "").trim();
+  }
+
+  const awnProps =
+    focusItem?.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+  const slug = getNodeSlugFromPath(nodePath);
+  const awnName = String(awnProps["awn-name"] || focusItem?.name || "").trim();
+  let label = resolveNodeDisplayName(awnName, slug) || getLabelFromPath(nodePath);
+
+  if (/\/(?:awn-storage|storage)\//i.test(nodePath)) {
+    const folderLabel = inferLandingMainTopicFolderLabelFromStoragePath(nodePath);
+    const pathLabel = getLabelFromPath(nodePath);
+    if (
+      folderLabel &&
+      label &&
+      label.toLowerCase() === folderLabel.toLowerCase() &&
+      pathLabel &&
+      pathLabel.toLowerCase() !== label.toLowerCase()
+    ) {
+      label = pathLabel;
+    }
+  }
+
+  return (
+    label ||
+    String(focusItem?.name || focusItem?.agentName || focusItem?.agentId || "").trim()
+  );
+}
+
 function getLandingMainTopicBoardSortLabel(focusItem) {
-  const label = String(focusItem?.name || focusItem?.agentName || focusItem?.agentId || "").trim();
-  return normalizeLandingMainTopicBoardSortLabel(label);
+  return normalizeLandingMainTopicBoardSortLabel(getLandingMainTopicDisplayLabel(focusItem));
 }
 
 function compareLandingMainTopicItemsAlphabetically(a, b) {
@@ -11819,7 +11857,7 @@ function createLandingMainTopicChip(focusItem) {
       path: focusItem.agentPath
     };
   const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
-  const label = focusItem.name || focusItem.agentName || focusItem.agentId;
+  const label = getLandingMainTopicDisplayLabel(focusItem);
   const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
   const nodePath = getLandingFocusItemNodePath(focusItem);
   const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};

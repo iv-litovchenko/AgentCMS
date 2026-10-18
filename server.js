@@ -16475,6 +16475,9 @@ async function enrichFocusItems(items) {
 
       let agentPreviewUrl = null;
       let nodePreviewUrl = null;
+      let name = item.name;
+      let awnType = item.awnType;
+      let awnProps = item.awnProps;
       try {
         const agentPreview = await getAgentPreviewMeta(agent);
         agentPreviewUrl = agentPreview.previewUrl || null;
@@ -16487,14 +16490,28 @@ async function enrichFocusItems(items) {
           await runWithAgent(agent.id, async () => {
             const nodePreview = await getNodePreviewMeta(item.nodePath);
             nodePreviewUrl = nodePreview.previewUrl || null;
+            try {
+              const { frontmatter } = await readNodeFrontmatterContent(item.nodePath);
+              if (frontmatter) {
+                const entry = buildNavFlagEntry(item.nodePath, frontmatter);
+                name = entry.name;
+                awnType = entry.awnType;
+                awnProps = entry.awnProps;
+              }
+            } catch {
+              // keep registry name/props
+            }
           });
         } catch {
-          // no node preview
+          // no node preview / frontmatter
         }
       }
 
       return {
         ...item,
+        name,
+        awnType,
+        awnProps,
         agentPreviewUrl,
         nodePreviewUrl
       };
