@@ -50,10 +50,31 @@
     setContextBufferBandCollapsed(false);
   }
 
+  function hasBufferDragPayload(dataTransfer) {
+    if (global.AgentCmsLinkDrag?.hasMenuLink) {
+      return global.AgentCmsLinkDrag.hasMenuLink(dataTransfer);
+    }
+    if (!dataTransfer?.types) return false;
+    const types = [...dataTransfer.types];
+    if (types.includes("Files")) return false;
+    return types.includes("application/x-awn-menu-link") || types.includes("text/plain");
+  }
+
+  function extractBufferDragPayload(dataTransfer) {
+    if (global.AgentCmsLinkDrag?.extract) {
+      return global.AgentCmsLinkDrag.extract(dataTransfer);
+    }
+    return null;
+  }
+
   function dragPayloadToBufferItem(payload) {
     if (!payload || typeof payload !== "object") return null;
-    const ref = String(payload.path || payload.folderPath || payload.href || "").trim();
+    let ref = String(payload.path || payload.folderPath || payload.href || "").trim();
     const title = String(payload.label || payload.title || ref || payload.text || "").trim();
+    if (!ref && title) {
+      const wiki = title.match(/^\[\[([^\]|#]+)/);
+      if (wiki) ref = wiki[1].trim();
+    }
     if (!ref && !title) return null;
     const source = String(payload.source || "").trim();
     let type = "link";
@@ -164,29 +185,60 @@
     if (!band || band.dataset.contextBufferDropBound === "1") return;
     band.dataset.contextBufferDropBound = "1";
 
-    band.addEventListener("dragover", (event) => {
-      const extract = global.AgentCmsLinkDrag?.extract;
-      if (!extract || !extract(event.dataTransfer)) return;
+    const dropOverlay = document.createElement("div");
+    dropOverlay.className = "context-buffer-dropzone";
+    dropOverlay.setAttribute("aria-hidden", "true");
+    dropOverlay.textContent = "Отпустите для добавления в буфер";
+    band.appendChild(dropOverlay);
+
+    let dropDepth = 0;
+
+    const setDropTarget = (active) => {
+      band.classList.toggle("is-drag-over", active);
+      dropOverlay.classList.toggle("is-active", active);
+    };
+
+    const onDragEnter = (event) => {
+      if (!hasBufferDragPayload(event.dataTransfer)) return;
       event.preventDefault();
-      band.classList.add("is-drag-over");
-    });
+      dropDepth += 1;
+      setDropTarget(true);
+    };
 
-    band.addEventListener("dragleave", (event) => {
-      if (event.target === band || !band.contains(event.relatedTarget)) {
-        band.classList.remove("is-drag-over");
-      }
-    });
+    const onDragOver = (event) => {
+      if (!hasBufferDragPayload(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setDropTarget(true);
+    };
 
-    band.addEventListener("drop", (event) => {
-      band.classList.remove("is-drag-over");
-      const extract = global.AgentCmsLinkDrag?.extract;
-      const payload = extract ? extract(event.dataTransfer) : null;
-      const item = dragPayloadToBufferItem(payload);
-      if (!item) return;
+    const onDragLeave = (event) => {
+      if (band.contains(event.relatedTarget)) return;
+      dropDepth = Math.max(0, dropDepth - 1);
+      if (dropDepth === 0) setDropTarget(false);
+    };
+
+    const onDrop = (event) => {
+      dropDepth = 0;
+      setDropTarget(false);
+      if (!hasBufferDragPayload(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
-      void appendItem(item);
-    });
+      const payload = extractBufferDragPayload(event.dataTransfer);
+      const item = dragPayloadToBufferItem(payload);
+      if (!item) {
+        if (typeof showToast === "function") showToast("Не удалось прочитать перетаскивание", "error");
+        return;
+      }
+      void appendItem(item).catch((error) => {
+        if (typeof showToast === "function") showToast(String(error.message || error), "error");
+      });
+    };
+
+    band.addEventListener("dragenter", onDragEnter, true);
+    band.addEventListener("dragover", onDragOver, true);
+    band.addEventListener("dragleave", onDragLeave, true);
+    band.addEventListener("drop", onDrop, true);
   }
 
   function init(options = {}) {

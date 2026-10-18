@@ -133690,6 +133690,15 @@ setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
+window.AgentCmsLinkDrag = {
+  MIME: MENU_LINK_DRAG_MIME,
+  has: dataTransferHasVoiceChatLink,
+  hasMenuLink: dataTransferHasMenuLink,
+  extract: extractMenuLinkFromDataTransfer,
+  setPayload: setMenuLinkDragPayload,
+  buildLink: buildVoiceChatMarkdownLink,
+  resolveInsertText: resolveVoiceChatInsertText
+};
 setupVoiceChatContextDrag();
 setupContextBufferPanel();
 setupMenuNodeMoveDragDrop();
@@ -135552,15 +135561,6 @@ window.addEventListener("agentcms-system-files-changed", () => {
   void loadSystemFiles({ refreshNotePreview: true });
 });
 
-window.AgentCmsLinkDrag = {
-  MIME: MENU_LINK_DRAG_MIME,
-  has: dataTransferHasVoiceChatLink,
-  hasMenuLink: dataTransferHasMenuLink,
-  extract: extractMenuLinkFromDataTransfer,
-  setPayload: setMenuLinkDragPayload,
-  buildLink: buildVoiceChatMarkdownLink,
-  resolveInsertText: resolveVoiceChatInsertText
-};
 initLiveFileSync();
 initNavPreviewHoverZoom();
 void syncMenuSystemEnvironment();
