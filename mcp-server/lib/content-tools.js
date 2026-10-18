@@ -19,6 +19,8 @@ import {
   deleteContent,
   listContentItems,
   listSectionCapableSlotKeys,
+  mergeContent,
+  splitContent,
   withMdRefFallback
 } from "./content-core.js";
 import {
@@ -279,6 +281,31 @@ export function registerContentTools({ reg, client, pagePath }) {
       confirm: z.boolean().optional()
     }),
     (args) => deleteContent(client, args)
+  );
+
+  reg(
+    "split_content",
+    "Split one .md note into several files by top-level H1 lines (# title — single # only). " +
+      "Each part gets title «Base (n)» from source title or file name; preamble before first H1 → «Base (0)» when includePreamble. " +
+      "New refs: same folder, {stem}-0.md, {stem}-1.md, … Copies frontmatter; updates title and id per part. deleteSource defaults true.",
+    address({
+      includePreamble: z.boolean().optional().describe("Create part (0) for body before first H1 (default true)"),
+      deleteSource: z.boolean().optional().describe("Delete source file after split (default true)")
+    }),
+    (args) => withMdRefFallback(args, (a) => splitContent(client, a))
+  );
+
+  reg(
+    "merge_content",
+    "Merge several .md notes into one (same placement slot). Bodies joined with --- between parts. " +
+      "Keeps target file frontmatter; optional union of tags (mergeTags, default true). targetRef must be in refs (default first). deleteSources optional.",
+    address({
+      refs: z.array(z.string().min(1)).min(2).describe("Markdown refs in merge order, e.g. [\"a.md\", \"b.md\"]"),
+      targetRef: z.string().min(1).optional().describe("Which ref receives merged body (default: first in refs)"),
+      mergeTags: z.boolean().optional().describe("Union tags from all sources (default true)"),
+      deleteSources: z.boolean().optional().describe("Delete non-target refs after merge (default false)")
+    }),
+    (args) => mergeContent(client, args)
   );
 }
 

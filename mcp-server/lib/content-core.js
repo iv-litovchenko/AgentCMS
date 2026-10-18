@@ -3,6 +3,7 @@ import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } fr
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { hashText, readTextWindow } from "./content-read-window.js";
 import { applyBodyEdit, assertExpectedHash, ContentConflictError } from "./content-write-edit.js";
+import { planMergeFile, planSplitFiles } from "./content-merge-split.js";
 
 const FULL_TEXT_READ_MAX_BYTES = 10_000_000;
 
@@ -139,6 +140,37 @@ function requireRef(address, operation) {
   if (!address.ref) {
     throw new Error(`${operation}: placement.ref is required (file in slot, e.g. folder/note.md)`);
   }
+}
+
+function assertMarkdownNoteSlot(address, operation) {
+  rejectRootLifecycle(address, operation);
+  if (isInternalBundleSlot(address.slot)) {
+    throw new Error(`${operation} is not supported for internal slot "${address.slot}".`);
+  }
+  if (isDatabaseDataSlot(address)) {
+    throw new Error(`${operation} is not supported for database data slot.`);
+  }
+}
+
+function requireMdRef(ref, operation) {
+  const name = String(ref || "").trim();
+  if (!name.toLowerCase().endsWith(".md")) {
+    throw new Error(`${operation}: only .md markdown files are supported (${name || "missing ref"})`);
+  }
+}
+
+async function readMarkdownFileParts(client, address) {
+  const { manifestPath, slot, ref } = address;
+  requireRef(address, "read");
+  const payload = await readMarkdownFull(client, manifestPath, slot, ref);
+  const { properties, description } = splitMarkdownFrontmatter(payload.content || "");
+  return {
+    ref,
+    file: payload.file,
+    properties,
+    body: description,
+    raw: payload.content ?? ""
+  };
 }
 
 async function readRootWorkspaceFile(client, args, workspaceFilePath) {
@@ -752,6 +784,110 @@ export async function deleteContent(client, args) {
   if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path: manifestPath, file: ref });
   if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path: manifestPath, file: ref });
   return client.delete("/api/storage/file", { path: manifestPath, folder: slotToFolder(slot), file: ref });
+}
+
+export async function splitContent(client, args) {
+  const address = resolveArgs(args);
+  assertMarkdownNoteSlot(address, "split_content");
+  requireRef(address, "split_content");
+  requireMdRef(address.ref, "split_content");
+
+  const { properties, body } = await readMarkdownFileParts(client, address);
+  const includePreamble = args.includePreamble !== false;
+  const planned = planSplitFiles({
+    properties,
+    sourceRef: address.ref,
+    body,
+    includePreamble
+  });
+
+  for (const file of planned) {
+    const exists = await contentExists(client, {
+      ...args,
+      placement: { ...address.placement, ref: file.ref }
+    });
+    if (exists?.exists) {
+      throw new Error(`split_content: target already exists: ${file.ref}`);
+    }
+  }
+
+  const created = [];
+  for (const file of planned) {
+    await writeMarkdownFull(client, address.manifestPath, address.slot, file.ref, file.fullMarkdown);
+    created.push({ ref: file.ref, title: file.title });
+  }
+
+  const deleteSource = args.deleteSource !== false;
+  if (deleteSource) {
+    await deleteContent(client, args);
+  }
+
+  return {
+    placement: address.placement,
+    sourceRef: address.ref,
+    splitBy: "h1",
+    created,
+    deletedSource: deleteSource
+  };
+}
+
+export async function mergeContent(client, args) {
+  const refs = [...new Set((args.refs || []).map((ref) => String(ref).trim()).filter(Boolean))];
+  if (refs.length < 2) {
+    throw new Error("merge_content: refs must list at least 2 distinct .md files");
+  }
+
+  const baseAddress = resolveArgs(args);
+  assertMarkdownNoteSlot(baseAddress, "merge_content");
+
+  const targetRef = String(args.targetRef || refs[0]).trim();
+  if (!targetRef) throw new Error("merge_content: targetRef is required");
+  if (!refs.includes(targetRef)) {
+    throw new Error("merge_content: targetRef must be one of refs (merged note keeps target frontmatter)");
+  }
+
+  for (const ref of refs) requireMdRef(ref, "merge_content");
+
+  const records = [];
+  for (const ref of refs) {
+    const itemAddress = resolveArgs({
+      ...args,
+      placement: { ...baseAddress.placement, ref }
+    });
+    records.push(await readMarkdownFileParts(client, itemAddress));
+  }
+
+  const targetRecord = records.find((row) => row.ref === targetRef);
+  const bodies = refs.map((ref) => records.find((row) => row.ref === ref).body);
+  const otherProperties = records.filter((row) => row.ref !== targetRef).map((row) => row.properties);
+  const { fullMarkdown } = planMergeFile({
+    targetProperties: targetRecord.properties,
+    bodies,
+    mergeTags: args.mergeTags !== false,
+    otherPropertiesList: otherProperties
+  });
+
+  await writeMarkdownFull(client, baseAddress.manifestPath, baseAddress.slot, targetRef, fullMarkdown);
+
+  const deletedSources = [];
+  if (args.deleteSources) {
+    for (const ref of refs) {
+      if (ref === targetRef) continue;
+      await deleteContent(client, {
+        ...args,
+        placement: { ...baseAddress.placement, ref }
+      });
+      deletedSources.push(ref);
+    }
+  }
+
+  return {
+    placement: baseAddress.placement,
+    targetRef,
+    mergedRefs: refs,
+    mergeTags: args.mergeTags !== false,
+    deletedSources
+  };
 }
 
 export { listSectionCapableSlotKeys };

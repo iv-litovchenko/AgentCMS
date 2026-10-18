@@ -39,8 +39,8 @@
 └── read_asset             … бинарь; extract при необходимости
 
 ✂️ Заметка как целое
-├── merge_notes            … refs[]|paths[] → one ref (body + правила frontmatter)
-└── split_note             … one ref + markers (--- / ## / line ranges) → refs[]
+├── merge_content          … refs[] → targetRef (body через ---; frontmatter target; tags union)
+└── split_content          … one ref, split по # H1 → {stem}-0.md, {stem}-1.md … title «Base (n)»
 
 🧩 Legacy (aliases, вне policy whitelist)
 └── read_content / write_content / create_content → делегат в text_* / upload_asset
@@ -55,8 +55,8 @@
 | Читать/править текст | `read_text_content` / `write_text_content` |
 | Загрузить картинку в **pasted** | `upload_asset({ placement, ref: "pasted/…", data })` → **`publicUrl`** |
 | Показать картинку в чате | `read_asset` → **`publicUrl`** (и при необходимости base64) |
-| Склеить несколько .md | `merge_notes` |
-| Разрезать одну .md | `split_note` |
+| Склеить несколько .md | `merge_content` |
+| Разрезать одну .md по `# H1` | `split_content` |
 
 - В теле заметки канон ссылок: **`awn-storage/assets/pasted/…`**; **`publicUrl`** — для UI/чата (HTTPS CMS, signed path — уточнить в реализации).
 - **`media`** слот темы ≠ **`assets`** (картинки в тексте → **assets**).
@@ -70,7 +70,7 @@
 | ❌ | **`upload_asset` + `publicUrl`** в ответе (обёртка над `write_content` + URL builder) |
 | ❌ | **`read_asset` / `list_assets`** (+ `import_asset_from_url`) |
 | ❌ | **`read_text_content` / `write_text_content`** (aliases + policy канон) |
-| ❌ | **`merge_notes` / `split_note`** — после появления сценариев |
+| ✅ | **`merge_content` / `split_content`** — split по `# H1`, title `(n)` |
 | ❌ | **`GLOBAL-MCP-INSTRUCTION`**, **`GLOBAL-SKILL-1-BASE.md`**, **`TODO-REFACTOR-4`** |
 
 **Приоритет:** сначала **upload + URL**; merge/split — отдельно. Единый mega-hub API **не** делать (5 семейств hub + **`placement`** понятнее агенту).
