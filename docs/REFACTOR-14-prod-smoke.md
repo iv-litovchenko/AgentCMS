@@ -22,6 +22,6 @@
 | 7 | Document viewer (docx/xlsx fixture) | ☐ |
 | 8 | Pomodoro / screensaver (comfort) | ☐ |
 | 9 | awn-channels presets в меню (channel-presets-runtime) | ☐ |
-| 10 | Landing `/` + graph mode lazy chunks | ☐ |
+| 10 | Landing `/`: boot `landing-chunk-boot.js`, orbit/hub/list/flow | ☐ |
 
 Записать результат в [REFACTOR-14-smoke-log.md](./REFACTOR-14-smoke-log.md).

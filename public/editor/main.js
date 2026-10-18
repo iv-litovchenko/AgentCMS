@@ -2050,12 +2050,17 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO", icon: "🔧" }
 ];
 const DOC_LINKS_ACCORDION_STORAGE_KEY = "agent-cms:doc-links-accordion.v1";
-const DOC_LINKS_ACCORDION_DEFAULT_OPEN = new Set([
+/** Не рендерить длинные списки DOM — только через поиск в «Ссылки». */
+const DOC_LINKS_SEARCH_ONLY_TYPE_IDS = new Set(["awn.system", "service"]);
+const DOC_LINKS_SEARCH_ONLY_SECTION_IDS = new Set([
   "nearby-folder",
   "nearby-topic",
-  "menu-current-topic",
-  "awn.topic"
+  "awn.system",
+  "service"
 ]);
+const DOC_LINKS_SEARCH_ONLY_EMPTY_TEXT =
+  "Список не показан — введите запрос в поле поиска выше (название, путь, папка…).";
+const DOC_LINKS_ACCORDION_DEFAULT_OPEN = new Set(["menu-current-topic", "awn.topic"]);
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
 const docAsideTodoStickerNode = document.getElementById("doc-aside-todo-sticker");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
@@ -2303,56 +2308,14 @@ const AGENT_WORKSPACE_VIEW_STORAGE_KEY = "agentcms.agentWorkspaceView.v1";
 const AWN_UI_DEFAULT_WORKSPACE_VIEW_KEY = "default_workspace_view";
 const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
-const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_REL_PATH = "awn-topics/index.md";
 const WORKSPACE_PAGE_INDEX_LEGACY_FILE = "INDEX.md";
 /** System files — js/core/editor-system-files-runtime.js (refactor 14) */
-const LEGACY_STORAGE_ROOT_FOLDER = "storage";
-const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
-const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
-
-function escapeStorageRootRegex(folder) {
-  return String(folder || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function getStorageRootPathAlternationPattern() {
-  return `(?:${escapeStorageRootRegex(STORAGE_ROOT_FOLDER)}|${escapeStorageRootRegex(LEGACY_STORAGE_ROOT_FOLDER)})`;
-}
-
-function isStorageRootRelativePath(relPath) {
-  return STORAGE_ROOT_PATH_PREFIX_RE.test(String(relPath || "").replace(/\\/g, "/"));
-}
-
-function stripStorageRootPrefix(relPath) {
-  return String(relPath || "").replace(/\\/g, "/").replace(STORAGE_ROOT_PATH_PREFIX_RE, "");
-}
-
-function stripStorageAssetsPrefix(relPath) {
-  return String(relPath || "").replace(/\\/g, "/").replace(STORAGE_ASSETS_PATH_PREFIX_RE, "");
-}
-
-function findStorageAssetsMarkerIndex(relPath) {
-  const normalized = String(relPath || "").toLowerCase();
-  return Math.max(
-    normalized.indexOf("/awn-storage/editor/assets/"),
-    normalized.indexOf("/storage/editor/assets/")
-  );
-}
-
-function findStorageRootMarkerIndex(relPath) {
-  const normalized = String(relPath || "").toLowerCase();
-  return Math.max(
-    normalized.indexOf("/awn-storage/"),
-    normalized.indexOf("/storage/")
-  );
-}
+/** Storage path helpers — js/core/editor-storage-path-runtime.js (refactor 14) */
 const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
 const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "roadmap.md", "main.md", "main.csv", "config.yml", "configuration.yml", "schema.yml", "schema.yml", "scheme-mod.yml", "STRUCTURE.md"]);
-const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
-const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
-const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
 const BUNDLE_CONTENT_FILE = "main.md";
 const BUNDLE_TABULAR_FILE = "main.csv";
 const BUNDLE_CONFIG_FILE = "config.yml";
@@ -57649,7 +57612,7 @@ function isDocLinkRegistryNoise(item) {
 
 function shouldShowDocLinkItemByDefault(item) {
   if (String(docLinksSearchQuery || "").trim()) return true;
-  if (item.awnType === "service") return false;
+  if (DOC_LINKS_SEARCH_ONLY_TYPE_IDS.has(item.awnType)) return false;
   if (isDocLinkRegistryNoise(item)) return false;
   if (item.awnType === "awn.memory") return false;
   return true;
@@ -57890,6 +57853,47 @@ function filterDocLinkLibraryItems(items, query = docLinksSearchQuery) {
   return items.filter((item) => buildDocLinkLibrarySearchHaystack(item).includes(q));
 }
 
+function buildDocLinkLibrarySectionSpec({
+  id,
+  icon,
+  title,
+  hint,
+  rawItems,
+  hasQuery,
+  emptyTextNoMatches,
+  emptyTextSearchGate = DOC_LINKS_SEARCH_ONLY_EMPTY_TEXT
+}) {
+  const raw = Array.isArray(rawItems) ? rawItems : [];
+  if (!raw.length) return null;
+
+  const filtered = filterDocLinkLibraryItems(filterVisibleDocLinkItems(raw));
+  const searchOnly = DOC_LINKS_SEARCH_ONLY_SECTION_IDS.has(id);
+
+  if (searchOnly && !hasQuery) {
+    return {
+      id,
+      icon,
+      title,
+      hint: `${hint} · только через поиск`,
+      items: [],
+      totalCount: raw.length,
+      emptyText: emptyTextSearchGate
+    };
+  }
+
+  if (hasQuery && !filtered.length) return null;
+
+  return {
+    id,
+    icon,
+    title,
+    hint,
+    items: filtered,
+    totalCount: hasQuery ? filtered.length : null,
+    emptyText: hasQuery ? emptyTextNoMatches : emptyTextNoMatches
+  };
+}
+
 function ensureDocLinksSearchUi() {
   const scroll = docLinksContentNode?.parentElement;
   if (!scroll) return;
@@ -57917,7 +57921,8 @@ function ensureDocLinksSearchUi() {
 
     const hint = document.createElement("p");
     hint.className = "doc-links-search-hint";
-    hint.textContent = "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
+    hint.textContent =
+      "Перетащите в редактор. «Эта папка», «Системные» и др. — список через поиск.";
 
     wrap.appendChild(input);
     wrap.appendChild(hint);
@@ -57927,7 +57932,8 @@ function ensureDocLinksSearchUi() {
   docLinksSearchInputNode = wrap.querySelector("#doc-links-search") || docLinksSearchInputNode;
   const hintNode = wrap.querySelector(".doc-links-search-hint");
   if (hintNode) {
-    hintNode.textContent = "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
+    hintNode.textContent =
+      "Перетащите в редактор. «Эта папка», «Системные» и др. — список через поиск.";
   }
 }
 
@@ -57948,7 +57954,7 @@ function syncDocLinksSearchResultsHint() {
   const query = String(docLinksSearchQuery || "").trim();
   if (!query) {
     hintNode.textContent =
-      "Перетащите в редактор. Группы сворачиваются — состояние запоминается.";
+      "Перетащите в редактор. «Эта папка», «Системные» и др. — список через поиск.";
     return;
   }
   const matchCount = docLinksContentNode?.querySelectorAll(".doc-link-btn").length || 0;
@@ -58031,7 +58037,7 @@ function appendDocLinkLibraryList(parent, items) {
 
 function appendDocLinkLibraryAccordionGroup(
   parent,
-  { id, title, hint, icon, items, emptyText, forceOpen = false }
+  { id, title, hint, icon, items, emptyText, forceOpen = false, totalCount = null }
 ) {
   const section = document.createElement("details");
   section.className = "doc-links-accordion";
@@ -58072,7 +58078,11 @@ function appendDocLinkLibraryAccordionGroup(
 
   const count = document.createElement("span");
   count.className = "doc-links-accordion-count";
-  count.textContent = String(items.length);
+  const countValue = totalCount != null ? totalCount : items.length;
+  count.textContent = String(countValue);
+  if (totalCount != null && !items.length) {
+    count.title = `${countValue} в индексе — откройте через поиск`;
+  }
   summary.appendChild(count);
 
   section.appendChild(summary);
@@ -58137,50 +58147,51 @@ function renderDocLinksLibraryContent(options = {}) {
   if (useIndex) {
     const { sameFolder, sameTopic, grouped, scopeLabel, currentDir } = collectMarkdownLinkLibraryGroups();
     const sections = [];
-    const filteredSameFolder = filterDocLinkLibraryItems(filterVisibleDocLinkItems(sameFolder));
-    const filteredSameTopic = filterDocLinkLibraryItems(filterVisibleDocLinkItems(sameTopic));
+    const folderSpec = buildDocLinkLibrarySectionSpec({
+      id: "nearby-folder",
+      icon: "📂",
+      title: "Эта папка",
+      hint: currentDir
+        ? stripAgentContentPrefixFromRelPath(currentDir)
+        : "Файлы в той же директории",
+      rawItems: sameFolder,
+      hasQuery,
+      emptyTextNoMatches: "В этой папке нет совпадений."
+    });
+    if (folderSpec) sections.push(folderSpec);
 
-    if (!hasQuery || filteredSameFolder.length) {
-      sections.push({
-        id: "nearby-folder",
-        icon: "📂",
-        title: "Эта папка",
-        hint: currentDir
-          ? stripAgentContentPrefixFromRelPath(currentDir)
-          : "Файлы в той же директории",
-        items: filteredSameFolder,
-        emptyText: hasQuery ? "В этой папке нет совпадений." : "В этой папке нет других .md для ссылки."
-      });
-    }
-
-    if (!hasQuery || filteredSameTopic.length) {
-      sections.push({
-        id: "nearby-topic",
-        icon: "🧭",
-        title: "Эта тема",
-        hint: scopeLabel ? `Область: ${scopeLabel}` : "Другие файлы той же темы",
-        items: filteredSameTopic,
-        emptyText: hasQuery ? "В этой теме нет совпадений." : "В теме нет других .md в соседних папках."
-      });
-    }
+    const topicSpec = buildDocLinkLibrarySectionSpec({
+      id: "nearby-topic",
+      icon: "🧭",
+      title: "Эта тема",
+      hint: scopeLabel ? `Область: ${scopeLabel}` : "Другие файлы той же темы",
+      rawItems: sameTopic,
+      hasQuery,
+      emptyTextNoMatches: "В этой теме нет совпадений."
+    });
+    if (topicSpec) sections.push(topicSpec);
 
     for (const { id, label, hint, icon } of AWN_LINK_TYPE_GROUP_ORDER) {
-      const filtered = filterDocLinkLibraryItems(filterVisibleDocLinkItems(grouped[id] || []));
-      if (hasQuery && !filtered.length) continue;
+      const rawGroup = grouped[id] || [];
       const sectionTitle =
         id === "awn.topic"
           ? `Темы · ${getActiveAgentLabel() || activeWorkspaceId || "агент"}`
           : label;
       const sectionHint =
         id === "awn.topic" ? "Как в меню слева — только темы агента" : hint || "";
-      sections.push({
+
+      const typeSpec = buildDocLinkLibrarySectionSpec({
         id,
         icon: icon || "📄",
         title: sectionTitle,
         hint: sectionHint,
-        items: filtered,
-        emptyText: hasQuery ? `В «${sectionTitle}» нет совпадений.` : `Нет элементов типа ${id}.`
+        rawItems: rawGroup,
+        hasQuery,
+        emptyTextNoMatches: hasQuery
+          ? `В «${sectionTitle}» нет совпадений.`
+          : `Нет элементов типа ${id}.`
       });
+      if (typeSpec) sections.push(typeSpec);
     }
 
     const visibleSections = sections.filter((section) => section.items.length > 0);

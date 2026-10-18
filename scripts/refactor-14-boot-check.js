@@ -193,6 +193,19 @@ async function main() {
     if (!hashedOk) ok = false;
   }
 
+  for (const landingPath of [
+    "/editor/js/landing/landing-chunk-boot.js?v=2",
+    "/editor/js/landing/landing-runtime.js?v=13"
+  ]) {
+    const landingOk = await headOk(landingPath);
+    report.push({ check: `landing ${landingPath}`, pass: landingOk });
+    if (!landingOk) ok = false;
+  }
+
+  const storageSliceOk = await headOk("/editor/js/core/editor-storage-path-runtime.js?v=1");
+  report.push({ check: "editor-storage-path-runtime.js", pass: storageSliceOk });
+  if (!storageSliceOk) ok = false;
+
   for (const row of report) {
     console.log(`${row.pass ? "✓" : "✗"} ${row.check}${row.detail ? ` — ${row.detail}` : ""}`);
   }

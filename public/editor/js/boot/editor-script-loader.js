@@ -272,6 +272,7 @@
         editorCmsCorePromise = (async () => {
           await loadScript("/editor/js/core/channel-presets-runtime.js?v=1");
           await loadScript("/editor/js/core/media-library-presets-runtime.js?v=1");
+          await loadScript("/editor/js/core/editor-storage-path-runtime.js?v=1");
           await loadScript("/editor/js/core/editor-chpu-path-runtime.js?v=1");
           await loadScript("/editor/js/core/editor-system-files-runtime.js?v=1");
           await loadScript("/editor/js/core/editor-shared-theme-presets-runtime.js?v=1");
@@ -398,6 +399,7 @@
   const EDITOR_MAIN_PREMAIN_SCRIPTS = [
     "/editor/js/core/channel-presets-runtime.js?v=1",
     "/editor/js/core/media-library-presets-runtime.js?v=1",
+    "/editor/js/core/editor-storage-path-runtime.js?v=1",
     "/editor/js/core/editor-chpu-path-runtime.js?v=1",
     "/editor/js/core/editor-system-files-runtime.js?v=1",
     "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1"

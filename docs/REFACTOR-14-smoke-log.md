@@ -1,5 +1,19 @@
 # Refactor 14 — smoke log (2026-10-17)
 
+## 2026-10-18 — этапы 1–4
+
+- [x] `landing-chunk-boot.js` + fix host registration (no `collectTopicsFromNode` in main)
+- [x] Orbit dev: 5× `.app-landing-orbit-bubble`, no `.is-alert`
+- [x] `editor-storage-path-runtime.js` in premain chain
+- [x] `npm run build:editor` → `main.29fdf6a2.built.js`
+- [x] `refactor-14-boot-check` HTTPS :3002 — PASS (+ landing + storage slice HEAD)
+- [ ] Prod `?editorBuilt=1` — все 10 пунктов prod-smoke вручную
+- [ ] Hub / grid / flow tabs — полный клик-тест у пользователя
+
+---
+
+# Refactor 14 — smoke log (2026-10-17)
+
 Окружение: `https://127.0.0.1:3002`, Chrome (Cursor browser).  
 Статика boot: `npm run check:editor-boot` — **PASS** (15/15).
 

@@ -13,6 +13,7 @@ import "../core/platform-status.js";
 
 import "../core/channel-presets-runtime.js";
 import "../core/media-library-presets-runtime.js";
+import "../core/editor-storage-path-runtime.js";
 import "../core/editor-chpu-path-runtime.js";
 import "../core/editor-system-files-runtime.js";
 import "../core/editor-shared-theme-presets-runtime.js";

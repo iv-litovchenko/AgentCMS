@@ -32,7 +32,8 @@ editor boot
 │   ├── [x] `media-library-presets-runtime.js`
 │   ├── [x] `editor-chpu-path-runtime.js` (CHPU workspace + legacy path rewrite)
 │   ├── [x] `editor-system-files-runtime.js`
-│   └── [x] `editor-shared-theme-presets-runtime.js`
+│   ├── [x] `editor-shared-theme-presets-runtime.js`
+│   └── [x] `editor-storage-path-runtime.js`
 │
 ├── Фаза 3 — lazy chunks (главный выигрыш CPU)
 │   ├── landing-orbit / landing-flow / landing-platform  → import() только на `/`
