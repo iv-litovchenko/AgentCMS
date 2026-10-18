@@ -500,7 +500,7 @@
                   class="content-search-path-scope is-empty"
                   role="group"
                   aria-label="Ограничить область поиска"
-                  title="Перетащите тему из меню"
+                  title="Перетащите тему из меню, медиатеку или канал"
                 >
                   <span class="content-search-path-scope-icon" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -6329,6 +6329,59 @@
             </div>
               </section>
 
+              <aside
+                id="context-buffer-band"
+                class="context-buffer-band context-buffer-band--docked"
+                aria-label="Буфер контекста для агента"
+              >
+                <div class="context-buffer-head">
+                  <button
+                    type="button"
+                    id="context-buffer-toggle-btn"
+                    class="context-buffer-toggle"
+                    aria-expanded="true"
+                    aria-controls="context-buffer-body"
+                    title="Свернуть или развернуть буфер контекста"
+                  >
+                    <span class="context-buffer-chevron sidebar-accent-band-chevron" aria-hidden="true"></span>
+                    <span class="context-buffer-title">📦 Буфер контекста</span>
+                    <span id="context-buffer-count" class="context-buffer-count">0</span>
+                  </button>
+                  <div class="context-buffer-actions">
+                    <button
+                      type="button"
+                      id="context-buffer-add-current-btn"
+                      class="context-buffer-action-btn"
+                      title="Добавить текущую страницу / фокус"
+                    >
+                      + текущая
+                    </button>
+                    <button
+                      type="button"
+                      id="context-buffer-refresh-btn"
+                      class="context-buffer-action-btn context-buffer-action-btn--ghost"
+                      title="Обновить список"
+                    >
+                      ↻
+                    </button>
+                    <button
+                      type="button"
+                      id="context-buffer-clear-btn"
+                      class="context-buffer-action-btn context-buffer-action-btn--ghost"
+                      title="Очистить буфер"
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                </div>
+                <div id="context-buffer-body" class="context-buffer-body">
+                  <div id="context-buffer-list" class="context-buffer-list" role="list"></div>
+                  <p class="context-buffer-caption">
+                    Drop из overview / меню / слотов · агент: <code>read_context_buffer</code>
+                  </p>
+                </div>
+              </aside>
+
               <footer id="doc-body-status-bar" class="doc-body-status-bar hidden" aria-label="Статистика документа">
                 <div id="doc-body-status-stats" class="doc-body-status-bar-stats"></div>
                 <div class="doc-body-status-bar-actions">
@@ -8909,7 +8962,9 @@ awn-type: awn.page.ws
             "/editor/js/core/editor-storage-path-runtime.js?v=1",
             "/editor/js/core/editor-chpu-path-runtime.js?v=1",
             "/editor/js/core/editor-system-files-runtime.js?v=1",
-            "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1"
+            "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
+            "/editor/js/context-buffer/context-buffer-client.js?v=1",
+            "/editor/js/context-buffer/context-buffer-panel.js?v=1"
           ];
           loadScriptChain(preMain, 0, function () {
             startEditorMain("/editor/main.js?v=" + version);

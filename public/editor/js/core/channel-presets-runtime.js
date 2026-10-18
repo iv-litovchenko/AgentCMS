@@ -257,7 +257,7 @@ const CHANNEL_BUILTIN_PRESETS = [
   {
     slug: '0-other',
     icon: '📦',
-    name: 'Другое',
+    name: 'Другое (общие входящие, склад)',
     hintTitle: 'Временный вход — не знаю куда деть'
   }
 ];

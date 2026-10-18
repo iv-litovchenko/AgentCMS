@@ -505,6 +505,12 @@ const {
   removeFileFromFileHub,
   clearFileHubQueue
 } = require("./lib/api/file-hub-queue-api");
+const {
+  readContextBuffer,
+  appendContextBuffer,
+  removeContextBufferItem,
+  clearContextBuffer
+} = require("./lib/api/context-buffer-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
 const NodeConfigBundle = require("./lib/config/node-config-bundle");
 const {
@@ -15016,6 +15022,14 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFileHubRemove:
     "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
+  workspaceContextBuffer:
+    "GET /api/workspace/context-buffer — read_context_buffer MCP (.agent-cms/state/context-buffer.json)",
+  workspaceContextBufferAdd:
+    "POST /api/workspace/context-buffer/add — append_context_buffer MCP { type?, ref|path, title?, icon?, meta? }",
+  workspaceContextBufferRemove:
+    "POST /api/workspace/context-buffer/remove — remove_context_buffer_item MCP { id?, ref|path? }",
+  workspaceContextBufferClear:
+    "POST /api/workspace/context-buffer/clear — clear_context_buffer MCP",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
@@ -23986,6 +24000,70 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to clear file hub queue",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/context-buffer") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readContextBuffer(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/add") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await appendContextBuffer(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 400, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to append context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/remove") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await removeContextBufferItem(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 404, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to remove context buffer item",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/clear") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const written = await clearContextBuffer(agentRoot);
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear context buffer",
         details: String(error.message || error)
       });
     }

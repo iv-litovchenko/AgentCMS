@@ -33,6 +33,7 @@ import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
+import { registerContextBufferTools } from "./lib/context-buffer-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
@@ -158,6 +159,13 @@ function createServer() {
     schema: getUiFocusSchema,
     handler: getUiFocusHandler
   });
+
+  reg(
+    "get_ui_open_location",
+    "Where the user is in Agent CMS browser UI: route URL + focus (page/slot/content). Same data as get_ui_focus. REST: GET /api/agent/active-context.",
+    getUiFocusSchema,
+    getUiFocusHandler
+  );
 
   const getWorkspaceAlwaysContextRegistryHandler = () => client.get("/api/agent/always-context");
   const getWorkspaceAlwaysContextRegistrySchema = z.object({});
@@ -398,6 +406,7 @@ function createServer() {
 
   registerWorkspacePadTools(reg, client);
   registerFileHubQueueTools(reg, client);
+  registerContextBufferTools(reg, client);
   registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);

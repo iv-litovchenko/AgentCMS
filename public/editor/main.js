@@ -5449,12 +5449,18 @@ const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
   ".props-form-attachment-item[data-path]",
   "#app-footer-ideas-btn:not([disabled])",
   "#agent-todo-preview-toggle:not([disabled])",
-  ".menu-repository-item[data-repository-folder-path]"
+  ".menu-repository-item[data-repository-folder-path]",
+  ".menu-media-library-item[data-media-library-manifest-path]:not(.menu-media-library-item--pending)",
+  ".menu-awn-channels-item[data-awn-channel-folder-path]:not(.menu-awn-channels-item--pending)"
 ].join(", ");
+const MENU_MEDIA_LIBRARY_DRAG_SELECTOR =
+  ".menu-media-library-item[data-media-library-manifest-path]:not(.menu-media-library-item--pending)";
+const MENU_AWN_CHANNEL_DRAG_SELECTOR =
+  ".menu-awn-channels-item[data-awn-channel-folder-path]:not(.menu-awn-channels-item--pending)";
 const VOICE_CHAT_DRAG_HINT =
-  "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
+  "Перетащите в чат, редактор или «Буфер контекста» для ссылки или на другую тему/область для перемещения";
 const VOICE_CHAT_DRAG_TITLE_HINT =
-  "Перетащите в чат Agent CMS Voice или редактор для ссылки";
+  "Перетащите в чат, редактор или «Буфер контекста» для ссылки";
 
 function buildSystemFileMarkdownLink(systemFile, displayLabel) {
   const name = normalizeSystemFileName(systemFile);
@@ -7762,7 +7768,73 @@ function resolveVoiceChatDragPayload(target) {
   const repositoryItem = target.closest(".menu-repository-item[data-repository-folder-path]");
   if (repositoryItem) return buildRepositoryItemDragPayload(repositoryItem);
 
+  const mediaLibraryItem = target.closest(MENU_MEDIA_LIBRARY_DRAG_SELECTOR);
+  if (mediaLibraryItem) return buildMenuMediaLibraryDragPayload(mediaLibraryItem);
+
+  const channelItem = target.closest(MENU_AWN_CHANNEL_DRAG_SELECTOR);
+  if (channelItem) return buildMenuAwnChannelDragPayload(channelItem);
+
   return null;
+}
+
+function buildMenuMediaLibraryDragPayload(row) {
+  if (!row || row.classList.contains("menu-media-library-item--pending")) return null;
+  const manifestPath = String(row.dataset.mediaLibraryManifestPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const folderPath = String(row.dataset.mediaLibraryFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const workspaceRel = manifestPath || folderPath;
+  if (!workspaceRel) return null;
+  const label = sanitizeVoiceChatDragLabel(
+    row.dataset.mediaLibraryLabel ||
+      row.querySelector(".menu-awn-databases-store-name")?.textContent?.trim() ||
+      row.dataset.mediaLibrarySlug ||
+      workspaceRel
+  );
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return {
+    path: workspaceRel,
+    folderPath,
+    label,
+    markdownLink,
+    voiceMarkdownLink,
+    source: "menu-media-library",
+    mediaLibrarySlug: row.dataset.mediaLibrarySlug || ""
+  };
+}
+
+function buildMenuAwnChannelDragPayload(row) {
+  if (!row || row.classList.contains("menu-awn-channels-item--pending")) return null;
+  const folderPath = String(row.dataset.awnChannelFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!folderPath) return null;
+  const manifestPath = `${folderPath.replace(/\/+$/, "")}/manifest.md`;
+  const label = sanitizeVoiceChatDragLabel(
+    row.dataset.awnChannelLabel ||
+      row.querySelector(".menu-awn-channels-item-name")?.textContent?.trim() ||
+      row.dataset.awnChannelSlug ||
+      folderPath
+  );
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(manifestPath, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(manifestPath, label);
+  if (!voiceMarkdownLink) return null;
+  return {
+    path: manifestPath,
+    folderPath,
+    label,
+    markdownLink,
+    voiceMarkdownLink,
+    source: "menu-awn-channel",
+    channelSlug: row.dataset.awnChannelSlug || ""
+  };
 }
 
 function buildRepositoryItemDragPayload(row) {
@@ -16068,6 +16140,7 @@ async function switchActiveAgent(nextAgentId) {
     syncWorkspaceIdleScreensaverEligibility();
     reloadWorkspacePomodoroForAgent(nextAgentId);
     syncWorkspacePomodoroEligibility();
+    window.ContextBufferPanel?.refresh?.();
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     closeMenuSettingsPopover();
@@ -30514,7 +30587,7 @@ function renderContentSearchPathScope() {
     : "";
   contentSearchPathScopeNode.title = active
     ? `Искать только в: ${pathPrefix}`
-    : "Перетащите тему из меню, чтобы ограничить область поиска";
+    : "Перетащите тему из меню, медиатеку или канал — чтобы ограничить область поиска";
   contentSearchPathScopeClearNode?.classList.toggle("hidden", !active);
 }
 
@@ -30548,6 +30621,30 @@ function deriveSearchPathScopeFromResolve(payload, fallbackLabel = "") {
   };
 }
 
+function deriveContentSearchScopeKindFromPayload(payload) {
+  const source = String(payload?.source || "").trim();
+  if (source === "adopt-folder") return "area";
+  if (source === "menu-awn-channel") return "channel";
+  if (source === "menu-media-library") return "media-library";
+  if (source === "repository-item") return "repository";
+  return "folder";
+}
+
+function deriveFolderPathFromWorkspaceRel(workspaceRel) {
+  const normalized = String(workspaceRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!normalized || normalized === ".") return "";
+  if (normalized.endsWith("/manifest.md")) {
+    return normalized.slice(0, -"/manifest.md".length);
+  }
+  if (normalized.includes("/")) {
+    return normalized.slice(0, normalized.lastIndexOf("/"));
+  }
+  return normalized;
+}
+
 async function resolveContentSearchPathScopeFromMenuPayload(payload) {
   if (!payload) return null;
   const folderPath = String(payload.folderPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
@@ -30555,12 +30652,26 @@ async function resolveContentSearchPathScopeFromMenuPayload(payload) {
     return {
       pathPrefix: folderPath,
       label: payload.label || folderPath.split("/").pop() || folderPath,
-      kind: payload.source === "adopt-folder" ? "area" : "folder",
+      kind: deriveContentSearchScopeKindFromPayload(payload),
       sourcePath: payload.path || folderPath
     };
   }
   const nodePath = String(payload.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!nodePath) return null;
+  const derivedFolder = deriveFolderPathFromWorkspaceRel(nodePath);
+  if (
+    derivedFolder &&
+    (nodePath.startsWith("awn-media/") ||
+      nodePath.startsWith("awn-channels/") ||
+      nodePath.startsWith("repositories/"))
+  ) {
+    return {
+      pathPrefix: derivedFolder,
+      label: payload.label || derivedFolder.split("/").pop() || derivedFolder,
+      kind: deriveContentSearchScopeKindFromPayload(payload),
+      sourcePath: nodePath
+    };
+  }
   const response = await fetch(buildApiUrl("/api/agent/resolve-path", { path: nodePath }));
   if (!response.ok) throw new Error(`resolve-path failed with ${response.status}`);
   const data = await response.json();
@@ -30582,8 +30693,22 @@ function bindContentSearchPathScopeDrop() {
   if (!contentSearchPathScopeNode || contentSearchPathScopeNode.dataset.dropBound === "1") return;
   contentSearchPathScopeNode.dataset.dropBound = "1";
 
+  const hasSearchScopeDragPayload = (dataTransfer) => {
+    if (window.AgentCmsLinkDrag?.hasMenuLink) {
+      return window.AgentCmsLinkDrag.hasMenuLink(dataTransfer);
+    }
+    return dataTransferHasMenuLink(dataTransfer);
+  };
+
+  const extractSearchScopeDragPayload = (dataTransfer) => {
+    if (window.AgentCmsLinkDrag?.extract) {
+      return window.AgentCmsLinkDrag.extract(dataTransfer);
+    }
+    return extractMenuLinkFromDataTransfer(dataTransfer);
+  };
+
   contentSearchPathScopeNode.addEventListener("dragover", (event) => {
-    if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+    if (!hasSearchScopeDragPayload(event.dataTransfer)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
     contentSearchPathScopeNode.classList.add("is-drop-target");
@@ -30595,11 +30720,11 @@ function bindContentSearchPathScopeDrop() {
   });
 
   contentSearchPathScopeNode.addEventListener("drop", (event) => {
-    if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+    if (!hasSearchScopeDragPayload(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     contentSearchPathScopeNode.classList.remove("is-drop-target");
-    const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
+    const payload = extractSearchScopeDragPayload(event.dataTransfer);
     if (!payload) return;
     void applyContentSearchPathScopeFromMenuPayload(payload);
   });
@@ -104098,6 +104223,30 @@ function bindVoiceChatDragSourceObserver() {
   observer.observe(host, { childList: true, subtree: true });
 }
 
+function setupContextBufferPanel() {
+  if (!window.ContextBufferPanel?.init) return;
+  window.ContextBufferPanel.init({
+    getActiveAgentId: () => activeWorkspaceId,
+    showToast,
+    getCurrentPageItem: () => {
+      const payload = buildActivePageContextPayload();
+      const focus = payload?.focus || {};
+      const pagePath = String(focus.page?.path || getResolvedNodePath(activePath) || "").trim();
+      const contentRef = String(focus.content?.ref || "").trim();
+      const ref = contentRef || pagePath || String(payload.route || "").trim();
+      if (!ref) return null;
+      const type = focus.entity === "content" ? "content" : "page";
+      return {
+        type,
+        ref,
+        title:
+          String(focus.content?.title || focus.page?.label || activeLabel || "").trim() || ref,
+        meta: { route: payload.route, focusEntity: focus.entity }
+      };
+    }
+  });
+}
+
 function setupVoiceChatContextDrag() {
   if (document.body.dataset.voiceChatDragBound === "1") return;
   document.body.dataset.voiceChatDragBound = "1";
@@ -104105,10 +104254,31 @@ function setupVoiceChatContextDrag() {
   document.addEventListener(
     "dragstart",
     (event) => {
+      if (event.target.closest(".menu-sort-handle")) return;
+
+      const menuTreePayload = resolveMenuTreeLinkDragPayload(event.target);
+      if (menuTreePayload) {
+        if (menuTreePayload.copyMove) {
+          event.dataTransfer.effectAllowed = "copyMove";
+        }
+        if (!setMenuLinkDragPayload(event, menuTreePayload)) return;
+        voiceChatDragEl =
+          event.target.closest(MENU_LINK_DRAG_SELECTOR) ||
+          event.target.closest(MENU_ADOPT_FOLDER_DRAG_SELECTOR) ||
+          event.target.closest(MENU_SYSTEM_FILE_DRAG_SELECTOR) ||
+          event.target;
+        voiceChatDragEl?.classList.add("is-dragging-voice-chat-context");
+        markVoiceChatDropActive(event.dataTransfer);
+        return;
+      }
+
       const repositoryItem = event.target.closest(".menu-repository-item[data-repository-folder-path]");
+      const mediaLibraryItem = event.target.closest(MENU_MEDIA_LIBRARY_DRAG_SELECTOR);
+      const channelItem = event.target.closest(MENU_AWN_CHANNEL_DRAG_SELECTOR);
+      const menuSidebarDragItem = repositoryItem || mediaLibraryItem || channelItem;
       if (
-        !repositoryItem &&
-        event.target.closest("#menu, .menu-sort-handle, .nav-book-toc-drag-handle")
+        !menuSidebarDragItem &&
+        event.target.closest("#menu, .nav-book-toc-drag-handle")
       ) {
         return;
       }
@@ -104119,16 +104289,28 @@ function setupVoiceChatContextDrag() {
         event.preventDefault();
         return;
       }
+      if (mediaLibraryItem && event.target.closest(".menu-media-library-key-btn")) {
+        event.preventDefault();
+        return;
+      }
+      if (channelItem && event.target.closest(".menu-awn-channels-key-btn")) {
+        event.preventDefault();
+        return;
+      }
       if (event.target.closest(".props-form-attachment-sort-handle")) return;
 
       const payload = repositoryItem
         ? buildRepositoryItemDragPayload(repositoryItem)
-        : resolveVoiceChatDragPayload(event.target);
+        : mediaLibraryItem
+          ? buildMenuMediaLibraryDragPayload(mediaLibraryItem)
+          : channelItem
+            ? buildMenuAwnChannelDragPayload(channelItem)
+            : resolveVoiceChatDragPayload(event.target);
       if (!payload || !setMenuLinkDragPayload(event, payload)) return;
 
       voiceChatDragEl =
         event.target.closest(VOICE_CHAT_DRAG_SOURCE_SELECTOR) ||
-        repositoryItem ||
+        menuSidebarDragItem ||
         event.target;
       voiceChatDragEl?.classList.add("is-dragging-voice-chat-context");
 
@@ -104151,6 +104333,64 @@ function setupVoiceChatContextDrag() {
   enableVoiceChatDragSources(document);
 }
 
+function resolveMenuTreeLinkDragPayload(target) {
+  if (!target || target.closest(".menu-sort-handle")) return null;
+
+  const adoptBtn = target.closest(MENU_ADOPT_FOLDER_DRAG_SELECTOR);
+  if (adoptBtn) {
+    const folderPath = normalizeCreateParentPath(adoptBtn.dataset.folderPath || "");
+    if (!folderPath || folderPath === ".") return null;
+    const label =
+      adoptBtn.querySelector(".menu-folder-name")?.textContent?.trim() ||
+      folderPath.split("/").filter(Boolean).pop() ||
+      folderPath;
+    const markdownLink = buildAdoptFolderMarkdownLink(folderPath, label);
+    if (!markdownLink) return null;
+    return {
+      path: folderPath,
+      folderPath,
+      label,
+      wikilink: markdownLink,
+      markdownLink,
+      source: "adopt-folder"
+    };
+  }
+
+  const systemFileBtn = target.closest(MENU_SYSTEM_FILE_DRAG_SELECTOR);
+  if (systemFileBtn) {
+    const systemFile = normalizeSystemFileName(systemFileBtn.dataset.systemFile || "");
+    if (!systemFile) return null;
+    const label = systemFileBtn.textContent?.trim() || systemFile;
+    const markdownLink = buildSystemFileMarkdownLink(systemFile, label);
+    if (!markdownLink) return null;
+    return {
+      path: systemFile,
+      systemFile,
+      label,
+      wikilink: markdownLink,
+      markdownLink,
+      source: "system-file"
+    };
+  }
+
+  const linkBtn = target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
+  if (!linkBtn) return null;
+
+  const nodePath = normalizeMenuNodePath(linkBtn.dataset.path);
+  if (!nodePath) return null;
+
+  const label = resolveMenuEntryLabel(nodePath);
+  const markdownLink = buildMarkdownFileLink(nodePath, label);
+  return {
+    path: nodePath,
+    label,
+    wikilink: markdownLink,
+    markdownLink,
+    source: "menu-tree",
+    copyMove: isMenuContextMenuTarget(linkBtn)
+  };
+}
+
 function setupMenuLinkDragToEditor() {
   if (!menuNode || menuNode.dataset.linkDragBound === "1") return;
   menuNode.dataset.linkDragBound = "1";
@@ -104158,73 +104398,20 @@ function setupMenuLinkDragToEditor() {
   menuNode.addEventListener("dragstart", (event) => {
     if (event.target.closest(".menu-sort-handle")) return;
 
-    const adoptBtn = event.target.closest(MENU_ADOPT_FOLDER_DRAG_SELECTOR);
-    if (adoptBtn) {
-      const folderPath = normalizeCreateParentPath(adoptBtn.dataset.folderPath || "");
-      if (!folderPath || folderPath === ".") return;
-      const label =
-        adoptBtn.querySelector(".menu-folder-name")?.textContent?.trim() ||
-        folderPath.split("/").filter(Boolean).pop() ||
-        folderPath;
-      const markdownLink = buildAdoptFolderMarkdownLink(folderPath, label);
-      if (!markdownLink) return;
-      if (
-        !setMenuLinkDragPayload(event, {
-          path: folderPath,
-          folderPath,
-          label,
-          wikilink: markdownLink,
-          markdownLink,
-          source: "adopt-folder"
-        })
-      ) {
-        return;
-      }
-      menuLinkDragBtn = adoptBtn;
-      adoptBtn.classList.add("is-dragging-menu-link");
-      markVoiceChatDropActive(event.dataTransfer);
-      return;
+    const payload = resolveMenuTreeLinkDragPayload(event.target);
+    if (!payload) return;
+
+    const linkBtn =
+      event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR) ||
+      event.target.closest(MENU_ADOPT_FOLDER_DRAG_SELECTOR) ||
+      event.target.closest(MENU_SYSTEM_FILE_DRAG_SELECTOR);
+    if (payload.copyMove) {
+      event.dataTransfer.effectAllowed = "copyMove";
     }
+    if (!setMenuLinkDragPayload(event, payload)) return;
 
-    const systemFileBtn = event.target.closest(MENU_SYSTEM_FILE_DRAG_SELECTOR);
-    if (systemFileBtn) {
-      const systemFile = normalizeSystemFileName(systemFileBtn.dataset.systemFile || "");
-      if (!systemFile) return;
-      const label = systemFileBtn.textContent?.trim() || systemFile;
-      const markdownLink = buildSystemFileMarkdownLink(systemFile, label);
-      if (!markdownLink) return;
-      if (
-        !setMenuLinkDragPayload(event, {
-          path: systemFile,
-          systemFile,
-          label,
-          wikilink: markdownLink,
-          markdownLink,
-          source: "system-file"
-        })
-      ) {
-        return;
-      }
-      menuLinkDragBtn = systemFileBtn;
-      systemFileBtn.classList.add("is-dragging-menu-link");
-      markVoiceChatDropActive(event.dataTransfer);
-      return;
-    }
-
-    const linkBtn = event.target.closest(MENU_LINK_DRAG_SOURCE_SELECTOR);
-    if (!linkBtn) return;
-
-    const nodePath = normalizeMenuNodePath(linkBtn.dataset.path);
-    if (!nodePath) return;
-
-    const label = resolveMenuEntryLabel(nodePath);
-    const markdownLink = buildMarkdownFileLink(nodePath, label);
-    event.dataTransfer.effectAllowed = isMenuContextMenuTarget(linkBtn) ? "copyMove" : "copy";
-    if (!setMenuLinkDragPayload(event, { path: nodePath, label, wikilink: markdownLink, markdownLink })) {
-      return;
-    }
-    menuLinkDragBtn = linkBtn;
-    linkBtn.classList.add("is-dragging-menu-link");
+    menuLinkDragBtn = linkBtn || event.target;
+    menuLinkDragBtn?.classList?.add("is-dragging-menu-link");
     markVoiceChatDropActive(event.dataTransfer);
   });
 
@@ -118170,6 +118357,7 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
     menuAwnChannelsListNode.appendChild(createMenuAwnChannelRow(row.entry));
   }
   syncMenuAwnChannelsActiveState();
+  enableVoiceChatDragSources(menuAwnChannelsListNode);
 }
 
 async function refreshMenuAwnChannels(agentId = activeWorkspaceId) {
@@ -129376,6 +129564,7 @@ function renderMenuMediaLibraries(payload = null, { loading = false, error = fal
     );
   }
   syncMenuMediaLibraryActiveState();
+  enableVoiceChatDragSources(menuMediaLibraryListNode);
 }
 
 async function refreshMenuMediaLibraries(agentId = activeWorkspaceId) {
@@ -133505,6 +133694,7 @@ setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
 setupVoiceChatContextDrag();
+setupContextBufferPanel();
 setupMenuNodeMoveDragDrop();
 setupMemoryListDragDrop();
 setupEditorMenuLinkDrop();
