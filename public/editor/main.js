@@ -18356,7 +18356,7 @@ function isStorageSlotCountOnly(spec) {
 const DATA_STORAGE_SLOT_SPECS = [
   {
     key: "memory",
-    label: "Память (многофайловая)",
+    label: "Память-страницы (многофайловая)",
     icon: "🧠",
     modes: new Set(["external"]),
     defaultMode: "external",
@@ -72182,7 +72182,7 @@ function resolveContentIndexEntrySlotLabel(slotKey) {
   if (raw === "гибкий") return "гибкий";
   const spec = resolveStorageSlotSpecByCounterKey(raw);
   if (spec?.label) return spec.label;
-  if (raw === "main" || raw === "external") return "Память (многофайловая)";
+  if (raw === "main" || raw === "external") return "Память-страницы (многофайловая)";
   return raw || "—";
 }
 
@@ -76200,7 +76200,7 @@ function resolveDataStorageSlotDisplayLabel(memoryKind) {
   const kind = String(memoryKind || "").trim();
   if (!kind) return "Слот";
   if (kind === "external") {
-    return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === "memory")?.label || "Память (многофайловая)";
+    return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === "memory")?.label || "Память-страницы (многофайловая)";
   }
   const spec =
     DATA_STORAGE_SLOT_SPECS.find((item) => item.key === kind) ||

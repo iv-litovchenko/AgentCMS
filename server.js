@@ -14156,9 +14156,9 @@ async function resolveContentIndexEntryImportance(manifestRelPath, entry) {
 }
 
 const CONTENT_INDEX_SLOT_LABELS = {
-  memory: "Память (многофайловая)",
-  main: "Память (многофайловая)",
-  external: "Память (многофайловая)",
+  memory: "Память-страницы (многофайловая)",
+  main: "Память-страницы (многофайловая)",
+  external: "Память-страницы (многофайловая)",
   assets: "Активы",
   "task-queue": "Очередь задач",
   "agent-task-queue": "Очередь задач",
