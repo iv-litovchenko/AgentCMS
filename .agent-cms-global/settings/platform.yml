@@ -1,7 +1,7 @@
 # Agent CMS — глобальные настройки платформы (0-ws-core)
 
 awn_settings:
-  maintenance-mode: false
+  maintenance-mode: true
   default-locale: ru
   default-workspace-id: agent-focus
   ui-theme: system

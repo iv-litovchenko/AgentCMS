@@ -230,8 +230,8 @@ function isVoiceMaintenanceBypassPath(safePath, reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return true;
   if (safePath === "shell/maintenance.html") return true;
-  if (safePath === "js/core/platform-status.js") return true;
-  if (safePath === "js/core/project-version.js") return true;
+  if (safePath === "editor/js/core/platform-status.js") return true;
+  if (safePath === "editor/js/core/project-version.js") return true;
   if (safePath.startsWith("shell/") && /\.(css|js|svg|png|webp|ico|woff2?|webmanifest|wasm)$/i.test(safePath)) {
     return true;
   }
