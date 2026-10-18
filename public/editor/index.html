@@ -5427,6 +5427,7 @@
           </button>
         </div>
         <div class="workspace-body">
+        <div id="workspace-main-stack" class="workspace-main-stack">
         <main class="content doc-stack">
           <section id="workspace-path-header" class="doc-slab doc-slab-path">
             <div class="workspace-path-crumbs-block">
@@ -6477,27 +6478,6 @@
           </section>
         </main>
 
-        <aside id="discuss-aside" class="discuss-aside" aria-label="Agent CMS Voice" data-active-tab="shell">
-          <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели Agent CMS Voice" tabindex="0"></div>
-
-          <div
-            id="discuss-panel-shell"
-            class="discuss-aside-view discuss-aside-shell-view is-active"
-            role="region"
-            aria-label="Agent CMS Voice"
-          >
-            <iframe
-              id="discuss-shell-iframe"
-              class="discuss-shell-iframe"
-              title="Agent CMS Voice"
-              referrerpolicy="same-origin"
-              allow="microphone; camera"
-            ></iframe>
-          </div>
-        </aside>
-        </div>
-      </section>
-
       <aside
         id="context-buffer-band"
         class="context-buffer-band context-buffer-band--global"
@@ -6550,6 +6530,28 @@
           </p>
         </div>
       </aside>
+        </div>
+
+        <aside id="discuss-aside" class="discuss-aside" aria-label="Agent CMS Voice" data-active-tab="shell">
+          <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели Agent CMS Voice" tabindex="0"></div>
+
+          <div
+            id="discuss-panel-shell"
+            class="discuss-aside-view discuss-aside-shell-view is-active"
+            role="region"
+            aria-label="Agent CMS Voice"
+          >
+            <iframe
+              id="discuss-shell-iframe"
+              class="discuss-shell-iframe"
+              title="Agent CMS Voice"
+              referrerpolicy="same-origin"
+              allow="microphone; camera"
+            ></iframe>
+          </div>
+        </aside>
+        </div>
+      </section>
 
       <footer class="app-footer" id="app-footer">
         <div class="app-footer-bar">

@@ -28018,6 +28018,7 @@ function applyNodeWorkspaceViewUi(options = {}) {
     updateBreadcrumbsForActiveMode();
   }
   syncWorkspaceCloseButtonsVisibility();
+  window.ContextBufferPanel?.syncMount?.();
 }
 
 function returnToNodeNavigation() {
@@ -108485,7 +108486,10 @@ function applyAgentWorkspaceCanvasUi() {
     !showCanvas || agentWorkspaceView !== "timeline-vertical"
   );
 
-  if (!showCanvas) return;
+  if (!showCanvas) {
+    window.ContextBufferPanel?.syncMount?.();
+    return;
+  }
 
   if (agentWorkspaceView === "dashboard") {
     renderAgentDashboardView();
@@ -108555,6 +108559,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentAwnTypesToolbarUi();
   syncMenuAgentStatsModuleBtnState();
   updateDocumentTitle();
+  window.ContextBufferPanel?.syncMount?.();
 }
 
 function setAgentWorkspaceView(
@@ -116006,6 +116011,7 @@ function hideAppLandingView() {
   syncAppFooterWorkspaceToolsAvailability();
   syncWorkspaceIdleScreensaverEligibility();
   syncWorkspacePomodoroEligibility();
+  window.ContextBufferPanel?.syncMount?.();
 }
 
 function showAppLandingView(hint = "") {
@@ -116060,6 +116066,7 @@ function showAppLandingView(hint = "") {
   syncAppFooterWorkspaceToolsAvailability();
   syncWorkspaceIdleScreensaverEligibility();
   syncWorkspacePomodoroEligibility();
+  window.ContextBufferPanel?.syncMount?.();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {

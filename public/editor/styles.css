@@ -1198,7 +1198,7 @@ body.workspace-idle-screensaver-active {
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) var(--sidebar-resize-bar-width) 1fr;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100dvh;
   height: 100vh;
   min-height: 100vh;
@@ -1316,7 +1316,7 @@ body.workspace-idle-screensaver-active {
 .app.home-view.app-home-discuss-open .workspace-pane {
   display: flex !important;
   grid-column: 4;
-  grid-row: 2 / 4;
+  grid-row: 2 / 3;
   min-width: 0;
   min-height: 0;
   border-right: 0;
@@ -1554,7 +1554,7 @@ body.workspace-idle-screensaver-active {
 .app.app-landing-view.app-landing-discuss-open .workspace-pane {
   display: flex !important;
   grid-column: 2;
-  grid-row: 2 / 4;
+  grid-row: 2 / 3;
   min-width: 0;
   min-height: 0;
   border-right: 0;
@@ -28803,7 +28803,7 @@ a.header-tool-btn {
 
 .app-footer {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 3;
   padding: 10px 20px 12px;
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -30086,7 +30086,7 @@ body.workspace-pomodoro-break-active {
 
 .sidebar-shell {
   grid-column: 1;
-  grid-row: 2 / 4;
+  grid-row: 2 / 3;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -33954,7 +33954,7 @@ body.workspace-pomodoro-break-active {
 
 .sidebar-resize-bar {
   grid-column: 2;
-  grid-row: 2 / 4;
+  grid-row: 2 / 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -37283,6 +37283,22 @@ body.workspace-pomodoro-break-active {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+}
+
+.workspace-main-stack {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.workspace-main-stack > .content.doc-stack {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
 }
 
 .workspace-body > .content.doc-stack {
@@ -82370,8 +82386,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .context-buffer-band--global {
-  grid-row: 3;
-  grid-column: 3;
+  flex: 0 0 auto;
   align-self: stretch;
   z-index: 45;
   position: relative;
@@ -82390,8 +82405,24 @@ body.is-cms-page-picker-active #discuss-aside * {
   pointer-events: auto;
 }
 
-.app.app-landing-view .context-buffer-band--global {
-  grid-column: 1 / -1;
+.agent-canvas-pane.context-buffer-docked {
+  overflow: hidden;
+}
+
+.agent-canvas-pane.context-buffer-docked > :not(#context-buffer-band) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.app-landing-pane.context-buffer-docked {
+  overflow: hidden;
+}
+
+.app-landing-pane.context-buffer-docked > :not(#context-buffer-band) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .app.not-found-view .context-buffer-band--global {

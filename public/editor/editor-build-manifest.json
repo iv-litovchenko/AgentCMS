@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-18T22:36:28.549Z",
-  "hash": "cfe5bddb",
-  "main": "main.cfe5bddb.built.js",
-  "mainUrl": "/editor/main.cfe5bddb.built.js",
-  "sourcemap": "main.cfe5bddb.built.js.map",
+  "generatedAt": "2026-10-18T22:40:40.023Z",
+  "hash": "74ce58a1",
+  "main": "main.74ce58a1.built.js",
+  "mainUrl": "/editor/main.74ce58a1.built.js",
+  "sourcemap": "main.74ce58a1.built.js.map",
   "fallbackMain": "main.built.js",
   "fallbackMainUrl": "/editor/main.built.js",
   "bundleEntry": "js/boot/editor-entry.js",
-  "bytes": 3219977
+  "bytes": 3220962
 }
