@@ -152,6 +152,21 @@ function assertMarkdownNoteSlot(address, operation) {
   }
 }
 
+function assertBinaryContentAddress(address, operation) {
+  if (isInternalBundleSlot(address.slot)) {
+    throw new Error(`${operation} is not supported for internal slot "${address.slot}".`);
+  }
+  if (address.kind !== "root") {
+    requireRef(address, operation);
+    const ref = String(address.ref || "").toLowerCase();
+    if (ref.endsWith(".md")) {
+      throw new Error(
+        `${operation}: .md is text — use read_content / write_content. Example ref: assets/pasted/photo.png`
+      );
+    }
+  }
+}
+
 function requireMdRef(ref, operation) {
   const name = String(ref || "").trim();
   if (!name.toLowerCase().endsWith(".md")) {
@@ -327,11 +342,34 @@ export async function readContentBody(client, args) {
   return { placement, file: payload.file, ...readTextWindow(payload.content, windowArgs(args, ref)) };
 }
 
+export async function readContentBinary(client, args) {
+  const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "read_content_binary");
+  const result = await readContentBody(client, {
+    ...args,
+    part: "body",
+    format: "base64",
+    full: true
+  });
+  if (result.format === "base64" && typeof result.data === "string") {
+    return {
+      placement: result.placement,
+      ...(result.file ? { file: result.file } : {}),
+      ...(result.path ? { path: result.path } : {}),
+      ...result
+    };
+  }
+  throw new Error(
+    "read_content_binary: could not read as binary (check ref/path). Text markdown → read_content."
+  );
+}
+
 export async function writeContentBinary(client, args) {
   const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "write_content_binary");
   const { manifestPath, slot, ref, kind, placement, workspaceFilePath } = address;
   const data = String(args.data || "").trim();
-  if (!data) throw new Error("data (base64) is required for binary upload");
+  if (!data) throw new Error("data (base64) is required for write_content_binary");
   if (kind === "root") {
     return client.post("/api/workspace/fs/upload", {
       path: workspaceFilePath,

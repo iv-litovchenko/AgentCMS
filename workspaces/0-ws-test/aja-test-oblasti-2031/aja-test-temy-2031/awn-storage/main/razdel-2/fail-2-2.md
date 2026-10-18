@@ -11,7 +11,9 @@ awn-version: 2
 awn-preview: ""
 awn-web-url: ""
 awn-attachments: []
+awn-id: 9017
 ---
+
 
 # Файл 2.2 раздела 2
 

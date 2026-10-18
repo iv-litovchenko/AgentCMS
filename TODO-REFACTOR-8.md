@@ -6,7 +6,7 @@
 
 **Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-SKILL-0-MCP-WELCOME.md`**, **`GLOBAL-SKILL-1-BASE.md`**.
 
-**Сейчас в проде:** **`read_content` / `write_content` / `create_content` / `list_content`**, **`merge_content` / `split_content`**, **`import_content_from_url`**, **`extract_document_text`**, бинарь через **`write_content.data`** (base64). **Дальше по приоритету:** **`upload_asset` + `publicUrl`**, затем text/asset aliases и docs.
+**Сейчас в проде:** **`read_content` / `write_content`**, **`read_content_binary` / `write_content_binary`**, **`merge_content` / `split_content`**, **`list_content` / `create_content`**, **`import_content_from_url`**, **`extract_document_text`**. **Дальше:** **`get_content_url`**, text aliases, docs.
 
 ---
 
@@ -33,7 +33,8 @@
 ├── ❌ read_asset             … read_content base64 + publicUrl
 ├── ❌ list_assets            … list_content slot=assets|files
 ├── ❌ import_asset_from_url  … import_content_from_url + publicUrl
-└── 🔶 write_content (data) · import_content_from_url · list_content   … уже есть, без publicUrl
+├── ✅ read_content_binary · write_content_binary   … base64 (не .md)
+└── 🔶 write_content (data) · read_content format=base64   … legacy, те же API
 
 📄 Документы
 ├── 🔶 extract_document_text  … уже есть
@@ -69,6 +70,7 @@
 
 | Статус | Шаг |
 | ------ | --- |
+| ✅ | **`read_content_binary` / `write_content_binary`** — base64, не `.md`; картинки → MCP image |
 | ✅ | **`merge_content` / `split_content`** — split по `# H1`, title `(n)` |
 | 🔶 | Текст/списки/импорт — **`read/write/create/list_content`**, **`import_content_from_url`** (без aliases) |
 | 🔶 | Документы — **`extract_document_text`** |

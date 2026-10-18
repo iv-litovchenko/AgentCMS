@@ -21,8 +21,12 @@ import {
   listSectionCapableSlotKeys,
   mergeContent,
   splitContent,
+  readContentBinary,
+  writeContentBinary,
   withMdRefFallback
 } from "./content-core.js";
+import { jsonText } from "./client.js";
+import { formatReadFileToolResult } from "./workspace-fs-tools.js";
 import {
   buildContentSlotSchema,
   withContentAddress,
@@ -115,6 +119,36 @@ export function registerContentTools({ reg, client, pagePath }) {
       })
       .strict(),
     (args) => listContentItems(client, args)
+  );
+
+  reg(
+    "read_content_binary",
+    "Read a binary file by placement (same address as read_content). Always base64; images also return MCP image content. " +
+      "Not for .md — use read_content. Partial read: maxBytes, offsetBytes.",
+    address({
+      maxBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(1_500_000)
+        .optional()
+        .describe("Max bytes to return as base64 (default server limit)"),
+      offsetBytes: z.number().int().min(0).optional().describe("Byte offset for partial binary read")
+    }),
+    (args) => readContentBinary(client, args),
+    { formatResult: (data) => formatReadFileToolResult(data, jsonText) }
+  );
+
+  reg(
+    "write_content_binary",
+    "Write/upload a binary file by placement. data (base64) required; mimeType optional. " +
+      "Same paths as write_content data=… — prefer this tool for agents. Not for .md text.",
+    address({
+      data: z.string().min(1).describe("Base64-encoded file bytes"),
+      mimeType: z.string().optional(),
+      createSubdir: z.boolean().optional().describe("Create subdirs in ref (default true)")
+    }),
+    (args) => writeContentBinary(client, args)
   );
 
   reg(
