@@ -21,6 +21,7 @@ const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./lib/me
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
+const { startCommanderServer, stopCommanderServer } = require("./desktop/agent-commander/server");
 const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
@@ -610,6 +611,7 @@ let projectRoot = __dirname;
 let httpServer = null;
 let httpsServer = null;
 let voiceServerInfo = null;
+let commanderServerInfo = null;
 
 function getAppRoot() {
   return appRoot;
@@ -33004,6 +33006,7 @@ async function startServer(options = {}) {
   const lanIp = getLanIPv4(options.root || __dirname);
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
+  const commanderAutostart = process.env.COMMANDER_AUTOSTART !== "0";
 
   function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
     return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });
@@ -33020,6 +33023,20 @@ async function startServer(options = {}) {
     return voiceServerInfo;
   }
 
+  async function maybeStartCommanderServer() {
+    if (!commanderAutostart) return null;
+    commanderServerInfo = await startCommanderServer({
+      root: options.root || __dirname,
+      host: process.env.COMMANDER_HOST || host || "127.0.0.1"
+    });
+    return commanderServerInfo;
+  }
+
+  function commanderHttpsViaEditorUrl(httpsBase) {
+    const base = String(httpsBase || "").trim().replace(/\/+$/, "");
+    return base ? `${base}/commander/` : null;
+  }
+
   if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {
     const tls = readTlsCredentials();
     httpsServer = https.createServer(tls, handler);
@@ -33028,7 +33045,9 @@ async function startServer(options = {}) {
     const url = `https://${hostname}:${boundTlsPort}`;
     const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort: null, boundTlsPort });
     const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+    const commanderInfo = await maybeStartCommanderServer();
     const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
+    const editorHttps = lanIp ? `https://${lanIp}:${boundTlsPort}` : url;
     return {
       port: boundTlsPort,
       tlsPort: boundTlsPort,
@@ -33038,10 +33057,12 @@ async function startServer(options = {}) {
       lanIp,
       tls: true,
       httpUrl: null,
-      httpsUrl: lanIp ? `https://${lanIp}:${boundTlsPort}` : url,
+      httpsUrl: editorHttps,
       voiceUrl,
       voiceHttpUrl: voiceInfo?.httpUrl || null,
       voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+      commanderHttpUrl: commanderInfo?.url || null,
+      commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttps),
       mobileUrl: voiceUrl || (lanIp ? `https://${lanIp}:${boundTlsPort}/` : `${url}/`),
       stop: stopServer
     };
@@ -33078,7 +33099,9 @@ async function startServer(options = {}) {
 
   const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
   const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+  const commanderInfo = await maybeStartCommanderServer();
   const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
+  const editorHttpsResolved = lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl;
 
   return {
     port: boundPort,
@@ -33089,10 +33112,12 @@ async function startServer(options = {}) {
     lanIp,
     tls: Boolean(httpsUrl),
     httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
-    httpsUrl: lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl,
+    httpsUrl: editorHttpsResolved,
     voiceUrl,
     voiceHttpUrl: voiceInfo?.httpUrl || null,
     voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+    commanderHttpUrl: commanderInfo?.url || null,
+    commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttpsResolved),
     mobileUrl:
       voiceUrl ||
       (httpsUrl
@@ -33108,7 +33133,9 @@ async function startServer(options = {}) {
 
 async function stopServer() {
   await stopVoiceServer().catch(() => null);
+  await stopCommanderServer().catch(() => null);
   voiceServerInfo = null;
+  commanderServerInfo = null;
   try {
     require("./agent-shell/runtime-cli-session").shutdownCliSessionPool();
   } catch {
@@ -33180,6 +33207,8 @@ if (require.main === module) {
       }
       if (info.voiceHttpsUrl) console.log(`Agent CMS Voice HTTPS at ${info.voiceHttpsUrl}`);
       else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
+      if (info.commanderHttpUrl) console.log(`Agent CMS Commander HTTP  at ${info.commanderHttpUrl}`);
+      if (info.commanderHttpsUrl) console.log(`Agent CMS Commander HTTPS at ${info.commanderHttpsUrl}`);
       console.log(`Voice UI:         ${info.mobileUrl}`);
       console.log("");
       if (info.voiceHttpsUrl || info.httpsUrl) {

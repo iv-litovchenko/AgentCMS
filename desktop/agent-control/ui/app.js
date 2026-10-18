@@ -20,6 +20,11 @@ let suppressServerDownNotify = false;
 let maintenanceModeEnabled = false;
 let maintenanceModeBusy = false;
 
+function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
+  const state = enabled ? "включён" : "выключен";
+  return `Заглушка 503 для Editor, Voice и Commander · сейчас ${state}`;
+}
+
 const SERVER_POLL_MS = 8000;
 
 const SETUP_CHECK_LABELS = {
@@ -1024,6 +1029,9 @@ function renderGuideStepServer() {
   const cmsHttp = `http://localhost:${ports.editorHttp}`;
   const voiceHttps = `https://localhost:${ports.voiceHttps}`;
   const voiceHttp = `http://localhost:${ports.voiceHttp}`;
+  const commanderHttp = `http://localhost:${ports.commanderHttp}/`;
+  const commanderHttps = `https://localhost:${ports.editorHttps}/commander/`;
+  const commanderOpenUrl = isRunning ? commanderHttps : commanderHttp;
   const linkDisabled = isRunning ? "" : " disabled";
   const browserLinks = `
     <div class="server-browser-row" role="group" aria-label="Открыть или скопировать ссылки">
@@ -1053,13 +1061,24 @@ function renderGuideStepServer() {
           <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttps)}" data-copy-label="Voice HTTPS" title="Копировать HTTPS"${linkDisabled}>HTTPS</button>
         </div>
       </div>
+      <div class="browser-link-wrap">
+        <button type="button" class="link-btn browser-link link-btn--commander" data-open-url="${escapeAttr(commanderOpenUrl)}"${linkDisabled}>
+          <span class="browser-link-icon">${BROWSER_ICON}</span>
+          <span class="browser-link-text">
+            <span>Commander</span>
+            <code>:${ports.commanderHttp}</code>
+          </span>
+        </button>
+        <div class="browser-link-copy-pair">
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander HTTP" title="Копировать HTTP (отдельный порт)"${linkDisabled}>HTTP</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttps)}" data-copy-label="Commander HTTPS" title="Копировать HTTPS (/commander/ на Editor)"${linkDisabled}>HTTPS</button>
+        </div>
+      </div>
     </div>
   `;
 
   const maintenanceDisabled = maintenanceModeBusy;
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
-  const maintenanceStateLabel = maintenanceModeEnabled ? "включён" : "выключен";
-
   const autoStart = server?.autoStart;
   const autostartSupported = autoStart?.supported !== false;
   const autostartOn = Boolean(autoStart?.enabled);
@@ -1081,7 +1100,7 @@ function renderGuideStepServer() {
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
         <div class="maintenance-toggle-copy">
           <strong>Режим обслуживания</strong>
-          <span>Заглушка 503 для Editor и Voice · сейчас ${maintenanceStateLabel}</span>
+          <span>${maintenanceStubSummaryText()}</span>
         </div>
         <label class="toggle-switch" title="maintenance-mode в .agent-cms-global/settings/platform.yml">
           <input type="checkbox" id="maintenance-mode-toggle"${maintenanceChecked}${maintenanceDisabled ? " disabled" : ""} />
@@ -1101,7 +1120,7 @@ function renderGuideStepServer() {
             Сервер
             <span id="server-status-inline"></span>
           </h3>
-          <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
+          <p>Запустите CMS и Voice — без сервера не работают Editor, Voice, Commander и расширение Chrome</p>
         </div>
         ${controlBlock}
         ${renderMobileVoiceBlock()}
@@ -1505,9 +1524,7 @@ async function bindMaintenanceToggle() {
         card.dataset.state = maintenanceModeEnabled ? "on" : "off";
         const copy = card.querySelector(".maintenance-toggle-copy span");
         if (copy) {
-          copy.textContent = `Заглушка 503 для Editor и Voice · сейчас ${
-            maintenanceModeEnabled ? "включён" : "выключен"
-          }`;
+          copy.textContent = maintenanceStubSummaryText();
         }
       }
     }

@@ -23,6 +23,7 @@ echo "  https://${IP}:${AGENT_CMS_VOICE_HTTPS_PORT}/"
 echo "  https://${IP}:${AGENT_CMS_VOICE_HTTPS_PORT}/<agent-id>/"
 echo ""
 echo "CMS editor stays on :$AGENT_CMS_EDITOR_HTTPS_PORT — Voice is a separate app on :${AGENT_CMS_VOICE_HTTPS_PORT}"
+echo "Commander HTTP :${AGENT_CMS_COMMANDER_HTTP_PORT} (HTTPS via Editor: /commander/)"
 if [[ -f "$PROVIDER_FILE" ]] && [[ "$(cat "$PROVIDER_FILE")" == "mkcert" ]]; then
   echo ""
   echo "Certificates: mkcert (trusted by system — no browser warnings)."

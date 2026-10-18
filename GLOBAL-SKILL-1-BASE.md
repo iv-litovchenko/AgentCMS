@@ -297,4 +297,4 @@ Git-модуль хранилища (`module_git_*`) и другие модул�
 
 **Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
 
-**Платформа:** `test_mcp_connection`, `get_platform_info`, `get_platform_health`, `get_workspace_storage_info`, `list_platform_config`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `list_platform_docs` → `read_platform_doc({ path })`; `write_platform_doc` — только по просьбе человека.
+**Платформа:** `test_mcp_connection`, `get_platform_info`, `get_platform_health`, `get_workspace_storage_info`, `list_platform_config`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `list_platform_docs` → `read_platform_doc({ path })`.

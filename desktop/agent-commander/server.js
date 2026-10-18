@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const fsPromises = require("fs/promises");
 const path = require("path");
 const { loadAgentCmsPortsModule } = require("./ports-resolve");
 const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } =
@@ -23,9 +24,67 @@ function resolvePublicRoot(options = {}) {
   return path.join(root, "public", "commander");
 }
 
-function createStaticHandler(publicRoot) {
-  return (req, res) => {
+function loadMaintenanceHelpers(projectRoot) {
+  const root = path.resolve(projectRoot);
+  return {
+    getPlatformSettings: require(path.join(root, "lib", "config", "settings-store")).getPlatformSettings,
+    isPlatformMaintenanceMode: require(path.join(root, "lib", "workspace", "workspace-agent-settings"))
+      .isPlatformMaintenanceMode
+  };
+}
+
+async function isCommanderMaintenanceActive(projectRoot) {
+  try {
+    const { getPlatformSettings, isPlatformMaintenanceMode } = loadMaintenanceHelpers(projectRoot);
+    const settings = await getPlatformSettings(projectRoot);
+    return isPlatformMaintenanceMode(settings);
+  } catch {
+    return false;
+  }
+}
+
+async function serveCommanderMaintenanceHtml(res, projectRoot) {
+  const maintenancePath = path.join(
+    path.resolve(projectRoot),
+    "public",
+    "_resources",
+    "maintenance.html"
+  );
+  const content = await fsPromises.readFile(maintenancePath);
+  res.writeHead(503, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Retry-After": "300"
+  });
+  res.end(content);
+}
+
+function isCommanderMaintenanceBypassPath(urlPath) {
+  const normalized = String(urlPath || "/").replace(/\/+$/, "") || "/";
+  return normalized === "/maintenance";
+}
+
+function createStaticHandler(publicRoot, projectRoot) {
+  return async (req, res) => {
     const urlPath = decodeURIComponent(String(req.url || "/").split("?")[0]);
+    const normalized = String(urlPath || "/").replace(/\/+$/, "") || "/";
+
+    if (normalized === "/maintenance") {
+      const active = await isCommanderMaintenanceActive(projectRoot);
+      if (!active) {
+        res.writeHead(302, { Location: "/" });
+        res.end();
+        return;
+      }
+      try {
+        await serveCommanderMaintenanceHtml(res, projectRoot);
+      } catch {
+        res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Service Unavailable");
+      }
+      return;
+    }
+
     let rel = urlPath === "/" ? "/index.html" : urlPath;
     if (rel.includes("..")) {
       res.writeHead(403);
@@ -38,6 +97,20 @@ function createStaticHandler(publicRoot) {
       res.writeHead(403);
       res.end("Forbidden");
       return;
+    }
+
+    const maintenanceActive = await isCommanderMaintenanceActive(projectRoot);
+    if (maintenanceActive && !isCommanderMaintenanceBypassPath(urlPath)) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (!ext || ext === ".html") {
+        try {
+          await serveCommanderMaintenanceHtml(res, projectRoot);
+        } catch {
+          res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("Service Unavailable");
+        }
+        return;
+      }
     }
 
     fs.readFile(filePath, (error, data) => {
@@ -73,7 +146,7 @@ function startCommanderServer(options = {}) {
   const host = String(options.host || "127.0.0.1").trim() || "127.0.0.1";
 
   return new Promise((resolve, reject) => {
-    const server = http.createServer(createStaticHandler(publicRoot));
+    const server = http.createServer(createStaticHandler(publicRoot, projectRoot));
     server.on("error", reject);
     server.listen(port, host, () => {
       const url = `http://${host}:${port}/`;

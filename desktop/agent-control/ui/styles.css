@@ -1791,7 +1791,7 @@ body.is-booting {
 
 .server-browser-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2360,6 +2360,11 @@ body.is-booting {
   box-shadow: inset 0 0 0 1px rgba(192, 38, 211, 0.25);
 }
 
+.link-btn--commander .browser-link-icon {
+  color: var(--commander);
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.25);
+}
+
 .link-btn--cms {
   color: var(--cms);
   border-color: rgba(79, 141, 253, 0.3);
@@ -2368,6 +2373,11 @@ body.is-booting {
 .link-btn--voice {
   color: #e879f9;
   border-color: rgba(192, 38, 211, 0.3);
+}
+
+.link-btn--commander {
+  color: var(--commander);
+  border-color: rgba(244, 63, 94, 0.3);
 }
 
 .link-btn:disabled {
