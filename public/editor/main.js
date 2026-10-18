@@ -3019,6 +3019,27 @@ function resolveChpuAwnStorageSlotPath(topicRoute, memoryKind, topicPath = activ
   return slotFolder ? `${topicRoute}/awn-storage/${slotFolder}` : `${topicRoute}/awn-storage`;
 }
 
+function buildChpuPathForEntryOverviewContext(ctx, topicPath = activePath, topicRouteHint = "") {
+  const topicRoute =
+    String(topicRouteHint || "").trim() ||
+    getNodeRoutePath(getResolvedNodePath(topicPath)) ||
+    "";
+  if (!ctx || typeof ctx !== "object") return topicRoute;
+  if (isEntryOverviewMemoryTocRoot(ctx)) {
+    return resolveChpuAwnStorageSlotPath(topicRoute, ctx.memoryKind || "external", topicPath);
+  }
+  const relative = String(ctx.relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .replace(/\.md$/i, "");
+  if (relative && topicRoute) {
+    const slotFolder = getChpuSlotFolderForMemoryKind(ctx.memoryKind || "external", topicPath);
+    return `${topicRoute}/awn-storage/${slotFolder}/${relative}`.replace(/\/+/g, "/");
+  }
+  return workspaceRelToChpuPath(ctx.relPath || "");
+}
+
 function getChpuMemoryKindForSlotFolder(folder) {
   return CHPU_SLOT_FOLDER_TO_MODE[String(folder || "").trim()] || "external";
 }
@@ -3207,8 +3228,16 @@ function normalizeChpuPathBeforeResolve(rawPath) {
   return rewriteLegacyTopicPathsInRelPathClient(path.replace(/\/+$/, ""));
 }
 
+function stripChpuPathTrailingMarkdownExtension(chpuPath) {
+  return String(chpuPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/([^/]+)\.md$/i, "/$1");
+}
+
 async function fetchChpuResolveRaw(chpuPath, agentId = activeWorkspaceId) {
-  const normalizedPath = normalizeChpuPathBeforeResolve(chpuPath);
+  const normalizedPath = stripChpuPathTrailingMarkdownExtension(
+    normalizeChpuPathBeforeResolve(chpuPath)
+  );
   const response = await fetch(buildApiUrl("/api/chpu/resolve", { path: normalizedPath }, agentId));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -3390,20 +3419,17 @@ async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
   const title = recordPath.split("/").pop() || recordPath;
 
   if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
-    await openFlatStorageRecordOverviewFromNavigation(
-      { path: storageRelPath || recordPath, title },
-      contentMode
-    );
+    await openFlatStorageRecordOverviewFromNavigation({ path: recordPath, title }, contentMode);
     return;
   }
 
   if (contentMode === "external") {
-    const relPath = getExternalItemContextPath({ path: storageRelPath || recordPath });
+    const relPath = getExternalItemContextPath({ path: recordPath || storageRelPath });
     await openEntryOverviewFromNavigation(
       {
         relPath,
         memoryKind: "external",
-        relativePath: storageRelPath || recordPath,
+        relativePath: recordPath,
         title,
         entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: "external" })
       },
@@ -3966,11 +3992,7 @@ function getChpuWorkspacePathFromState() {
   }
 
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
-    const ctx = activeEntryOverviewContext;
-    if (isEntryOverviewMemoryTocRoot(ctx)) {
-      return resolveChpuAwnStorageSlotPath(topicRoute, ctx.memoryKind || "external");
-    }
-    return workspaceRelToChpuPath(ctx.relPath);
+    return buildChpuPathForEntryOverviewContext(activeEntryOverviewContext, activePath, topicRoute);
   }
 
   if (activeContentMode === "description") {
@@ -11625,6 +11647,73 @@ function assignLandingMainTopicsBoardCellSlot(el, slotIndex, cols) {
   el.classList.toggle("is-board-cell-light", !dark);
 }
 
+function landingMainTopicsBoardHashSeed(text) {
+  let hash = 2166136261;
+  const value = String(text || "");
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0 || 1;
+}
+
+function createLandingMainTopicsBoardRng(seed) {
+  let state = landingMainTopicsBoardHashSeed(seed);
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function shuffleLandingMainTopicsBoardSlots(count, seed) {
+  const slots = Array.from({ length: count }, (_, index) => index);
+  const rnd = createLandingMainTopicsBoardRng(seed);
+  for (let i = slots.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rnd() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+  return slots;
+}
+
+/** Sorted tiles → stable pseudo-random slots across all rows (empty cells between). */
+function buildLandingMainTopicsBoardTileSlots(tileCount, cols, rowCount, tiles = []) {
+  const columnCount = Math.max(1, cols);
+  const rows = Math.max(LANDING_MAIN_TOPICS_BOARD_MIN_ROWS, rowCount);
+  const totalCells = columnCount * rows;
+  if (!tileCount || !totalCells) return [];
+
+  const placementSeed = [
+    columnCount,
+    rows,
+    totalCells,
+    ...tiles
+      .map((tile) => tile.dataset.focusPath || tile.dataset.agentId || "")
+      .filter(Boolean)
+      .sort()
+  ].join("\0");
+
+  const shuffled = shuffleLandingMainTopicsBoardSlots(totalCells, placementSeed);
+  if (tileCount >= rows) {
+    const slotsByRow = Array.from({ length: rows }, () => []);
+    for (const slot of shuffled) {
+      const row = Math.floor(slot / columnCount);
+      if (row >= 0 && row < rows) slotsByRow[row].push(slot);
+    }
+    const picked = [];
+    for (let row = 0; row < rows && picked.length < tileCount; row += 1) {
+      const next = slotsByRow[row].shift();
+      if (Number.isFinite(next)) picked.push(next);
+    }
+    for (const slot of shuffled) {
+      if (picked.length >= tileCount) break;
+      if (picked.includes(slot)) continue;
+      picked.push(slot);
+    }
+    return picked.slice(0, tileCount);
+  }
+  return shuffled.slice(0, tileCount);
+}
+
 function syncLandingMainTopicsBoardGrid() {
   const track = appLandingFocusListNode;
   if (!track?.classList.contains("app-landing-main-topics-track--board")) return;
@@ -11652,14 +11741,19 @@ function syncLandingMainTopicsBoardGrid() {
     totalCells = Math.max(cols * LANDING_MAIN_TOPICS_BOARD_MIN_ROWS, Math.ceil(tileCount / cols) * cols);
   }
 
+  const boardRows = Math.ceil(totalCells / cols);
+
   track.style.setProperty("--board-cols", String(cols));
-  track.style.setProperty("--board-rows", String(Math.ceil(totalCells / cols)));
+  track.style.setProperty("--board-rows", String(boardRows));
   track.style.setProperty("--board-cell-size", `${cellSize}px`);
+
+  const tileSlots = buildLandingMainTopicsBoardTileSlots(tileCount, cols, boardRows, tiles);
+  const tileBySlot = new Map(tileSlots.map((slot, index) => [slot, tiles[index]]));
 
   const fragment = document.createDocumentFragment();
   for (let slot = 0; slot < totalCells; slot += 1) {
-    if (slot < tileCount) {
-      const tile = tiles[slot];
+    const tile = tileBySlot.get(slot);
+    if (tile) {
       assignLandingMainTopicsBoardCellSlot(tile, slot, cols);
       fragment.appendChild(tile);
       continue;
@@ -99848,16 +99942,15 @@ function getLandingFocusItemChpuFileLabel(nodePath) {
   if (/\.sidecar\.md$/i.test(normalized)) {
     normalized = normalized.replace(/\.sidecar\.md$/i, ".md");
   }
+  const chpuTail = workspaceRelToChpuPath(normalized).split("/").filter(Boolean).pop() || "";
+  if (chpuTail) return chpuTail;
   if (isTopicManifestPath(normalized) || isNodeManifestPath(normalized)) {
-    const manifestBase = normalized.split("/").pop() || "manifest.md";
-    return /\.md$/i.test(manifestBase) ? manifestBase : `${manifestBase}.md`;
+    return "manifest";
   }
   const slug = getNodeHeroSlugFromPath(normalized);
-  if (slug) return /\.md$/i.test(slug) ? slug : `${slug}.md`;
+  if (slug) return String(slug).replace(/\.md$/i, "");
   const basename = normalized.split("/").pop() || "";
-  if (!basename) return "";
-  if (/\.md$/i.test(basename)) return basename;
-  return `${basename}.md`;
+  return basename.replace(/\.md$/i, "");
 }
 
 function formatLandingFocusItemPathMeta(focusItem, { includeId = true } = {}) {
