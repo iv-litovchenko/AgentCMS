@@ -268,7 +268,12 @@ function createAppLandingFocusCard(focusItem) {
     h.getLabelFromPath(focusItem.nodePath) ||
     focusItem.agentName ||
     "Тема";
-  const nodePath = String(focusItem.nodePath || "").trim();
+  const nodePath =
+    typeof h.getLandingFocusItemNodePath === "function"
+      ? h.getLandingFocusItemNodePath(focusItem)
+      : String(focusItem.nodePath || "").trim();
+  const awnId =
+    typeof h.getLandingFocusItemAwnId === "function" ? h.getLandingFocusItemAwnId(focusItem) : "";
   const status = h.getFocusPropDisplayValue(focusItem, "awn-status");
   const typeLabel =
     h.getFocusPropDisplayValue(focusItem, "awn-type") || h.getFocusItemType(focusItem);
@@ -305,7 +310,13 @@ function createAppLandingFocusCard(focusItem) {
   if (nodePath) {
     const pathNode = document.createElement("span");
     pathNode.className = "app-landing-focus-card-path";
-    pathNode.textContent = nodePath.split("/").pop() || nodePath;
+    const pathLabel =
+      typeof h.formatLandingFocusItemPathMeta === "function"
+        ? h.formatLandingFocusItemPathMeta(focusItem, { includeId: false })
+        : typeof h.getLandingFocusItemChpuFileLabel === "function"
+          ? h.getLandingFocusItemChpuFileLabel(nodePath)
+          : nodePath.split("/").pop() || nodePath;
+    pathNode.textContent = pathLabel || nodePath;
     pathNode.title = nodePath;
     meta.appendChild(pathNode);
   }
@@ -335,6 +346,16 @@ function createAppLandingFocusCard(focusItem) {
   } else {
     btn.classList.add("app-landing-focus-card--no-media");
     btn.append(body);
+  }
+
+  if (awnId) {
+    btn.classList.add("has-awn-id");
+    const idBadge = document.createElement("span");
+    idBadge.className = "app-landing-focus-card-id-badge";
+    idBadge.textContent = awnId;
+    idBadge.title = `awn-id: ${awnId}`;
+    idBadge.setAttribute("aria-label", `awn-id ${awnId}`);
+    btn.appendChild(idBadge);
   }
 
   return btn;

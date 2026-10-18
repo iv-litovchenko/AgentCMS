@@ -3,7 +3,7 @@
  *
  * Layout: vertical timeline grouped by day (Сегодня / Вчера / date).
  * Each time slot: grid of horizontal compact cards (thumb left, title + agent); rail on the left.
- * Only .md and .csv paths; slots group updates within the same hour in one row.
+ * Only .md and .csv; dedupe by CHPU record; hour slots in a grid row.
  */
 
 const FLOW_ELIGIBLE_EXTENSIONS = new Set(["md", "csv"]);
@@ -117,7 +117,7 @@ function dedupeFlowItemsByRecordKey(items) {
 function filterFlowItemsForDisplay(focusItems) {
   const list = Array.isArray(focusItems) ? focusItems : [];
   const eligible = list.filter(isFlowEligibleFocusItem);
-  return dedupeFlowItemsByNodePath(eligible).slice(0, FLOW_DISPLAY_LIMIT);
+  return dedupeFlowItemsByRecordKey(eligible).slice(0, FLOW_DISPLAY_LIMIT);
 }
 
 function getFlowDaySortKey(iso) {
@@ -241,7 +241,10 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
     focusItem.agentName ||
     "Тема";
   const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
-  const nodePath = String(focusItem.nodePath || "").trim();
+  const nodePath =
+    typeof h.getLandingFocusItemNodePath === "function"
+      ? h.getLandingFocusItemNodePath(focusItem)
+      : String(focusItem.nodePath || "").trim();
   const awnProps =
     focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
   const status = h.getFocusPropDisplayValue(focusItem, "awn-status");
@@ -327,7 +330,18 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
     meta.appendChild(tags);
   }
 
-  body.append(titleNode, meta);
+  body.appendChild(titleNode);
+  if (isGridTile && nodePath && typeof h.formatLandingFocusItemPathMeta === "function") {
+    const pathMeta = h.formatLandingFocusItemPathMeta(focusItem);
+    if (pathMeta) {
+      const pathNode = document.createElement("span");
+      pathNode.className = "app-landing-flow-card-path";
+      pathNode.textContent = pathMeta;
+      pathNode.title = nodePath;
+      body.appendChild(pathNode);
+    }
+  }
+  body.appendChild(meta);
 
   if (isGridTile) {
     btn.classList.add("app-landing-flow-card--grid-tile");

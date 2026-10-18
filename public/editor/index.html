@@ -10,9 +10,9 @@
     <link rel="icon" type="image/svg+xml" href="/_resources/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/_resources/favicon.png" />
     <link rel="apple-touch-icon" href="/_resources/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/editor/styles.css?v=0.5.976" />
+    <link rel="stylesheet" href="/editor/styles.css?v=0.5.990" />
     <link rel="modulepreload" href="/editor/js/landing/landing-chunk-boot.js?v=2" />
-    <link rel="modulepreload" href="/editor/js/landing/landing-runtime.js?v=23" />
+    <link rel="modulepreload" href="/editor/js/landing/landing-runtime.js?v=28" />
     <link rel="stylesheet" href="/_resources/vendor/highlight-github.min.css" />
     <script src="/editor/js/core/project-version.js?v=1"></script>
     <script>
@@ -3485,18 +3485,15 @@
 
             <section id="app-landing-focus" class="app-landing-main-topics app-landing-orbit-focus-panel hidden" aria-label="На главной">
               <div class="app-landing-orbit-focus-panel-inner">
-                <div class="app-landing-orbit-focus-panel-head">
-                  <span id="app-landing-focus-title" class="app-landing-orbit-focus-panel-title">На главной</span>
-                  <span id="app-landing-focus-count" class="app-landing-orbit-focus-panel-count hidden" aria-hidden="true">0</span>
-                </div>
-                <div class="app-landing-main-topics-head">
+                <div class="app-landing-orbit-focus-panel-toolbar app-landing-main-topics-head">
                   <label class="app-landing-main-topics-search" for="app-landing-focus-search">
+                    <span id="app-landing-focus-title" class="app-landing-orbit-focus-panel-title">На главной</span>
                     <span class="app-landing-main-topics-search-icon" aria-hidden="true">⌕</span>
                     <input
                       id="app-landing-focus-search"
                       class="app-landing-main-topics-search-input"
                       type="search"
-                      placeholder="Поиск заметок на главной…"
+                      placeholder="Поиск…"
                       autocomplete="off"
                       spellcheck="false"
                       aria-label="Поиск заметок на главной"
@@ -3510,30 +3507,21 @@
                     >
                       ×
                     </button>
+                    <span
+                      id="app-landing-focus-count"
+                      class="app-landing-main-topics-search-count hidden"
+                      aria-hidden="true"
+                    >0</span>
                   </label>
                 </div>
-                <div class="app-landing-main-topics-carousel">
-                  <button
-                    type="button"
-                    id="app-landing-focus-scroll-prev"
-                    class="app-landing-main-topics-nav app-landing-main-topics-nav--prev hidden"
-                    aria-label="Прокрутить заметки влево"
-                    hidden
-                  >
-                    ‹
-                  </button>
+                <div class="app-landing-main-topics-carousel app-landing-main-topics-board">
                   <div id="app-landing-focus-scroller" class="app-landing-main-topics-scroller">
-                    <div id="app-landing-focus-list" class="app-landing-main-topics-track" role="list"></div>
+                    <div
+                      id="app-landing-focus-list"
+                      class="app-landing-main-topics-track app-landing-main-topics-track--board"
+                      role="list"
+                    ></div>
                   </div>
-                  <button
-                    type="button"
-                    id="app-landing-focus-scroll-next"
-                    class="app-landing-main-topics-nav app-landing-main-topics-nav--next hidden"
-                    aria-label="Прокрутить заметки вправо"
-                    hidden
-                  >
-                    ›
-                  </button>
                 </div>
               </div>
             </section>

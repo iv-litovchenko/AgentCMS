@@ -3162,8 +3162,8 @@ function workspaceRelToChpuPath(relPath) {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/manifest\.md$/i, "")
-    .replace(/\.md$/i, "")
-    .replace(/\.sidecar\.md$/i, "");
+    .replace(/\.sidecar\.md$/i, "")
+    .replace(/\.md$/i, "");
   return rewriteLegacyTopicPathsInRelPathClient(stripped);
 }
 
@@ -10652,8 +10652,11 @@ function bindLandingMainTopicsDock() {
     window.__landingMainTopicsDockResizeBound = true;
     window.addEventListener("resize", () => {
       syncLandingMainTopicsScrollerNav();
+      scheduleLandingMainTopicsBoardGrid();
     }, { passive: true });
   }
+
+  ensureLandingMainTopicsBoardResizeObserver();
 }
 
 const FOCUS_AWN_KEYS = [
@@ -11474,21 +11477,184 @@ function createLandingMainTopicSkeletonCard(index) {
   card.style.setProperty("--main-topics-skeleton-delay", `${(index % 5) * 0.12}s`);
   card.setAttribute("aria-hidden", "true");
 
+  const stage = document.createElement("span");
+  stage.className = "app-landing-main-topic-card-stage";
+  const windowNode = document.createElement("span");
+  windowNode.className = "app-landing-main-topic-card-window";
   const media = document.createElement("span");
   media.className = "app-landing-main-topic-skeleton-media";
+  windowNode.appendChild(media);
+  stage.appendChild(windowNode);
 
-  const copy = document.createElement("span");
-  copy.className = "app-landing-main-topic-card-copy";
-
+  const foot = document.createElement("span");
+  foot.className = "app-landing-main-topic-card-foot";
   const titleLine = document.createElement("span");
   titleLine.className = "app-landing-main-topic-skeleton-line app-landing-main-topic-skeleton-line--title";
-
-  const agentLine = document.createElement("span");
-  agentLine.className = "app-landing-main-topic-skeleton-line app-landing-main-topic-skeleton-line--agent";
-
-  copy.append(titleLine, agentLine);
-  card.append(media, copy);
+  foot.appendChild(titleLine);
+  card.append(stage, foot);
   return card;
+}
+
+function dedupeLandingMainTopicItems(items) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items) {
+    const nodePath = String(item?.nodePath || "").trim();
+    if (!nodePath) {
+      out.push(item);
+      continue;
+    }
+    const chpu = String(workspaceRelToChpuPath(nodePath) || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim()
+      .toLowerCase();
+    const key = chpu || normalizeMenuNodePath(nodePath);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function ensureMainTopicsBoardListClass() {
+  if (!appLandingFocusListNode) return;
+  appLandingFocusListNode.className = "app-landing-main-topics-track app-landing-main-topics-track--board";
+}
+
+const LANDING_MAIN_TOPICS_BOARD_CELL_MIN_PX = 106;
+const LANDING_MAIN_TOPICS_BOARD_MIN_ROWS = 3;
+const LANDING_MAIN_TOPICS_BOARD_MAX_EMPTY_CELLS = 48;
+
+let landingMainTopicsBoardGridRaf = 0;
+let landingMainTopicsBoardResizeObserver = null;
+
+function measureLandingMainTopicsBoardCols(trackEl) {
+  const width = trackEl?.clientWidth || trackEl?.getBoundingClientRect()?.width || 0;
+  if (width < 1) return 12;
+  return Math.max(4, Math.min(24, Math.floor(width / LANDING_MAIN_TOPICS_BOARD_CELL_MIN_PX)));
+}
+
+function createLandingMainTopicBoardEmptyCell() {
+  const cell = document.createElement("div");
+  cell.className = "app-landing-board-cell app-landing-board-cell--empty";
+  cell.setAttribute("aria-hidden", "true");
+  return cell;
+}
+
+function landingMainTopicsBoardHashSeed(text) {
+  let hash = 2166136261;
+  const value = String(text || "");
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0 || 1;
+}
+
+function createLandingMainTopicsBoardRng(seed) {
+  let state = landingMainTopicsBoardHashSeed(seed);
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function shuffleLandingMainTopicsBoardSlots(count, seed) {
+  const slots = Array.from({ length: count }, (_, index) => index);
+  const rnd = createLandingMainTopicsBoardRng(seed);
+  for (let i = slots.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rnd() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+  return slots;
+}
+
+function assignLandingMainTopicsBoardCellSlot(el, slotIndex, cols) {
+  const columnCount = Math.max(1, cols);
+  const row = Math.floor(slotIndex / columnCount);
+  const col = slotIndex % columnCount;
+  el.style.gridColumn = String(col + 1);
+  el.style.gridRow = String(row + 1);
+  const dark = (row + col) % 2 === 1;
+  el.classList.toggle("is-board-cell-dark", dark);
+  el.classList.toggle("is-board-cell-light", !dark);
+}
+
+function syncLandingMainTopicsBoardGrid() {
+  const track = appLandingFocusListNode;
+  if (!track?.classList.contains("app-landing-main-topics-track--board")) return;
+
+  if (track.querySelector(".app-landing-main-topics-empty")) {
+    track.style.removeProperty("--board-cols");
+    track.style.removeProperty("--board-rows");
+    track.style.removeProperty("--board-cell-size");
+    return;
+  }
+
+  const cols = measureLandingMainTopicsBoardCols(track);
+  const width = track.clientWidth || track.getBoundingClientRect().width || cols * LANDING_MAIN_TOPICS_BOARD_CELL_MIN_PX;
+  const cellSize = Math.max(72, Math.floor(width / cols));
+  const tiles = Array.from(track.querySelectorAll(".app-landing-main-topic-card"));
+  const tileCount = tiles.length;
+  if (!tileCount) return;
+
+  const rows = Math.max(
+    LANDING_MAIN_TOPICS_BOARD_MIN_ROWS,
+    Math.ceil(tileCount / cols)
+  );
+  let totalCells = cols * rows;
+  const maxCells = tileCount + LANDING_MAIN_TOPICS_BOARD_MAX_EMPTY_CELLS;
+  if (totalCells > maxCells) {
+    totalCells = Math.max(cols * LANDING_MAIN_TOPICS_BOARD_MIN_ROWS, Math.ceil(tileCount / cols) * cols);
+  }
+
+  track.style.setProperty("--board-cols", String(cols));
+  track.style.setProperty("--board-rows", String(Math.ceil(totalCells / cols)));
+  track.style.setProperty("--board-cell-size", `${cellSize}px`);
+
+  const placementSeed = [
+    cols,
+    totalCells,
+    ...tiles
+      .map((tile) => tile.dataset.focusPath || tile.dataset.agentId || "")
+      .sort()
+  ].join("\0");
+
+  const shuffledSlots = shuffleLandingMainTopicsBoardSlots(totalCells, placementSeed);
+  const tileSlots = shuffledSlots.slice(0, tileCount);
+  const tileBySlot = new Map(tileSlots.map((slot, index) => [slot, tiles[index]]));
+
+  const fragment = document.createDocumentFragment();
+  for (let slot = 0; slot < totalCells; slot += 1) {
+    const tile = tileBySlot.get(slot);
+    if (tile) {
+      assignLandingMainTopicsBoardCellSlot(tile, slot, cols);
+      fragment.appendChild(tile);
+      continue;
+    }
+    const empty = createLandingMainTopicBoardEmptyCell();
+    assignLandingMainTopicsBoardCellSlot(empty, slot, cols);
+    fragment.appendChild(empty);
+  }
+  track.replaceChildren(fragment);
+}
+
+function scheduleLandingMainTopicsBoardGrid() {
+  window.cancelAnimationFrame(landingMainTopicsBoardGridRaf);
+  landingMainTopicsBoardGridRaf = window.requestAnimationFrame(() => {
+    landingMainTopicsBoardGridRaf = 0;
+    syncLandingMainTopicsBoardGrid();
+  });
+}
+
+function ensureLandingMainTopicsBoardResizeObserver() {
+  if (!appLandingFocusListNode || landingMainTopicsBoardResizeObserver) return;
+  if (typeof ResizeObserver !== "function") return;
+  landingMainTopicsBoardResizeObserver = new ResizeObserver(() => {
+    scheduleLandingMainTopicsBoardGrid();
+  });
+  landingMainTopicsBoardResizeObserver.observe(appLandingFocusListNode);
 }
 
 function renderLandingMainTopicsLoading() {
@@ -11496,9 +11662,10 @@ function renderLandingMainTopicsLoading() {
 
   setLandingMainTopicsLoadingUi(true);
   syncLandingMainTopicsVisibility(true);
+  ensureMainTopicsBoardListClass();
   appLandingFocusListNode.replaceChildren();
 
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < 12; i += 1) {
     appLandingFocusListNode.appendChild(createLandingMainTopicSkeletonCard(i));
   }
 
@@ -11508,6 +11675,7 @@ function renderLandingMainTopicsLoading() {
     appLandingFocusScrollerNode.scrollLeft = 0;
   }
   syncLandingMainTopicsScrollerNav();
+  scheduleLandingMainTopicsBoardGrid();
 }
 
 function syncLandingMainTopicsVisibility(hasItems = globalMainItemsCache.length > 0) {
@@ -11528,18 +11696,24 @@ function createLandingMainTopicChip(focusItem) {
   const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
   const label = focusItem.name || focusItem.agentName || focusItem.agentId;
   const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
-  const nodePath = String(focusItem.nodePath || "").trim();
+  const nodePath = getLandingFocusItemNodePath(focusItem);
   const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+  const awnId = getLandingFocusItemAwnId(focusItem);
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "app-landing-main-topic-card";
+  btn.className = "app-landing-main-topic-card app-landing-main-topic-card--board-cell";
   btn.setAttribute("role", "listitem");
   btn.dataset.agentId = focusItem.agentId;
   if (nodePath) btn.dataset.focusPath = nodePath;
   if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
   if (!registryActive) btn.classList.add("is-registry-off");
-  btn.title = registryActive ? `${label} · ${agentLabel}` : `${label} — агент неактивен`;
+  const tooltipMeta = awnId ? `id:${awnId}` : agentLabel;
+  btn.title = registryActive
+    ? nodePath
+      ? `${label} · ${tooltipMeta}\n${nodePath}`
+      : `${label} · ${tooltipMeta}`
+    : `${label} — агент неактивен`;
   btn.setAttribute("aria-label", btn.title);
 
   const media = document.createElement("span");
@@ -11557,19 +11731,38 @@ function createLandingMainTopicChip(focusItem) {
     iconClass: "node-cover-icon--in-focus-card"
   });
 
-  const copy = document.createElement("span");
-  copy.className = "app-landing-main-topic-card-copy";
+  const stage = document.createElement("span");
+  stage.className = "app-landing-main-topic-card-stage";
+
+  const attentionColor = getLandingAgentAttentionColor(focusItem.agentId);
+  btn.style.setProperty("--orbit-attention-color", attentionColor);
+
+  const windowNode = document.createElement("span");
+  const storageSlotKey = resolveLandingMainTopicStorageSlotKey(nodePath);
+  windowNode.className = `app-landing-main-topic-card-window app-landing-main-topic-card-window--slot-${storageSlotKey}`;
+  windowNode.dataset.storageSlot = storageSlotKey;
+  windowNode.title = getLandingMainTopicStorageSlotLabel(storageSlotKey);
+  windowNode.style.setProperty("--orbit-attention-color", attentionColor);
+  windowNode.appendChild(media);
+  if (awnId) {
+    btn.classList.add("has-awn-id");
+    const idBadge = document.createElement("span");
+    idBadge.className = "app-landing-main-topic-card-id-badge";
+    idBadge.textContent = awnId;
+    idBadge.title = `awn-id: ${awnId}`;
+    windowNode.appendChild(idBadge);
+  }
+  stage.appendChild(windowNode);
+
+  const foot = document.createElement("span");
+  foot.className = "app-landing-main-topic-card-foot";
 
   const titleNode = document.createElement("span");
-  titleNode.className = "app-landing-main-topic-card-title";
+  titleNode.className = "app-landing-main-topic-card-title app-landing-main-topic-card-label";
   titleNode.textContent = label;
 
-  const metaNode = document.createElement("span");
-  metaNode.className = "app-landing-main-topic-card-agent";
-  metaNode.textContent = agentLabel;
-
-  copy.append(titleNode, metaNode);
-  btn.append(media, copy);
+  foot.appendChild(titleNode);
+  btn.append(stage, foot);
   return btn;
 }
 
@@ -11577,10 +11770,11 @@ function renderLandingMainTopics(items) {
   if (!appLandingFocusListNode) return;
   if (globalMainItemsLoading) return;
 
-  const visibleItems = Array.isArray(items) ? items : [];
+  const visibleItems = dedupeLandingMainTopicItems(Array.isArray(items) ? items : []);
   const hasAnyItems = globalMainItemsCache.length > 0;
   setLandingMainTopicsLoadingUi(false);
   syncLandingMainTopicsVisibility(hasAnyItems);
+  ensureMainTopicsBoardListClass();
   appLandingFocusListNode.replaceChildren();
   syncLandingMainTopicsCountUi(globalMainItemsCache.length, visibleItems.length);
 
@@ -11616,6 +11810,7 @@ function renderLandingMainTopics(items) {
   }
   requestAnimationFrame(() => {
     syncLandingMainTopicsScrollerNav();
+    scheduleLandingMainTopicsBoardGrid();
   });
 }
 
@@ -12902,7 +13097,7 @@ function createAppLandingPlatformVisualBg() {
   return bg;
 }
 
-const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=23";
+const LANDING_CHUNK_URL = "/editor/js/landing/landing-runtime.js?v=28";
 
 function resetLandingChunkHostRegistration() {
   landingChunkHostRegistered = false;
@@ -13069,6 +13264,10 @@ async function ensureLandingChunkReady() {
       syncFocusPanelActiveState,
       isAgentRegistryActive,
       getLabelFromPath,
+      getLandingFocusItemChpuFileLabel,
+      getLandingFocusItemNodePath,
+      getLandingFocusItemAwnId,
+      formatLandingFocusItemPathMeta,
       getFocusPropDisplayValue,
       getFocusItemType,
       formatTimelineRelativeTime,
@@ -13168,6 +13367,9 @@ async function ensureLandingChunkReady() {
       },
       get appLandingFlowGridNode() {
         return landingHostDomNode(appLandingFlowGridNode, "app-landing-flow-grid");
+      },
+      get appLandingFocusListNode() {
+        return landingHostDomNode(appLandingFocusListNode, "app-landing-focus-list");
       }
     });
     landingChunkHostRegistered = true;
@@ -99592,6 +99794,92 @@ function getNodeHeroSlugFromPath(filePath) {
   }
 
   return canonicalizeHeroTopicSlug(diskSlug, normalizedPath);
+}
+
+function getLandingFocusItemNodePath(focusItem) {
+  return String(focusItem?.nodePath || focusItem?.path || "").trim();
+}
+
+function getLandingFocusItemAwnId(focusItem) {
+  const awnProps =
+    focusItem?.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+  return normalizeAwnIdDisplayValue(String(awnProps["awn-id"] ?? focusItem?.awnId ?? "").trim());
+}
+
+function getLandingFocusItemChpuFileLabel(nodePath) {
+  let normalized = normalizeMenuNodePath(String(nodePath || "").replace(/\\/g, "/").trim());
+  if (!normalized) return "";
+  if (/\.sidecar\.md$/i.test(normalized)) {
+    normalized = normalized.replace(/\.sidecar\.md$/i, ".md");
+  }
+  if (isTopicManifestPath(normalized) || isNodeManifestPath(normalized)) {
+    const manifestBase = normalized.split("/").pop() || "manifest.md";
+    return /\.md$/i.test(manifestBase) ? manifestBase : `${manifestBase}.md`;
+  }
+  const slug = getNodeHeroSlugFromPath(normalized);
+  if (slug) return /\.md$/i.test(slug) ? slug : `${slug}.md`;
+  const basename = normalized.split("/").pop() || "";
+  if (!basename) return "";
+  if (/\.md$/i.test(basename)) return basename;
+  return `${basename}.md`;
+}
+
+function formatLandingFocusItemPathMeta(focusItem, { includeId = true } = {}) {
+  const nodePath = getLandingFocusItemNodePath(focusItem);
+  const fileLabel = nodePath ? getLandingFocusItemChpuFileLabel(nodePath) : "";
+  const awnId = includeId ? getLandingFocusItemAwnId(focusItem) : "";
+  const parts = [];
+  if (fileLabel) parts.push(fileLabel);
+  if (awnId) parts.push(`id:${awnId}`);
+  return parts.join(" · ");
+}
+
+function resolveLandingMainTopicStorageSlotKey(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
+  const mode = resolveFlatStorageMemoryKindFromPaths(normalized, normalized);
+  if (!mode) {
+    if (isTopicManifestPath(normalized) || isNodeManifestPath(normalized)) return "topic";
+    return "main";
+  }
+  if (mode === "external") return "main";
+  if (mode === "note") return "notes";
+  if (mode === "files" || mode === "assets") return "media";
+  const key = String(mode).trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return key || "main";
+}
+
+function getLandingMainTopicStorageSlotLabel(slotKey) {
+  const key = String(slotKey || "").trim();
+  if (key === "topic") return "Тема";
+  const mode = key === "main" ? "external" : key;
+  return getDataStorageSlotForMode(mode)?.label || key;
+}
+
+const LANDING_AGENT_ATTENTION_PALETTE = [
+  "#818cf8",
+  "#fbbf24",
+  "#34d399",
+  "#f472b6",
+  "#22d3ee",
+  "#c084fc",
+  "#fb7185",
+  "#a3e635"
+];
+
+function hashAgentIdForLandingAttention(id) {
+  let hash = 2166136261;
+  const value = String(id || "");
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function getLandingAgentAttentionColor(agentId) {
+  return LANDING_AGENT_ATTENTION_PALETTE[
+    hashAgentIdForLandingAttention(agentId) % LANDING_AGENT_ATTENTION_PALETTE.length
+  ];
 }
 
 function resolveNodeDisplayName(awnNameRaw, slug) {

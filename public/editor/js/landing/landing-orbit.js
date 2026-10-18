@@ -1436,6 +1436,14 @@ function setOrbitAttentionHighlight(agentId) {
       card.classList.toggle("is-attention-highlighted", hasHighlight && isMatch);
       card.classList.toggle("is-attention-dimmed", hasHighlight && !isMatch);
     });
+
+  host.appLandingFocusListNode
+    ?.querySelectorAll(".app-landing-main-topic-card[data-agent-id]")
+    .forEach((card) => {
+      const isMatch = card.dataset.agentId === agentId;
+      card.classList.toggle("is-attention-highlighted", hasHighlight && isMatch);
+      card.classList.toggle("is-attention-dimmed", hasHighlight && !isMatch);
+    });
 }
 
 function clearOrbitAttentionHighlight() {
