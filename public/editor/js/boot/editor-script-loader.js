@@ -156,7 +156,7 @@
       if (g.__agentCmsLandingChunkModule) {
         return Promise.resolve(g.__agentCmsLandingChunkModule);
       }
-      g.__agentCmsLandingChunkModulePromise = import("/editor/js/landing/landing-runtime.js?v=28");
+      g.__agentCmsLandingChunkModulePromise = import("/editor/js/landing/landing-runtime.js?v=29");
     }
     return g.__agentCmsLandingChunkModulePromise;
   }

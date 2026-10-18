@@ -245,6 +245,8 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
     typeof h.getLandingFocusItemNodePath === "function"
       ? h.getLandingFocusItemNodePath(focusItem)
       : String(focusItem.nodePath || "").trim();
+  const awnId =
+    typeof h.getLandingFocusItemAwnId === "function" ? h.getLandingFocusItemAwnId(focusItem) : "";
   const awnProps =
     focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
   const status = h.getFocusPropDisplayValue(focusItem, "awn-status");
@@ -265,11 +267,9 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
   if (nodePath) btn.dataset.focusPath = nodePath;
   if (h.isFocusItemActive(focusItem)) btn.classList.add("is-active");
   if (!registryActive) btn.classList.add("is-registry-off");
-  btn.title = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
-  btn.setAttribute(
-    "aria-label",
-    registryActive ? `Открыть ${label}` : `${label} — агент неактивен`
-  );
+  const openLabel = registryActive ? `Открыть ${label}` : `${label} — агент неактивен`;
+  btn.title = awnId ? `${openLabel} · id:${awnId}` : openLabel;
+  btn.setAttribute("aria-label", btn.title);
 
   const nodeEmoji = h.resolveAwnEmoji(awnProps);
   const agentEmoji = h.resolveAwnEmoji(agent.awnProps);
@@ -332,7 +332,7 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
 
   body.appendChild(titleNode);
   if (isGridTile && nodePath && typeof h.formatLandingFocusItemPathMeta === "function") {
-    const pathMeta = h.formatLandingFocusItemPathMeta(focusItem);
+    const pathMeta = h.formatLandingFocusItemPathMeta(focusItem, { includeId: false });
     if (pathMeta) {
       const pathNode = document.createElement("span");
       pathNode.className = "app-landing-flow-card-path";
@@ -365,6 +365,16 @@ function createAppLandingFlowCard(focusItem, { timeline = false, compact = false
       iconClass: "node-cover-icon--in-flow-card"
     });
     btn.append(media, body);
+  }
+
+  if (awnId) {
+    btn.classList.add("has-awn-id");
+    const idBadge = document.createElement("span");
+    idBadge.className = "app-landing-flow-card-id-badge";
+    idBadge.textContent = awnId;
+    idBadge.title = `awn-id: ${awnId}`;
+    idBadge.setAttribute("aria-label", `awn-id ${awnId}`);
+    btn.appendChild(idBadge);
   }
 
   return btn;

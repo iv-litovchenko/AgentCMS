@@ -2251,22 +2251,24 @@ body.workspace-idle-screensaver-active {
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card-label {
-  display: inline-block;
+  display: -webkit-box;
   width: auto;
-  max-width: calc(var(--board-cell-size, 106px) - 8px);
+  max-width: calc(var(--board-cell-size, 106px) - 6px);
   box-sizing: border-box;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 999px;
+  border-radius: 10px;
   background: rgba(248, 250, 252, 0.96);
   color: #334155;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   text-align: center;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
   box-shadow:
     0 2px 8px rgba(2, 6, 23, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.35);
@@ -4417,6 +4419,7 @@ body.workspace-idle-screensaver-active {
 }
 
 .app-landing-flow-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -4463,6 +4466,49 @@ body.workspace-idle-screensaver-active {
 
 .app-landing-flow-card.is-attention-dimmed {
   opacity: 0.38;
+}
+
+.app-landing-flow-card-id-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid rgba(250, 204, 21, 0.78);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fef9c3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 3px 10px rgba(15, 23, 42, 0.28);
+}
+
+.app-landing-flow-card--timeline.app-landing-flow-card--compact.app-landing-flow-card--grid-tile
+  .app-landing-flow-card-id-badge {
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 8px;
+}
+
+.app-landing-flow-card.has-awn-id .app-landing-flow-card-title {
+  padding-right: 26px;
+}
+
+.app-landing-flow-card--timeline.app-landing-flow-card--compact.app-landing-flow-card--grid-tile.has-awn-id
+  .app-landing-flow-card-title {
+  padding-right: 22px;
 }
 
 .app-landing-flow-card.is-attention-highlighted {
