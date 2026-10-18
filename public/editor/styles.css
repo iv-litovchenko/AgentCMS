@@ -2288,27 +2288,38 @@ body.workspace-idle-screensaver-active {
     var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 82%,
     #ffffff
   );
-  background: color-mix(
-    in srgb,
-    var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 52%,
-    rgba(15, 23, 42, 0.28)
-  );
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--landing-storage-slot-color, #6366f1) 45%, #ffffff),
     0 0 18px color-mix(in srgb, var(--landing-storage-slot-color, #6366f1) 55%, transparent),
     0 6px 16px rgba(15, 23, 42, 0.22);
 }
 
-.app-landing-main-topics-track--board .app-landing-main-topic-card:hover .app-landing-main-topic-card-media,
-.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-media,
+.app-landing-main-topics-track--board .app-landing-main-topic-card:hover .app-landing-main-topic-card-window:not(:has(img)),
+.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-window:not(:has(img)),
 .app-landing-main-topics-track--board
   .app-landing-main-topic-card.is-storage-slot-highlighted
-  .app-landing-main-topic-card-media {
+  .app-landing-main-topic-card-window:not(:has(.app-landing-main-topic-card-media img)) {
+  background: color-mix(
+    in srgb,
+    var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 52%,
+    rgba(15, 23, 42, 0.28)
+  );
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card:hover .app-landing-main-topic-card-media:not(:has(img)),
+.app-landing-main-topics-track--board .app-landing-main-topic-card:focus-visible .app-landing-main-topic-card-media:not(:has(img)),
+.app-landing-main-topics-track--board
+  .app-landing-main-topic-card.is-storage-slot-highlighted
+  .app-landing-main-topic-card-media:not(:has(img)) {
   background: linear-gradient(
     145deg,
     color-mix(in srgb, var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8)) 82%, #0f172a),
     var(--landing-storage-slot-color, var(--orbit-attention-color, #818cf8))
   );
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card-window:has(.app-landing-main-topic-card-media img) {
+  background: #ffffff;
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card.is-active .app-landing-main-topic-card-window {
@@ -2353,6 +2364,10 @@ body.workspace-idle-screensaver-active {
   border: 0;
   border-radius: 8px;
   box-shadow: none;
+  background: #ffffff;
+}
+
+.app-landing-main-topics-track--board .app-landing-main-topic-card-media:not(:has(img)) {
   background: linear-gradient(
     145deg,
     color-mix(in srgb, var(--orbit-attention-color, #818cf8) 82%, #0f172a),
@@ -2388,8 +2403,12 @@ body.workspace-idle-screensaver-active {
 .app-landing-main-topics-track--board .app-landing-main-topic-card-media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
+  object-fit: contain;
+  object-position: center;
+  padding: 4px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 6px;
 }
 
 .app-landing-main-topics-track--board .app-landing-main-topic-card-emoji,

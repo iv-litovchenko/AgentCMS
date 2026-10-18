@@ -63764,13 +63764,73 @@ function syncPropsPreviewDomValue(previewValue, key = "awn-preview") {
   if (hidden) hidden.value = String(previewValue || "");
 }
 
+function patchPropsFormSingleEntryLocal(propertyKey, propertyValue) {
+  const key = normalizePropsKey(propertyKey);
+  if (!key) return;
+  const baseEntries = propsFormEntries.length
+    ? [...propsFormEntries]
+    : normalizePropsEntries(parsePropsYaml(propsInputNode.value || ""));
+  const index = baseEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const base = index >= 0 ? baseEntries[index] : { key, kind: "string", value: "" };
+  const nextEntry = applyFormValueToEntry(base, String(propertyValue ?? "").trim());
+  if (index >= 0) baseEntries[index] = nextEntry;
+  else baseEntries.push(nextEntry);
+  propsFormEntries = ensureStandardPropsEntries(baseEntries);
+  syncYamlFromPropsForm();
+}
+
+async function saveSingleNodeProperty(
+  propertyKey,
+  propertyValue,
+  { showToastOnSuccess = false } = {}
+) {
+  if (!activePath) return;
+  const path = getPropertiesApiPath();
+  if (!path) throw new Error("Не удалось определить путь свойств");
+  const key = normalizePropsKey(propertyKey);
+  if (!key) throw new Error("Пустой ключ свойства");
+  const value = String(propertyValue ?? "");
+
+  const response = await fetch(buildApiUrl("/api/file/properties"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, key, value })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  const data = await response.json();
+  if (typeof data.content === "string") {
+    propsInputNode.value = data.content;
+    patchPropsFormSingleEntryLocal(key, value);
+    if (
+      activeContentMode === "description" ||
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE
+    ) {
+      const { body } = splitFrontmatter(modeContentCache.description || "");
+      modeContentCache.description = joinFrontmatter(data.content || "", body);
+    }
+  }
+  if (showToastOnSuccess) {
+    showToast("YAML сохранен", "success");
+  }
+  invalidateTopicSlotsDisabledCache(path);
+  await refreshMenuRuntimeFlagsCache(activeWorkspaceId);
+  patchMenuNodeRuntimeCommandsFromProps(activePath, mergePropsFormEntries());
+  const menu = menuCacheByAgent.get(activeWorkspaceId);
+  if (menu) enrichMenuRuntimeFromCache(menu, activeWorkspaceId);
+  refreshMenuTreeRuntimeBadges(activeWorkspaceId);
+}
+
 async function setPropsPreviewValue(
   previewRef,
   { key = "", save = true, showToastOnSuccess = false } = {}
 ) {
-  absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
-  propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
-
   const previewKey = normalizePropsKey(
     key ||
       overviewPreviewUploadWrap?.dataset?.propKey ||
@@ -63778,17 +63838,11 @@ async function setPropsPreviewValue(
       "awn-preview"
   );
   const previewValue = String(previewRef || "").trim();
-  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === previewKey);
-  const base =
-    index >= 0 ? propsFormEntries[index] : { key: previewKey, kind: "string", value: "" };
-  const nextEntry = applyFormValueToEntry(base, previewValue);
-  if (index >= 0) propsFormEntries[index] = nextEntry;
-  else propsFormEntries.push(nextEntry);
-  syncYamlFromPropsForm();
+  patchPropsFormSingleEntryLocal(previewKey, previewValue);
   syncPropsPreviewDomValue(previewValue, previewKey);
-  if (shouldRenderPropsFormNow()) renderPropsForm();
+  if (shouldRenderPropsFormNow()) renderPropsPreviewBlock();
   if (save) {
-    await saveProperties({ showToastOnSuccess, fromSyncedYaml: true });
+    await saveSingleNodeProperty(previewKey, previewValue, { showToastOnSuccess });
   }
 }
 
@@ -97876,7 +97930,7 @@ async function refreshPreviewUiAfterChange() {
   if (activeContentMode === NODE_OVERVIEW_MODE || activeContentMode === NODE_NAVIGATION_MODE) {
     await refreshNodeCoverThumbInPlace();
   }
-  if (shouldRenderPropsFormNow()) renderPropsForm();
+  if (shouldRenderPropsFormNow()) renderPropsPreviewBlock();
 }
 
 async function uploadPreviewFile(file, { overviewThumbWrap = null } = {}) {
