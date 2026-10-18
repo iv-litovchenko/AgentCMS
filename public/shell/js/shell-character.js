@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GLTFLoader } from "/shell/_resources/vendor/loaders/GLTFLoader.js";
+import { GLTFLoader } from "/shell/vendor/loaders/GLTFLoader.js";
 import {
   HERO_CHARACTER_ID,
   PICKER_CHARACTER_MODELS,
