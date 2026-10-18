@@ -1,12 +1,12 @@
 # Рефакторинг — часть 8
 
-**Задача:** развести MCP **контента** для агента: **текст** · **картинки/файлы** (assets, в т.ч. **`pasted/`**) · **документы** · опционально **merge/split** заметок. **`placement`** не ломать — новые tools как канон или тонкие обёртки над **`read_content` / `write_content`**.
+**Задача:** развести MCP **контента** для агента: **текст** · **картинки/файлы** (assets, в т.ч. **`pasted/`**) · **документы** · **merge/split** заметок. **`placement`** не ломать — новые tools как канон или тонкие обёртки над **`read_content` / `write_content`**.
 
-**✅** сделано · **❌** не сделано.
+**✅** уже в MCP · **❌** план (ещё нет) · **🔶** есть аналог под другим именем.
 
 **Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-SKILL-0-MCP-WELCOME.md`**, **`GLOBAL-SKILL-1-BASE.md`**.
 
-**Сейчас:** всё через **`read_content` / `write_content`** (+ `format: base64`, `import_content_from_url`, `extract_document_text`). **Не срочно** — можно начать с **`upload_asset` + `publicUrl`**.
+**Сейчас в проде:** **`read_content` / `write_content` / `create_content` / `list_content`**, **`merge_content` / `split_content`**, **`import_content_from_url`**, **`extract_document_text`**, бинарь через **`write_content.data`** (base64). **Дальше по приоритету:** **`upload_asset` + `publicUrl`**, затем text/asset aliases и docs.
 
 ---
 
@@ -22,41 +22,43 @@
 
 ```
 📝 Текст (markdown / csv / properties)
-├── read_text_content      … read_content part=body|properties|schema|meta (+ окно строк)
-├── write_text_content     … write_content part=body|properties (patch/replace/…)
-├── create_text_content    … create_content (.md)
-└── list_text_content      … list_content (фильтр text по слоту)
+├── ❌ read_text_content      … alias → read_content part=body|properties|schema|meta
+├── ❌ write_text_content     … alias → write_content part=body|properties
+├── ❌ create_text_content    … alias → create_content (.md)
+├── ❌ list_text_content      … alias → list_content (фильтр text)
+└── 🔶 read/write/create/list_content   … уже есть (канон до aliases)
 
 🖼️ Картинки / файлы (assets: pasted | attachments | preview; media hub files/assets)
-├── upload_asset           … write_content бинарь; ref: pasted/{name} …
-│                          → workspacePath, ref, refResolved, publicUrl [, previewUrl]
-├── read_asset             … read + format base64; image/* → publicUrl (+ image block)
-├── list_assets            … list_content slot=assets|files
-└── import_asset_from_url  … import_content_from_url (+ publicUrl в ответе)
+├── ❌ upload_asset           … обёртка write_content бинарь + publicUrl
+├── ❌ read_asset             … read_content base64 + publicUrl
+├── ❌ list_assets            … list_content slot=assets|files
+├── ❌ import_asset_from_url  … import_content_from_url + publicUrl
+└── 🔶 write_content (data) · import_content_from_url · list_content   … уже есть, без publicUrl
 
 📄 Документы
-├── extract_document       … extract_document_text (pdf/docx/… URL или path)
-└── read_asset             … бинарь; extract при необходимости
+├── 🔶 extract_document_text  … уже есть
+├── ❌ extract_document       … alias (опционально)
+└── ❌ read_asset             … бинарь + extract при нужде
 
 ✂️ Заметка как целое
-├── merge_content          … refs[] → targetRef (body через ---; frontmatter target; tags union)
-└── split_content          … one ref, split по # H1 → {stem}-0.md, {stem}-1.md … title «Base (n)»
+├── ✅ merge_content          … refs[] → targetRef (--- между body; FM target; tags union)
+└── ✅ split_content          … # H1 → {stem}-n.md, title «Base (n)»
 
 🧩 Legacy (aliases, вне policy whitelist)
-└── read_content / write_content / create_content → делегат в text_* / upload_asset
+└── ❌ read_content / write_content / create_content → делегаты в text_* / upload_asset (policy)
 ```
 
 ---
 
 ## Правила для агента (docs)
 
-| Задача | Метод |
-| ------ | ----- |
-| Читать/править текст | `read_text_content` / `write_text_content` |
-| Загрузить картинку в **pasted** | `upload_asset({ placement, ref: "pasted/…", data })` → **`publicUrl`** |
-| Показать картинку в чате | `read_asset` → **`publicUrl`** (и при необходимости base64) |
-| Склеить несколько .md | `merge_content` |
-| Разрезать одну .md по `# H1` | `split_content` |
+| Задача | Сейчас | Цель |
+| ------ | ------ | ---- |
+| Читать/править текст | `read_content` / `write_content` | `read_text_content` / `write_text_content` |
+| Загрузить картинку в **pasted** | `write_content` + `data` (base64) | `upload_asset` → **`publicUrl`** |
+| Показать картинку в чате | `read_content` + `format=base64` | `read_asset` → **`publicUrl`** |
+| Склеить несколько .md | **`merge_content`** ✅ | — |
+| Разрезать одну .md по `# H1` | **`split_content`** ✅ | — |
 
 - В теле заметки канон ссылок: **`awn-storage/assets/pasted/…`**; **`publicUrl`** — для UI/чата (HTTPS CMS, signed path — уточнить в реализации).
 - **`media`** слот темы ≠ **`assets`** (картинки в тексте → **assets**).
@@ -67,13 +69,15 @@
 
 | Статус | Шаг |
 | ------ | --- |
-| ❌ | **`upload_asset` + `publicUrl`** в ответе (обёртка над `write_content` + URL builder) |
-| ❌ | **`read_asset` / `list_assets`** (+ `import_asset_from_url`) |
-| ❌ | **`read_text_content` / `write_text_content`** (aliases + policy канон) |
 | ✅ | **`merge_content` / `split_content`** — split по `# H1`, title `(n)` |
+| 🔶 | Текст/списки/импорт — **`read/write/create/list_content`**, **`import_content_from_url`** (без aliases) |
+| 🔶 | Документы — **`extract_document_text`** |
+| ❌ | **`upload_asset` + `publicUrl`** (обёртка над `write_content` + URL builder) |
+| ❌ | **`read_asset` / `list_assets`** (+ **`import_asset_from_url`**) |
+| ❌ | **`read_text_content` / `write_text_content`** (aliases + policy канон) |
 | ❌ | **`GLOBAL-MCP-INSTRUCTION`**, **`GLOBAL-SKILL-1-BASE.md`**, **`TODO-REFACTOR-4`** |
 
-**Приоритет:** сначала **upload + URL**; merge/split — отдельно. Единый mega-hub API **не** делать (5 семейств hub + **`placement`** понятнее агенту).
+**Приоритет:** **upload + URL** → asset read/list → text aliases → docs. Merge/split **готовы**.
 
 ---
 
