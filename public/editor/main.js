@@ -129077,27 +129077,47 @@ function menuMediaLibraryEntryMatchesSearchQuery(entry, queryLower) {
 }
 
 function resolveMenuMediaLibraryPresets(payload) {
-  const fromApi = Array.isArray(payload?.presets) ? payload.presets : null;
-  if (fromApi?.length) return fromApi;
+  const apiPresets = Array.isArray(payload?.presets) ? payload.presets : [];
+  const apiPresetBySlug = new Map(
+    apiPresets
+      .map((entry) => [String(entry?.slug || "").trim(), entry])
+      .filter(([slug]) => slug)
+  );
   const libraries = Array.isArray(payload?.libraries) ? payload.libraries : [];
   const unregistered = Array.isArray(payload?.unregistered) ? payload.unregistered : [];
   const libraryBySlug = new Map(libraries.map((entry) => [entry.slug, entry]));
   const unregisteredBySlug = new Map(unregistered.map((entry) => [entry.slug, entry]));
   return MEDIA_LIBRARY_BUILTIN_PRESETS.map((preset) => {
-    const registered = libraryBySlug.get(preset.slug);
-    if (registered) return { ...registered, builtin: true, preset: true, registered: true };
-    const loose = unregisteredBySlug.get(preset.slug);
-    if (loose) return { ...loose, ...preset, builtin: true, preset: true, registered: false };
-    const folderPath = `awn-media/${preset.slug}`;
+    const slug = preset.slug;
+    const fromApi = apiPresetBySlug.get(slug);
+    const registeredLibrary = libraryBySlug.get(slug);
+    if (registeredLibrary) {
+      return { ...fromApi, ...registeredLibrary, ...preset, builtin: true, preset: true, registered: true };
+    }
+    if (fromApi?.registered === true) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: true, stub: false };
+    }
+    const loose = unregisteredBySlug.get(slug);
+    if (loose) {
+      return { ...fromApi, ...loose, ...preset, builtin: true, preset: true, registered: false };
+    }
+    if (fromApi && fromApi.registered === false && !fromApi.stub) {
+      return { ...fromApi, ...preset, builtin: true, preset: true, registered: false, stub: false };
+    }
+    const folderPath = fromApi?.folderPath || `awn-media/${slug}`;
     return {
+      ...fromApi,
       ...preset,
       folderPath,
-      manifestPath: `${folderPath}/manifest.md`,
+      manifestPath: fromApi?.manifestPath || `${folderPath}/manifest.md`,
       builtin: true,
       preset: true,
       registered: false,
       stub: true,
-      description: "Заготовка — создайте медиатеку по клику"
+      description:
+        fromApi?.description && !fromApi?.stub
+          ? fromApi.description
+          : "Заготовка — создайте медиатеку по клику"
     };
   });
 }

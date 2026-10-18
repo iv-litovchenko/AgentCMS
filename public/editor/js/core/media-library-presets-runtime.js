@@ -6,12 +6,14 @@
 /** Заготовки медиатек — порядок и slug синхронны с lib/config/media-library-presets.js */
 const MEDIA_LIBRARY_BUILTIN_PRESETS = [
   { slug: "0-documents", name: "Документы" },
+  { slug: "0-artefacts", name: "Артефакты" },
   { slug: "0-market", name: "Барахолка" },
   { slug: "0-scripts", name: "Скрипты" },
   { slug: "0-slider", name: "Слайдер" }
 ];
 const MEDIA_LIBRARY_LEGACY_SLUG_TO_CANON = {
   documents: "0-documents",
+  artefacts: "0-artefacts",
   market: "0-market",
   scripts: "0-scripts",
   slider: "0-slider"
