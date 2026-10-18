@@ -210,6 +210,39 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: 'Ошибки, алерты и события мониторинга из Sentry'
   },
   {
+    slug: '0-films',
+    icon: '🎬',
+    name: 'Фильмы и сериалы',
+    hintTitle:
+      'Коллекция кино: списки, рецензии, стриминг, «хочу посмотреть» — карточки с метаданными до triage'
+  },
+  {
+    slug: '0-books',
+    icon: '📖',
+    name: 'Книги',
+    hintTitle:
+      'Коллекция книг и аудиокниг: автор, прогресс, цитаты, EPUB/PDF и заметки по главам до triage'
+  },
+  {
+    slug: '0-magazines',
+    icon: '🗞️',
+    name: 'Журналы',
+    hintTitle: 'Периодика: выпуски, статьи из номеров, RSS журналов и рубрики до triage'
+  },
+  {
+    slug: '0-print',
+    icon: '🖨️',
+    name: 'Печатная продукция',
+    hintTitle: 'Печать офлайн: сканы обложек и разворотов, каталоги, брошюры — часто вместе с OCR'
+  },
+  {
+    slug: '0-games',
+    icon: '🎮',
+    name: 'Игры',
+    hintTitle:
+      'Коллекция игр: платформы, прохождение, достижения, заметки и ссылки на сторы до triage'
+  },
+  {
     slug: '0-notes',
     icon: '📒',
     name: 'Заметки',
@@ -277,6 +310,11 @@ const CHANNEL_BUILTIN_PRESET_GROUPS = [
     id: 'publications',
     title: 'Публикации и рынок',
     slugs: [ '0-announcements', '0-market' ]
+  },
+  {
+    id: 'collections-library',
+    title: 'Коллекции и библиотека',
+    slugs: [ '0-films', '0-books', '0-magazines', '0-print', '0-games' ]
   },
   {
     id: 'development',
