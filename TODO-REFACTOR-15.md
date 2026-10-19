@@ -8,93 +8,95 @@
 - **Список реестра** → **множественное** + `_list`: `databases_list`, `channels_list` (не `database_list` — это звучит как «список внутри одной базы»).
 - **Одна запись / поля** → **единственное** + `_get|_register|_read|…`: `database_get`, `topic_body_read`.
 - Старые `list_*` / `get_*` / `read_*` → legacy после миграции.
+- **Слои индекса `index_N_*`:** **`_search_query`** — поиск (hits); **`_query`** без `search` — structured (storage); **`index_{N}_*_rebuild` / `index_1_ocr_run`** — слои 1–6. **Без номера:** `index_status_get`, `index_monitor_get`, `index_rebuild_all`, `index_file_sync`, `index_search_query_batch`.
+- **Слой 6 (entity, эксперимент):** в дереве только **`index_6_entity_*_zzz`** (🟡); рабочие **`index_6_entity_*`** без `_zzz` — MCP + legacy, не в счётчике.
 
 ---
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
-**Итого в дереве: 233 метода** (legacy-алиасы и `*_zzz` stub не считаются).
+**Итого в дереве: 222 метода** (legacy-алиасы и `*_zzz` stub не считаются).
 
 ```
 user-agent-cms
 │
 ├── ⚙️ Платформа · platform_* · 7
-│   ├── 🟢 platform_info_get                  ← get_platform_info
-│   ├── 🟢 platform_health_get                ← get_platform_health
-│   ├── 🟢 platform_docs_list                 ← list_platform_docs
-│   ├── 🟢 platform_doc_read                  ← read_platform_doc
-│   ├── 🟢 platform_config_list               ← list_platform_config
-│   ├── 🟢 platform_types_list                ← list_types
-│   └── 🟢 platform_type_get                  ← get_type
+│   ├── 🟢 platform_info_get
+│   ├── 🟢 platform_health_get
+│   ├── 🟢 platform_docs_list
+│   ├── 🟢 platform_doc_read
+│   ├── 🟢 platform_config_list
+│   ├── 🟢 platform_types_list
+│   └── 🟢 platform_type_get
 │
 ├── 🎛 Settings · settings_* · setting_* · 3
-│   ├── 🟢 settings_list                      ← list_settings
-│   ├── 🟢 setting_read                       ← read_setting
-│   └── 🟢 setting_write                      ← write_setting
+│   ├── 🟢 settings_list
+│   ├── 🟢 setting_read
+│   └── 🟢 setting_write
 │
 ├── 🚀 Старт и workspace · 20
-│   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
-│   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
-│   ├── 🟢 workspace_create                   ← create_workspace
-│   ├── 🟢 workspace_register                 ← register_workspace
-│   ├── 🟢 workspace_update                   ← update_workspace
-│   ├── 🟢 workspace_default_set              ← set_default_workspace
-│   ├── 🟢 workspace_orchestrator_set         ← set_orchestrator_workspace
-│   ├── 🟢 workspace_groups_list              ← list_workspace_groups
-│   ├── 🟢 workspace_group_create             ← create_workspace_group
-│   ├── 🟢 workspace_group_update             ← update_workspace_group
-│   ├── 🟢 workspace_group_delete             ← delete_workspace_group
-│   ├── 🟢 workspace_group_assign             ← assign_workspace_to_group
-│   ├── 🟢 workspace_group_unassign           ← remove_workspace_from_group
-│   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
-│   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
-│   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
-│   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
-│   ├── 🟢 workspace_activity_list            ← list_recent_activity
-│   ├── 🟢 workspace_feed_list                ← list_workspace_feed
-│   └── 🟢 workspace_memory_audit           ← audit_workspace_memory
+│   ├── 🟢 workspaces_list
+│   ├── 🟢 workspaces_scan
+│   ├── 🟢 workspace_create
+│   ├── 🟢 workspace_register
+│   ├── 🟢 workspace_update
+│   ├── 🟢 workspace_default_set
+│   ├── 🟢 workspace_orchestrator_set
+│   ├── 🟢 workspace_groups_list
+│   ├── 🟢 workspace_group_create
+│   ├── 🟢 workspace_group_update
+│   ├── 🟢 workspace_group_delete
+│   ├── 🟢 workspace_group_assign
+│   ├── 🟢 workspace_group_unassign
+│   ├── 🟢 workspace_groups_reorder
+│   ├── 🟢 workspace_dependencies_read
+│   ├── 🟢 workspace_dependencies_write
+│   ├── 🟢 workspace_summary_get
+│   ├── 🟢 workspace_activity_list
+│   ├── 🟢 workspace_feed_list
+│   └── 🟢 workspace_memory_audit
 │
 ├── 🎬 Session · session_* · workspaceId · 17
-│   ├── 🟢 session_context_get                ← get_session_context
-│   ├── 🟢 session_context_get_user_open_url_location_in_ui ← get_ui_focus ← session_ui_focus_get ← get_ui_open_location
-│   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
-│   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
-│   ├── 🟢 session_list_always_context        ← session_always_registry_list ← get_workspace_always_context_registry
-│   ├── 🟢 session_list_cron                  ← session_cron_registry_list ← get_workspace_cron_registry
-│   ├── 🟢 session_list_heartbeat             ← session_heartbeat_registry_list ← get_workspace_heartbeat_registry
-│   ├── 🟢 session_list_in_focus              ← session_nav_focus_list ← session_nav_focus_get
-│   ├── 🟢 session_list_on_main               ← session_nav_main_list ← session_nav_main_get
+│   ├── 🟢 session_context_get
+│   ├── 🟢 session_context_get_user_open_url_location_in_ui
+│   ├── 🟢 session_agent_profile_get
+│   ├── 🟢 session_user_profile_get
+│   ├── 🟢 session_list_always_context
+│   ├── 🟢 session_list_cron
+│   ├── 🟢 session_list_heartbeat
+│   ├── 🟢 session_list_in_focus
+│   ├── 🟢 session_list_on_main
 │   ├── session_note_* (2)
-│   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
-│   │   └── 🟢 session_note_write             ← workspace_note_write ← write_workspace_note
+│   │   ├── 🟢 session_note_read
+│   │   └── 🟢 session_note_write
 │   ├── session_todo_* (2)
-│   │   ├── 🟢 session_todo_read              ← workspace_todo_read ← read_workspace_todo
-│   │   └── 🟢 session_todo_write             ← workspace_todo_write ← write_workspace_todo
+│   │   ├── 🟢 session_todo_read
+│   │   └── 🟢 session_todo_write
 │   └── session_context_buffer_* (4)
-│       ├── 🟢 session_context_buffer_read    ← session_buffer_read ← read_context_buffer
-│       ├── 🟢 session_context_buffer_append  ← session_buffer_append ← append_context_buffer
-│       ├── 🟢 session_context_buffer_remove  ← session_buffer_item_remove ← remove_context_buffer_item
-│       └── 🟢 session_context_buffer_clear   ← session_buffer_clear ← clear_context_buffer
+│       ├── 🟢 session_context_buffer_read
+│       ├── 🟢 session_context_buffer_append
+│       ├── 🟢 session_context_buffer_remove
+│       └── 🟢 session_context_buffer_clear
 │
 ├── 📋 Registry queries · registry_* · 2
-│   ├── 🟢 registry_queries_list              ← list_workspace_registry_queries ← session_registry_queries_list
-│   └── 🟢 registry_query_run                 ← run_workspace_registry_query ← session_registry_query_run
+│   ├── 🟢 registry_queries_list
+│   └── 🟢 registry_query_run
 │
 ├── 🧭 Навигация · nav_* · 14
-│   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
-│   ├── 🟢 nav_map_workspace_refresh          ← workspace_map_refresh / refresh_workspace_map
-│   ├── 🟢 nav_index_toc_topics_read          ← topics_index_toc_read / read_topic_index_toc
-│   ├── 🟢 nav_index_toc_topics_refresh       ← refresh_topic_index_toc
-│   ├── 🟢 nav_index_toc_contents_read        ← contents_index_toc_read / read_content_index_toc
-│   ├── 🟢 nav_index_toc_contents_refresh     ← refresh_content_index_toc
-│   ├── 🟢 nav_index_toc_databases_read       ← databases_index_toc_read / read_database_frame_index_toc
-│   ├── 🟢 nav_index_toc_databases_refresh    ← refresh_databases_index_toc / refresh_database_frame_index_toc
-│   ├── 🟢 nav_index_toc_channels_read        ← channels_index_toc_read
-│   ├── 🟢 nav_index_toc_channels_refresh     ← refresh_channels_index_toc
-│   ├── 🟢 nav_index_toc_repositories_read    ← repositories_index_toc_read
-│   ├── 🟢 nav_index_toc_repositories_refresh ← refresh_repository_index_toc
-│   ├── 🟢 nav_index_toc_media_libraries_read ← media_libraries_index_toc_read
-│   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
+│   ├── 🟢 nav_map_workspace_read
+│   ├── 🟢 nav_map_workspace_refresh
+│   ├── 🟢 nav_index_toc_topics_read
+│   ├── 🟢 nav_index_toc_topics_refresh
+│   ├── 🟢 nav_index_toc_contents_read
+│   ├── 🟢 nav_index_toc_contents_refresh
+│   ├── 🟢 nav_index_toc_databases_read
+│   ├── 🟢 nav_index_toc_databases_refresh
+│   ├── 🟢 nav_index_toc_channels_read
+│   ├── 🟢 nav_index_toc_channels_refresh
+│   ├── 🟢 nav_index_toc_repositories_read
+│   ├── 🟢 nav_index_toc_repositories_refresh
+│   ├── 🟢 nav_index_toc_media_libraries_read
+│   └── 🟢 nav_index_toc_media_libraries_refresh
 │
 ├── 🗺 id, URL · 4
 │   ├── 🔴 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
@@ -103,153 +105,164 @@ user-agent-cms
 │   └── 🔴 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
 │
 ├── 🧭 Темы · topics_ / topic_ · 25
-│   ├── 🟢 topics_list                    ← list_topics
-│   ├── 🟢 topic_get                      ← get_topic
-│   ├── 🟢 topic_meta_get                 ← get_topic_meta
+│   ├── 🟢 topics_list
+│   ├── 🟢 topic_get
+│   ├── 🟢 topic_meta_get
 │   ├── 🟢 topic_exists
-│   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
-│   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
-│   ├── 🟢 topic_body_read                ← read_topic_body
-│   ├── 🟢 topic_body_write               ← write_topic_body
-│   ├── 🟢 topic_properties_read          ← read_topic_properties
-│   ├── 🟢 topic_properties_write         ← write_topic_properties
-│   ├── 🟢 topic_property_read            ← read_topic_property
-│   ├── 🟢 topic_property_write           ← write_topic_property
-│   ├── 🟢 topic_schema_read              ← read_topic_schema
-│   ├── 🟢 topic_schema_write             ← write_topic_schema
-│   ├── 🟢 topic_config_read              ← read_topic_config
-│   ├── 🟢 topic_config_write             ← write_topic_config
-│   ├── 🟢 topic_env_read                 ← read_topic_env
-│   ├── 🟢 topic_env_write                ← write_topic_env
-│   ├── 🟢 topic_create                   ← create_topic
-│   ├── 🟢 topic_update                   ← update_topic
-│   ├── 🟢 topic_delete                   ← delete_topic
-│   ├── 🟢 topic_rename                   ← rename_topic
-│   └── 🟢 topic_move                     ← move_topic
+│   ├── 🟢 topic_slots_template_get
+│   ├── 🟢 topic_slots_template_set
+│   ├── 🟢 topic_body_read
+│   ├── 🟢 topic_body_write
+│   ├── 🟢 topic_properties_read
+│   ├── 🟢 topic_properties_write
+│   ├── 🟢 topic_property_read
+│   ├── 🟢 topic_property_write
+│   ├── 🟢 topic_schema_read
+│   ├── 🟢 topic_schema_write
+│   ├── 🟢 topic_config_read
+│   ├── 🟢 topic_config_write
+│   ├── 🟢 topic_env_read
+│   ├── 🟢 topic_env_write
+│   ├── 🟢 topic_create
+│   ├── 🟢 topic_update
+│   ├── 🟢 topic_delete
+│   ├── 🟢 topic_rename
+│   └── 🟢 topic_move
 │
 ├── 📄 Контент · 17
-│   ├── 🟢 contents_list                 ← list_content
-│   ├── 🟢 content_read                  ← read_content
-│   ├── 🟢 content_write                 ← write_content
-│   ├── 🟢 content_binary_read           ← read_content_binary
-│   ├── 🟢 content_binary_write          ← write_content_binary
-│   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url ← import_content_from_url
+│   ├── 🟢 contents_list
+│   ├── 🟢 content_read
+│   ├── 🟢 content_write
+│   ├── 🟢 content_binary_read
+│   ├── 🟢 content_binary_write
+│   ├── 🟢 content_binary_write_from_url
 │   ├── 🟢 content_exists
-│   ├── 🟢 content_meta_get              ← get_content_meta
-│   ├── 🟢 content_property_read         ← read_content_property
-│   ├── 🟢 content_property_write        ← write_content_property
-│   ├── 🟢 content_create                ← create_content
-│   ├── 🟢 content_delete                ← delete_content
-│   ├── 🟢 content_rename                ← rename_content
-│   ├── 🟢 content_move                  ← move_content
-│   ├── 🟢 content_split                 ← split_content
-│   ├── 🟢 content_merge                 ← merge_content
-│   └── 🟢 contents_slots_list           ← list_slots
+│   ├── 🟢 content_meta_get
+│   ├── 🟢 content_property_read
+│   ├── 🟢 content_property_write
+│   ├── 🟢 content_create
+│   ├── 🟢 content_delete
+│   ├── 🟢 content_rename
+│   ├── 🟢 content_move
+│   ├── 🟢 content_split
+│   ├── 🟢 content_merge
+│   └── 🟢 contents_slots_list
 │
 ├── 🗃 Базы · 12
-│   ├── 🟢 databases_list               ← list_databases
-│   ├── 🟢 database_get                 ← get_database
-│   ├── 🟢 database_register            ← register_database
-│   ├── 🟢 database_update              ← update_database
-│   ├── 🟢 database_delete              ← delete_database
-│   ├── 🟢 database_rename              ← rename_database
-│   ├── 🟢 database_schema_read         ← read_database_schema
-│   ├── 🟢 database_schema_write        ← write_database_schema
-│   ├── 🟢 database_properties_read     ← read_database_properties
-│   ├── 🟢 database_properties_write    ← write_database_properties
-│   ├── 🟢 database_property_read       ← read_database_property
-│   └── 🟢 database_property_write      ← write_database_property
+│   ├── 🟢 databases_list
+│   ├── 🟢 database_get
+│   ├── 🟢 database_register
+│   ├── 🟢 database_update
+│   ├── 🟢 database_delete
+│   ├── 🟢 database_rename
+│   ├── 🟢 database_schema_read
+│   ├── 🟢 database_schema_write
+│   ├── 🟢 database_properties_read
+│   ├── 🟢 database_properties_write
+│   ├── 🟢 database_property_read
+│   └── 🟢 database_property_write
 │
 ├── 📡 Каналы · 6
-│   ├── 🟢 channels_list                ← list_channels
-│   ├── 🟢 channel_get                  ← get_channel
-│   ├── 🟢 channel_register             ← register_channel
-│   ├── 🟢 channel_update               ← update_channel
-│   ├── 🟢 channel_delete               ← delete_channel
-│   └── 🟢 channel_rename               ← rename_channel
+│   ├── 🟢 channels_list
+│   ├── 🟢 channel_get
+│   ├── 🟢 channel_register
+│   ├── 🟢 channel_update
+│   ├── 🟢 channel_delete
+│   └── 🟢 channel_rename
 │
 ├── 🖼 Медиатеки · 6
-│   ├── 🟢 media_libraries_list         ← list_media_libraries
-│   ├── 🟢 media_library_get            ← get_media_library
-│   ├── 🟢 media_library_register       ← register_media_library
-│   ├── 🟢 media_library_update         ← update_media_library
-│   ├── 🟢 media_library_delete         ← delete_media_library
-│   └── 🟢 media_library_rename         ← rename_media_library
+│   ├── 🟢 media_libraries_list
+│   ├── 🟢 media_library_get
+│   ├── 🟢 media_library_register
+│   ├── 🟢 media_library_update
+│   ├── 🟢 media_library_delete
+│   └── 🟢 media_library_rename
 │
 ├── 📦 Репозитории · 6
-│   ├── 🟢 repositories_list            ← list_repositories
-│   ├── 🟢 repository_get               ← get_repository
-│   ├── 🟢 repository_register          ← register_repository
-│   ├── 🟢 repository_update            ← update_repository
-│   ├── 🟢 repository_delete            ← delete_repository
-│   └── 🟢 repository_rename            ← rename_repository
+│   ├── 🟢 repositories_list
+│   ├── 🟢 repository_get
+│   ├── 🟢 repository_register
+│   ├── 🟢 repository_update
+│   ├── 🟢 repository_delete
+│   └── 🟢 repository_rename
 │
-├── 🔍 Поиск и индексы · 27
-│   ├── 🟢 search_content                   ← search_workspace_content
-│   ├── 🟢 search_semantic                  ← search_workspace_semantic
-│   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
-│   ├── 🟢 search_batch                     ← search_workspace_batch (denied in batch_invoke)
-│   ├── 🟢 search_links                     ← search_workspace_links
-│   ├── 🔴 search_and_get_context
-│   ├── 🔴 ask_workspace
-│   ├── 🟡 index_status_get                 ← get_workspace_index_status
-│   ├── 🟡 index_monitor_get                ← get_workspace_index_monitor
-│   ├── 🟡 index_storage_query              ← query_workspace_storage
-│   ├── 🟡 indexes_rebuild                  ← index_rebuild ← rebuild_workspace_indexes
-│   ├── 🟡 index_ocr_run                    ← run_workspace_ocr_index
-│   ├── 🟡 index_fulltext_rebuild           ← rebuild_workspace_fulltext_index
-│   ├── 🟡 index_semantic_rebuild           ← rebuild_workspace_semantic_index
-│   ├── 🟡 index_storage_rebuild            ← rebuild_workspace_storage_index
-│   ├── 🟡 index_link_rebuild               ← rebuild_workspace_link_index
-│   ├── 🟡 index_entity_rebuild             ← rebuild_workspace_entity_index
-│   ├── 🟡 index_entity_query               ← entity_query ← query_workspace_entities
-│   ├── 🟡 index_entity_catalog_list        ← entity_catalog_list ← list_workspace_entity_catalog
-│   ├── 🟡 index_entity_search_explain      ← entity_search_explain ← explain_workspace_entity_search
-│   ├── 🟡 index_file_sync                  ← sync_workspace_index_file
-│   ├── 🟢 entity_registry_get              ← get_workspace_entity_registry
-│   ├── 🟢 entity_registry_put              ← put_workspace_entity_registry
-│   ├── 🟢 entity_type_upsert               ← upsert_workspace_entity_type
-│   ├── 🟢 entity_alias_merge               ← merge_workspace_entity_alias
-│   ├── 🟢 entity_reject                    ← reject_workspace_entity
-│   └── 🟢 entity_seed                      ← seed_workspace_entity
+├── 🔍 Поиск и индексы · 16
+│   ├── 0. query_*
+│   │   ├── 🟢 query_context_get
+│   │   └── 🟢 query_workspace_ask
+│   ├── 1. index_1_ocr_*
+│   │   └── 🟡 index_1_ocr_run_zzz
+│   ├── 2. index_2_fulltext_*
+│   │   ├── 🟢 index_2_fulltext_search_query
+│   │   └── 🟢 index_2_fulltext_rebuild
+│   ├── 3. index_3_semantic_*
+│   │   ├── 🟢 index_3_semantic_search_query
+│   │   ├── 🟢 index_3_hybrid_search_query
+│   │   └── 🟢 index_3_semantic_rebuild
+│   ├── 4. index_4_storage_*
+│   │   ├── 🟢 index_4_storage_query
+│   │   └── 🟢 index_4_storage_rebuild
+│   ├── 5. index_5_link_*
+│   │   ├── 🟢 index_5_link_search_query
+│   │   └── 🟢 index_5_link_rebuild
+│   ├── 6. index_6_entity_*_zzz (UI «6. Сущности», эксперимент)
+│   │   ├── 🟡 index_6_entity_query_zzz
+│   │   ├── 🟡 index_6_entity_catalog_list_zzz
+│   │   ├── 🟡 index_6_entity_query_explain_zzz
+│   │   ├── 🟡 index_6_entity_rebuild_zzz
+│   │   ├── 🟡 index_6_entity_registry_get_zzz
+│   │   ├── 🟡 index_6_entity_registry_put_zzz
+│   │   ├── 🟡 index_6_entity_type_upsert_zzz
+│   │   ├── 🟡 index_6_entity_alias_merge_zzz
+│   │   ├── 🟡 index_6_entity_reject_zzz
+│   │   └── 🟡 index_6_entity_seed_zzz
+│   ├── 7. ID → 🆔 Record (UI «7. ID (awn-id)»)
+│   ├── Карта → 🧭 nav_map_workspace_* (UI «Карта», без №)
+│   ├── index_* (UI «Мониторинг», без № в popover)
+│   │   ├── 🟢 index_status_get
+│   │   └── 🟢 index_monitor_get
+│   └── index_ops_* (без № в popover — rebuild / sync / batch)
+│       ├── 🟢 index_rebuild_all
+│       ├── 🟢 index_file_sync
+│       └── 🟢 index_search_query_batch
 │
 ├── 🆔 Record · record_* · workspaceId · 6
-│   ├── 🟢 record_find_by_id                  ← find_by_id ← resolve_workspace_id
+│   ├── 🔴 record_find_by_id
 │   ├── 🟢 record_id_exists
-│   ├── 🟢 record_id_assign                   ← assign_workspace_id
-│   ├── 🟢 record_generate_slug               ← generate_workspace_slug ← record_slug_generate
+│   ├── 🟢 record_id_assign
+│   ├── 🟢 record_generate_slug
 │   ├── 🟢 record_slug_exists
-│   └── 🟢 record_path_resolve                ← resolve_workspace_path
+│   └── 🟢 record_path_resolve
 │
 ├── 🧠 Facts · glossary · reference · 13
 │   ├── 🧠 fact_* · workspaceId · 4
-│   ├── 🟢 fact_create                    ← workspace_fact_create ← create_workspace_fact
-│   ├── 🟢 fact_update                    ← workspace_fact_update ← update_workspace_fact
-│   ├── 🟢 facts_list                     ← workspace_facts_list ← list_workspace_facts
-│   ├── 🟢 facts_search                   ← workspace_facts_search ← search_workspace_facts
-│   ├── 🟢 glossary_term_create           ← create_glossary_term
-│   ├── 🟢 glossary_term_update           ← update_glossary_term
-│   ├── 🟢 glossary_terms_list            ← list_glossary_terms
-│   ├── 🟢 glossary_terms_search          ← search_glossary_terms
-│   ├── 🟢 reference_entry_create         ← create_reference_entry
-│   ├── 🟢 reference_entry_update         ← update_reference_entry
-│   ├── 🟢 reference_entries_list         ← list_reference_entries
-│   └── 🟢 reference_entries_search       ← search_reference_entries
+│   ├── 🟢 fact_create
+│   ├── 🟢 fact_update
+│   ├── 🟢 facts_list
+│   ├── 🟢 facts_search
+│   ├── 🟢 glossary_term_create
+│   ├── 🟢 glossary_term_update
+│   ├── 🟢 glossary_terms_list
+│   ├── 🟢 glossary_terms_search
+│   ├── 🟢 reference_entry_create
+│   ├── 🟢 reference_entry_update
+│   ├── 🟢 reference_entries_list
+│   └── 🟢 reference_entries_search
 │
 ├── 📝 Annotations · annotation_* · domain annotations · 11
 │   ├── annotation_comment · awn.annotation.comment · slot comments/ (6)
-│   │   ├── 🟢 annotation_comments_list         ← comments_list ← list_comments
-│   │   ├── 🟢 annotation_comment_append        ← comment_append ← append_comment
-│   │   ├── 🟢 annotation_comment_read          ← comment_read ← read_comment
-│   │   ├── 🟢 annotation_comment_update        ← comment_update ← update_comment
-│   │   ├── 🟢 annotation_comment_delete        ← comment_delete ← delete_comment
-│   │   └── 🟢 annotation_comment_reaction_toggle ← comment_reaction_toggle ← toggle_comment_reaction
+│   │   ├── 🟢 annotation_comments_list
+│   │   ├── 🟢 annotation_comment_append
+│   │   ├── 🟢 annotation_comment_read
+│   │   ├── 🟢 annotation_comment_update
+│   │   ├── 🟢 annotation_comment_delete
+│   │   └── 🟢 annotation_comment_reaction_toggle
 │   └── annotation_sidecar · awn.annotation.sidecar · *.sidecar.md (5)
-│       ├── 🟢 annotation_sidecar_path_resolve  ← sidecar_path_resolve ← resolve_sidecar_path
-│       ├── 🟢 annotation_sidecar_read          ← sidecar_read ← read_sidecar
-│       ├── 🟢 annotation_sidecar_create        ← sidecar_create ← create_sidecar
-│       ├── 🟢 annotation_sidecar_update        ← annotation_sidecar_write ← sidecar_write ← write_sidecar
-│       └── 🟢 annotation_sidecar_delete        ← sidecar_delete ← delete_sidecar
+│       ├── 🟢 annotation_sidecar_path_resolve
+│       ├── 🟢 annotation_sidecar_read
+│       ├── 🟢 annotation_sidecar_create
+│       ├── 🟢 annotation_sidecar_update
+│       └── 🟢 annotation_sidecar_delete
 │
 ├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)
 │   ├── 🟢 module_git_status
@@ -277,40 +290,38 @@ user-agent-cms
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
 ├── 🛠 Утилиты · utility_* · 8
-│   ├── 🟢 utility_mcp_ping                ← tool_mcp_ping ← mcp_connection_test ← test_mcp_connection
-│   ├── 🟢 utility_web_search              ← tool_web_search ← search_web
-│   ├── 🟢 utility_web_images_search         ← tool_web_images_search ← search_web_images
-│   ├── 🟢 utility_web_page_read           ← tool_web_page_read ← read_web_page
-│   ├── 🟢 utility_document_text_extract   ← tool_document_text_extract ← extract_document_text
-│   ├── 🟢 utility_script_run              ← tool_script_run ← run_script
-│   ├── 🟢 utility_command_exec            ← tool_command_exec ← exec_command
-│   └── 🟢 utility_shell_exec              ← tool_shell_exec ← exec_shell
+│   ├── 🟢 utility_mcp_ping
+│   ├── 🟢 utility_web_search
+│   ├── 🟢 utility_web_images_search
+│   ├── 🟢 utility_web_page_read
+│   ├── 🟢 utility_document_text_extract
+│   ├── 🟢 utility_script_run
+│   ├── 🟢 utility_command_exec
+│   └── 🟢 utility_shell_exec
 │
 ├── 📥 Inbox · 2
-│   ├── 🟢 inbox_items_list              ← list_inbox
-│   └── 🟢 inbox_item_triage             ← triage_inbox_item
+│   ├── 🟢 inbox_items_list
+│   └── 🟢 inbox_item_triage
 │
 ├── 💬 Discussion · 2
-│   ├── 🟢 discussion_read               ← read_discussion ← read_dialogs
-│   └── 🟢 discussion_append             ← append_discussion ← append_dialog
+│   ├── 🟢 discussion_read
+│   └── 🟢 discussion_append
 │
 ├── 📓 Journal · 2
-│   ├── 🟢 journal_entry_append              ← append_journal_entry
-│   └── 🟢 journal_entries_list              ← list_journal_entries
+│   ├── 🟢 journal_entry_append
+│   └── 🟢 journal_entries_list
 │
 ├── 🔔 Уведомления · 2
-│   ├── 🟢 user_notifications_list            ← list_workspace_notifications ← workspace_notifications_list
-│   └── 🟢 user_notification_send             ← notify_user
+│   ├── 🟢 user_notifications_list
+│   └── 🟢 user_notification_send
 │
 └── ⚡ Специальные · 1
-    └── 🟢 batch_tools_invoke              ← request_batch_invoke ← tool_batch_invoke ← batch_invoke
+    └── 🟢 batch_tools_invoke
 ```
 
-Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.
+Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`, `index_1_ocr_run_zzz`, `index_6_entity_*_zzz` (🟡 в дереве; рабочие без `_zzz` + legacy).
 
 ---
 
 ## Осталось (не 🟢 в дереве)
-- **Поиск:** `search_and_get_context`, `ask_workspace`
-- **Индексы 🟡:** дожать `index_*` (сверка с legacy в коде)
 - **Доки:** `GLOBAL-SKILL-*`, `docs/mcp-0.0.2.js` — только канон, без дублирующих секций

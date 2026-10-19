@@ -32,6 +32,7 @@ batch_invoke:
     - request_batch_invoke
     - tool_batch_invoke
     - batch_invoke
+    - index_search_query_batch
     - search_batch
     - search_workspace_batch
     - session_context_get
@@ -44,6 +45,8 @@ batch_invoke:
     - workspaces_list
     - list_workspaces
     - list_vaults
+    - query_workspace_ask
+    - query_context_get
     - ask_workspace
     - search_and_get_context
     - user_notification_send
@@ -57,13 +60,22 @@ batch_invoke:
     - toggle_comment_reaction
     - inbox_item_triage
     - triage_inbox_item
+    - index_rebuild_all
     - indexes_rebuild
     - index_rebuild
+    - index_3_semantic_rebuild
     - index_semantic_rebuild
+    - index_4_storage_rebuild
     - index_storage_rebuild
+    - index_2_fulltext_rebuild
     - index_fulltext_rebuild
+    - index_5_link_rebuild
     - index_link_rebuild
+    - index_6_entity_rebuild
+    - index_entity_rebuild
+    - index_1_ocr_run
     - index_ocr_run
+    - index_file_sync
     - index_file_sync
     - rebuild_workspace_indexes
     - rebuild_workspace_semantic_index
@@ -169,11 +181,22 @@ batch_invoke:
     - glossary_terms_search
     - reference_entries_list
     - reference_entries_search
+    - index_4_storage_query
     - index_storage_query
     - query_workspace_storage
     - index_status_get
+    - index_status_get
     - get_workspace_index_status
     - index_monitor_get
+    - index_monitor_get
     - get_workspace_index_monitor
+    - index_2_fulltext_search_query
+    - search_content
+    - index_3_semantic_search_query
+    - search_semantic
+    - index_3_hybrid_search_query
+    - search_hybrid
+    - index_5_link_search_query
+    - search_links
     - module_git_status
     - module_git_diff

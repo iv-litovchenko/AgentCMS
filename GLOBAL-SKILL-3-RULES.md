@@ -51,6 +51,11 @@ description: Правила, запреты и антипаттерны аген
 | `get_workspace_url_page_preview` | `get_workspace_page_preview_from_path` |
 | `get_link_preview` / `get_external_url_page_preview` | `get_external_page_preview_from_url` |
 | `content_binary_url_get` / `get_content_binary_url` | `get_record_binary_url_from_path` |
+| `search_content` / `search_semantic` / `search_hybrid` / `search_links` / `search_batch` | `index_2_fulltext_search_query` / `index_3_semantic_search_query` / `index_3_hybrid_search_query` / `index_5_link_search_query` / `index_search_query_batch` |
+| `ask_workspace` / `search_and_get_context` | `query_workspace_ask` / `query_context_get` |
+| `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run` … `index_file_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
+| `get_workspace_index_status` / `get_workspace_index_monitor` | `index_status_get` / `index_monitor_get` |
+| `index_entity_*` (query, catalog, rebuild, …) | `index_6_entity_*` |
 | `notify_user` | `user_notification_send` |
 | `list_workspace_notifications` / `workspace_notifications_list` | `user_notifications_list` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |

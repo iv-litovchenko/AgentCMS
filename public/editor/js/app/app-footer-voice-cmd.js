@@ -81,7 +81,7 @@
       items: [
         {
           phrases: ["открой …", "перейди к …"],
-          tools: ["search_hybrid", "get_topic_url"],
+          tools: ["index_3_hybrid_search_query", "get_record_url_from_path"],
           status: "mcp"
         },
         {
@@ -121,7 +121,7 @@
       id: "search",
       title: "Поиск и ответ",
       items: [
-        { phrases: ["найди …", "где про …"], tools: ["search_hybrid"], status: "mcp" },
+        { phrases: ["найди …", "где про …"], tools: ["index_3_hybrid_search_query"], status: "mcp" },
         { phrases: ["поищи смысл …"], tools: ["search_semantic"], status: "mcp" },
         { phrases: ["что мы решили про …"], tools: ["search_and_get_context", "ask_workspace"], status: "mcp" },
         { phrases: ["покажи ссылки на …"], tools: ["search_links"], status: "mcp" }

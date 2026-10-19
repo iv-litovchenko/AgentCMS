@@ -132,7 +132,7 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
     description:
       "Пакетный вызов одного и того же MCP-tool. Передай tool + items[] (аргументы без workspaceId/agentId). " +
       "Для read/list/search — parallel=true; для write/create/delete — parallel=false. " +
-      "Нельзя: batch_tools_invoke, utility_* exec, search_batch, session_context_get. " +
+      "Нельзя: batch_tools_invoke, utility_* exec, index_search_query_batch, session_context_get. " +
       "Лимиты: config.yml (batch-read-limit / batch-write-limit) + mcp-policy.yml (denylist).",
     schema: batchSchema,
     handler: batchHandler

@@ -56,8 +56,9 @@ function registerSearchWorkspaceTools(reg, client) {
     });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "search_content",
-    legacy: "search_workspace_content",
+    canonical: "index_2_fulltext_search_query",
+    legacy: "search_content",
+    extraLegacy: ["search_workspace_content", "index_2_fulltext_search", "index_2_fulltext_query"],
     description:
       "Full-text search across the workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. pathPrefix limits to a topic/area/folder subtree. Same as UI header search.",
     schema: searchWorkspaceSchema,
@@ -65,10 +66,11 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "search_semantic",
-    legacy: "search_workspace_semantic",
+    canonical: "index_3_semantic_search_query",
+    legacy: "search_semantic",
+    extraLegacy: ["search_workspace_semantic", "index_3_semantic_search", "index_3_semantic_query"],
     description:
-      "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: index_semantic_rebuild.",
+      "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: index_3_semantic_rebuild.",
     schema: z.object({
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
@@ -126,8 +128,9 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "search_hybrid",
-    legacy: "search_workspace_hybrid",
+    canonical: "index_3_hybrid_search_query",
+    legacy: "search_hybrid",
+    extraLegacy: ["search_workspace_hybrid", "index_3_semantic_hybrid", "index_3_hybrid_query"],
     description:
       "Hybrid workspace search in one call: semantic + fulltext, optionally narrowed by pathPrefix and storage-index field filters (where on frontmatter: awn-date, tags, author…). Returns merged cited hits — agent synthesizes the answer.",
     schema: searchHybridSchema,
@@ -180,10 +183,16 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "search_batch",
-    legacy: "search_workspace_batch",
+    canonical: "index_search_query_batch",
+    legacy: "search_batch",
+    extraLegacy: [
+      "search_workspace_batch",
+      "index_9_search_batch",
+      "index_9_query_batch",
+      "index_9_search_query_batch"
+    ],
     description:
-      "Batch hybrid search: multiple questions/facts in one MCP call (max 20). Each item runs semantic + fulltext like search_hybrid. Use when the user asks several archive questions at once — one round-trip instead of N separate searches.",
+      "Batch hybrid search queries: multiple questions/facts in one MCP call (max 20). Each item runs semantic + fulltext like index_3_hybrid_search_query. Use when the user asks several archive questions at once — one round-trip instead of N separate queries.",
     schema: searchBatchSchema,
     handler: (payload) => client.post("/api/search/batch", payload)
   });
@@ -226,10 +235,11 @@ function registerSearchWorkspaceTools(reg, client) {
   const indexStorageQueryHandler = (payload) => client.post("/api/storage-index/query", payload);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_storage_query",
-    legacy: "query_workspace_storage",
+    canonical: "index_4_storage_query",
+    legacy: "index_storage_query",
+    extraLegacy: ["query_workspace_storage"],
     description:
-      "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: index_storage_rebuild.",
+      "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: index_4_storage_rebuild.",
     schema: indexStorageQuerySchema,
     handler: indexStorageQueryHandler
   });
@@ -250,6 +260,7 @@ function registerSearchWorkspaceTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "index_status_get",
     legacy: "get_workspace_index_status",
+    extraLegacy: ["index_8_status_get"],
     description:
       "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     schema: emptyIndexSchema,
@@ -259,6 +270,7 @@ function registerSearchWorkspaceTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "index_monitor_get",
     legacy: "get_workspace_index_monitor",
+    extraLegacy: ["index_8_monitor_get"],
     description:
       "Monitor workspace indexes: stale/outdated files, index size, last rebuild duration, health (ok|stale|partial|empty).",
     schema: emptyIndexSchema,
@@ -266,10 +278,11 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_semantic_rebuild",
-    legacy: "rebuild_workspace_semantic_index",
+    canonical: "index_3_semantic_rebuild",
+    legacy: "index_semantic_rebuild",
+    extraLegacy: ["rebuild_workspace_semantic_index"],
     description:
-      "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/cache/indexes/semantic). Run after bulk file changes or before search_semantic.",
+      "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/cache/indexes/semantic). Run after bulk file changes or before index_3_semantic_search_query.",
     schema: emptyIndexSchema,
     handler: () => client.post("/api/search/semantic/reindex", {})
   });
@@ -282,8 +295,9 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_storage_rebuild",
-    legacy: "rebuild_workspace_storage_index",
+    canonical: "index_4_storage_rebuild",
+    legacy: "index_storage_rebuild",
+    extraLegacy: ["rebuild_workspace_storage_index"],
     description:
       "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/cache/indexes/storage). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
     schema: indexStorageRebuildSchema,
@@ -291,26 +305,29 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_fulltext_rebuild",
-    legacy: "rebuild_workspace_fulltext_index",
+    canonical: "index_2_fulltext_rebuild",
+    legacy: "index_fulltext_rebuild",
+    extraLegacy: ["rebuild_workspace_fulltext_index"],
     description:
-      "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_content on large archives.",
+      "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before index_2_fulltext_search_query on large archives.",
     schema: emptyIndexSchema,
     handler: () => client.post("/api/search/fulltext/reindex", {})
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_link_rebuild",
-    legacy: "rebuild_workspace_link_index",
+    canonical: "index_5_link_rebuild",
+    legacy: "index_link_rebuild",
+    extraLegacy: ["rebuild_workspace_link_index"],
     description:
-      "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_links.",
+      "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before index_5_link_search_query.",
     schema: emptyIndexSchema,
     handler: () => client.post("/api/link-index/reindex", {})
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_entity_rebuild",
-    legacy: "rebuild_workspace_entity_index",
+    canonical: "index_6_entity_rebuild",
+    legacy: "index_entity_rebuild",
+    extraLegacy: ["rebuild_workspace_entity_index"],
     description:
       "Rebuild workspace entity registry (regex/NER prototype) in .agent-cms/cache/indexes/entity/entities.sqlite. Extracts people, dates, urls, tags, wikilinks, money from note bodies + frontmatter.",
     schema: emptyIndexSchema,
@@ -331,17 +348,35 @@ function registerSearchWorkspaceTools(reg, client) {
   });
   const entityQueryHandler = (payload) => client.post("/api/entity-index/query", payload || {});
 
+  const ENTITY_LAYER_STUB_MESSAGE =
+    "Entity layer 6 is experimental (UI «6. Сущности»). Stub canonical — use the matching index_6_entity_* tool without _zzz.";
+
+  const entityLayerStubHandler = (tool) => async () => ({
+    ok: false,
+    stub: true,
+    tool,
+    message: ENTITY_LAYER_STUB_MESSAGE
+  });
+
+  reg(
+    "index_6_entity_query_zzz",
+    "index-6 entity STUB (experimental). Working API: index_6_entity_query.",
+    entityQuerySchema,
+    entityLayerStubHandler("index_6_entity_query_zzz")
+  );
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_entity_query",
-    legacy: "entity_query",
+    canonical: "index_6_entity_query",
+    legacy: "index_entity_query",
+    extraLegacy: ["entity_query"],
     description:
-      "Facet search over extracted entities (SQLite index): list entities (default), mentions by entityId, or entities in a file path. Requires index_entity_rebuild.",
+      "Facet search over extracted entities (SQLite index): list entities (default), mentions by entityId, or entities in a file path. Requires index_6_entity_rebuild.",
     schema: entityQuerySchema,
     handler: entityQueryHandler
   });
   reg(
     "query_workspace_entities",
-    "Deprecated alias for index_entity_query.",
+    "Deprecated alias for index_6_entity_query.",
     entityQuerySchema,
     entityQueryHandler
   );
@@ -363,8 +398,9 @@ function registerSearchWorkspaceTools(reg, client) {
     });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_entity_catalog_list",
-    legacy: "entity_catalog_list",
+    canonical: "index_6_entity_catalog_list",
+    legacy: "index_entity_catalog_list",
+    extraLegacy: ["entity_catalog_list"],
     description:
       "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
     schema: entityCatalogSchema,
@@ -372,7 +408,7 @@ function registerSearchWorkspaceTools(reg, client) {
   });
   reg(
     "list_workspace_entity_catalog",
-    "Deprecated alias for index_entity_catalog_list.",
+    "Deprecated alias for index_6_entity_catalog_list.",
     entityCatalogSchema,
     entityCatalogHandler
   );
@@ -394,8 +430,9 @@ function registerSearchWorkspaceTools(reg, client) {
     client.post("/api/entity-index/explain", payload || {});
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_entity_search_explain",
-    legacy: "entity_search_explain",
+    canonical: "index_6_entity_query_explain",
+    legacy: "index_entity_search_explain",
+    extraLegacy: ["entity_search_explain", "index_6_entity_search_explain"],
     description:
       "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
     schema: entitySearchExplainSchema,
@@ -403,16 +440,17 @@ function registerSearchWorkspaceTools(reg, client) {
   });
   reg(
     "explain_workspace_entity_search",
-    "Deprecated alias for index_entity_search_explain.",
+    "Deprecated alias for index_6_entity_query_explain.",
     entitySearchExplainSchema,
     entitySearchExplainHandler
   );
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_alias_merge",
+    canonical: "index_6_entity_alias_merge",
     legacy: "merge_workspace_entity_alias",
+    extraLegacy: ["entity_alias_merge"],
     description:
-      "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next index_entity_rebuild).",
+      "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next index_6_entity_rebuild).",
     schema: z.object({
       match: z.string().min(1).describe("Alias text as written in notes, e.g. Вася"),
       label: z.string().min(1).describe("Canonical label, e.g. Василий Петров"),
@@ -422,10 +460,11 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_reject",
+    canonical: "index_6_entity_reject",
     legacy: "reject_workspace_entity",
+    extraLegacy: ["entity_reject"],
     description:
-      "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next index_entity_rebuild.",
+      "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next index_6_entity_rebuild.",
     schema: z.object({
       label: z.string().min(1).describe("Entity label to hide, e.g. spam wikilink title"),
       type: z
@@ -437,8 +476,9 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_seed",
+    canonical: "index_6_entity_seed",
     legacy: "seed_workspace_entity",
+    extraLegacy: ["entity_seed"],
     description:
       "Add a manual entity seed in entity-registry.yml (0 mentions until notes link it). Reindex to materialize in SQLite.",
     schema: z.object({
@@ -449,8 +489,9 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_registry_get",
+    canonical: "index_6_entity_registry_get",
     legacy: "get_workspace_entity_registry",
+    extraLegacy: ["entity_registry_get"],
     description: "Read entity-registry.yml rules: types (with tag maps), seeds, aliases, reject.",
     schema: emptyIndexSchema,
     handler: () => client.get("/api/entity-index/registry")
@@ -490,17 +531,19 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_registry_put",
+    canonical: "index_6_entity_registry_put",
     legacy: "put_workspace_entity_registry",
+    extraLegacy: ["entity_registry_put"],
     description:
-      "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer entity_alias_merge / entity_seed / entity_reject for small edits.",
+      "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer index_6_entity_alias_merge / index_6_entity_seed / index_6_entity_reject for small edits.",
     schema: entityRegistryPutSchema,
     handler: (payload) => client.put("/api/entity-index/registry", payload)
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_type_upsert",
+    canonical: "index_6_entity_type_upsert",
     legacy: "upsert_workspace_entity_type",
+    extraLegacy: ["entity_type_upsert"],
     description:
       "Add or update one entity type in entity-registry.yml (label, hashtag → type mapping). Reindex to apply tag rules.",
     schema: z.object({
@@ -518,11 +561,97 @@ function registerSearchWorkspaceTools(reg, client) {
     handler: (payload) => client.post("/api/entity-index/type", payload)
   });
 
+  const entityStubDesc = (working) => `index-6 entity STUB (experimental). Working API: ${working}.`;
+  const entityAliasMergeSchema = z.object({
+    match: z.string().min(1).describe("Alias text as written in notes, e.g. Вася"),
+    label: z.string().min(1).describe("Canonical label, e.g. Василий Петров"),
+    type: z.string().optional().describe("Entity type (default person)")
+  });
+  const entityRejectSchema = z.object({
+    label: z.string().min(1).describe("Entity label to hide, e.g. spam wikilink title"),
+    type: z
+      .string()
+      .optional()
+      .describe("Entity type scope, or * for all types (default *)")
+  });
+  const entitySeedSchema = z.object({
+    label: z.string().min(1).describe("Display name, e.g. ACME Corp"),
+    type: z.string().optional().describe("Registry type id: person, food, project, topic, …")
+  });
+  const entityTypeUpsertSchema = z.object({
+    id: z.string().min(1).describe("Type id slug, e.g. food"),
+    label: z.string().min(1).describe("UI label, e.g. Еда"),
+    tags: z
+      .array(z.string())
+      .optional()
+      .describe("Hashtags without # that map notes to this type"),
+    builtin: z
+      .string()
+      .optional()
+      .describe("Optional builtin extractor map: person, project, topic, …")
+  });
+
+  reg(
+    "index_6_entity_catalog_list_zzz",
+    entityStubDesc("index_6_entity_catalog_list"),
+    entityCatalogSchema,
+    entityLayerStubHandler("index_6_entity_catalog_list_zzz")
+  );
+  reg(
+    "index_6_entity_query_explain_zzz",
+    entityStubDesc("index_6_entity_query_explain"),
+    entitySearchExplainSchema,
+    entityLayerStubHandler("index_6_entity_query_explain_zzz")
+  );
+  reg(
+    "index_6_entity_rebuild_zzz",
+    entityStubDesc("index_6_entity_rebuild"),
+    emptyIndexSchema,
+    entityLayerStubHandler("index_6_entity_rebuild_zzz")
+  );
+  reg(
+    "index_6_entity_registry_get_zzz",
+    entityStubDesc("index_6_entity_registry_get"),
+    emptyIndexSchema,
+    entityLayerStubHandler("index_6_entity_registry_get_zzz")
+  );
+  reg(
+    "index_6_entity_registry_put_zzz",
+    entityStubDesc("index_6_entity_registry_put"),
+    entityRegistryPutSchema,
+    entityLayerStubHandler("index_6_entity_registry_put_zzz")
+  );
+  reg(
+    "index_6_entity_type_upsert_zzz",
+    entityStubDesc("index_6_entity_type_upsert"),
+    entityTypeUpsertSchema,
+    entityLayerStubHandler("index_6_entity_type_upsert_zzz")
+  );
+  reg(
+    "index_6_entity_alias_merge_zzz",
+    entityStubDesc("index_6_entity_alias_merge"),
+    entityAliasMergeSchema,
+    entityLayerStubHandler("index_6_entity_alias_merge_zzz")
+  );
+  reg(
+    "index_6_entity_reject_zzz",
+    entityStubDesc("index_6_entity_reject"),
+    entityRejectSchema,
+    entityLayerStubHandler("index_6_entity_reject_zzz")
+  );
+  reg(
+    "index_6_entity_seed_zzz",
+    entityStubDesc("index_6_entity_seed"),
+    entitySeedSchema,
+    entityLayerStubHandler("index_6_entity_seed_zzz")
+  );
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "search_links",
-    legacy: "search_workspace_links",
+    canonical: "index_5_link_search_query",
+    legacy: "search_links",
+    extraLegacy: ["search_workspace_links", "index_5_link_search", "index_5_link_query"],
     description:
-      "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires index_link_rebuild.",
+      "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires index_5_link_rebuild.",
     schema: z.object({
       path: z.string().describe("Workspace-relative file path"),
       mode: z
@@ -541,9 +670,25 @@ function registerSearchWorkspaceTools(reg, client) {
     limit: z.number().int().min(1).max(500).optional().describe("Max files per run (default 50)")
   });
 
+  const OCR_LAYER_STUB_MESSAGE =
+    "OCR layer is experimental (editor UI off). Canonical stub — use index_1_ocr_run when server OCR/tesseract is enabled.";
+
+  reg(
+    "index_1_ocr_run_zzz",
+    "index-1 OCR STUB: experimental layer; returns stub until product OCR is GA. Working API: index_1_ocr_run.",
+    indexOcrRunSchema,
+    async () => ({
+      ok: false,
+      stub: true,
+      tool: "index_1_ocr_run_zzz",
+      message: OCR_LAYER_STUB_MESSAGE
+    })
+  );
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_ocr_run",
-    legacy: "run_workspace_ocr_index",
+    canonical: "index_1_ocr_run",
+    legacy: "index_ocr_run",
+    extraLegacy: ["run_workspace_ocr_index"],
     description:
       "OCR/extract text from new image/PDF attachments into {stem}.sidecar.md (incremental). Requires tesseract.js on server.",
     schema: indexOcrRunSchema,
@@ -556,8 +701,9 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "indexes_rebuild",
-    legacy: "index_rebuild",
+    canonical: "index_rebuild_all",
+    legacy: "indexes_rebuild",
+    extraLegacy: ["index_rebuild", "index_9_rebuild_all"],
     description:
       "Rebuild all workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
     schema: indexRebuildSchema,
@@ -565,7 +711,7 @@ function registerSearchWorkspaceTools(reg, client) {
   });
   reg(
     "rebuild_workspace_indexes",
-    "Deprecated alias for indexes_rebuild.",
+    "Deprecated alias for index_rebuild_all.",
     indexRebuildSchema,
     (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   );
@@ -577,8 +723,9 @@ function registerSearchWorkspaceTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "index_file_sync",
     legacy: "sync_workspace_index_file",
+    extraLegacy: ["index_9_file_sync"],
     description:
-      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of indexes_rebuild.",
+      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of index_rebuild_all.",
     schema: indexFileSyncSchema,
     handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   });
