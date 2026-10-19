@@ -24569,6 +24569,19 @@ function isContentRecordOverviewEntry(contextOrKind) {
   );
 }
 
+function buildTopicSlotsTemplateConfirmMessage(label, toTemplate) {
+  const toLabel = TOPIC_SLOTS_TEMPLATE_LABELS[toTemplate] || toTemplate;
+  const parts = [`Переключить шаблон слотов для «${label}» на «${toLabel}»?`];
+  if (toTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
+    parts.push(TOPIC_SHARED_SLOT_SUBTITLE);
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
+    parts.push("Типовые папки awn-storage (main, inbox, media…) снова будут в навигации.");
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo…).");
+  }
+  return parts.join("\n\n");
+}
+
 async function setTopicSlotsTemplate(nodePath, template, options = {}) {
   const normalizedTemplate = normalizeTopicSlotsTemplate(template);
   const label = getLabelFromPath(nodePath) || nodePath;
@@ -24584,15 +24597,14 @@ async function setTopicSlotsTemplate(nodePath, template, options = {}) {
     : getTopicSlotsTemplateForManifestPath(apiPath);
   if (currentTemplate === normalizedTemplate) return true;
 
-  if (
-    normalizedTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD &&
-    currentTemplate !== TOPIC_SLOTS_TEMPLATE_STANDARD &&
-    options.confirm !== false
-  ) {
-    const confirmed = await askConfirm(
-      `Вернуть «Стандартный» шаблон слотов для «${label}»? Типовые папки awn-storage (main, inbox, media…) снова будут в UI.`,
-      { okLabel: "Применить" }
-    );
+  if (options.confirm !== false) {
+    const confirmed = await askConfirm(buildTopicSlotsTemplateConfirmMessage(label, normalizedTemplate), {
+      okLabel: "Применить",
+      cancelLabel: "Отмена",
+      title: "Шаблон слотов",
+      variant: "warning",
+      icon: "📁"
+    });
     if (!confirmed) return false;
   }
 
@@ -27226,7 +27238,7 @@ const topicSlotsDisabledCache = topicSlotsTemplateCache;
 const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
 const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
-  "Весь awn-storage/ темы, включая main/, inbox/, media/ и любые свои папки; не показывается только assets/.";
+  "Весь awn-storage/ темы, включая main/, inbox/, media/ и любые свои папки; скрыты только assets/, history/ и comments/.";
 const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
 const TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS = new Set([
   "main-single",
@@ -48373,7 +48385,7 @@ const PROPS_FIELD_META = {
   },
   "awn-slots-template": {
     label: "Шаблон слотов",
-    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/; none — только однофайловые слоты"
+    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; none — только однофайловые слоты"
   },
   "awn-slots-flexible": {
     label: "Гибкий слот (устар.)",
@@ -68764,7 +68776,12 @@ function createNodeOverviewSharedSlotButton(nodePath, propEntries = null) {
   syncNodeOverviewSharedSlotButton(wrap, nodePath, propEntries);
   select.addEventListener("change", (event) => {
     event.stopPropagation();
-    void setTopicSlotsTemplate(nodePath, select.value, { propEntries });
+    void (async () => {
+      const applied = await setTopicSlotsTemplate(nodePath, select.value, { propEntries });
+      if (!applied) {
+        syncNodeOverviewSharedSlotButton(wrap, nodePath, propEntries);
+      }
+    })();
   });
   select.addEventListener("click", (event) => event.stopPropagation());
   return wrap;

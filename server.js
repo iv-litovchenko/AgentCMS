@@ -15937,11 +15937,22 @@ async function buildPageOutsideSlotsReport(manifestRelPath) {
   };
 }
 
+const FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
+  [STORAGE_SUBFOLDER_ASSETS, STORAGE_SUBFOLDER_HISTORY, STORAGE_SUBFOLDER_COMMENTS].map((name) =>
+    String(name || "").trim().toLowerCase()
+  )
+);
+
+function isFlexibleSlotStorageSkipDirName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return Boolean(lower && FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES.has(lower));
+}
+
 function shouldSkipSharedSlotStorageDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return true;
-  // Гибкий слот: весь awn-storage/, кроме assets/ (превью, вложения, materials…).
-  if (lower === String(STORAGE_SUBFOLDER_ASSETS || "assets").toLowerCase()) return true;
+  // Гибкий слот: весь awn-storage/, кроме assets/, history/, comments/.
+  if (isFlexibleSlotStorageSkipDirName(lower)) return true;
   return shouldSkipDirectoryListing(name);
 }
 
@@ -15968,8 +15979,9 @@ function isSharedSlotExcludedRelPath(relPath) {
   const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/$/, "");
   if (!rel) return false;
   const lower = rel.toLowerCase();
-  const assets = String(STORAGE_SUBFOLDER_ASSETS || "assets").toLowerCase();
-  if (lower === assets || lower.startsWith(`${assets}/`)) return true;
+  for (const skipDir of FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES) {
+    if (lower === skipDir || lower.startsWith(`${skipDir}/`)) return true;
+  }
   return false;
 }
 
