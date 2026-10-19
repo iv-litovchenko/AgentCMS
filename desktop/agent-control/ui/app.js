@@ -28,10 +28,42 @@ function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
 const SERVER_POLL_MS = 8000;
 
 const SERVICE_MONITOR_DEFS = [
-  { id: "editor", title: "Agent CMS Editor", accent: "cms", portKey: "editorHttps", portLabel: "HTTPS" },
-  { id: "voice", title: "Agent CMS Voice", accent: "voice", portKey: "voiceHttps", portLabel: "HTTPS" },
-  { id: "commander", title: "Agent CMS Commander", accent: "commander", portKey: "commanderHttp", portLabel: "HTTP" },
-  { id: "mcp", title: "Agent CMS MCP", accent: "mcp", portKey: "mcpHttp", portLabel: "HTTP" }
+  {
+    id: "editor",
+    title: "Agent CMS Editor",
+    shortName: "Editor",
+    accent: "cms",
+    icon: "cms.svg",
+    portKey: "editorHttps",
+    portLabel: "HTTPS"
+  },
+  {
+    id: "voice",
+    title: "Agent CMS Voice-Chat",
+    shortName: "Chat",
+    accent: "voice",
+    icon: "voice.svg",
+    portKey: "voiceHttps",
+    portLabel: "HTTPS"
+  },
+  {
+    id: "commander",
+    title: "Agent CMS Commander",
+    shortName: "Commander",
+    accent: "commander",
+    icon: "commander.svg",
+    portKey: "commanderHttp",
+    portLabel: "HTTP"
+  },
+  {
+    id: "mcp",
+    title: "Agent CMS MCP",
+    shortName: "MCP",
+    accent: "mcp",
+    icon: "mcp.svg",
+    portKey: "mcpHttp",
+    portLabel: "HTTP"
+  }
 ];
 
 /** Отображаемое имя Voice в Control (логика/порты без изменений). */
@@ -348,55 +380,170 @@ function getDiskStatState() {
   };
 }
 
+function getServiceMonitorOpenUrl(def, server, ports) {
+  const urls = server?.urls || {};
+  if (def.id === "editor") {
+    return urls.cms || (ports.editorHttps ? `https://localhost:${ports.editorHttps}/` : "");
+  }
+  if (def.id === "voice") {
+    return urls.voice || (ports.voiceHttps ? `https://localhost:${ports.voiceHttps}/` : "");
+  }
+  if (def.id === "commander") {
+    if (urls.commanderHttps) return urls.commanderHttps;
+    if (urls.commanderHttp) return urls.commanderHttp;
+    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/commander/`;
+    return ports.commanderHttp ? `http://localhost:${ports.commanderHttp}/` : "";
+  }
+  if (def.id === "mcp") {
+    if (server?.mcpHttp && ports.mcpHttp) return `http://localhost:${ports.mcpHttp}/health`;
+    if (server?.cms && ports.editorHttps) return getTestUrl("mcp");
+    return ports.mcpHttp ? `http://localhost:${ports.mcpHttp}/health` : "";
+  }
+  return "";
+}
+
 function getServiceMonitorRowState(def, server, ports) {
   const port = ports[def.portKey];
-  const portText = port != null ? `:${port}` : "—";
+  const portText = port != null ? String(port) : "—";
 
   if (def.id === "mcp") {
     const httpUp = Boolean(server?.mcpHttp);
+    const pingOk = mcpOk === true;
+    const pingFail = mcpOk === false;
     if (server?.cms && mcpOk === null) {
-      return { state: "pending", label: "Проверка…", detail: `${portText} · API на Editor` };
+      return {
+        state: "pending",
+        label: "Проверка…",
+        detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
     }
-    if (mcpOk === true || httpUp) {
-      const parts = [];
-      if (mcpOk === true) parts.push("API /api/agent/mcp-ping");
-      if (httpUp) parts.push(`${portText} слушает`);
-      return { state: "on", label: "Доступен", detail: parts.join(" · ") || portText };
+    if (pingOk || httpUp) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: formatMcpMonitorDetail({ pingOk, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
     }
-    if (server?.cms && mcpOk === false) {
-      return { state: "off", label: "Не отвечает", detail: `${portText} · ping MCP на Editor` };
+    if (server?.cms && pingFail) {
+      return {
+        state: "off",
+        label: "Не отвечает",
+        detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
     }
-    if (httpUp) {
-      return { state: "on", label: "Порт занят", detail: portText };
-    }
-    return { state: "off", label: "Недоступен", detail: `${portText} · запустите сервер (шаг 2)` };
+    return {
+      state: "off",
+      label: "Не запущен",
+      detail: "нужен запущенный сервер",
+      port: portText,
+      protocol: def.portLabel
+    };
   }
 
   const flag = def.id === "editor" ? "cms" : def.id === "voice" ? "voice" : "commander";
   const listening = Boolean(server?.[flag]);
   if (listening) {
-    return { state: "on", label: "Порт занят", detail: `${portText} ${def.portLabel}` };
+    return {
+      state: "on",
+      label: "В сети",
+      detail: "localhost",
+      port: portText,
+      protocol: def.portLabel
+    };
   }
-  return { state: "off", label: "Свободен", detail: `${portText} ${def.portLabel}` };
+  if (def.id === "commander" && server?.cms) {
+    return {
+      state: "on",
+      label: "Через Editor",
+      detail: `/commander/ · :${ports.editorHttps}`,
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
+  return {
+    state: "off",
+    label: "Не запущен",
+    detail: "порт свободен",
+    port: portText,
+    protocol: def.portLabel
+  };
 }
 
-function renderServiceMonitorRow(def, server, ports) {
-  const { state, label, detail } = getServiceMonitorRowState(def, server, ports);
+function formatMcpMonitorDetail({ pingOk, httpUp, portText }) {
+  const parts = [];
+  if (pingOk === true) parts.push("API OK");
+  else if (pingOk === false) parts.push("API нет");
+  else if (pingOk === null) parts.push("API …");
+  if (httpUp) parts.push(`HTTP :${portText}`);
+  return parts.join(" · ") || `HTTP :${portText}`;
+}
+
+function getServicesMonitorSummary(server, ports) {
+  let online = 0;
+  for (const def of SERVICE_MONITOR_DEFS) {
+    const { state } = getServiceMonitorRowState(def, server, ports);
+    if (state === "on") online += 1;
+  }
+  return { online, total: SERVICE_MONITOR_DEFS.length };
+}
+
+function formatMonitorProbedAt(server) {
+  const ts = Number(server?.probedAt);
+  if (!Number.isFinite(ts) || ts <= 0) return "";
+  try {
+    return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function renderServiceMonitorRackCard(def, server, ports) {
+  const row = getServiceMonitorRowState(def, server, ports);
+  const openUrl = getServiceMonitorOpenUrl(def, server, ports);
+  const canOpen = row.state === "on" && Boolean(openUrl);
+  const subline = row.detail ? `${row.protocol} · ${row.detail}` : row.protocol;
+  const openAttr = canOpen ? ` data-svc-open="${escapeAttr(openUrl)}"` : "";
+  const interactive = canOpen ? ` tabindex="0" role="link" aria-label="Открыть ${escapeAttr(def.shortName)}"` : "";
+
   return `
-    <article class="services-monitor-row" data-accent="${def.accent}" data-state="${state}" role="listitem">
-      <div class="services-monitor-main">
-        <span class="product-badge" data-accent="${def.accent}">${def.id === "voice" ? "Voice" : def.id === "editor" ? "Editor" : def.id === "commander" ? "Commander" : "MCP"}</span>
-        <div class="services-monitor-copy">
-          <strong class="services-monitor-title">${def.title}</strong>
-          <span class="services-monitor-detail">${detail}</span>
+    <article
+      class="svc-rack-card${canOpen ? " svc-rack-card--link" : ""}"
+      data-service-id="${def.id}"
+      data-accent="${def.accent}"
+      data-state="${row.state}"
+      title="${escapeAttr(def.title)}${canOpen ? " · клик — открыть" : ""}"
+      ${openAttr}${interactive}
+    >
+      <div class="svc-rack-head">
+        <img class="svc-rack-icon" src="../assets/${def.icon}" alt="" width="28" height="28" />
+        <div class="svc-rack-head-text">
+          <strong class="svc-rack-name">${def.shortName}</strong>
+          <code class="svc-rack-port">:${row.port}</code>
         </div>
+        ${canOpen ? `<span class="svc-rack-go" aria-hidden="true">↗</span>` : ""}
       </div>
-      <span class="status-chip status-chip--inline services-monitor-chip" data-state="${state}">
-        <span class="status-led" aria-hidden="true"></span>
-        <span class="status-value">${label}</span>
-      </span>
+      <p class="svc-rack-sub">${subline}</p>
+      <footer class="svc-rack-foot">
+        <span class="svc-rack-led" aria-hidden="true"></span>
+        <span class="svc-rack-status">${row.label}</span>
+      </footer>
     </article>
   `;
+}
+
+function renderServiceMonitorRackBar(server, ports) {
+  return SERVICE_MONITOR_DEFS.map((def) => {
+    const { state } = getServiceMonitorRowState(def, server, ports);
+    const on = state === "on" ? "1" : "0";
+    const pending = state === "pending" ? "1" : "0";
+    return `<span class="svc-rack-seg" data-accent="${def.accent}" data-on="${on}" data-pending="${pending}" title="${escapeAttr(def.shortName)}"></span>`;
+  }).join("");
 }
 
 function renderServicesMonitor() {
@@ -405,7 +552,24 @@ function renderServicesMonitor() {
 
   const server = lastServer || bootstrap?.server;
   const ports = getPorts();
-  root.innerHTML = SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRow(def, server, ports)).join("");
+  const { online, total } = getServicesMonitorSummary(server, ports);
+  const probed = formatMonitorProbedAt(server);
+  const modeLabel = String(server?.modeLabel || "").trim();
+  const metaParts = [`${online}/${total} online`];
+  if (probed) metaParts.push(probed);
+  if (modeLabel) metaParts.push(modeLabel);
+
+  root.innerHTML = `
+    <div class="svc-rack">
+      <div class="svc-rack-bar" role="img" aria-label="${online} из ${total} сервисов в сети">${renderServiceMonitorRackBar(server, ports)}</div>
+      <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
+      <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
+      <details class="svc-rack-note">
+        <summary>Control — desktop на Mac, без порта</summary>
+        <p>Этот мониторинг — только процессы CMS. На VPS Control не ставят: <code>docker compose up</code>, systemd или <code>scripts/agent-https-service.sh</code>.</p>
+      </details>
+    </div>
+  `;
 }
 
 async function refreshServicesMonitorManual() {
@@ -418,7 +582,6 @@ async function refreshServicesMonitorManual() {
   try {
     const data = await window.agentControl.refreshStatus();
     await handleServerStatusUpdate(data.server, { skipNotify: true });
-    renderServicesMonitor();
   } catch (error) {
     appendLog(`Ошибка мониторинга: ${error.message}\n`, "stderr");
   } finally {
@@ -431,9 +594,29 @@ async function refreshServicesMonitorManual() {
 
 function bindServicesMonitorActions() {
   const button = document.getElementById("refresh-services-monitor");
-  if (!button || button.dataset.bound) return;
-  button.dataset.bound = "1";
-  button.addEventListener("click", () => void refreshServicesMonitorManual());
+  if (button && !button.dataset.bound) {
+    button.dataset.bound = "1";
+    button.addEventListener("click", () => void refreshServicesMonitorManual());
+  }
+
+  const root = document.getElementById("services-monitor");
+  if (!root || root.dataset.actionsBound) return;
+  root.dataset.actionsBound = "1";
+
+  root.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-svc-open]");
+    if (target?.dataset.svcOpen) {
+      window.agentControl.openExternal(target.dataset.svcOpen);
+    }
+  });
+
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target.closest("[data-svc-open]");
+    if (!target?.dataset.svcOpen) return;
+    event.preventDefault();
+    window.agentControl.openExternal(target.dataset.svcOpen);
+  });
 }
 
 function renderSetupChecklist() {
