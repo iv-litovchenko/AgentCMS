@@ -351,15 +351,84 @@ function registerSearchWorkspaceTools(reg, client) {
     pathPrefix: z.string().optional().describe("Limit to subtree"),
     limit: z.number().int().min(1).max(200).optional()
   });
+  const entityQueryHandler = (payload) => client.post("/api/entity-index/query", payload || {});
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_query",
-    legacy: "query_workspace_entities",
+    canonical: "index_entity_query",
+    legacy: "entity_query",
     description:
-      "Facet search over extracted entities: list entities (default), mentions by entityId, or entities in a file path.",
+      "Facet search over extracted entities (SQLite index): list entities (default), mentions by entityId, or entities in a file path. Requires index_entity_rebuild.",
     schema: entityQuerySchema,
-    handler: (payload) => client.post("/api/entity-index/query", payload || {})
+    handler: entityQueryHandler
   });
+  reg(
+    "query_workspace_entities",
+    "Deprecated alias for index_entity_query.",
+    entityQuerySchema,
+    entityQueryHandler
+  );
+
+  const entityCatalogSchema = z.object({
+    limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
+    offset: z.number().int().min(0).optional().describe("Pagination offset"),
+    type: z.string().optional().describe("Filter by type id"),
+    q: z.string().optional().describe("Substring on label"),
+    pathPrefix: z.string().optional().describe("Only entities mentioned under this folder")
+  });
+  const entityCatalogHandler = ({ limit, offset, type, q, pathPrefix }) =>
+    client.get("/api/entity-index/catalog", {
+      limit,
+      offset,
+      type,
+      q,
+      pathPrefix
+    });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_entity_catalog_list",
+    legacy: "entity_catalog_list",
+    description:
+      "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
+    schema: entityCatalogSchema,
+    handler: entityCatalogHandler
+  });
+  reg(
+    "list_workspace_entity_catalog",
+    "Deprecated alias for index_entity_catalog_list.",
+    entityCatalogSchema,
+    entityCatalogHandler
+  );
+
+  const entitySearchExplainSchema = z.object({
+    entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
+    entityId: z.string().optional().describe("Single entity id (shorthand)"),
+    entityWhere: z
+      .object({
+        type: z.string().optional(),
+        q: z.string().optional().describe("Label substring")
+      })
+      .optional()
+      .describe("Match entities by type + label, union of their mention paths"),
+    pathPrefix: z.string().optional().describe("Limit paths to subtree"),
+    previewLimit: z.number().int().min(1).max(200).optional().describe("Max paths in preview (default 40)")
+  });
+  const entitySearchExplainHandler = (payload) =>
+    client.post("/api/entity-index/explain", payload || {});
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_entity_search_explain",
+    legacy: "entity_search_explain",
+    description:
+      "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
+    schema: entitySearchExplainSchema,
+    handler: entitySearchExplainHandler
+  });
+  reg(
+    "explain_workspace_entity_search",
+    "Deprecated alias for index_entity_search_explain.",
+    entitySearchExplainSchema,
+    entitySearchExplainHandler
+  );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "entity_alias_merge",
@@ -469,49 +538,6 @@ function registerSearchWorkspaceTools(reg, client) {
         .describe("Optional builtin extractor map: person, project, topic, …")
     }),
     handler: (payload) => client.post("/api/entity-index/type", payload)
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_catalog_list",
-    legacy: "list_workspace_entity_catalog",
-    description:
-      "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
-    schema: z.object({
-      limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
-      offset: z.number().int().min(0).optional().describe("Pagination offset"),
-      type: z.string().optional().describe("Filter by type id"),
-      q: z.string().optional().describe("Substring on label"),
-      pathPrefix: z.string().optional().describe("Only entities mentioned under this folder")
-    }),
-    handler: ({ limit, offset, type, q, pathPrefix }) =>
-      client.get("/api/entity-index/catalog", {
-        limit,
-        offset,
-        type,
-        q,
-        pathPrefix
-      })
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "entity_search_explain",
-    legacy: "explain_workspace_entity_search",
-    description:
-      "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
-    schema: z.object({
-      entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
-      entityId: z.string().optional().describe("Single entity id (shorthand)"),
-      entityWhere: z
-        .object({
-          type: z.string().optional(),
-          q: z.string().optional().describe("Label substring")
-        })
-        .optional()
-        .describe("Match entities by type + label, union of their mention paths"),
-      pathPrefix: z.string().optional().describe("Limit paths to subtree"),
-      previewLimit: z.number().int().min(1).max(200).optional().describe("Max paths in preview (default 40)")
-    }),
-    handler: (payload) => client.post("/api/entity-index/explain", payload || {})
   });
 
   registerCanonicalWithLegacyAlias(reg, {

@@ -188,12 +188,12 @@ user-agent-cms
 │   ├── 🟡 index_storage_rebuild            ← rebuild_workspace_storage_index
 │   ├── 🟡 index_link_rebuild               ← rebuild_workspace_link_index
 │   ├── 🟡 index_entity_rebuild             ← rebuild_workspace_entity_index
+│   ├── 🟡 index_entity_query               ← entity_query ← query_workspace_entities
+│   ├── 🟡 index_entity_catalog_list        ← entity_catalog_list ← list_workspace_entity_catalog
+│   ├── 🟡 index_entity_search_explain      ← entity_search_explain ← explain_workspace_entity_search
 │   ├── 🟡 index_file_sync                  ← sync_workspace_index_file
 │   ├── list_workspace_registry_queries
 │   ├── run_workspace_registry_query
-│   ├── 🟢 entity_query                     ← query_workspace_entities
-│   ├── 🟢 entity_catalog_list              ← list_workspace_entity_catalog
-│   ├── 🟢 entity_search_explain            ← explain_workspace_entity_search
 │   ├── 🟢 entity_registry_get              ← get_workspace_entity_registry
 │   ├── 🟢 entity_registry_put              ← put_workspace_entity_registry
 │   ├── 🟢 entity_type_upsert               ← upsert_workspace_entity_type

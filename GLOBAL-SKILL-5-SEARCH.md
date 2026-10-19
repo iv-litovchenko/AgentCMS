@@ -17,7 +17,7 @@ description: Как искать и ориентироваться в Agent CMS 
 | Внутри темы | `resolve_workspace_path` → `topic.folderPath` → параметр `pathPrefix` |
 | Backlinks и исходящие | **только** `search_links` (нужен `index_link_rebuild`) |
 | Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
-| Люди, даты, суммы, теги | `entity_query`, `entity_catalog_list` |
+| Люди, даты, суммы, теги | `index_entity_query`, `index_entity_catalog_list` (MVP) |
 | Выборка по frontmatter | `index_storage_query({ dql })` |
 | Готовые выборки | `list_workspace_registry_queries` → `run_workspace_registry_query({ id })` |
 | Лента и аудит | `list_workspace_feed`, `list_recent_activity`, `audit_workspace_memory` |
@@ -30,7 +30,7 @@ description: Как искать и ориентироваться в Agent CMS 
 
 После правки одного файла — `index_file_sync`; полный pipeline — `indexes_rebuild` (только после массовых изменений). По слоям: `index_fulltext_rebuild` / `index_semantic_rebuild` / `index_storage_rebuild` / `index_link_rebuild` / `index_entity_rebuild`; OCR отдельно — `index_ocr_run`. Состояние — `index_status_get` / `index_monitor_get`.
 
-**Реестр сущностей** (YAML, после `index_entity_rebuild`): `entity_alias_merge`, `entity_reject`, `entity_seed`, `entity_type_upsert`, `entity_registry_get` / `entity_registry_put` (весь файл — для крупных правок). Отладка hybrid-фильтра — `entity_search_explain`. Legacy: `*_workspace_entity_*`.
+**Entity-index** (SQLite, MVP, после `index_entity_rebuild`): `index_entity_query`, `index_entity_catalog_list`, `index_entity_search_explain`. **Реестр YAML:** `entity_registry_get` / `entity_registry_put`, `entity_type_upsert`, `entity_alias_merge`, `entity_reject`, `entity_seed`.
 
 ## DQL для `index_storage_query`
 
