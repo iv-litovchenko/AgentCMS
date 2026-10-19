@@ -6,7 +6,7 @@
 
 **Старт:** `list_workspaces` → `get_session_context({ workspaceId })` → дальше тот же **`workspaceId`** (legacy: `agentId`; не persona `0-agent`).
 
-**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, registry workspace (`create_workspace`, …), `get_workspace_storage_info` (см. описание tool).
+**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, registry workspace (`create_workspace`, …), `workspace_summary_get` (см. описание tool).
 
 **Контент:** `read_content` / `write_content` / `list_content` + **`placement.kind`:** `topic` | `channel` | `media` | `database` | `repository` | `root` (legacy `page` → `topic`). Hub-индексы и поиск — отдельные tools (не `placement`).
 
@@ -128,7 +128,7 @@ agent-cms MCP
 │   └── run_script · exec_command · exec_shell
 │
 ├── 🛠️ Утилиты · identity
-│   ├── generate_workspace_slug · get_workspace_storage_info · list_recent_activity
+│   ├── generate_workspace_slug · workspace_summary_get · workspace_activity_list
 │   └── get_agent_identity · get_user_identity
 │
 ├── 📤 File hub · 📓 pads

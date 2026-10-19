@@ -14886,7 +14886,7 @@ const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — tool_mcp_ping MCP (health check)",
   storageSummary:
-    "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
+    "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
@@ -15065,7 +15065,7 @@ const SESSION_CONTEXT_API_MAP = {
   userIdentity:
     "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/0-agent-kit/0-user/)",
   activity:
-    "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
+    "GET /api/agent/activity?since=&limit= — workspace_activity_list MCP",
   sidecarResolve:
     "GET /api/storage/sidecar/resolve?sourcePath=|path=&slot=&file= — resolve_sidecar_path MCP",
   sidecarRead:
@@ -17825,7 +17825,7 @@ function buildAgentMcpPing() {
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./lib/version/product-version").getProductVersion(),
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
-    hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
+    hint: "MCP connection OK. Call workspace_summary_get for sidebar storage stats."
   };
 }
 

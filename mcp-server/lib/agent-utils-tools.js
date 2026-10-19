@@ -53,15 +53,28 @@ export function registerAgentUtilsTools(reg, client) {
     options: { agentScope: false }
   });
 
+  const workspaceSummarySchema = z.object({});
+  const workspaceSummaryHandler = () =>
+    client.get("/api/agent/storage-summary", {}, { agentScope: false });
+  const workspaceSummaryDescription =
+    "Workspace summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like index_status_get), lastIndexedAt + summaryLine.";
+  const workspaceSummaryOptions = { agentScope: false };
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_storage_info_get",
+    canonical: "workspace_summary_get",
     legacy: "get_workspace_storage_info",
-    description:
-      "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like index_status_get), lastIndexedAt + summaryLine.",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
-    options: { agentScope: false }
+    description: workspaceSummaryDescription,
+    schema: workspaceSummarySchema,
+    handler: workspaceSummaryHandler,
+    options: workspaceSummaryOptions
   });
+  reg(
+    "workspace_storage_info_get",
+    "Deprecated alias for workspace_summary_get.",
+    workspaceSummarySchema,
+    workspaceSummaryHandler,
+    workspaceSummaryOptions
+  );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspace_activity_list",

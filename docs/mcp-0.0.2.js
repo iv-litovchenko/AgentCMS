@@ -102,9 +102,9 @@ module.exports = {
           http: "GET /api/agent/mcp-ping"
         },
         {
-          name: "get_workspace_storage_info",
+          name: "workspace_summary_get",
           description:
-            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (только .git workspace агента), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt.",
+            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (только .git workspace агента), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt. Legacy: get_workspace_storage_info.",
           parameters: "—",
           http: "GET /api/agent/storage-summary"
         }

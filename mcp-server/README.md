@@ -62,7 +62,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `workspaces_list`, `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_*`, `workspace_storage_info_get` — см. `session-tools.js`; остальное **с `workspaceId`** |
+| Старт | `workspaces_list`, `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_*`, `workspace_summary_get` — см. `session-tools.js`; остальное **с `workspaceId`** |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
 | Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |

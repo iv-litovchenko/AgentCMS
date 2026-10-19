@@ -47,8 +47,8 @@ user-agent-cms
 │   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
-│   ├── 🔴 workspace_storage_info_get         ← get_workspace_storage_info (TBD)
-│   └── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
+│   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
+│   └── 🟢 workspace_activity_list            ← list_recent_activity
 │
 ├── 🎬 Session · session_* · workspaceId · 20
 │   ├── 🟢 session_context_get                ← get_session_context
@@ -131,7 +131,7 @@ user-agent-cms
 │   ├── 🟢 content_write                 ← write_content
 │   ├── 🟢 content_binary_read           ← read_content_binary
 │   ├── 🟢 content_binary_write          ← write_content_binary
-│   ├── 🟡 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
+│   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url ← import_content_from_url
 │   ├── 🟡 content_binary_url_get        ← get_content_binary_url
 │   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get              ← get_content_meta
@@ -313,7 +313,7 @@ Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_in
 
 Фокус и главная
 ├── get_ui_focus — live «где человек в UI» (не реестр)
-├── get_workspace_storage_info — сводка sidebar / главной / index
+├── workspace_summary_get — сводка sidebar / главной / index
 └── Новые *_registry — только если появится статический конфиг (pinned home);
     иначе get_session_context + get_ui_focus
 ```
@@ -330,7 +330,7 @@ UI
 id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве канона
 
 Прочее
-├── list_recent_activity — лента событий workspace (since / limit); 🔴 в «Старт и workspace»
+├── workspace_activity_list — лента событий workspace (since / limit); 🟢
 └── get_topic_url — legacy; канон get_workspace_open_url_from_path (любой path, CHPU + view)
 ```
 
