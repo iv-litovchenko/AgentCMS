@@ -79,4 +79,17 @@ export function registerBrainTools(reg, client) {
     schema: queryWorkspaceAskSchema,
     handler: queryWorkspaceAskHandler
   });
+
+  reg(
+    "search_workspace_zzz",
+    "Search STUB (idea): future single entry for workspace search (mode: hybrid|fulltext|semantic|links|storage|…). Use query_workspace_ask or index_3_hybrid_search_query today.",
+    queryWorkspaceAskSchema,
+    async () => ({
+      ok: false,
+      stub: true,
+      tool: "search_workspace_zzz",
+      message:
+        "Not implemented. Idea: one search tool instead of many index_N_*_search_query. Today: query_workspace_ask or index_3_hybrid_search_query."
+    })
+  );
 }
