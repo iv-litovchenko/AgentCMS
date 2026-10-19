@@ -45,12 +45,12 @@ user-agent-cms
 │   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
-│   ├── 🟢 session_context_get                ← get_session_context
-│   ├── 🟡 get_ui_focus                       ← get_user_active_context_now legacy
-│   ├── 🟡 get_ui_open_location               (дубль get_ui_focus → legacy-only позже)
-│   ├── 🟢 workspace_always_context_registry_get ← get_workspace_always_context_registry
-│   ├── 🟢 workspace_cron_registry_get        ← get_workspace_cron_registry
-│   ├── 🟢 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry
+│   ├── 🔴 session_context_get                ← get_session_context (имя/граница light vs heavy — TBD)
+│   ├── 🔴 get_ui_focus                       ← get_user_active_context_now (канон ui_* — TBD)
+│   ├── 🔴 get_ui_open_location               (дубль get_ui_focus → legacy-only — TBD)
+│   ├── 🔴 workspace_always_context_registry_get ← get_workspace_always_context_registry (TBD)
+│   ├── 🔴 workspace_cron_registry_get        ← get_workspace_cron_registry (TBD)
+│   ├── 🔴 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry (TBD)
 │   ├── 🔴 mcp_connection_test                ← test_mcp_connection (ожидает platform_* / блок платформы)
 │   ├── 🟢 workspace_storage_info_get         ← get_workspace_storage_info
 │   ├── 🟢 agent_identity_get                 ← get_agent_identity
