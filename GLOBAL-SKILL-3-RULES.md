@@ -36,7 +36,7 @@ description: Правила, запреты и антипаттерны аген
 5. Табличный реестр с общей схемой — в базу, не в `main/`; заметку без общей схемы — не в базу.
 6. Не создавай `temp/` в темах — временные файлы только в `awn-temp/`.
 7. Не трогай `awn-recycler/`, `.trash.*` и слот `history`.
-8. `write_database_schema` — только полным набором полей (сначала `read_database_schema`).
+8. `database_schema_write` — только полным набором полей (сначала `database_schema_read`; legacy `write_database_schema`).
 9. Не вызывай `*_zzz` — это заглушки.
 
 ## Устаревшие tools
@@ -52,7 +52,7 @@ description: Правила, запреты и антипаттерны аген
 | `list_channel_items`, `upload_channel_file`, `list_media_library_items`, `upload_media_library_file` | `list_content` / `write_content` с `kind: channel` / `media` |
 | `write_file`, `patch_file`, `list_folder`, `list_root_files`, `read_root_file`, `write_root_file` | `list_content` / `read_content` / `write_content` с `kind: root` (`mode: patch`) — только при `MCP_LEGACY_TOOLS=1` |
 | `page_*`, `get_page_*` | `topic_*`, `get_topic_*` |
-| `create_database`, `database_frame_*` | `register_database` и другие `*_database` |
+| `create_database`, `database_frame_*`, `list_databases`, … | `database_register`, `databases_list`, … (канон `database_*` / `databases_*`) |
 
 ## Контекст переполняется
 

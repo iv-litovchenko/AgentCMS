@@ -13681,7 +13681,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / list_databases."
+      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / databases_list."
     };
   }
 
@@ -13698,7 +13698,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
+      "Полный оглавление → read_databases_index_toc; детали store → database_get / databases_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -14925,13 +14925,13 @@ const SESSION_CONTEXT_API_MAP = {
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
-  repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: list_repositories",
+  repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
-    "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
+    "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
   repositoryIndex:
     "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index_toc",
   repositoryRegister:
-    "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
+    "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: repository_register",
   dependencies:
     "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: read_dependencies",
   dependenciesWrite:

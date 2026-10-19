@@ -1,7 +1,7 @@
 # Рефакторинг — часть 15 (MCP Agent CMS)
 
 **Цель:** канон имён tools, без legacy в доке; убрать дубли и переименовать утилиты.  
-**Статус:** набросок (дерево + решения). **🔴** = новое имя ещё не в коде (старый alias позже).
+**Статус:** набросок (дерево + решения). **🔴** = не в коде · **🟢** = ок в MCP (канон или `module_*`, + legacy где есть).
 
 ### Именование `сущность_действие`
 
@@ -13,10 +13,12 @@
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
+**Итого в дереве: 233 метода** (legacy-алиасы и `*_zzz` stub не считаются).
+
 ```
 user-agent-cms
 │
-├── 🚀 Старт и workspace
+├── 🚀 Старт и workspace · 27
 │   ├── list_workspaces
 │   ├── discover_workspaces
 │   ├── create_workspace
@@ -45,7 +47,7 @@ user-agent-cms
 │   ├── list_recent_activity
 │   └── notify_user
 │
-├── ⚙️ Платформа и настройки
+├── ⚙️ Платформа и настройки · 10
 │   ├── get_platform_info
 │   ├── get_platform_health
 │   ├── list_platform_docs
@@ -57,7 +59,7 @@ user-agent-cms
 │   ├── read_dependencies
 │   └── write_dependencies
 │
-├── 🗺 Карты, TOC, id, URL
+├── 🗺 Карты, TOC, id, URL · 32
 │   ├── read_workspace_map
 │   ├── refresh_workspace_map
 │   ├── read_topic_index_toc
@@ -91,7 +93,7 @@ user-agent-cms
 │   ├── get_external_url_page_preview
 │   └── get_link_preview
 │
-├── 📄 Контент
+├── 📄 Контент · 18
 │   ├── list_content
 │   ├── read_content
 │   ├── write_content
@@ -111,7 +113,7 @@ user-agent-cms
 │   ├── merge_content
 │   └── batch_invoke
 │
-├── 🧩 Тема
+├── 🧩 Тема · 17
 │   ├── 🔴 topic_body_read              ← read_topic_body
 │   ├── 🔴 topic_body_write             ← write_topic_body
 │   ├── 🔴 topic_properties_read        ← read_topic_properties
@@ -130,45 +132,45 @@ user-agent-cms
 │   ├── 🔴 topic_rename                 ← rename_topic
 │   └── 🔴 topic_move                   ← move_topic
 │
-├── 🗃 Базы
-│   ├── 🔴 databases_list               ← list_databases
-│   ├── 🔴 database_get                 ← get_database
-│   ├── 🔴 database_register            ← register_database
-│   ├── 🔴 database_update              ← update_database
-│   ├── 🔴 database_delete              ← delete_database
-│   ├── 🔴 database_rename              ← rename_database
-│   ├── 🔴 database_schema_read         ← read_database_schema
-│   ├── 🔴 database_schema_write        ← write_database_schema
-│   ├── 🔴 database_properties_read     ← read_database_properties
-│   ├── 🔴 database_properties_write    ← write_database_properties
-│   ├── 🔴 database_property_read       ← read_database_property
-│   └── 🔴 database_property_write      ← write_database_property
+├── 🗃 Базы · 12
+│   ├── 🟢 databases_list               ← list_databases
+│   ├── 🟢 database_get                 ← get_database
+│   ├── 🟢 database_register            ← register_database
+│   ├── 🟢 database_update              ← update_database
+│   ├── 🟢 database_delete              ← delete_database
+│   ├── 🟢 database_rename              ← rename_database
+│   ├── 🟢 database_schema_read         ← read_database_schema
+│   ├── 🟢 database_schema_write        ← write_database_schema
+│   ├── 🟢 database_properties_read     ← read_database_properties
+│   ├── 🟢 database_properties_write    ← write_database_properties
+│   ├── 🟢 database_property_read       ← read_database_property
+│   └── 🟢 database_property_write      ← write_database_property
 │
-├── 📡 Каналы
-│   ├── 🔴 channels_list                ← list_channels
-│   ├── 🔴 channel_get                  ← get_channel
-│   ├── 🔴 channel_register             ← register_channel
-│   ├── 🔴 channel_update               ← update_channel
-│   ├── 🔴 channel_delete               ← delete_channel
-│   └── 🔴 channel_rename               ← rename_channel
+├── 📡 Каналы · 6
+│   ├── 🟢 channels_list                ← list_channels
+│   ├── 🟢 channel_get                  ← get_channel
+│   ├── 🟢 channel_register             ← register_channel
+│   ├── 🟢 channel_update               ← update_channel
+│   ├── 🟢 channel_delete               ← delete_channel
+│   └── 🟢 channel_rename               ← rename_channel
 │
-├── 🖼 Медиатеки
-│   ├── 🔴 media_libraries_list         ← list_media_libraries
-│   ├── 🔴 media_library_get            ← get_media_library
-│   ├── 🔴 media_library_register       ← register_media_library
-│   ├── 🔴 media_library_update         ← update_media_library
-│   ├── 🔴 media_library_delete         ← delete_media_library
-│   └── 🔴 media_library_rename         ← rename_media_library
+├── 🖼 Медиатеки · 6
+│   ├── 🟢 media_libraries_list         ← list_media_libraries
+│   ├── 🟢 media_library_get            ← get_media_library
+│   ├── 🟢 media_library_register       ← register_media_library
+│   ├── 🟢 media_library_update         ← update_media_library
+│   ├── 🟢 media_library_delete         ← delete_media_library
+│   └── 🟢 media_library_rename         ← rename_media_library
 │
-├── 📦 Репозитории
-│   ├── 🔴 repositories_list            ← list_repositories
-│   ├── 🔴 repository_get               ← get_repository
-│   ├── 🔴 repository_register          ← register_repository
-│   ├── 🔴 repository_update            ← update_repository
-│   ├── 🔴 repository_delete            ← delete_repository
-│   └── 🔴 repository_rename            ← rename_repository
+├── 📦 Репозитории · 6
+│   ├── 🟢 repositories_list            ← list_repositories
+│   ├── 🟢 repository_get               ← get_repository
+│   ├── 🟢 repository_register          ← register_repository
+│   ├── 🟢 repository_update            ← update_repository
+│   ├── 🟢 repository_delete            ← delete_repository
+│   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы
+├── 🔍 Поиск и индексы · 32
 │   ├── search_workspace_content
 │   ├── search_workspace_semantic
 │   ├── search_workspace_hybrid
@@ -202,7 +204,7 @@ user-agent-cms
 │   ├── list_workspace_feed
 │   └── list_workspace_notifications
 │
-├── 🧠 Facts · glossary · reference
+├── 🧠 Facts · glossary · reference · 12
 │   ├── create_workspace_fact
 │   ├── update_workspace_fact
 │   ├── list_workspace_facts
@@ -216,7 +218,7 @@ user-agent-cms
 │   ├── list_reference_entries
 │   └── search_reference_entries
 │
-├── 💬 Inbox · discussion · comments
+├── 💬 Inbox · discussion · comments · 10
 │   ├── list_inbox
 │   ├── triage_inbox_item
 │   ├── read_discussion
@@ -228,7 +230,7 @@ user-agent-cms
 │   ├── delete_comment
 │   └── toggle_comment_reaction
 │
-├── 📎 Sidecar · pads · buffer
+├── 📎 Sidecar · pads · buffer · 13
 │   ├── resolve_sidecar_path
 │   ├── read_sidecar
 │   ├── create_sidecar
@@ -243,32 +245,32 @@ user-agent-cms
 │   ├── remove_context_buffer_item
 │   └── clear_context_buffer
 │
-├── 🧰 Модули
-│   ├── module_git_status
-│   ├── module_git_diff
-│   ├── module_git_commit
-│   ├── module_git_push
-│   ├── module_git_pull
-│   ├── module_git_remote
-│   ├── module_git_init
-│   ├── module_short_link_create
-│   ├── module_short_link_get
-│   ├── module_short_link_list
-│   ├── module_short_link_delete
-│   ├── module_media_cloud_providers_list
-│   ├── module_media_cloud_status
-│   ├── module_media_cloud_sync
-│   ├── module_media_cloud_links_repair
-│   ├── module_media_cloud_upload
-│   ├── module_media_cloud_url
-│   ├── module_file_hub_outbound_list
-│   ├── module_file_hub_outbound_enqueue
-│   ├── module_file_hub_outbound_remove
-│   ├── module_file_hub_outbound_clear
-│   ├── module_file_hub_inbound_list_zzz
-│   └── module_file_hub_inbound_upload_zzz
+├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)
+│   ├── 🟢 module_git_status
+│   ├── 🟢 module_git_diff
+│   ├── 🟢 module_git_commit
+│   ├── 🟢 module_git_push
+│   ├── 🟢 module_git_pull
+│   ├── 🟢 module_git_remote
+│   ├── 🟢 module_git_init
+│   ├── 🟢 module_short_link_create
+│   ├── 🟢 module_short_link_get
+│   ├── 🟢 module_short_link_list
+│   ├── 🟢 module_short_link_delete
+│   ├── 🟢 module_media_cloud_providers_list
+│   ├── 🟢 module_media_cloud_status
+│   ├── 🟢 module_media_cloud_sync
+│   ├── 🟢 module_media_cloud_links_repair
+│   ├── 🟢 module_media_cloud_upload
+│   ├── 🟢 module_media_cloud_url
+│   ├── 🟢 module_file_hub_outbound_list
+│   ├── 🟢 module_file_hub_outbound_enqueue
+│   ├── 🟢 module_file_hub_outbound_remove
+│   ├── 🟢 module_file_hub_outbound_clear
+│   ├── 🟢 module_file_hub_inbound_list_zzz
+│   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-└── 🌐 Web · exec · journal
+└── 🌐 Web · exec · journal · 9
     ├── search_web
     ├── search_web_images
     ├── read_web_page
@@ -326,7 +328,12 @@ id
 
 ## ✅ Задачи (кратко)
 
-- [ ] **Волна 1 (🔴 в дереве):** тема, базы, каналы, медиатеки, репозитории — канон `сущность_действие`, старые имена → legacy
+- [x] **Репозитории:** канон в MCP + legacy alias (`mcp-server/lib/repository-tools.js`)
+- [x] **Медиатеки:** канон в MCP + legacy alias (`mcp-server/lib/media-library-tools.js`)
+- [x] **Каналы:** канон в MCP + legacy alias (`mcp-server/lib/channel-tools.js`)
+- [x] **Базы:** канон в MCP + legacy (`list_databases`, `database_frame_*`) — `mcp-server/lib/iblock-tools.js`
+- [x] **Модули:** имена `module_*` — без переименования (git, short link, media cloud, file hub)
+- [ ] **Волна 1 (🔴 в дереве):** тема — канон `сущность_действие`, старые имена → legacy
 - [ ] Карты/TOC темы: `topics_list`, `topic_get`, `topic_meta_get`, … (отдельно от блока «Тема»)
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`

@@ -174,7 +174,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Адресация по `store` (путь под `awn-databases/`, например `tasks`, `taxonomies/tags`):
 
-- **Каркас** (`group` / `collection` / `single`): `list_databases`, `get_database`, `register_database`, `update_database`, `delete_database`, `rename_database`, `read_` / `write_database_schema`, `read_databases_index_toc`.
+- **Каркас** (`group` / `collection` / `single`): `databases_list`, `database_get`, `database_register`, `database_update`, `database_delete`, `database_rename`, `database_schema_read` / `database_schema_write`, `database_properties_read` / `database_properties_write`, `read_databases_index_toc` (legacy `list_databases`, `read_database_schema`, …).
 - **Записи** в `data/`: `list_content`, `create_content` (`isSection` или `awn.content.category` — раздел), `delete_content`, `move_content` (`targetParent`, `slug`); тело и поля — `read_` / `write_content` / `*_content_property` с `kind: database`, `slot: data`, `ref`.
 
 | `collectionType` | Когда |
@@ -196,7 +196,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Канал: `awn-channels/{slug}/`. Слоты: `inbox`, `outbox`, `files`, `assets`. Содержимое — `placement: { kind: "channel", path: "<slug>", slot, ref }`.
 
-- Tools: `list_channels`, `get_channel`, `register_channel`, `update_channel`, `rename_channel`, `delete_channel`, `list_inbox`.
+- Tools: `channels_list`, `channel_get`, `channel_register`, `channel_update`, `channel_rename`, `channel_delete` (legacy `list_channels`, …); `list_inbox`.
 - Разбор: `triage_inbox_item` — `to-content` (в тему), `mark-done`, `set-status`. Для `inbox` темы (`status: new`) — то же.
 
 ---
@@ -205,10 +205,10 @@ Workspace — папка с md-файлами. Хабы:
 
 Свои проекты, форки, клоны: `awn-repositories/{slug}/` (или `{group}/{slug}/`) + `manifest.md`.
 
-- Tools: `list_repositories` (папки без карточки — в `unregistered`), `get_repository({ path })`, `register_repository({ slug, name?, description?, origin?, body? })`, `update_repository({ path, name?, description?, origin?, group?, status?, body? })`, `rename_repository`, `delete_repository`.
+- Tools: `repositories_list` (папки без карточки — в `unregistered`), `repository_get({ path })`, `repository_register({ slug, name?, description?, origin?, body? })`, `repository_update({ path, … })`, `repository_rename`, `repository_delete`. Legacy: `list_repositories`, `get_repository`, …
 - **Код не индексируется** — в поиске только `manifest.md`, `index.md`, `groups.yml`. Код читай по явному пути: `list_content` (`kind: root`) + `read_content` (`kind: root`), правь `write_content` с `mode: patch`.
 - **Карточка** — зачем репозиторий, что смотреть, связь с темой. `status`: `active` · `study` · `archived` · `vendored`. `group` — группа в сайдбаре, не папка.
-- Папка в `unregistered` → `register_repository` с тем же `slug`.
+- Папка в `unregistered` → `repository_register` с тем же `slug`.
 - Git хранилища — раздел 17; клонов он не касается.
 
 ---
@@ -217,7 +217,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Файлы и картинки уровня хранилища. Слоты: `files`, `assets`. `placement: { kind: "media", path: "<slug>", slot, ref }`.
 
-- Tools: `list_media_libraries`, `get_media_library`, `register_` / `update_` / `rename_` / `delete_media_library`; картинка из сети — `write_content_binary_from_url`.
+- Tools: `media_libraries_list`, `media_library_get`, `media_library_register` / `media_library_update` / `media_library_rename` / `media_library_delete` (legacy `list_media_libraries`, …); картинка из сети — `write_content_binary_from_url`.
 - **Медиа-облако:** `module_media_cloud_*` — `providers_list`, `status`, `sync`, `links_repair` (`path` — manifest темы, `file` — **полный** путь от корня). Пока только локально (`awn-media-cloud/`), в Google и Яндекс не грузит. Скилл `agent-cms-modules`.
 
 ---
@@ -318,7 +318,7 @@ Workspace — папка с md-файлами. Хабы:
 
 - **Где:** `awn-recycler/re-{метка}-{имя}`, метаданные — `awn-recycler/_meta`. На месте остаётся маркер `.trash.{метка}` (скрыт в списках и поиске, не считай контентом).
 - **Ответ tool:** `recycled: true`, `markerId`, `markerLabel`, `recycleName` — покажи человеку метку.
-- **Удаляют в корзину:** `delete_content`, `delete_topic`, `delete_channel`, `delete_media_library`, `delete_repository` (встроенные каналы и медиатеки защищены).
+- **Удаляют в корзину:** `delete_content`, `delete_topic`, `channel_delete`, `media_library_delete`, `repository_delete` (legacy `delete_*`; встроенные каналы и медиатеки защищены).
 - **Восстановить и очистить** — только человек через UI («Корзина»); MCP-tools нет. На «верни удалённое» назови метку.
 - `awn-recycler/` не правь и не читай как данные.
 

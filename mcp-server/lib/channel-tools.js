@@ -4,6 +4,7 @@ import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 import { registerTocTool } from "./register-toc-tool.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -42,62 +43,72 @@ export function registerChannelTools(reg, client, options = {}) {
     options.registerBinaryReadFile ||
     ((name, description, schema, fn) => reg(name, description, schema, fn));
 
-  reg(
-    "list_channels",
-    "Catalog of workspace ingress channels under awn-channels/: manifest cards + unregistered folders + presets.",
-    z.object({}),
-    () => client.get("/api/agent/channels")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channels_list",
+    legacy: "list_channels",
+    description:
+      "Catalog of workspace ingress channels under awn-channels/: manifest cards + unregistered folders + presets.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/channels")
+  });
 
-  reg(
-    "get_channel",
-    "One channel card: manifest frontmatter + body from awn-channels/{slug}/manifest.md (awn.hub.channel).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channel_get",
+    legacy: "get_channel",
+    description:
+      "One channel card: manifest frontmatter + body from awn-channels/{slug}/manifest.md (awn.hub.channel).",
+    schema: z.object({
       path: workspaceRelPath
     }),
-    ({ path }) => client.get("/api/agent/channel", { path })
-  );
+    handler: ({ path }) => client.get("/api/agent/channel", { path })
+  });
 
-  reg(
-    "register_channel",
-    "Create awn-channels/{slug}/manifest.md and awn-storage/files|assets/ (adopt if folder exists).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channel_register",
+    legacy: "register_channel",
+    description:
+      "Create awn-channels/{slug}/manifest.md and awn-storage/files|assets/ (adopt if folder exists).",
+    schema: z.object({
       slug: z.string().min(1).describe("Folder name under awn-channels/, e.g. telegram"),
       name: z.string().optional(),
       description: z.string().optional(),
       body: z.string().optional().describe("Markdown body below frontmatter")
     }),
-    (payload) => client.post("/api/agent/channels", payload)
-  );
+    handler: (payload) => client.post("/api/agent/channels", payload)
+  });
 
-  reg(
-    "update_channel",
-    "Update manifest frontmatter for awn-channels/{slug}/manifest.md.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channel_update",
+    legacy: "update_channel",
+    description: "Update manifest frontmatter for awn-channels/{slug}/manifest.md.",
+    schema: z.object({
       path: workspaceRelPath,
       name: z.string().optional(),
       description: z.string().optional(),
       body: z.string().optional()
     }),
-    (payload) => client.put("/api/agent/channels", payload)
-  );
+    handler: (payload) => client.put("/api/agent/channels", payload)
+  });
 
-  reg(
-    "delete_channel",
-    "Soft-delete channel hub folder (awn-channels/{slug}/) to workspace recycle bin. Built-in presets are protected.",
-    z.object({ path: workspaceRelPath }),
-    ({ path }) => client.delete("/api/agent/channel", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channel_delete",
+    legacy: "delete_channel",
+    description:
+      "Soft-delete channel hub folder (awn-channels/{slug}/) to workspace recycle bin. Built-in presets are protected.",
+    schema: z.object({ path: workspaceRelPath }),
+    handler: ({ path }) => client.delete("/api/agent/channel", { path })
+  });
 
-  reg(
-    "rename_channel",
-    "Rename/move channel folder under awn-channels/ (new slug). Built-in presets are protected.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "channel_rename",
+    legacy: "rename_channel",
+    description: "Rename/move channel folder under awn-channels/ (new slug). Built-in presets are protected.",
+    schema: z.object({
       path: workspaceRelPath,
       slug: z.string().min(1).describe("New folder name under awn-channels/, e.g. telegram")
     }),
-    ({ path, slug }) => client.post("/api/agent/channels/rename", { path, slug })
-  );
+    handler: ({ path, slug }) => client.post("/api/agent/channels/rename", { path, slug })
+  });
 
   const readChannelsIndexSchema = z.object({});
   const readChannelsIndexHandler = () => client.get("/api/agent/channels-index");

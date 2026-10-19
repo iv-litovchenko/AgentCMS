@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.4.0 (per-chat workspaceId · list_databases … · content placement database)
+# Agent CMS — MCP Server v0.4.0 (per-chat workspaceId · databases_list … · content placement database)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 
@@ -69,7 +69,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | Слот | `list_slots` |
 | Контент | `read_content` / `write_content` / `list_content` (`placement.kind`: topic \| channel \| media \| database \| repository \| root; legacy `page` на входе), `content_exists`, `get_content_meta`, properties/schema/lifecycle; hub file legacy — только при `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
-| awn-databases | `list_databases` / `get_database` … (legacy `database_frame_*`); записи — `*_content_*` |
+| awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
 | Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
 | Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` |

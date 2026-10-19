@@ -16,7 +16,7 @@ module.exports = {
     "Контент (placement): read_content / write_content / list_content; kind topic|channel|media|database|repository|root (legacy page на входе); legacy path+slot без placement → topic.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
-    "awn-databases: list_databases / get_database … (legacy database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
+    "awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",
     "notify_user — колокольчик CMS (не Shell).",
@@ -195,13 +195,13 @@ module.exports = {
           http: "GET /api/agent/page-url"
         },
         {
-          name: "list_repositories",
+          name: "repositories_list",
           description: "Каталог awn-repositories: manifest-ы клонов/полупроектов (код не в semantic index).",
           parameters: "—",
           http: "GET /api/agent/repositories"
         },
         {
-          name: "get_repository",
+          name: "repository_get",
           description: "Карточка одного репозитория (manifest + body).",
           parameters: "path",
           http: "GET /api/agent/repository"
@@ -243,7 +243,7 @@ module.exports = {
           http: "POST /api/agent/channels-index"
         },
         {
-          name: "register_repository",
+          name: "repository_register",
           description: "Создать awn-repositories/{slug}/manifest.md (шаблон карточки).",
           parameters: "slug, name?, description?, origin?, body?",
           http: "POST /api/agent/repositories"
@@ -384,10 +384,10 @@ module.exports = {
     },
     {
       id: "database-frame",
-      title: "Каркас awn-databases (list_databases …)",
+      title: "Каркас awn-databases (databases_list …)",
       tools: [
-        { name: "list_databases", description: "Список stores (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
-        { name: "get_database", description: "Один store: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
+        { name: "databases_list", description: "Список stores (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
+        { name: "database_get", description: "Один store: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
           name: "read_databases_index_toc",
           description: "Оглавление (awn-databases/index.md).",
@@ -396,40 +396,40 @@ module.exports = {
         },
         {
           name: "refresh_databases_index_toc",
-          description: "Обновить index.md из list_databases.",
+          description: "Обновить index.md из databases_list.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"
         },
         {
-          name: "register_database",
-          description: "Зарегистрировать store hub (как register_channel).",
+          name: "database_register",
+          description: "Зарегистрировать store hub (как channel_register).",
           parameters: "slug, kind?, collectionKind?, recordHierarchy?, recordFileTypes?, …",
           http: "POST /api/awn-databases/stores"
         },
         {
-          name: "update_database",
+          name: "database_update",
           description: "Patch manifest: name, description, body.",
           parameters: "store, name?, description?, body?",
           http: "PUT /api/awn-databases/stores"
         },
-        { name: "delete_database", description: "Удалить store.", parameters: "store", http: "DELETE /api/awn-databases/stores" },
-        { name: "rename_database", description: "Переименовать/переместить store.", parameters: "store, slug", http: "POST /api/awn-databases/stores/rename" },
+        { name: "database_delete", description: "Удалить store.", parameters: "store", http: "DELETE /api/awn-databases/stores" },
+        { name: "database_rename", description: "Переименовать/переместить store.", parameters: "store, slug", http: "POST /api/awn-databases/stores/rename" },
         {
-          name: "read_database_schema",
+          name: "database_schema_read",
           description: "Кастомные поля instance в schema.yml.",
           parameters: "store",
           http: "GET /api/awn-databases/store-schema"
         },
         {
-          name: "write_database_schema",
+          name: "database_schema_write",
           description: "Записать кастомные поля в schema.yml.",
           parameters: "store, content? | awnSchema? | fields? | tabs?",
           http: "POST /api/awn-databases/store-schema"
         },
-        { name: "read_database_properties", description: "Frontmatter manifest.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
-        { name: "write_database_properties", description: "Patch manifest.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
-        { name: "read_database_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
-        { name: "write_database_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
+        { name: "database_properties_read", description: "Frontmatter manifest.", parameters: "store", http: "GET /api/awn-databases/store-properties" },
+        { name: "database_properties_write", description: "Patch manifest.", parameters: "store, content", http: "POST /api/awn-databases/store-properties" },
+        { name: "database_property_read", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-databases/store-properties?key=" },
+        { name: "database_property_write", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-databases/store-properties" }
       ]
     },
     {
