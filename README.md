@@ -343,7 +343,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 14 · **🔴** 0
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 19 · **🔴** 0
 
 ```
 user-agent-cms
@@ -384,7 +384,7 @@ user-agent-cms
 │   ├── 🟢 workspace_feed_list
 │   └── 🟢 workspace_memory_audit
 │
-├── 🎬 Сессия (Session) · 17
+├── 🎬 Сессия (Session) · 22
 │   ├── 🟢 session_context_get
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui
 │   ├── 🟢 session_agent_profile_get
@@ -400,11 +400,17 @@ user-agent-cms
 │   ├── Todo (Todo) · 2
 │   │   ├── 🟢 session_todo_read
 │   │   └── 🟢 session_todo_write
-│   └── Буфер контекста (Context buffer) · 4
-│       ├── 🟢 session_context_buffer_read
-│       ├── 🟢 session_context_buffer_append
-│       ├── 🟢 session_context_buffer_remove
-│       └── 🟢 session_context_buffer_clear
+│   ├── Буфер контекста (Context buffer) · 4
+│   │   ├── 🟢 session_context_buffer_read
+│   │   ├── 🟢 session_context_buffer_append
+│   │   ├── 🟢 session_context_buffer_remove
+│   │   └── 🟢 session_context_buffer_clear
+│   └── Буфер обмена (Clipboard) · 5
+│       ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
+│       ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит
+│       ├── 🟡 session_clipboard_paste_zzz — идея: вставить в target placement
+│       ├── 🟡 session_clipboard_read_zzz — идея: что сейчас в буфере
+│       └── 🟡 session_clipboard_clear_zzz — идея: очистить
 │
 ├── 📋 Запросы реестра (Registry queries) · 2
 │   ├── 🟢 registry_queries_list
