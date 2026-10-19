@@ -10,7 +10,7 @@ export function registerSessionTools(reg, client) {
     canonical: "session_context_get",
     legacy: "get_session_context",
     description:
-      "START HERE (light): wsMap (fresh WS-MAP markdown) + alwaysContext (full text of always-loaded files). Skills: platform_doc_read. Runtime lists: session_cron_registry_list / session_heartbeat_registry_list.",
+      "START HERE (light): wsMap (fresh WS-MAP markdown) + alwaysContext (full text of always-loaded files). Skills: platform_doc_read. Runtime lists: session_list_cron / session_list_heartbeat.",
     schema: emptySchema,
     handler: () => client.get("/api/agent/session-context")
   });
@@ -36,77 +36,62 @@ export function registerSessionTools(reg, client) {
   );
 
   const alwaysContextHandler = () => client.get("/api/agent/always-context");
+  const alwaysContextDescription =
+    "Always-context list (same alwaysContext block as session_context_get): runtime-load-always, workspace system md, ws-folder.";
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_always_registry_list",
-    legacy: "workspace_always_context_registry_get",
-    description:
-      "Always-context registry (same alwaysContext block as session_context_get): runtime-load-always, workspace system md, ws-folder.",
+    canonical: "session_list_always_context",
+    legacy: "session_always_registry_list",
+    description: alwaysContextDescription,
     schema: emptySchema,
     handler: alwaysContextHandler
   });
-  reg(
+  for (const name of [
+    "workspace_always_context_registry_get",
     "get_workspace_always_context_registry",
-    "Deprecated alias for session_always_registry_list.",
-    emptySchema,
-    alwaysContextHandler
-  );
-  reg(
     "list_workspace_always_context",
-    "Deprecated alias for session_always_registry_list.",
-    emptySchema,
-    alwaysContextHandler
-  );
-  reg(
     "refresh_workspace_always_context",
-    "Deprecated alias for session_always_registry_list.",
-    emptySchema,
-    alwaysContextHandler
-  );
-  reg(
-    "session_always_registry_get",
-    "Deprecated alias for session_always_registry_list.",
-    emptySchema,
-    alwaysContextHandler
-  );
+    "session_always_registry_get"
+  ]) {
+    reg(name, "Deprecated alias for session_list_always_context.", emptySchema, alwaysContextHandler);
+  }
 
   const cronRegistryHandler = () => client.get("/api/agent/cron-registry");
+  const cronListDescription =
+    "Topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.";
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_cron_registry_list",
-    legacy: "workspace_cron_registry_get",
-    description: "Registry of topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.",
+    canonical: "session_list_cron",
+    legacy: "session_cron_registry_list",
+    description: cronListDescription,
     schema: emptySchema,
     handler: cronRegistryHandler
   });
-  reg("get_workspace_cron_registry", "Deprecated alias for session_cron_registry_list.", emptySchema, cronRegistryHandler);
-  reg("list_workspace_cron", "Deprecated alias for session_cron_registry_list.", emptySchema, cronRegistryHandler);
-  reg("session_cron_registry_get", "Deprecated alias for session_cron_registry_list.", emptySchema, cronRegistryHandler);
+  for (const name of [
+    "workspace_cron_registry_get",
+    "get_workspace_cron_registry",
+    "list_workspace_cron",
+    "session_cron_registry_get"
+  ]) {
+    reg(name, "Deprecated alias for session_list_cron.", emptySchema, cronRegistryHandler);
+  }
 
   const heartbeatRegistryHandler = () => client.get("/api/agent/heartbeat-registry");
+  const heartbeatListDescription =
+    "Topics/records with awn-runtime-heartbeat. Index only, not file bodies.";
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_heartbeat_registry_list",
-    legacy: "workspace_heartbeat_registry_get",
-    description: "Registry of topics/records with awn-runtime-heartbeat. Index only, not file bodies.",
+    canonical: "session_list_heartbeat",
+    legacy: "session_heartbeat_registry_list",
+    description: heartbeatListDescription,
     schema: emptySchema,
     handler: heartbeatRegistryHandler
   });
-  reg(
+  for (const name of [
+    "workspace_heartbeat_registry_get",
     "get_workspace_heartbeat_registry",
-    "Deprecated alias for session_heartbeat_registry_list.",
-    emptySchema,
-    heartbeatRegistryHandler
-  );
-  reg(
     "list_workspace_heartbeat",
-    "Deprecated alias for session_heartbeat_registry_list.",
-    emptySchema,
-    heartbeatRegistryHandler
-  );
-  reg(
-    "session_heartbeat_registry_get",
-    "Deprecated alias for session_heartbeat_registry_list.",
-    emptySchema,
-    heartbeatRegistryHandler
-  );
+    "session_heartbeat_registry_get"
+  ]) {
+    reg(name, "Deprecated alias for session_list_heartbeat.", emptySchema, heartbeatRegistryHandler);
+  }
 
   const sessionAgentProfileHandler = () => client.get("/api/agent/identity/agent");
   registerCanonicalWithLegacyAlias(reg, {
@@ -159,23 +144,25 @@ export function registerSessionTools(reg, client) {
 
   const navFocusListHandler = () => client.post("/api/agent/registry-queries/run", { id: "nav-focus" });
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_nav_focus_list",
-    legacy: "session_nav_focus_get",
+    canonical: "session_list_in_focus",
+    legacy: "session_nav_focus_list",
     description:
       "Records with awn-focus (preset query nav-focus). Shorthand for session_registry_query_run({ id: \"nav-focus\" }).",
     schema: emptySchema,
     handler: navFocusListHandler
   });
+  reg("session_nav_focus_get", "Deprecated alias for session_list_in_focus.", emptySchema, navFocusListHandler);
 
   const navMainListHandler = () => client.post("/api/agent/registry-queries/run", { id: "nav-main" });
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_nav_main_list",
-    legacy: "session_nav_main_get",
+    canonical: "session_list_on_main",
+    legacy: "session_nav_main_list",
     description:
       "Records with awn-main on home (preset query nav-main). Shorthand for session_registry_query_run({ id: \"nav-main\" }).",
     schema: emptySchema,
     handler: navMainListHandler
   });
+  reg("session_nav_main_get", "Deprecated alias for session_list_on_main.", emptySchema, navMainListHandler);
 
   registerWorkspacePadTools(reg, client);
   registerContextBufferTools(reg, client);

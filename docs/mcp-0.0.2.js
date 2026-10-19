@@ -75,21 +75,21 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
-          name: "session_always_registry_list",
+          name: "session_list_always_context",
           legacyName: "get_workspace_always_context_registry",
           description: "Реестр always-context (items с content): load-always, system md, ws-folder.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
         {
-          name: "session_cron_registry_list",
+          name: "session_list_cron",
           legacyName: "get_workspace_cron_registry",
           description: "Реестр awn-runtime-cron (+ schedule), без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/cron-registry"
         },
         {
-          name: "session_heartbeat_registry_list",
+          name: "session_list_heartbeat",
           legacyName: "get_workspace_heartbeat_registry",
           description: "Реестр awn-runtime-heartbeat, без тел файлов.",
           parameters: "—",

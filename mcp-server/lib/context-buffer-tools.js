@@ -7,17 +7,18 @@ const bufferRef = z
   .describe("Workspace ref: topic path, storage file path, or editor route fragment");
 
 export function registerContextBufferTools(reg, client) {
+  const readHandler = () => client.get("/api/workspace/context-buffer");
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_buffer_read",
-    legacy: "context_buffer_read",
+    canonical: "session_context_buffer_read",
+    legacy: "session_buffer_read",
     description:
       "Read «Буфер контекста» stash in Agent CMS UI (.agent-cms/state/context-buffer.json) — items the user collected for the agent.",
     schema: z.object({}),
-    handler: () => client.get("/api/workspace/context-buffer")
+    handler: readHandler
   });
-  reg("read_context_buffer", "Deprecated alias for session_buffer_read.", z.object({}), () =>
-    client.get("/api/workspace/context-buffer")
-  );
+  for (const name of ["context_buffer_read", "read_context_buffer"]) {
+    reg(name, "Deprecated alias for session_context_buffer_read.", z.object({}), readHandler);
+  }
 
   const appendSchema = z.object({
     type: z
@@ -33,13 +34,15 @@ export function registerContextBufferTools(reg, client) {
   const appendHandler = (payload) => client.post("/api/workspace/context-buffer/add", payload);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_buffer_append",
-    legacy: "context_buffer_append",
+    canonical: "session_context_buffer_append",
+    legacy: "session_buffer_append",
     description: "Add an item to the UI context buffer (pages, files, slots dragged into the buffer strip).",
     schema: appendSchema,
     handler: appendHandler
   });
-  reg("append_context_buffer", "Deprecated alias for session_buffer_append.", appendSchema, appendHandler);
+  for (const name of ["context_buffer_append", "append_context_buffer"]) {
+    reg(name, "Deprecated alias for session_context_buffer_append.", appendSchema, appendHandler);
+  }
 
   const removeSchema = z.object({
     id: z.string().optional(),
@@ -49,26 +52,25 @@ export function registerContextBufferTools(reg, client) {
   const removeHandler = (payload) => client.post("/api/workspace/context-buffer/remove", payload);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_buffer_item_remove",
-    legacy: "context_buffer_item_remove",
+    canonical: "session_context_buffer_remove",
+    legacy: "session_buffer_item_remove",
     description: "Remove one item from the UI context buffer.",
     schema: removeSchema,
     handler: removeHandler
   });
-  reg(
-    "remove_context_buffer_item",
-    "Deprecated alias for session_buffer_item_remove.",
-    removeSchema,
-    removeHandler
-  );
+  for (const name of ["context_buffer_item_remove", "remove_context_buffer_item"]) {
+    reg(name, "Deprecated alias for session_context_buffer_remove.", removeSchema, removeHandler);
+  }
 
   const clearHandler = () => client.post("/api/workspace/context-buffer/clear", {});
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_buffer_clear",
-    legacy: "context_buffer_clear",
+    canonical: "session_context_buffer_clear",
+    legacy: "session_buffer_clear",
     description: "Clear all items from the UI context buffer.",
     schema: z.object({}),
     handler: clearHandler
   });
-  reg("clear_context_buffer", "Deprecated alias for session_buffer_clear.", z.object({}), clearHandler);
+  for (const name of ["context_buffer_clear", "clear_context_buffer"]) {
+    reg(name, "Deprecated alias for session_context_buffer_clear.", z.object({}), clearHandler);
+  }
 }

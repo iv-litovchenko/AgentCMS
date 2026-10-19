@@ -45,7 +45,7 @@ get_session_context
 вне get_session_context
 │
 ├── list_platform_docs · read_platform_doc — README, GLOBAL-SKILL-*.md
-├── session_cron_registry_list · session_heartbeat_registry_list
+├── session_list_cron · session_list_heartbeat
 ├── workspace_summary_get — stats, git, index status
 ├── read_topic_index_toc · read_content_index_toc · read_workspace_map
 └── read_topic_body / read_content — содержимое по запросу

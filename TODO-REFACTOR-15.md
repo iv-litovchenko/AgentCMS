@@ -55,14 +55,14 @@ user-agent-cms
 │   ├── 🟢 session_context_get                ← get_session_context
 │   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
 │   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
-│   ├── 🟡 session_ui_focus_get               ← get_ui_focus ← get_user_active_context_now
-│   ├── 🟢 session_always_registry_list       ← get_workspace_always_context_registry ← session_always_registry_get
-│   ├── 🟢 session_cron_registry_list         ← get_workspace_cron_registry ← session_cron_registry_get
-│   ├── 🟢 session_heartbeat_registry_list    ← get_workspace_heartbeat_registry ← session_heartbeat_registry_get
+│   ├── 🔴 session_ui_focus_get               ← get_ui_focus ← get_user_active_context_now
+│   ├── 🟢 session_list_always_context        ← session_always_registry_list ← get_workspace_always_context_registry
+│   ├── 🟢 session_list_cron                  ← session_cron_registry_list ← get_workspace_cron_registry
+│   ├── 🟢 session_list_heartbeat             ← session_heartbeat_registry_list ← get_workspace_heartbeat_registry
+│   ├── 🟢 session_list_in_focus              ← session_nav_focus_list ← session_nav_focus_get
+│   ├── 🟢 session_list_on_main               ← session_nav_main_list ← session_nav_main_get
 │   ├── 🟡 session_registry_queries_list      ← list_workspace_registry_queries
 │   ├── 🟡 session_registry_query_run         ← run_workspace_registry_query
-│   ├── 🟢 session_nav_focus_list             ← session_nav_focus_get (query nav-focus / awn-focus)
-│   ├── 🟢 session_nav_main_list              ← session_nav_main_get (query nav-main / awn-main)
 │   ├── 🔴 get_ui_open_location               (legacy session_ui_focus_get)
 │   ├── session_note_* (2)
 │   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
@@ -70,11 +70,11 @@ user-agent-cms
 │   ├── session_todo_* (2)
 │   │   ├── 🟢 session_todo_read              ← workspace_todo_read ← read_workspace_todo
 │   │   └── 🟢 session_todo_write             ← workspace_todo_write ← write_workspace_todo
-│   └── session_buffer_* (4)
-│       ├── 🟢 session_buffer_read            ← context_buffer_read ← read_context_buffer
-│       ├── 🟢 session_buffer_append          ← context_buffer_append ← append_context_buffer
-│       ├── 🟢 session_buffer_item_remove     ← context_buffer_item_remove ← remove_context_buffer_item
-│       └── 🟢 session_buffer_clear           ← context_buffer_clear ← clear_context_buffer
+│   └── session_context_buffer_* (4)
+│       ├── 🟢 session_context_buffer_read    ← session_buffer_read ← read_context_buffer
+│       ├── 🟢 session_context_buffer_append  ← session_buffer_append ← append_context_buffer
+│       ├── 🟢 session_context_buffer_remove  ← session_buffer_item_remove ← remove_context_buffer_item
+│       └── 🟢 session_context_buffer_clear   ← session_buffer_clear ← clear_context_buffer
 │
 ├── 🧭 Навигация · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
@@ -307,9 +307,11 @@ Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_in
 
 ```
 Сейчас
-├── session_always_registry_list — файлы always-context
-├── session_cron_registry_list — cron темы/записи
-└── session_heartbeat_registry_list — heartbeat
+├── session_list_always_context — always-context
+├── session_list_cron — cron
+├── session_list_heartbeat — heartbeat
+├── session_list_in_focus — awn-focus
+└── session_list_on_main — awn-main
 
 Фокус и главная
 ├── get_ui_focus — live «где человек в UI» (не реестр)

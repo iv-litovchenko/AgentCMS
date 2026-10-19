@@ -20,7 +20,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `session_agent_profile_get` / `session_user_profile_get` (темы `0-agent` / `0-user`, не workspaceId).
 
-**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `session_always_registry_list`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
+**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `session_list_always_context`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
 
 ---
 
@@ -255,7 +255,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 11. Крон, heartbeat, always-context
 
-**Старт чата:** `session_context_get` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `session_always_registry_list`.
+**Старт чата:** `session_context_get` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только always-context без карты: `session_list_always_context`.
 
 Состав `alwaysContext` (все три источника суммируются):
 
@@ -269,21 +269,21 @@ Workspace — папка с md-файлами. Хабы:
 
 | Поле | Значение | Реестр |
 |------|----------|--------|
-| `awn-runtime-load-always: true` | Всегда в контексте | `session_always_registry_list` |
-| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `session_cron_registry_list` |
-| `awn-runtime-heartbeat: true` | Периодическая проверка | `session_heartbeat_registry_list` |
+| `awn-runtime-load-always: true` | Всегда в контексте | `session_list_always_context` |
+| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `session_list_cron` |
+| `awn-runtime-heartbeat: true` | Периодическая проверка | `session_list_heartbeat` |
 | `awn-runtime-reminder: true` | В «Напоминания» | — |
 | `awn-runtime-commands: true` | В инструкции есть команды | — |
 
-**Пять похожих списков** (индекс записей; always — ещё полные тексты в `items`):
+**Пять списков `session_list_*`** (индекс записей; always — ещё полные тексты в `items`):
 
 | Tool | Что в списке |
 |------|----------------|
-| `session_always_registry_list` | always-context (load-always + system md + ws-folder) |
-| `session_cron_registry_list` | `awn-runtime-cron` + расписание |
-| `session_heartbeat_registry_list` | `awn-runtime-heartbeat` |
-| `session_nav_focus_list` | `awn-focus` (закреплённый фокус) |
-| `session_nav_main_list` | `awn-main` на главной |
+| `session_list_always_context` | always-context (load-always + system md + ws-folder) |
+| `session_list_cron` | `awn-runtime-cron` + расписание |
+| `session_list_heartbeat` | `awn-runtime-heartbeat` |
+| `session_list_in_focus` | `awn-focus` |
+| `session_list_on_main` | `awn-main` на главной |
 
 Произвольная выборка из каталога: `session_registry_queries_list` → `session_registry_query_run({ id })`.
 
