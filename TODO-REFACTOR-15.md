@@ -1,21 +1,23 @@
 # Рефакторинг — часть 15 (MCP Agent CMS)
 
-**Цель:** канон имён tools, без legacy в доке; убрать дубли и переименовать утилиты.  
-**Статус:** дерево канона — источник правды. **🟢** = канон в MCP (+ legacy) · **🟡** = канон частично / имя на проверке · **🔴** = не зафиксировано или не в коде.
+**Цель:** канон имён MCP tools; в дереве — только канон, без legacy.  
+**Статус:** **🟢** канон в MCP · **🟡** stub / эксперимент · **🔴** имя или группа на проверке.
 
-### Именование `сущность_действие`
+### Правила
 
-- **Список реестра** → **множественное** + `_list`: `databases_list`, `channels_list` (не `database_list` — это звучит как «список внутри одной базы»).
-- **Одна запись / поля** → **единственное** + `_get|_register|_read|…`: `database_get`, `topic_body_read`.
-- Старые `list_*` / `get_*` / `read_*` → legacy после миграции.
-- **Слои индекса `index_N_*`:** **`_search_query`** — поиск (hits); **`_query`** без `search` — structured (storage); **`index_{N}_*_rebuild` / `index_1_ocr_run`** — слои 1–6. **Без номера:** `index_status_get`, `index_monitor_get`, `index_rebuild_all`, `index_search_query_batch`. **Запись:** `record_index_sync` — индексы одного файла после save.
-- **Слой 6 (entity, эксперимент):** в дереве только **`index_6_entity_*_zzz`** (🟡); рабочие **`index_6_entity_*`** без `_zzz` — MCP + legacy, не в счётчике.
+- **Имена:** `сущность_действие`; списки реестра — `*_list` (мн.ч.), одна запись — `*_get`, `*_read`, …
+- **Заголовки дерева:** `Русский (English) · N` (N = methods в блоке).
+- **Счётчик «Итого»:** только **🟢**; **🟡** / **🔴** в дереве, но не в сумме; legacy в MCP, не в дереве.
+- **Индексы:** слои 1–6 — `index_N_*`; поиск — `*_search_query`; storage — `index_4_storage_query`; без № — `index_status_get`, `index_monitor_get`, `index_rebuild_all`, `index_search_query_batch`.
+- **Query (слой 0):** один канон — `query_workspace_ask` (`query_context_get` → legacy).
+- **Entity / OCR:** в дереве **🟡** `*_zzz`; рабочие `index_6_entity_*`, `index_1_ocr_run` — в MCP, не в счётчике.
+- **Record:** `record_index_sync` — индексы одного файла после save.
 
 ---
 
-## 🌳 Канон MCP `user-agent-cms` (без legacy)
+## 🌳 Канон MCP `user-agent-cms`
 
-**Итого в дереве: 221 метода** (legacy-алиасы и `*_zzz` stub не считаются).
+**Итого 🟢: 212** · в дереве также **🟡** 13 · **🔴** 6
 
 ```
 user-agent-cms
@@ -99,10 +101,10 @@ user-agent-cms
 │   └── 🟢 nav_index_toc_media_libraries_refresh
 │
 ├── 🗺 ID и URL (ID & URL) · 4
-│   ├── 🔴 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
-│   ├── 🔴 get_workspace_page_preview_from_path  ← get_workspace_url_page_preview
-│   ├── 🔴 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
-│   └── 🔴 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
+│   ├── 🔴 get_record_url_from_path
+│   ├── 🔴 get_workspace_page_preview_from_path
+│   ├── 🔴 get_external_page_preview_from_url
+│   └── 🔴 get_record_binary_url_from_path
 │
 ├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list
@@ -186,7 +188,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete
 │   └── 🟢 repository_rename
 │
-├── 🔍 Поиск и индексы (Search & indexes) · 15
+├── 🔍 Поиск и индексы (Search & indexes) · 25
 │   ├── 0. Запрос (Query) · 1
 │   │   └── 🟢 query_workspace_ask
 │   ├── 1. OCR (OCR) · 1
@@ -215,7 +217,6 @@ user-agent-cms
 │   │   ├── 🟡 index_6_entity_alias_merge_zzz
 │   │   ├── 🟡 index_6_entity_reject_zzz
 │   │   └── 🟡 index_6_entity_seed_zzz
-│   ├── 7. ID (Record) · 0
 │   ├── Мониторинг (Monitoring) · 2
 │   │   ├── 🟢 index_status_get
 │   │   └── 🟢 index_monitor_get
@@ -286,8 +287,8 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_outbound_enqueue
 │   ├── 🟢 module_file_hub_outbound_remove
 │   ├── 🟢 module_file_hub_outbound_clear
-│   ├── 🟢 module_file_hub_inbound_list_zzz
-│   └── 🟢 module_file_hub_inbound_upload_zzz
+│   ├── 🟡 module_file_hub_inbound_list_zzz
+│   └── 🟡 module_file_hub_inbound_upload_zzz
 │
 ├── 🛠 Утилиты (Utilities) · 8
 │   ├── 🟢 utility_mcp_ping
@@ -319,9 +320,11 @@ user-agent-cms
     └── 🟢 batch_tools_invoke
 ```
 
-Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`, `index_1_ocr_run_zzz`, `index_6_entity_*_zzz` (🟡 в дереве; рабочие без `_zzz` + legacy).
-
 ---
 
-## Осталось (не 🟢 в дереве)
-- **Доки:** `GLOBAL-SKILL-*`, `docs/mcp-0.0.2.js` — только канон, без дублирующих секций
+## Осталось
+
+- **🔴 URL (4):** зафиксировать канон / policy.
+- **🔴 Record (2):** `record_find_by_id`, `record_index_sync` — статус имён.
+- **🟡 Stubs:** OCR, entity, file hub inbound — GA или снять с дерева.
+- **Доки:** `GLOBAL-SKILL-*`, `docs/mcp-0.0.2.js` — только канон.
