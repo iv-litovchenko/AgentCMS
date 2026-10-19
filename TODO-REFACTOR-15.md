@@ -1,7 +1,7 @@
 # Рефакторинг — часть 15 (MCP Agent CMS)
 
 **Цель:** канон имён tools, без legacy в доке; убрать дубли и переименовать утилиты.  
-**Статус:** набросок (дерево + решения). **🔴** = не в коде · **🟢** = переименовано в MCP (+ legacy) · **🟡** = имя оставили (`*_exists`, `list_slots` — уже `сущность_глагол`).
+**Статус:** дерево канона — источник правды. **🟢** = канон в MCP (+ legacy) · **🟡** = канон частично / имя на проверке · **🔴** = не зафиксировано или не в коде.
 
 ### Именование `сущность_действие`
 
@@ -18,12 +18,14 @@
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа · platform_* · 5
+├── ⚙️ Платформа · platform_* · 7
 │   ├── 🟢 platform_info_get                  ← get_platform_info
 │   ├── 🟢 platform_health_get                ← get_platform_health
 │   ├── 🟢 platform_docs_list                 ← list_platform_docs
 │   ├── 🟢 platform_doc_read                  ← read_platform_doc
-│   └── 🟢 platform_config_list               ← list_platform_config
+│   ├── 🟢 platform_config_list               ← list_platform_config
+│   ├── 🟢 platform_types_list                ← list_types
+│   └── 🟢 platform_type_get                  ← get_type
 │
 ├── 🎛 Settings · settings_* · setting_* · 3
 │   ├── 🟢 settings_list                      ← list_settings
@@ -126,7 +128,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename                   ← rename_topic
 │   └── 🟢 topic_move                     ← move_topic
 │
-├── 📄 Контент · 16
+├── 📄 Контент · 17
 │   ├── 🟢 contents_list                 ← list_content
 │   ├── 🟢 content_read                  ← read_content
 │   ├── 🟢 content_write                 ← write_content
@@ -142,7 +144,8 @@ user-agent-cms
 │   ├── 🟢 content_rename                ← rename_content
 │   ├── 🟢 content_move                  ← move_content
 │   ├── 🟢 content_split                 ← split_content
-│   └── 🟢 content_merge                 ← merge_content
+│   ├── 🟢 content_merge                 ← merge_content
+│   └── 🟢 contents_slots_list           ← list_slots
 │
 ├── 🗃 Базы · 12
 │   ├── 🟢 databases_list               ← list_databases
@@ -285,84 +288,31 @@ user-agent-cms
 │   ├── 🟢 tool_command_exec               ← exec_command
 │   └── 🟢 tool_shell_exec                 ← exec_shell
 │
-├── 💬 Inbox · discussion · 4
-│   ├── 🔴 list_inbox
-│   ├── 🔴 triage_inbox_item
-│   ├── 🔴 read_discussion
-│   └── 🔴 append_discussion
+├── 📥 Inbox · 2
+│   ├── 🟢 inbox_items_list              ← list_inbox
+│   └── 🟢 inbox_item_triage             ← triage_inbox_item
+│
+├── 💬 Discussion · 2
+│   ├── 🟢 discussion_read               ← read_discussion ← read_dialogs
+│   └── 🟢 discussion_append             ← append_discussion ← append_dialog
 │
 ├── 📓 Journal · 2
 │   ├── 🟢 journal_entry_append              ← append_journal_entry
 │   └── 🟢 journal_entries_list              ← list_journal_entries
 │
-└── 🔴 TBD · канон / группа не зафиксированы · 5
+└── 🔴 TBD · канон / группа не зафиксированы · 2
     ├── 🔴 batch_invoke
-    ├── 🔴 notify_user
-    ├── 🔴 list_types
-    ├── 🔴 get_type
-    └── 🔴 list_slots
+    └── 🔴 notify_user
 ```
 
-Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_inbound_*_zzz`.
+Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.
 
 ---
 
-## 🧭 Реестры runtime
+## Осталось (не 🟢 в дереве)
 
-```
-Сейчас
-├── session_list_always_context — always-context
-├── session_list_cron — cron
-├── session_list_heartbeat — heartbeat
-├── session_list_in_focus — awn-focus
-└── session_list_on_main — awn-main
-
-Фокус и главная
-├── session_context_get_user_open_url_location_in_ui — что открыто у пользователя в UI (URL/локация)
-├── workspace_summary_get — сводка sidebar / главной / index
-└── Новые *_registry — только если появится статический конфиг (pinned home);
-    иначе session_context_get + session_context_get_user_open_url_location_in_ui
-```
-
----
-
-## 👁 UI · id · URL · утилиты
-
-```
-UI
-└── session_context_get_user_open_url_location_in_ui — 🟢 в Session (legacy: get_ui_focus, get_ui_open_location)
-
-id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве канона
-
-Прочее
-├── workspace_activity_list — лента событий workspace (since / limit); 🟢
-├── workspace_notifications_list — колокольчик / journal notify (since / limit); 🟢
-└── get_topic_url — legacy; канон get_workspace_open_url_from_path (любой path, CHPU + view)
-```
-
----
-
-## ✅ Задачи (кратко)
-
-- [x] **Репозитории:** канон в MCP + legacy alias (`mcp-server/lib/repository-tools.js`)
-- [x] **Медиатеки:** канон в MCP + legacy alias (`mcp-server/lib/media-library-tools.js`)
-- [x] **Каналы:** канон в MCP + legacy alias (`mcp-server/lib/channel-tools.js`)
-- [x] **Базы:** канон в MCP + legacy (`list_databases`, `database_frame_*`) — `mcp-server/lib/iblock-tools.js`
-- [x] **Модули:** имена `module_*` — без переименования (git, short link, media cloud, file hub)
-- [x] **Facts · glossary · reference:** канон в MCP + legacy — `facts-tools.js`, `glossary-tools.js`, `reference-tools.js`
-- [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
-- [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`)
-- [ ] **🔴 TBD:** `batch_invoke`, id/path/slug, `notify_user`, inbox/discussion — имена и группы
-- [x] **Annotations:** `annotation_comment_*`, `annotation_sidecar_*` — `comment-tools.js`, `sidecar-tools.js`, `annotation-tools.js`
-- [x] **Session · pads · buffer:** `session_note_*`, `session_todo_*`, `session_context_buffer_*` — `workspace-pad-tools.js`, `context-buffer-tools.js` (регистрация в `session-tools.js`)
-- [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
-- [x] **Платформа:** `platform_*` — `platform-tools.js` (регистрация **до** workspace)
-- [x] **Settings:** `settings_list`, `setting_*` — `settings-tools.js` (регистрация **до** workspace)
-- [x] **Workspace deps:** `workspace_dependencies_*` — `dependencies-tools.js`, в дереве **Старт и workspace** (нужен `workspaceId`)
-- [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
-- [x] **tool_*:** web + extract + exec — `web-search-tools.js` (`tool_web_*`), `tool-tools.js` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`)
-- [x] **Навигация `nav_*`:** `nav-tools.js` — `nav_map_workspace_*`, `nav_index_toc_{hub}_*`; legacy `*_index_toc_*`, `read_*_index_toc`, `read_workspace_map`
-- [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
-- [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
-- [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`
-- [ ] Решить: нужны ли реестры «главная / pinned focus» или хватит live + storage-summary
+- **TBD:** `batch_invoke`, `notify_user`
+- **URL · 5:** канон имён для open/preview + `content_binary_url_get`
+- **Поиск:** `search_and_get_context`, `ask_workspace`
+- **Индексы 🟡:** дожать `index_*` (сверка с legacy в коде)
+- **Доки:** `GLOBAL-SKILL-*`, `docs/mcp-0.0.2.js` — только канон, без дублирующих секций

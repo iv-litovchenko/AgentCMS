@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const typeFilterSchema = z
   .enum(["create-page", "slot-content", "data-containers", "data-elements"])
@@ -32,25 +33,28 @@ function requireTypeRef({ id, path }) {
 }
 
 export function registerTypeListTools({ reg, client }) {
-  reg(
-    "list_types",
-    "Slim type index (~KB). Optional domain/kind or filter preset. Details: get_type(id).",
-    listTypesSchema,
-    ({ domain, kind, filter }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_types_list",
+    legacy: "list_types",
+    description:
+      "Slim platform type index (~KB). Optional domain/kind or filter preset. Details: platform_type_get(id).",
+    schema: listTypesSchema,
+    handler: ({ domain, kind, filter }) =>
       client.get("/api/agent-system/types", {
         ...(domain ? { domain } : {}),
         ...(kind ? { kind } : {}),
         ...(filter ? { filter } : {})
       })
-  );
+  });
 
-  reg(
-    "get_type",
-    "Resolved type: merged schema, fields, inheritance. Use id (preferred) or catalog path.",
-    getTypeSchema,
-    (args) => {
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_type_get",
+    legacy: "get_type",
+    description: "Resolved platform type: merged schema, fields, inheritance. Use id (preferred) or catalog path.",
+    schema: getTypeSchema,
+    handler: (args) => {
       requireTypeRef(args);
       return client.get("/api/agent-system/type", { id: args.id, path: args.path });
     }
-  );
+  });
 }

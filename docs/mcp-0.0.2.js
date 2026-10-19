@@ -441,21 +441,21 @@ module.exports = {
       id: "intake",
       title: "Inbox и дискуссия",
       tools: [
-        { name: "list_inbox", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
+        { name: "inbox_items_list", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
         {
-          name: "triage_inbox_item",
+          name: "inbox_item_triage",
           description: "Triage: to-content, mark-done, set-status.",
           parameters: "path, file, action, status?",
           http: "POST /api/inbox/triage"
         },
         {
-          name: "read_discussion",
+          name: "discussion_read",
           description: "Дискуссия темы (slot discussion).",
           parameters: "path, mode?, file?, name?",
           http: "GET /api/discussion"
         },
         {
-          name: "append_discussion",
+          name: "discussion_append",
           description: "Сообщение в дискуссию темы.",
           parameters: "path, body, role?, …",
           http: "POST /api/discussion"

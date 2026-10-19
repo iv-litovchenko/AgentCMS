@@ -43,7 +43,8 @@ description: Правила, запреты и антипаттерны аген
 
 | Устарело | Используй |
 |----------|-----------|
-| `read_dialogs` / `append_dialog` | `read_discussion` / `append_discussion` |
+| `read_dialogs` / `append_dialog` / `read_discussion` / `append_discussion` | `discussion_read` / `discussion_append` |
+| `list_inbox` / `triage_inbox_item` | `inbox_items_list` / `inbox_item_triage` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |
 | `list_vaults` / `list_workspaces` | `workspaces_list` |
 | `get_topic_map` | `topics_list` + `nav_index_toc_topics_read` + `contents_list` (`kind: root`) |

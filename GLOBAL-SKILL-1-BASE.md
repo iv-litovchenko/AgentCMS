@@ -112,7 +112,7 @@ Workspace — папка с md-файлами. Хабы:
 | Слот | Что там |
 |------|---------|
 | `main` | Основная память |
-| `inbox` | Входящие (`status: new`, разбор — `triage_inbox_item`) |
+| `inbox` | Входящие (`status: new`, разбор — `inbox_item_triage`) |
 | `notes`, `references`, `artefacts` | Заметки, источники, черновики |
 | `media` | Самостоятельные файлы темы |
 | `assets` | Ресурсы **записей**: `preview/`, `pasted/`, `attachments/`, `materials/` |
@@ -198,8 +198,8 @@ Workspace — папка с md-файлами. Хабы:
 
 Канал: `awn-channels/{slug}/`. Слоты: `inbox`, `outbox`, `files`, `assets`. Содержимое — `placement: { kind: "channel", path: "<slug>", slot, ref }`.
 
-- Tools: `channels_list`, `channel_get`, `channel_register`, `channel_update`, `channel_rename`, `channel_delete` (legacy `list_channels`, …); `list_inbox`.
-- Разбор: `triage_inbox_item` — `to-content` (в тему), `mark-done`, `set-status`. Для `inbox` темы (`status: new`) — то же.
+- Tools: `channels_list`, `channel_get`, `channel_register`, `channel_update`, `channel_rename`, `channel_delete` (legacy `list_channels`, …); `inbox_items_list`.
+- Разбор: `inbox_item_triage` — `to-content` (в тему), `mark-done`, `set-status`. Для `inbox` темы (`status: new`) — то же.
 
 ---
 
@@ -232,7 +232,7 @@ Workspace — папка с md-файлами. Хабы:
 | Термин и определение | `glossary_term_create` |
 | Справочная статья | `reference_entry_create` |
 | Событие | `journal_entry_append` |
-| Обсуждение темы | `append_discussion` |
+| Обсуждение темы | `discussion_append` |
 | Аннотация-комментарий к manifest или записи | `annotation_comment_append` |
 | Входящее | `content_create({ slot: "inbox", status: "new" })` |
 | Заметка на сессию / договорённость | `session_note_write` (`NOTE.md`) / `session_todo_write` (`TODO.md`) |
@@ -247,7 +247,7 @@ Workspace — папка с md-файлами. Хабы:
 - **Факты:** `fact_create`, `fact_update`, `facts_list`, `facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `workspace_fact_*`, `create_workspace_fact`, …
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
-- **Дискуссия:** `read_discussion` / `append_discussion`.
+- **Дискуссия:** `discussion_read` / `discussion_append`.
 - **Аннотации · comment** (`awn.annotation.comment`, слот `comments/`): `annotation_comments_list`, `annotation_comment_append`, `annotation_comment_read`, `annotation_comment_update`, `annotation_comment_delete`, `annotation_comment_reaction_toggle`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
 - **`NOTE.md` / `TODO.md`** в корне: `session_note_read` / `session_note_write`, `session_todo_read` / `session_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.
 

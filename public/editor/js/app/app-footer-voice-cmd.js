@@ -146,7 +146,7 @@
         { phrases: ["зафиксируй факт …"], tools: ["fact_create"], status: "mcp" },
         { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },
         { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_topic", "move_topic", "delete_topic"], status: "mcp" },
-        { phrases: ["разбери inbox …"], tools: ["triage_inbox_item"], status: "mcp" },
+        { phrases: ["разбери inbox …"], tools: ["inbox_item_triage"], status: "mcp" },
         { phrases: ["уведомь …"], tools: ["notify_user"], status: "mcp" }
       ]
     },
