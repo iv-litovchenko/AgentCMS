@@ -45,7 +45,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 > Работай с хранилищем MedCenter. Сначала workspaces_list, потом session_context_get с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
 
-Затем при необходимости: `session_ui_focus_get` → `read_*` / `write_*` по задаче.
+Затем при необходимости: `session_context_get_user_open_url_location_in_ui` → `read_*` / `write_*` по задаче.
 
 **Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `tool_web_*`, `get_external_url_page_preview` (legacy `get_link_preview`).
 

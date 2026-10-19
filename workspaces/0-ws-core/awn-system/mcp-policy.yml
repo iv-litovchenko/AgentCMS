@@ -30,6 +30,7 @@ batch_invoke:
     - search_workspace_batch
     - session_context_get
     - get_session_context
+    - session_context_get_user_open_url_location_in_ui
     - session_ui_focus_get
     - get_ui_focus
     - get_user_active_context_now

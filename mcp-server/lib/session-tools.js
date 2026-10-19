@@ -15,25 +15,30 @@ export function registerSessionTools(reg, client) {
     handler: () => client.get("/api/agent/session-context")
   });
 
-  const uiFocusHandler = () => client.get("/api/agent/active-context");
-  const uiFocusDescription =
-    "Human focus in Agent CMS browser UI (not Cursor): focus.entity (page|slot|content|system|browse|home|none), " +
-    "mcp hints (path/slot/ref). Call when the user did not name a path. Response may include stale if UI was not synced (~5 min).";
+  const userOpenInUiHandler = () => client.get("/api/agent/active-context");
+  const userOpenInUiDescription =
+    "What is open for the user in Agent CMS browser UI (not Cursor): URL/location, entity (page|slot|content|…), " +
+    "MCP hints (path/slot/ref). When the user did not name a path. May include stale if UI was not synced (~5 min).";
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_ui_focus_get",
+    canonical: "session_context_get_user_open_url_location_in_ui",
     legacy: "get_ui_focus",
-    description: uiFocusDescription,
+    description: userOpenInUiDescription,
     schema: emptySchema,
-    handler: uiFocusHandler
+    handler: userOpenInUiHandler
   });
-  reg("get_user_active_context_now", "Deprecated alias for session_ui_focus_get.", emptySchema, uiFocusHandler);
-  reg(
-    "get_ui_open_location",
-    "Deprecated alias for session_ui_focus_get (same active-context API).",
-    emptySchema,
-    uiFocusHandler
-  );
+  for (const legacyName of [
+    "session_ui_focus_get",
+    "get_user_active_context_now",
+    "get_ui_open_location"
+  ]) {
+    reg(
+      legacyName,
+      "Deprecated alias for session_context_get_user_open_url_location_in_ui.",
+      emptySchema,
+      userOpenInUiHandler
+    );
+  }
 
   const alwaysContextHandler = () => client.get("/api/agent/always-context");
   const alwaysContextDescription =

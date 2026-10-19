@@ -21,7 +21,7 @@ agent-cms MCP
 │   ├── list_workspaces · list_vaults
 │   ├── get_session_context
 │   ├── get_session_documentation
-│   ├── get_ui_focus (legacy get_user_active_context_now)
+│   ├── session_context_get_user_open_url_location_in_ui
 │   ├── list_workspace_always_context
 │   ├── list_workspace_cron · list_workspace_heartbeat
 │   └── test_mcp_connection

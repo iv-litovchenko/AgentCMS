@@ -16,7 +16,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 Работа начинается по запросу человека, сам ничего не запускай.
 
 1. `workspaces_list` → выбери id → `session_context_get({ workspaceId })`. Во всех вызовах — тот же `workspaceId` (селектор в UI на MCP не влияет).
-2. Человек говорит «вот это» без пути → `session_ui_focus_get` (готовые `path` / `slot` / `ref`).
+2. Человек говорит «вот это» без пути → `session_context_get_user_open_url_location_in_ui` (URL/локация, `path` / `slot` / `ref`).
 3. Дали только путь → `record_path_resolve` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `session_agent_profile_get` / `session_user_profile_get` (темы `0-agent` / `0-user`, не workspaceId).
 

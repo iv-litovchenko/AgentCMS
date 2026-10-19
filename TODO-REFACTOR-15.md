@@ -52,8 +52,9 @@ user-agent-cms
 │   ├── 🟢 workspace_feed_list                ← list_workspace_feed
 │   └── 🟢 workspace_notifications_list     ← list_workspace_notifications
 │
-├── 🎬 Session · session_* · workspaceId · 16
+├── 🎬 Session · session_* · workspaceId · 17
 │   ├── 🟢 session_context_get                ← get_session_context
+│   ├── 🟢 session_context_get_user_open_url_location_in_ui ← get_ui_focus ← session_ui_focus_get ← get_ui_open_location
 │   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
 │   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
 │   ├── 🟢 session_list_always_context        ← session_always_registry_list ← get_workspace_always_context_registry
@@ -292,11 +293,9 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 5
+├── 🔴 TBD · канон / группа не зафиксированы · 3
 │   ├── 🔴 batch_invoke
 │   ├── 🔴 notify_user
-│   ├── 🔴 session_ui_focus_get             ← get_ui_focus ← get_user_active_context_now
-│   ├── 🔴 get_ui_open_location             ← legacy session_ui_focus_get (тот же API)
 │   └── 🔴 content_binary_url_get           ← get_content_binary_url
 │
 └── 📓 Journal · 2
@@ -319,10 +318,10 @@ Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_in
 └── session_list_on_main — awn-main
 
 Фокус и главная
-├── get_ui_focus — live «где человек в UI» (не реестр)
+├── session_context_get_user_open_url_location_in_ui — что открыто у пользователя в UI (URL/локация)
 ├── workspace_summary_get — сводка sidebar / главной / index
 └── Новые *_registry — только если появится статический конфиг (pinned home);
-    иначе get_session_context + get_ui_focus
+    иначе session_context_get + session_context_get_user_open_url_location_in_ui
 ```
 
 ---
@@ -331,8 +330,7 @@ Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_in
 
 ```
 UI
-├── get_ui_focus — фокус CMS: page / slot / content + hints
-└── get_ui_open_location — тот же API, акцент на URL → убрать из канона, оставить get_ui_focus
+└── session_context_get_user_open_url_location_in_ui — 🟢 в Session (legacy: get_ui_focus, get_ui_open_location)
 
 id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве канона
 

@@ -16,7 +16,7 @@ description: Правила, запреты и антипаттерны аген
 
 - **Только по моему запросу.** Не стартуй сам: не вызывай tools и не читай хранилище, пока я не попросил.
 - **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `run_script` / `exec_command` / `exec_shell`.
-- **Пути и типы не угадывай.** Бери из `nav_index_toc_*_read`, `nav_map_workspace_read`, `contents_list`, `record_path_resolve`, `get_ui_focus`, `get_type`.
+- **Пути и типы не угадывай.** Бери из `nav_index_toc_*_read`, `nav_map_workspace_read`, `contents_list`, `record_path_resolve`, `session_context_get_user_open_url_location_in_ui`, `get_type`.
 - **Удаление и выполнение** (риск — см. п. 3). Если в настройках платформы включены `confirm-delete` / `confirm-exec`, передавай `confirm: true` только после моего явного согласия.
 - **Связи.** Перед удалением или переносом записи проверь `workspace_dependencies_read`.
 - **Git.** Коммит, push, pull — только по моей просьбе.

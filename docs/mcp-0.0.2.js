@@ -68,7 +68,7 @@ module.exports = {
           http: "GET /api/agent/session-context?agent="
         },
         {
-          name: "get_ui_focus",
+          name: "session_context_get_user_open_url_location_in_ui",
           legacyName: "get_user_active_context_now",
           description: "Что открыто в UI: focus.entity, готовые path/slot/ref для read/write_*.",
           parameters: "—",
