@@ -561,27 +561,36 @@ module.exports = {
     },
     {
       id: "filesystem",
-      title: "Система + FS",
+      title: "FS (канон через content)",
       tools: [
-        { name: "list_root_files", description: "Workspace root: AGENTS.md, SKILL.md, …", parameters: "—", http: "GET /api/system-files" },
-        { name: "read_root_file", description: "Read workspace root file by name.", parameters: "name, …partial read", http: "GET /api/workspace/fs/read" },
-        { name: "write_root_file", description: "Write workspace root file (history).", parameters: "name, content, mode?", http: "POST /api/workspace/fs/write" },
-        { name: "list_system_files", description: "Deprecated → list_root_files.", parameters: "—", http: "GET /api/system-files" },
         {
-          name: "read_file",
-          description: "MCP_LEGACY_TOOLS=1. Prefer read_content kind=root.",
-          parameters: "path, maxBytes?",
+          name: "list_content",
+          description: "Каталог: placement.kind=root + path (folder или \".\"). depth=1|2|all.",
+          parameters: "placement, depth?, includeBody?",
+          http: "GET /api/workspace/fs/list"
+        },
+        {
+          name: "read_content",
+          description: "Файл по placement.kind=root + path.",
+          parameters: "placement, part?, format=base64?",
           http: "GET /api/workspace/fs/read"
         },
         {
-          name: "write_file",
-          description: "MCP_LEGACY_TOOLS=1. Prefer write_content kind=root.",
-          parameters: "path, content",
-          http: "POST /api/workspace/fs/write"
+          name: "write_content",
+          description: "Запись/patch placement.kind=root.",
+          parameters: "placement, mode?, …",
+          http: "POST /api/workspace/fs/write|patch"
         },
-        { name: "upload_file", description: "Base64 → path (media/assets/бинарники).", parameters: "path, data, mimeType?", http: "POST /api/workspace/fs/upload" },
-        { name: "upload_file_from_url", description: "http(s) URL → workspace path.", parameters: "path, url, mimeType?", http: "POST /api/workspace/fs/import" },
-        { name: "list_folder", description: "Содержимое папки.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" }
+        { name: "batch_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
+        { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → list_content path=\".\"", parameters: "—", http: "GET /api/system-files" },
+        { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → read_content kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
+        { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → write_content kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },
+        { name: "list_folder", description: "MCP_LEGACY_TOOLS=1 → list_content kind=root.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" },
+        { name: "patch_file", description: "MCP_LEGACY_TOOLS=1 → write_content mode=patch.", parameters: "path, old_string, new_string", http: "POST /api/workspace/fs/patch" },
+        { name: "read_file", description: "MCP_LEGACY_TOOLS=1.", parameters: "path", http: "GET /api/workspace/fs/read" },
+        { name: "write_file", description: "MCP_LEGACY_TOOLS=1.", parameters: "path, content", http: "POST /api/workspace/fs/write" },
+        { name: "upload_file", description: "MCP_LEGACY_TOOLS=1. Prefer write_content_binary.", parameters: "path, data", http: "POST /api/workspace/fs/upload" },
+        { name: "upload_file_from_url", description: "MCP_LEGACY_TOOLS=1.", parameters: "path, url", http: "POST /api/workspace/fs/import" }
       ]
     },
     {

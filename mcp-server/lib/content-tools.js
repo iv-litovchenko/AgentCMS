@@ -106,20 +106,25 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "list_content",
-    "List items: placement.kind topic|channel|media|database|repository + slot, or root + path (folder inferred from file path). path or placement.path is required.",
+    "List items: placement.kind topic|channel|media|database|repository + slot; or kind root + path (folder, \".\" for vault root; depth=1|2|all). Legacy: list_folder, list_root_files.",
     z
       .object({
         placement: z
           .object({
             kind: placementKindSchema,
-            path: z.string().min(1),
+            path: z
+              .string()
+              .optional()
+              .describe("Required for slots; for kind=root — folder path or \".\" (default vault root)"),
             slot: z.string().min(1).optional()
           })
           .strict()
           .optional(),
-        path: z.string().min(1).optional(),
+        path: z.string().optional().describe("Legacy top-level folder path when placement.kind=root"),
         slot: z.string().min(1).optional(),
-        depth: z.union([z.number(), z.string()]).optional()
+        depth: z.union([z.number(), z.string()]).optional(),
+        includeBody: z.boolean().optional(),
+        maxBodyChars: z.number().int().min(200).max(20000).optional()
       })
       .strict(),
     (args) => listContentItems(client, args)

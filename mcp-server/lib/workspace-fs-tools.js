@@ -102,7 +102,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
     reg(
       "write_file",
-      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Special roots: write_root_file, write_workspace_note, write_workspace_todo.",
+      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Pads: write_workspace_note, write_workspace_todo.",
       z.object({
         path: workspacePath,
         content: z.string(),
@@ -135,45 +135,47 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
     );
   }
 
-  reg(
-    "patch_file",
-    "Replace a unique text block in a workspace file. Prefer write_content mode=patch (any placement, expectedHash, works for slot .md). old_string must match exactly once unless replaceAll=true.",
-    z.object({
-      path: workspacePath,
-      old_string: z.string().min(1).describe("Exact text to find in the file"),
-      new_string: z.string().describe("Replacement text (empty string deletes the match)"),
-      replaceAll: z
-        .boolean()
-        .optional()
-        .describe("Replace every occurrence; default false (exactly one match required)")
-    }),
-    ({ path, old_string, new_string, replaceAll }) =>
-      client.post("/api/workspace/fs/patch", {
-        path,
-        old_string,
-        new_string,
-        ...(replaceAll ? { replaceAll: true } : {})
-      })
-  );
+  if (isLegacyMcpToolsEnabled()) {
+    reg(
+      "patch_file",
+      "[Legacy] Prefer write_content with placement.kind=root (or slot) and mode=patch. Replace a unique text block in a workspace file. old_string must match exactly once unless replaceAll=true.",
+      z.object({
+        path: workspacePath,
+        old_string: z.string().min(1).describe("Exact text to find in the file"),
+        new_string: z.string().describe("Replacement text (empty string deletes the match)"),
+        replaceAll: z
+          .boolean()
+          .optional()
+          .describe("Replace every occurrence; default false (exactly one match required)")
+      }),
+      ({ path, old_string, new_string, replaceAll }) =>
+        client.post("/api/workspace/fs/patch", {
+          path,
+          old_string,
+          new_string,
+          ...(replaceAll ? { replaceAll: true } : {})
+        })
+    );
 
-  reg(
-    "list_folder",
-    "List workspace folder contents by path. depth=1 (default) — one level; depth=2|all — recursive inventory.",
-    z.object({
-      path: z
-        .string()
-        .min(1)
-        .describe("Workspace-relative folder path, e.g. awn-topics/tema/awn-storage/media"),
-      depth: z.union([z.string(), z.number()]).optional(),
-      includeBody: z.boolean().optional(),
-      maxBodyChars: z.number().int().min(200).max(20000).optional()
-    }),
-    ({ path, depth, includeBody, maxBodyChars }) =>
-      client.get("/api/workspace/fs/list", {
-        path,
-        ...(depth != null ? { depth: String(depth) } : {}),
-        ...(includeBody ? { includeBody: "true" } : {}),
-        ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
-      })
-  );
+    reg(
+      "list_folder",
+      "[Legacy] Prefer list_content with placement { kind: root, path: <folder> } (path \".\" for vault root). depth=1|2|all.",
+      z.object({
+        path: z
+          .string()
+          .min(1)
+          .describe("Workspace-relative folder path, e.g. awn-topics/tema/awn-storage/media"),
+        depth: z.union([z.string(), z.number()]).optional(),
+        includeBody: z.boolean().optional(),
+        maxBodyChars: z.number().int().min(200).max(20000).optional()
+      }),
+      ({ path, depth, includeBody, maxBodyChars }) =>
+        client.get("/api/workspace/fs/list", {
+          path,
+          ...(depth != null ? { depth: String(depth) } : {}),
+          ...(includeBody ? { includeBody: "true" } : {}),
+          ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
+        })
+    );
+  }
 }

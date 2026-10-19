@@ -9,7 +9,7 @@ description: Как искать и ориентироваться в Agent CMS 
 
 | Задача | Tool |
 |--------|------|
-| Обзор | `list_topics`; INDEX — `read_topic_index_toc`; все manifest — `read_workspace_map`; папки без manifest — `list_folder` |
+| Обзор | `list_topics`; INDEX — `read_topic_index_toc`; все manifest — `read_workspace_map`; папки без manifest — `list_content` (`kind: root`) |
 | Тема / слот | `read_content_index_toc` |
 | Каталоги хабов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` (+ `refresh_*`) |
 | Поиск (по умолчанию) | `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch` |

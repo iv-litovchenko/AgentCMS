@@ -42,7 +42,7 @@ Workspace — папка с md-файлами. Хабы:
 - **`awn-id`** — глобальный номер записи (не `workspaceId`). `find_by_id({ id })`; старым проставить — `assign_workspace_id`. Остальные свойства — «Базовые свойства» ниже.
 - **Служебные папки:** `awn-temp/` (все временные файлы), `awn-scripts/`, `awn-recycler/` (корзина, раздел 16), `.agent-cms/` (кэши, журнал, настройки).
 - **Файлы корня** (`AGENTS.md`, `SKILL.md`, `NOTE.md`, `TODO.md`, `dependencies.csv`) — раздел 15.
-- **Свободная память** — папки без `manifest.md`: `list_folder` + `read_content` / `write_content` с `kind: root`. Описание папки — `{folder}/sidecar.md`. В тему превращает `create_topic`.
+- **Свободная память** — папки без `manifest.md`: `list_content` (`kind: root`, `path`) + `read_content` / `write_content` с `kind: root`. Описание папки — `{folder}/sidecar.md`. В тему превращает `create_topic`.
 
 ### Базовые свойства (frontmatter)
 
@@ -206,7 +206,7 @@ Workspace — папка с md-файлами. Хабы:
 Свои проекты, форки, клоны: `awn-repositories/{slug}/` (или `{group}/{slug}/`) + `manifest.md`.
 
 - Tools: `list_repositories` (папки без карточки — в `unregistered`), `get_repository({ path })`, `register_repository({ slug, name?, description?, origin?, body? })`, `update_repository({ path, name?, description?, origin?, group?, status?, body? })`, `rename_repository`, `delete_repository`.
-- **Код не индексируется** — в поиске только `manifest.md`, `index.md`, `groups.yml`. Код читай по явному пути: `list_folder` + `read_content` (`kind: root`), правь `write_content` с `mode: patch`.
+- **Код не индексируется** — в поиске только `manifest.md`, `index.md`, `groups.yml`. Код читай по явному пути: `list_content` (`kind: root`) + `read_content` (`kind: root`), правь `write_content` с `mode: patch`.
 - **Карточка** — зачем репозиторий, что смотреть, связь с темой. `status`: `active` · `study` · `archived` · `vendored`. `group` — группа в сайдбаре, не папка.
 - Папка в `unregistered` → `register_repository` с тем же `slug`.
 - Git хранилища — раздел 17; клонов он не касается.
@@ -234,7 +234,7 @@ Workspace — папка с md-файлами. Хабы:
 | Комментарий к manifest или записи | `append_comment` |
 | Входящее | `create_content({ slot: "inbox", status: "new" })` |
 | Заметка на сессию / договорённость | `write_workspace_note` (`NOTE.md`) / `write_workspace_todo` (`TODO.md`) |
-| Инструкции агента | `AGENTS.md` / `SKILL.md` через `write_root_file` |
+| Инструкции агента | `AGENTS.md` / `SKILL.md` через `write_content` (`kind: root`, `path: AGENTS.md`) |
 | Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
 | Однотипные табличные данные | база (раздел 6) |
 | Всё остальное | слот темы (раздел 4) |
@@ -288,8 +288,8 @@ Workspace — папка с md-файлами. Хабы:
 
 | Что | Чем |
 |-----|-----|
-| Любой файл по пути | `read_content` / `write_content` с `kind: root`; обход — `list_folder` |
-| Файлы корня (`AGENTS.md`, `SKILL.md`…) | `list_root_files` → `read_root_file` / `write_root_file` (с историей); только имя в корне |
+| Любой файл по пути | `read_content` / `write_content` с `kind: root`; обход — `list_content` (`kind: root`, `path`, `depth`) |
+| Файлы корня (`AGENTS.md`, `SKILL.md`…) | `list_content` (`path: "."`) → `read_content` / `write_content` (`path: AGENTS.md`; история на write) |
 | Бинарь в слот | `write_content_binary` (base64) / `write_content_binary_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `extract_document_text` |

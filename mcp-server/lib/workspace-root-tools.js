@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readFileHandler, readFileInputSchema, formatReadFileToolResult } from "./workspace-fs-tools.js";
+import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 
 const rootFileName = z
   .string()
@@ -12,15 +13,17 @@ const writeMode = z
   .describe("replace (default) — overwrite; append — add after existing content");
 
 const listRootFilesDescription =
-  "List workspace root files (AGENTS.md, SKILL.md, README.md, …). Scaffold entries may not exist yet. For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
+  "[Legacy] Prefer list_content with placement { kind: root, path: \".\" }. List workspace root files (AGENTS.md, SKILL.md, …). For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
 
 const readRootFileDescription =
-  "Read a workspace root file by basename only (no slashes), e.g. AGENTS.md — not topic assets (…/awn-storage/assets/pasted/*.png). For images/files under awn-topics/ use read_content placement.kind=root + format=base64. For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
+  "[Legacy] Prefer read_content with placement { kind: root, path: name }. Read workspace root file by basename only (no slashes), e.g. AGENTS.md.";
 
 const writeRootFileDescription =
-  "Write a workspace root file by basename (history on save). Prefer patch_file with path=name for small edits. For NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.";
+  "[Legacy] Prefer write_content with placement { kind: root, path: name }. Write workspace root file by basename (history on save). For NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.";
 
 export function registerWorkspaceRootTools(reg, client, { jsonText } = {}) {
+  if (!isLegacyMcpToolsEnabled()) return;
+
   const listHandler = () => client.get("/api/system-files");
 
   reg("list_root_files", listRootFilesDescription, z.object({}), listHandler);

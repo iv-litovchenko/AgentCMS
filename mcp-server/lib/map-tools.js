@@ -557,7 +557,7 @@ export function registerMapTools(reg, client, pagePath) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
     description:
-      "Deprecated. Prefer read_topic_index_toc (workspace overview) + list_folder (paths without manifest). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
+      "Deprecated. Prefer read_topic_index_toc (workspace overview) + list_content (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
     schema: getTopicMapSchema,
     handler: getTopicMapHandler
   });
@@ -642,7 +642,7 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "list_topics",
-    "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_folder (includeFolders=true).",
+    "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_content (kind: root, includeFolders=true).",
     z.object({
       parentPath: pagePath
         .optional()
