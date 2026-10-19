@@ -605,34 +605,6 @@ export function registerMapTools(reg, client, pagePath) {
       })
   });
 
-  const refreshWorkspaceManifestMapSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
-  });
-
-  const readWorkspaceManifestMapHandler = () => client.get("/api/agent/workspace-wsmap");
-
-  const refreshWorkspaceManifestMapHandler = ({ overwrite }) =>
-    client.post("/api/agent/workspace-wsmap", {
-      ...(overwrite === false ? { overwrite: false } : {})
-    });
-
-  reg(
-    "read_workspace_map",
-    "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
-    z.object({}),
-    readWorkspaceManifestMapHandler
-  );
-
-  reg(
-    "refresh_workspace_map",
-    "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
-    refreshWorkspaceManifestMapSchema,
-    refreshWorkspaceManifestMapHandler
-  );
-
   reg(
     "resolve_workspace_path",
     "Walk up from any workspace path: breadcrumbs (workspace→file), manifest ancestors, slot/ref, mcp hints.",

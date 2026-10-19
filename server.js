@@ -13424,10 +13424,10 @@ async function buildAgentWorkspaceWsmap() {
     hint:
       "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …) " +
       "и список файлов/папок в корне вне hub-каталогов awn-*. " +
-      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: workspace_map_read / workspace_map_refresh.",
     whenToUse: {
-      read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
-      refresh_workspace_map: "Пересобрать и сохранить WS-MAP.md в корне workspace."
+      workspace_map_read: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      workspace_map_refresh: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {

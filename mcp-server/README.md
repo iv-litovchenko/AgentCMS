@@ -54,7 +54,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Слой | Вопрос агента | Tools |
 |------|----------------|-------|
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
-| **Индексы и поиск** | Оглавление hub-каталогов, карта workspace, поиск, кэш | `*_index_toc_read` / `*_index_toc_refresh` в группах hub, `read_workspace_map`, `search_workspace_*`, `rebuild_workspace_*`, … (legacy: `read_*_index_toc`, `get_topic_map`, `get_content_map`) |
+| **Индексы и поиск** | Hub TOC, WS-MAP, поиск, кэш | `*_index_toc_*`, `workspace_map_read` / `workspace_map_refresh`, `search_workspace_*`, `rebuild_workspace_*`, … |
 
 Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
 
@@ -65,7 +65,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_discover`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `mcp_connection_test`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
-| Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_content` (`kind: root`); `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
+| Навигация и поиск | `*_index_toc_read` / `*_index_toc_refresh`, `workspace_map_read` / `workspace_map_refresh`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_workspace_*`, `rebuild_workspace_*` — **не** `content_read`. Legacy: `read_*_index_toc`, `read_workspace_map`, `get_topic_map`, `get_content_map` |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |

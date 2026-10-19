@@ -28,7 +28,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 29
+├── 🚀 Старт и workspace · 31
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_discover                ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -45,6 +45,8 @@ user-agent-cms
 │   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
+│   ├── 🟢 workspace_map_read                 ← read_workspace_map
+│   ├── 🟢 workspace_map_refresh              ← refresh_workspace_map
 │   ├── 🔴 session_context_get                ← get_session_context (имя/граница light vs heavy — TBD)
 │   ├── 🔴 get_ui_focus                       ← get_user_active_context_now (канон ui_* — TBD)
 │   ├── 🔴 get_ui_open_location               (дубль get_ui_focus → legacy-only — TBD)
@@ -59,9 +61,7 @@ user-agent-cms
 │   ├── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
 │   └── 🔴 notify_user                        (TBD)
 │
-├── 🗺 Карты, id, URL · 12
-│   ├── read_workspace_map
-│   ├── refresh_workspace_map
+├── 🗺 id, URL, типы · 10
 │   ├── list_types
 │   ├── get_type
 │   ├── find_by_id
@@ -109,8 +109,8 @@ user-agent-cms
 │   ├── 🟢 content_write                 ← write_content
 │   ├── 🟢 content_binary_read           ← read_content_binary
 │   ├── 🟢 content_binary_write          ← write_content_binary
-│   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
-│   ├── 🟢 content_binary_url_get        ← get_content_binary_url
+│   ├── 🟡 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
+│   ├── 🟡 content_binary_url_get        ← get_content_binary_url
 │   ├── 🟡 content_exists
 │   ├── 🟢 content_meta_get              ← get_content_meta
 │   ├── 🟢 content_property_read         ← read_content_property
@@ -121,7 +121,7 @@ user-agent-cms
 │   ├── 🟢 content_move                  ← move_content
 │   ├── 🟢 content_split                 ← split_content
 │   ├── 🟢 content_merge                 ← merge_content
-│   └── batch_invoke                      (имя без изменений)
+│   └── 🟡 batch_invoke                      (имя без изменений)
 │
 ├── 🗃 Базы · 14
 │   ├── 🟢 databases_index_toc_read     ← read_databases_index_toc / read_database_frame_index_toc
@@ -347,6 +347,7 @@ id
 - [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
 - [x] **tool_*:** web + extract + exec — `web-search-tools.js` (`tool_web_*`), `tool-tools.js` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`)
 - [x] **Hub index TOC:** `*_index_toc_read` / `*_index_toc_refresh` в группах hub-tools + `page-tools` / `content-tools`; legacy `read_*_index_toc`
+- [x] **WS-MAP:** `workspace_map_read` / `workspace_map_refresh` — `workspace-tools.js`; legacy `read_workspace_map` / `refresh_workspace_map`
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`
