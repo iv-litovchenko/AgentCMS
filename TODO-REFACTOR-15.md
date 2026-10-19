@@ -217,7 +217,6 @@ user-agent-cms
 │   │   ├── 🟡 index_6_entity_reject_zzz
 │   │   └── 🟡 index_6_entity_seed_zzz
 │   ├── 7. ID → 🆔 Record (UI «7. ID (awn-id)»)
-│   ├── Карта → 🧭 nav_map_workspace_* (UI «Карта», без №)
 │   ├── index_* (UI «Мониторинг», без № в popover)
 │   │   ├── 🟢 index_status_get
 │   │   └── 🟢 index_monitor_get
