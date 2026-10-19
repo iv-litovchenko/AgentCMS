@@ -16849,8 +16849,10 @@ async function enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link) {
   }
 
   let previewEmoji = null;
+  let targetAwnId = null;
   try {
     const { frontmatter } = await readNodeFrontmatterContent(link.targetPath);
+    targetAwnId = parseAwnId(getYamlScalar(frontmatter, "awn-id"));
     const previewRaw = String(getYamlScalar(frontmatter, "awn-preview") || "").trim();
     const isEmojiLike =
       previewRaw &&
@@ -16919,6 +16921,7 @@ async function enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link) {
     workspacePreviewUrl,
     workspaceEmoji,
     tagline: "Передаем важное",
+    targetAwnId: targetAwnId != null ? targetAwnId : null,
     previewImageUrl: previewImageUrl || null,
     previewEmoji: previewEmoji || null
   };

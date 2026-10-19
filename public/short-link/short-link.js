@@ -19,6 +19,7 @@
   const staleEl = document.getElementById("short-link-stale");
   const openBtn = document.getElementById("short-link-open-btn");
   const codeBadgeEl = document.getElementById("short-link-code-badge");
+  const awnIdBadgeEl = document.getElementById("short-link-awn-id-badge");
   const footnoteEl = document.getElementById("short-link-footnote");
 
   function parseRoute() {
@@ -192,6 +193,17 @@
       } else {
         codeBadgeEl.textContent = "";
         codeBadgeEl.classList.add("hidden");
+      }
+    }
+    const awnId = data.targetAwnId != null && data.targetAwnId !== "" ? String(data.targetAwnId) : "";
+    if (awnIdBadgeEl) {
+      if (awnId) {
+        awnIdBadgeEl.textContent = `#${awnId}`;
+        awnIdBadgeEl.title = `awn-id: ${awnId}`;
+        awnIdBadgeEl.classList.remove("hidden");
+      } else {
+        awnIdBadgeEl.textContent = "";
+        awnIdBadgeEl.classList.add("hidden");
       }
     }
     if (footnoteEl) {
