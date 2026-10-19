@@ -54,7 +54,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Слой | Вопрос агента | Tools |
 |------|----------------|-------|
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
-| **Индексы и поиск** | Навигация, поиск, кэш | `nav_map_workspace_*`, `nav_index_toc_*`, `search_*`, `rebuild_workspace_*`, … |
+| **Индексы и поиск** | Навигация, поиск, кэш | `nav_map_workspace_*`, `nav_index_toc_*`, `search_*`, `index_*`, … |
 
 Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
 
@@ -65,7 +65,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
-| Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `rebuild_workspace_*` — **не** `content_read`. Legacy: `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, `get_topic_map`, `get_content_map` |
+| Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |

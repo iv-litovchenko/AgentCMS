@@ -44,6 +44,13 @@ batch_invoke:
     - comment_reaction_toggle
     - toggle_comment_reaction
     - triage_inbox_item
+    - index_rebuild
+    - index_semantic_rebuild
+    - index_storage_rebuild
+    - index_fulltext_rebuild
+    - index_link_rebuild
+    - index_ocr_run
+    - index_file_sync
     - rebuild_workspace_indexes
     - rebuild_workspace_semantic_index
     - rebuild_workspace_storage_index
@@ -131,5 +138,11 @@ batch_invoke:
     - glossary_terms_search
     - reference_entries_list
     - reference_entries_search
+    - index_storage_query
+    - query_workspace_storage
+    - index_status_get
+    - get_workspace_index_status
+    - index_monitor_get
+    - get_workspace_index_monitor
     - module_git_status
     - module_git_diff

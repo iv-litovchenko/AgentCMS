@@ -57,7 +57,7 @@ export function registerAgentUtilsTools(reg, client) {
     canonical: "workspace_storage_info_get",
     legacy: "get_workspace_storage_info",
     description:
-      "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
+      "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like index_status_get), lastIndexedAt + summaryLine.",
     schema: z.object({}),
     handler: () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
     options: { agentScope: false }

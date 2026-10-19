@@ -15,10 +15,10 @@ description: Как искать и ориентироваться в Agent CMS 
 | Поиск (по умолчанию) | `search_hybrid`; несколько вопросов — `search_batch` |
 | Точный текст, имена файлов / по смыслу | `search_content` / `search_semantic` |
 | Внутри темы | `resolve_workspace_path` → `topic.folderPath` → параметр `pathPrefix` |
-| Backlinks и исходящие | **только** `search_links` (нужен `rebuild_workspace_link_index`) |
+| Backlinks и исходящие | **только** `search_links` (нужен `index_link_rebuild`) |
 | Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
 | Люди, даты, суммы, теги | `query_workspace_entities`, `list_workspace_entity_catalog` |
-| Выборка по frontmatter | `query_workspace_storage({ dql })` |
+| Выборка по frontmatter | `index_storage_query({ dql })` |
 | Готовые выборки | `list_workspace_registry_queries` → `run_workspace_registry_query({ id })` |
 | Лента и аудит | `list_workspace_feed`, `list_recent_activity`, `audit_workspace_memory` |
 
@@ -28,11 +28,11 @@ description: Как искать и ориентироваться в Agent CMS 
 
 ## Индексы
 
-После правки одного файла — `sync_workspace_index_file`; полный `rebuild_workspace_indexes` — только после массовых изменений. По слоям: `rebuild_workspace_fulltext_index` / `_semantic_index` / `_storage_index` / `_link_index` / `_entity_index`. Состояние — `get_workspace_index_status` / `get_workspace_index_monitor`.
+После правки одного файла — `index_file_sync`; полный `index_rebuild` — только после массовых изменений. По слоям: `index_fulltext_rebuild` / `index_semantic_rebuild` / `index_storage_rebuild` / `index_link_rebuild` / `index_entity_rebuild`. Состояние — `index_status_get` / `index_monitor_get`.
 
-**Реестр сущностей** (применяется после `rebuild_workspace_entity_index`): `merge_workspace_entity_alias`, `reject_workspace_entity`, `seed_workspace_entity`, `upsert_workspace_entity_type`, `get_` / `put_workspace_entity_registry` (весь файл — для крупных правок), `explain_workspace_entity_search` (отладка).
+**Реестр сущностей** (применяется после `index_entity_rebuild`): `merge_workspace_entity_alias`, `reject_workspace_entity`, `seed_workspace_entity`, `upsert_workspace_entity_type`, `get_` / `put_workspace_entity_registry` (весь файл — для крупных правок), `explain_workspace_entity_search` (отладка).
 
-## DQL для `query_workspace_storage`
+## DQL для `index_storage_query`
 
 Строка DQL, **не SQL**.
 

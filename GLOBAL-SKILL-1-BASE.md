@@ -287,7 +287,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Метаданные к файлу: `photo.png` → `photo.sidecar.md`. Сам не создаётся.
 
-`sidecar_path_resolve`, `sidecar_read`, `sidecar_create` (409, если есть), `sidecar_write`, `sidecar_delete` (legacy `resolve_sidecar_path`, …). Текст из картинок и PDF — `run_workspace_ocr_index`.
+`sidecar_path_resolve`, `sidecar_read`, `sidecar_create` (409, если есть), `sidecar_write`, `sidecar_delete` (legacy `resolve_sidecar_path`, …). Текст из картинок и PDF — `index_ocr_run`.
 
 ---
 

@@ -170,30 +170,29 @@ user-agent-cms
 │   ├── 🟢 repository_delete            ← delete_repository
 │   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы · 33
-│   ├── 🔍 search_* · workspaceId · 5
-│   ├── 🟢 search_content              ← search_workspace_content
-│   ├── 🟢 search_semantic             ← search_workspace_semantic
-│   ├── 🟢 search_hybrid               ← search_workspace_hybrid
-│   ├── 🟢 search_batch                ← search_workspace_batch (denied in batch_invoke)
-│   ├── 🟢 search_links                ← search_workspace_links
+├── 🔍 Поиск и индексы · 32
+│   ├── 🟢 search_content                   ← search_workspace_content
+│   ├── 🟢 search_semantic                  ← search_workspace_semantic
+│   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
+│   ├── 🟢 search_batch                     ← search_workspace_batch (denied in batch_invoke)
+│   ├── 🟢 search_links                     ← search_workspace_links
 │   ├── search_and_get_context
 │   ├── ask_workspace
-│   ├── query_workspace_storage
-│   ├── query_workspace_entities
-│   ├── explain_workspace_entity_search
+│   ├── 🟢 index_status_get                 ← get_workspace_index_status
+│   ├── 🟢 index_monitor_get                ← get_workspace_index_monitor
+│   ├── 🟢 index_storage_query              ← query_workspace_storage
+│   ├── 🟢 index_rebuild                    ← rebuild_workspace_indexes
+│   ├── 🟢 index_ocr_run                    ← run_workspace_ocr_index
+│   ├── 🟢 index_fulltext_rebuild           ← rebuild_workspace_fulltext_index
+│   ├── 🟢 index_semantic_rebuild           ← rebuild_workspace_semantic_index
+│   ├── 🟢 index_storage_rebuild            ← rebuild_workspace_storage_index
+│   ├── 🟢 index_link_rebuild               ← rebuild_workspace_link_index
+│   ├── 🟢 index_entity_rebuild             ← rebuild_workspace_entity_index
+│   ├── 🟢 index_file_sync                  ← sync_workspace_index_file
 │   ├── list_workspace_registry_queries
 │   ├── run_workspace_registry_query
-│   ├── get_workspace_index_status
-│   ├── get_workspace_index_monitor
-│   ├── rebuild_workspace_indexes
-│   ├── rebuild_workspace_semantic_index
-│   ├── rebuild_workspace_fulltext_index
-│   ├── rebuild_workspace_storage_index
-│   ├── rebuild_workspace_link_index
-│   ├── rebuild_workspace_entity_index
-│   ├── sync_workspace_index_file
-│   ├── run_workspace_ocr_index
+│   ├── query_workspace_entities
+│   ├── explain_workspace_entity_search
 │   ├── get_workspace_entity_registry
 │   ├── put_workspace_entity_registry
 │   ├── upsert_workspace_entity_type

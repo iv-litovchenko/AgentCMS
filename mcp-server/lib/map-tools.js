@@ -68,7 +68,7 @@ function registerSearchWorkspaceTools(reg, client) {
     canonical: "search_semantic",
     legacy: "search_workspace_semantic",
     description:
-      "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
+      "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: index_semantic_rebuild.",
     schema: z.object({
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
@@ -188,46 +188,51 @@ function registerSearchWorkspaceTools(reg, client) {
     handler: (payload) => client.post("/api/search/batch", payload)
   });
 
-  reg(
-    "query_workspace_storage",
-    "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
-    z.object({
-      dql: z
-        .string()
-        .optional()
-        .describe(
-          'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.hub.topic" WITH TEXT "аренда" LIMIT 50'
-        ),
-      withText: z
-        .string()
-        .optional()
-        .describe("Hybrid text search within DQL result paths (overrides WITH TEXT in dql string)"),
-      hybridLimit: z.number().int().min(1).max(50).optional(),
-      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-topics/finansy"),
-      where: z
-        .array(
-          z.object({
-            field: z.string().min(1),
-            eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
-            contains: z.string().optional(),
-            gte: z.union([z.string(), z.number()]).optional(),
-            lte: z.union([z.string(), z.number()]).optional(),
-            gt: z.union([z.string(), z.number()]).optional(),
-            lt: z.union([z.string(), z.number()]).optional()
-          })
-        )
-        .optional(),
-      sort: z
-        .object({
+  const indexStorageQuerySchema = z.object({
+    dql: z
+      .string()
+      .optional()
+      .describe(
+        'DQL-lite string, e.g. FROM finansy WHERE awn-type = "awn.hub.topic" WITH TEXT "аренда" LIMIT 50'
+      ),
+    withText: z
+      .string()
+      .optional()
+      .describe("Hybrid text search within DQL result paths (overrides WITH TEXT in dql string)"),
+    hybridLimit: z.number().int().min(1).max(50).optional(),
+    pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-topics/finansy"),
+    where: z
+      .array(
+        z.object({
           field: z.string().min(1),
-          dir: z.enum(["asc", "desc"]).optional()
+          eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+          contains: z.string().optional(),
+          gte: z.union([z.string(), z.number()]).optional(),
+          lte: z.union([z.string(), z.number()]).optional(),
+          gt: z.union([z.string(), z.number()]).optional(),
+          lt: z.union([z.string(), z.number()]).optional()
         })
-        .optional(),
-      fields: z.array(z.string()).optional(),
-      limit: z.number().int().min(1).max(500).optional()
-    }),
-    (payload) => client.post("/api/storage-index/query", payload)
-  );
+      )
+      .optional(),
+    sort: z
+      .object({
+        field: z.string().min(1),
+        dir: z.enum(["asc", "desc"]).optional()
+      })
+      .optional(),
+    fields: z.array(z.string()).optional(),
+    limit: z.number().int().min(1).max(500).optional()
+  });
+  const indexStorageQueryHandler = (payload) => client.post("/api/storage-index/query", payload);
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_storage_query",
+    legacy: "query_workspace_storage",
+    description:
+      "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: index_storage_rebuild.",
+    schema: indexStorageQuerySchema,
+    handler: indexStorageQueryHandler
+  });
 
   reg(
     "list_workspace_registry_queries",
@@ -251,69 +256,88 @@ function registerSearchWorkspaceTools(reg, client) {
       client.post("/api/agent/registry-queries/run", { id: registryId || id })
   );
 
-  reg(
-    "get_workspace_index_status",
-    "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
-    z.object({}),
-    async () => {
-      const [ocr, semantic, fulltext, storage, link, entity] = await Promise.all([
-        client.get("/api/ocr-index/status"),
-        client.get("/api/search/semantic/status"),
-        client.get("/api/search/fulltext/status"),
-        client.get("/api/storage-index/status"),
-        client.get("/api/link-index/status"),
-        client.get("/api/entity-index/status")
-      ]);
-      return { ocr, semantic, fulltext, storage, link, entity };
-    }
-  );
+  const indexStatusHandler = async () => {
+    const [ocr, semantic, fulltext, storage, link, entity] = await Promise.all([
+      client.get("/api/ocr-index/status"),
+      client.get("/api/search/semantic/status"),
+      client.get("/api/search/fulltext/status"),
+      client.get("/api/storage-index/status"),
+      client.get("/api/link-index/status"),
+      client.get("/api/entity-index/status")
+    ]);
+    return { ocr, semantic, fulltext, storage, link, entity };
+  };
+  const emptyIndexSchema = z.object({});
 
-  reg(
-    "get_workspace_index_monitor",
-    "Monitor workspace indexes: stale/outdated files, index size, last rebuild duration, health (ok|stale|partial|empty).",
-    z.object({}),
-    () => client.get("/api/workspace-index/monitor")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_status_get",
+    legacy: "get_workspace_index_status",
+    description:
+      "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
+    schema: emptyIndexSchema,
+    handler: indexStatusHandler
+  });
 
-  reg(
-    "rebuild_workspace_semantic_index",
-    "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/cache/indexes/semantic). Run after bulk file changes or before semantic search.",
-    z.object({}),
-    () => client.post("/api/search/semantic/reindex", {})
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_monitor_get",
+    legacy: "get_workspace_index_monitor",
+    description:
+      "Monitor workspace indexes: stale/outdated files, index size, last rebuild duration, health (ok|stale|partial|empty).",
+    schema: emptyIndexSchema,
+    handler: () => client.get("/api/workspace-index/monitor")
+  });
 
-  reg(
-    "rebuild_workspace_storage_index",
-    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/cache/indexes/storage). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
-    z.object({
-      mode: z
-        .enum(["quick", "full"])
-        .optional()
-        .describe("quick = frontmatter only; full = schema enrichment (default full)")
-    }),
-    (payload) => client.post("/api/storage-index/reindex", { mode: payload?.mode || "full" })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_semantic_rebuild",
+    legacy: "rebuild_workspace_semantic_index",
+    description:
+      "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/cache/indexes/semantic). Run after bulk file changes or before search_semantic.",
+    schema: emptyIndexSchema,
+    handler: () => client.post("/api/search/semantic/reindex", {})
+  });
 
-  reg(
-    "rebuild_workspace_fulltext_index",
-    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_content on large archives.",
-    z.object({}),
-    () => client.post("/api/search/fulltext/reindex", {})
-  );
+  const indexStorageRebuildSchema = z.object({
+    mode: z
+      .enum(["quick", "full"])
+      .optional()
+      .describe("quick = frontmatter only; full = schema enrichment (default full)")
+  });
 
-  reg(
-    "rebuild_workspace_link_index",
-    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_links.",
-    z.object({}),
-    () => client.post("/api/link-index/reindex", {})
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_storage_rebuild",
+    legacy: "rebuild_workspace_storage_index",
+    description:
+      "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/cache/indexes/storage). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
+    schema: indexStorageRebuildSchema,
+    handler: (payload) => client.post("/api/storage-index/reindex", { mode: payload?.mode || "full" })
+  });
 
-  reg(
-    "rebuild_workspace_entity_index",
-    "Rebuild workspace entity registry (regex/NER prototype) in .agent-cms/cache/indexes/entity/entities.sqlite. Extracts people, dates, urls, tags, wikilinks, money from note bodies + frontmatter.",
-    z.object({}),
-    () => client.post("/api/entity-index/reindex", {})
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_fulltext_rebuild",
+    legacy: "rebuild_workspace_fulltext_index",
+    description:
+      "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_content on large archives.",
+    schema: emptyIndexSchema,
+    handler: () => client.post("/api/search/fulltext/reindex", {})
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_link_rebuild",
+    legacy: "rebuild_workspace_link_index",
+    description:
+      "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_links.",
+    schema: emptyIndexSchema,
+    handler: () => client.post("/api/link-index/reindex", {})
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_entity_rebuild",
+    legacy: "rebuild_workspace_entity_index",
+    description:
+      "Rebuild workspace entity registry (regex/NER prototype) in .agent-cms/cache/indexes/entity/entities.sqlite. Extracts people, dates, urls, tags, wikilinks, money from note bodies + frontmatter.",
+    schema: emptyIndexSchema,
+    handler: () => client.post("/api/entity-index/reindex", {})
+  });
 
   reg(
     "query_workspace_entities",
@@ -473,7 +497,7 @@ function registerSearchWorkspaceTools(reg, client) {
     canonical: "search_links",
     legacy: "search_workspace_links",
     description:
-      "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
+      "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires index_link_rebuild.",
     schema: z.object({
       path: z.string().describe("Workspace-relative file path"),
       mode: z
@@ -487,34 +511,46 @@ function registerSearchWorkspaceTools(reg, client) {
     handler: (payload) => client.post("/api/link-index/query", payload)
   });
 
-  reg(
-    "run_workspace_ocr_index",
-    "OCR/extract text from new image/PDF attachments into {stem}.sidecar.md (incremental). Requires tesseract.js on server.",
-    z.object({
-      force: z.boolean().optional().describe("Reprocess even if sidecar exists (default false)"),
-      limit: z.number().int().min(1).max(500).optional().describe("Max files per run (default 50)")
-    }),
-    (payload) => client.post("/api/ocr-index/run", payload)
-  );
+  const indexOcrRunSchema = z.object({
+    force: z.boolean().optional().describe("Reprocess even if sidecar exists (default false)"),
+    limit: z.number().int().min(1).max(500).optional().describe("Max files per run (default 50)")
+  });
 
-  reg(
-    "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
-    z.object({
-      forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
-      ocrLimit: z.number().int().min(1).max(500).optional()
-    }),
-    (payload) => client.post("/api/workspace-index/pipeline", payload || {})
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_ocr_run",
+    legacy: "run_workspace_ocr_index",
+    description:
+      "OCR/extract text from new image/PDF attachments into {stem}.sidecar.md (incremental). Requires tesseract.js on server.",
+    schema: indexOcrRunSchema,
+    handler: (payload) => client.post("/api/ocr-index/run", payload)
+  });
 
-  reg(
-    "sync_workspace_index_file",
-    "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of full reindex.",
-    z.object({
-      path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
-    }),
-    ({ path }) => client.post("/api/workspace-index/sync-file", { path })
-  );
+  const indexRebuildSchema = z.object({
+    forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
+    ocrLimit: z.number().int().min(1).max(500).optional()
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_rebuild",
+    legacy: "rebuild_workspace_indexes",
+    description:
+      "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
+    schema: indexRebuildSchema,
+    handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
+  });
+
+  const indexFileSyncSchema = z.object({
+    path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "index_file_sync",
+    legacy: "sync_workspace_index_file",
+    description:
+      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of index_rebuild.",
+    schema: indexFileSyncSchema,
+    handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
+  });
 
   const findByIdSchema = z.object({
     id: z
@@ -538,7 +574,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "resolve_workspace_id",
-    "Same handler as find_by_id — resolve path(s) by global awn-id (workspace counter). Prefer find_by_id for discovery. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
+    "Same handler as find_by_id — resolve path(s) by global awn-id (workspace counter). Prefer find_by_id for discovery. Alternative: index_storage_query with where: [{ field: 'awn-id', eq: N }].",
     findByIdSchema,
     resolveWorkspaceIdHandler
   );

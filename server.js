@@ -17965,7 +17965,7 @@ async function buildAgentStorageSummary() {
       intake: intakeTotals
     }),
     hint:
-      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (только .git в корне workspace агента), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
+      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (только .git в корне workspace агента), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP index_status_get), lastIndexedAt."
   };
 }
 
