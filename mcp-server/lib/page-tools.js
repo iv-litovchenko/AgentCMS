@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerTocTool } from "./register-toc-tool.js";
 
 /** folder|area|awn.hub.topic.area → folder; file|topic|awn.hub.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
@@ -321,5 +322,35 @@ export function registerPageTools({ reg, client, pagePath }) {
       parentPath: z.string().describe("Target parent folder path, e.g. awn-topics/kollektsii or .")
     }),
     handler: ({ path, parentPath }) => client.post("/api/page/move", { path, parentPath })
+  });
+
+  const workspaceTopicIndexTocDescription =
+    "Quick TOC for workspace topics: path + type + title + description (awn-topics/index.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
+
+  registerTocTool(reg, {
+    canonical: "topics_index_toc_read",
+    legacy: "read_topic_index_toc",
+    description: workspaceTopicIndexTocDescription,
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/workspace-page-index")
+  });
+
+  const refreshWorkspacePageIndexSchema = z.object({
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing awn-topics/index.md if present (default true). false → 409 when file exists.")
+  });
+
+  registerTocTool(reg, {
+    canonical: "topics_index_toc_refresh",
+    legacy: "refresh_topic_index_toc",
+    description:
+      "Refresh (rebuild and save) awn-topics/index.md from workspace page map (path, type, title, description table). overwrite=false skips if file exists.",
+    schema: refreshWorkspacePageIndexSchema,
+    handler: ({ overwrite }) =>
+      client.post("/api/agent/workspace-page-index", {
+        ...(overwrite === false ? { overwrite: false } : {})
+      })
   });
 }

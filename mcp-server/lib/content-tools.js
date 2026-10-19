@@ -30,6 +30,7 @@ import {
 import { jsonText } from "./client.js";
 import { formatReadFileToolResult } from "./workspace-fs-tools.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerTocTool } from "./register-toc-tool.js";
 import {
   buildContentSlotSchema,
   withContentAddress,
@@ -422,6 +423,57 @@ export function registerContentTools({ reg, client, pagePath }) {
       deleteSources: z.boolean().optional().describe("Delete non-target refs after merge (default false)")
     }),
     handler: (args) => mergeContent(client, args)
+  });
+
+  const getContentIndexTocSchema = z.object({
+    path: pagePath,
+    slot: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
+      )
+  });
+
+  registerTocTool(reg, {
+    canonical: "contents_index_toc_read",
+    legacy: "read_content_index_toc",
+    description:
+      "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
+    schema: getContentIndexTocSchema,
+    handler: ({ path, slot }) =>
+      client.get("/api/agent/content-index", {
+        path,
+        ...(slot ? { slot } : {})
+      })
+  });
+
+  const refreshContentIndexSchema = z.object({
+    path: pagePath,
+    slot: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Optional slot (memory/main, inbox…). Omit to refresh topic-wide index.md next to manifest.md."),
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+  });
+
+  registerTocTool(reg, {
+    canonical: "contents_index_toc_refresh",
+    legacy: "refresh_content_index_toc",
+    description:
+      "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
+    schema: refreshContentIndexSchema,
+    handler: ({ path, slot, overwrite }) =>
+      client.post("/api/agent/content-index", {
+        path,
+        ...(slot ? { slot } : {}),
+        ...(overwrite === false ? { overwrite: false } : {})
+      })
   });
 }
 

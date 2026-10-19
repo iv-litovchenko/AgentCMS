@@ -120,12 +120,18 @@ export function registerDatabaseTools(reg, client) {
     "Quick TOC for all database stores: kind, group, path, title, description, recordCount (awn-databases/index.md).";
 
   registerTocTool(reg, {
-    canonical: "read_databases_index_toc",
-    legacy: "read_database_frame_index_toc",
+    canonical: "databases_index_toc_read",
+    legacy: "read_databases_index_toc",
     description: readDatabasesIndexTocDescription,
     schema: readDatabasesIndexTocSchema,
     handler: readDatabasesIndexTocHandler
   });
+  reg(
+    "read_database_frame_index_toc",
+    "Deprecated alias for databases_index_toc_read.",
+    readDatabasesIndexTocSchema,
+    readDatabasesIndexTocHandler
+  );
 
   const refreshDatabasesIndexTocSchema = z.object({
     overwrite: z
@@ -141,12 +147,18 @@ export function registerDatabaseTools(reg, client) {
     });
 
   registerTocTool(reg, {
-    canonical: "refresh_databases_index_toc",
-    legacy: "refresh_database_frame_index_toc",
+    canonical: "databases_index_toc_refresh",
+    legacy: "refresh_databases_index_toc",
     description: refreshDatabasesIndexTocDescription,
     schema: refreshDatabasesIndexTocSchema,
     handler: refreshDatabasesIndexTocHandler
   });
+  reg(
+    "refresh_database_frame_index_toc",
+    "Deprecated alias for databases_index_toc_refresh.",
+    refreshDatabasesIndexTocSchema,
+    refreshDatabasesIndexTocHandler
+  );
 
   registerDatabaseTool(reg, {
     canonical: "database_schema_read",

@@ -115,7 +115,8 @@ export function registerChannelTools(reg, client, options = {}) {
   const readChannelsIndexDescription = "Read awn-channels/index.md (catalog table of ingress channels).";
 
   registerTocTool(reg, {
-    canonical: "read_channels_index_toc",
+    canonical: "channels_index_toc_read",
+    legacy: "read_channels_index_toc",
     description: readChannelsIndexDescription,
     schema: readChannelsIndexSchema,
     handler: readChannelsIndexHandler
@@ -132,7 +133,8 @@ export function registerChannelTools(reg, client, options = {}) {
     "Rebuild awn-channels/index.md from channel manifests and presets.";
 
   registerTocTool(reg, {
-    canonical: "refresh_channels_index_toc",
+    canonical: "channels_index_toc_refresh",
+    legacy: "refresh_channels_index_toc",
     description: refreshChannelsIndexDescription,
     schema: refreshChannelsIndexSchema,
     handler: ({ overwrite }) =>

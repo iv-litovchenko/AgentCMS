@@ -124,7 +124,8 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
   const readMediaLibraryIndexDescription = "Read awn-media/index.md (catalog table of media libraries).";
 
   registerTocTool(reg, {
-    canonical: "read_media_library_index_toc",
+    canonical: "media_libraries_index_toc_read",
+    legacy: "read_media_library_index_toc",
     description: readMediaLibraryIndexDescription,
     schema: z.object({}),
     handler: () => client.get("/api/workspace/fs/read", { path: "awn-media/index.md" })
@@ -134,7 +135,8 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
     "Rebuild awn-media/index.md from registered library manifests.";
 
   registerTocTool(reg, {
-    canonical: "refresh_media_library_index_toc",
+    canonical: "media_libraries_index_toc_refresh",
+    legacy: "refresh_media_library_index_toc",
     description: refreshMediaLibraryIndexDescription,
     schema: mediaLibraryIndexTocSchema,
     handler: ({ overwrite } = {}) =>

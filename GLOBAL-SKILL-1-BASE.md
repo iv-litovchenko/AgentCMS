@@ -20,7 +20,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `agent_identity_get` / `user_identity_get`.
 
-**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `read_topic_index_toc`, `read_content_index_toc`.
+**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `topics_index_toc_read`, `contents_index_toc_read`.
 
 ---
 
@@ -306,7 +306,7 @@ Workspace — папка с md-файлами. Хабы:
 | Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `tool_document_text_extract` |
-| Веб | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
+| Веб | `tool_web_search`, `tool_web_images_search`, `tool_web_page_read`, `get_external_url_page_preview` |
 | Скрипт | `tool_script_run` (`.py` / `.js` / `.sh`) |
 | Команда | `tool_command_exec` (массив args) / `tool_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |

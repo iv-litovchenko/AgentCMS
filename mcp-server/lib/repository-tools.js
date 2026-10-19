@@ -29,7 +29,8 @@ export function registerRepositoryTools(reg, client) {
   });
 
   registerTocTool(reg, {
-    canonical: "read_repository_index_toc",
+    canonical: "repositories_index_toc_read",
+    legacy: "read_repository_index_toc",
     description: "Read awn-repositories/index.md (catalog table of source repos).",
     schema: z.object({}),
     handler: () => client.get("/api/workspace/fs/read", { path: "awn-repositories/index.md" })
@@ -43,7 +44,8 @@ export function registerRepositoryTools(reg, client) {
   });
 
   registerTocTool(reg, {
-    canonical: "refresh_repository_index_toc",
+    canonical: "repositories_index_toc_refresh",
+    legacy: "refresh_repository_index_toc",
     description:
       "Rebuild awn-repositories/index.md table from repository manifests (overwrite=false skips if exists).",
     schema: refreshRepositoryIndexSchema,

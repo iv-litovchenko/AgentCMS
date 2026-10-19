@@ -27,7 +27,7 @@ import { registerChannelTools } from "./lib/channel-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerToolTools } from "./lib/tool-tools.js";
-import { registerWebSearchTools } from "./lib/web-search-tools.js";
+import { registerToolWebTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
 import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
@@ -358,7 +358,7 @@ function createServer() {
   registerFileHubQueueTools(reg, client);
   registerContextBufferTools(reg, client);
   registerWorkspaceFsTools(reg, client);
-  registerWebSearchTools(reg, client);
+  registerToolWebTools(reg, client);
   registerToolTools(reg, client, pagePath);
   registerAgentUtilsTools(reg, client);
   registerMediaCloudTools(reg, client, { pagePath });

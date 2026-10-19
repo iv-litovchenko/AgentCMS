@@ -15051,11 +15051,11 @@ const SESSION_CONTEXT_API_MAP = {
   execShell:
     "POST /api/exec/shell — tool_shell_exec MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
-    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google direct HTML or Custom Search API)",
+    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — tool_web_search MCP (Google direct HTML or Custom Search API)",
   webImages:
-    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google Images direct or API)",
+    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — tool_web_images_search MCP (Google Images direct or API)",
   webPage:
-    "GET /api/web/page?url=&maxChars=&maxBytes= — read_web_page MCP (fetch external page as plain text)",
+    "GET /api/web/page?url=&maxChars=&maxBytes= — tool_web_page_read MCP (fetch external page as plain text)",
   webPreview:
     "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
   webExtract:

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
@@ -557,14 +556,14 @@ export function registerMapTools(reg, client, pagePath) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
     description:
-      "Deprecated. Prefer read_topic_index_toc (workspace overview) + list_content (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
+      "Deprecated. Prefer topics_index_toc_read (workspace overview) + contents_list (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
     schema: getTopicMapSchema,
     handler: getTopicMapHandler
   });
 
   reg(
     "get_content_map",
-    "Deprecated. Prefer read_content_index_toc (overview) and read_content with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
+    "Deprecated. Prefer contents_index_toc_read (overview) and content_read with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
     z.object({
       path: pagePath,
       slot: z
@@ -580,71 +579,11 @@ export function registerMapTools(reg, client, pagePath) {
       })
   );
 
-  const getContentIndexTocSchema = z.object({
-    path: pagePath,
-    slot: z
-      .string()
-      .min(1)
-      .optional()
-      .describe(
-        "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
-      )
-  });
-
-  const getContentIndexTocHandler = ({ path, slot }) =>
-    client.get("/api/agent/content-index", {
-      path,
-      ...(slot ? { slot } : {})
-    });
-
-  const getContentIndexTocDescription =
-    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.";
-
-  registerTocTool(reg, {
-    canonical: "read_content_index_toc",
-    description: getContentIndexTocDescription,
-    schema: getContentIndexTocSchema,
-    handler: getContentIndexTocHandler
-  });
-
-  const refreshContentIndexSchema = z.object({
-    path: pagePath,
-    slot: z
-      .string()
-      .min(1)
-      .optional()
-      .describe("Optional slot (memory/main, inbox…). Omit to refresh topic-wide index.md next to manifest.md."),
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-
-  const runRefreshContentIndex = ({ path, slot, overwrite }) =>
-    client.post("/api/agent/content-index", {
-      path,
-      ...(slot ? { slot } : {}),
-      ...(overwrite === false ? { overwrite: false } : {})
-    });
-
-  const refreshContentIndexDescription =
-    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.";
-
-  registerTocTool(reg, {
-    canonical: "refresh_content_index_toc",
-    description: refreshContentIndexDescription,
-    schema: refreshContentIndexSchema,
-    handler: runRefreshContentIndex
-  });
-
-  const workspaceTopicIndexTocDescription =
-    "Quick TOC for workspace topics: path + type + title + description (awn-topics/index.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
-
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topics_list",
     legacy: "list_topics",
     description:
-      "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_content (kind: root, includeFolders=true).",
+      "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → topics_index_toc_read; folders without manifest → contents_list (kind: root, includeFolders=true).",
     schema: z.object({
       parentPath: pagePath
         .optional()
@@ -663,33 +602,6 @@ export function registerMapTools(reg, client, pagePath) {
         ...(parentPath ? { parentPath } : {}),
         ...(scope ? { scope } : {}),
         ...(includeFolders === true ? { includeFolders: "true" } : {})
-      })
-  });
-
-  registerTocTool(reg, {
-    canonical: "read_topic_index_toc",
-    description: workspaceTopicIndexTocDescription,
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/workspace-page-index")
-  });
-
-  const refreshWorkspacePageIndexSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing awn-topics/index.md if present (default true). false → 409 when file exists.")
-  });
-
-  const refreshWorkspaceTopicIndexDescription =
-    "Refresh (rebuild and save) awn-topics/index.md from workspace page map (path, type, title, description table). overwrite=false skips if file exists.";
-
-  registerTocTool(reg, {
-    canonical: "refresh_topic_index_toc",
-    description: refreshWorkspaceTopicIndexDescription,
-    schema: refreshWorkspacePageIndexSchema,
-    handler: ({ overwrite }) =>
-      client.post("/api/agent/workspace-page-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
       })
   });
 

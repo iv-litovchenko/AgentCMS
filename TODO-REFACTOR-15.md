@@ -52,26 +52,16 @@ user-agent-cms
 │   ├── 🔴 workspace_cron_registry_get        ← get_workspace_cron_registry (TBD)
 │   ├── 🔴 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry (TBD)
 │   ├── 🔴 mcp_connection_test                ← test_mcp_connection (ожидает platform_* / блок платформы)
-│   ├── 🟢 workspace_storage_info_get         ← get_workspace_storage_info
-│   ├── 🟢 agent_identity_get                 ← get_agent_identity
-│   ├── 🟢 user_identity_get                  ← get_user_identity
-│   ├── 🟢 record_slug_generate               ← generate_workspace_slug
-│   ├── 🟢 workspace_activity_list            ← list_recent_activity
-│   └── 🟡 notify_user
+│   ├── 🔴 workspace_storage_info_get         ← get_workspace_storage_info (TBD)
+│   ├── 🔴 agent_identity_get                 ← get_agent_identity (TBD)
+│   ├── 🔴 user_identity_get                  ← get_user_identity (TBD)
+│   ├── 🔴 record_slug_generate               ← generate_workspace_slug (TBD)
+│   ├── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
+│   └── 🔴 notify_user                        (TBD)
 │
-├── 🗺 Карты, TOC (хабы), id, URL · 22
+├── 🗺 Карты, id, URL · 12
 │   ├── read_workspace_map
 │   ├── refresh_workspace_map
-│   ├── read_content_index_toc
-│   ├── refresh_content_index_toc
-│   ├── read_databases_index_toc
-│   ├── refresh_databases_index_toc
-│   ├── read_channels_index_toc
-│   ├── refresh_channels_index_toc
-│   ├── read_repository_index_toc
-│   ├── refresh_repository_index_toc
-│   ├── read_media_library_index_toc
-│   ├── refresh_media_library_index_toc
 │   ├── list_types
 │   ├── get_type
 │   ├── find_by_id
@@ -83,9 +73,9 @@ user-agent-cms
 │   ├── get_external_url_page_preview
 │   └── get_link_preview
 │
-├── 🧭 Темы · topics_ / topic_ · 26
-│   ├── read_topic_index_toc
-│   ├── refresh_topic_index_toc
+├── 🧭 Темы · topics_ / topic_ · 28
+│   ├── 🟢 topics_index_toc_read          ← read_topic_index_toc
+│   ├── 🟢 topics_index_toc_refresh       ← refresh_topic_index_toc
 │   ├── 🟢 topics_list                    ← list_topics
 │   ├── 🟢 topic_get                      ← get_topic
 │   ├── 🟢 topic_meta_get                 ← get_topic_meta
@@ -111,7 +101,9 @@ user-agent-cms
 │   ├── 🟢 topic_rename                   ← rename_topic
 │   └── 🟢 topic_move                     ← move_topic
 │
-├── 📄 Контент · 18
+├── 📄 Контент · 20
+│   ├── 🟢 contents_index_toc_read       ← read_content_index_toc
+│   ├── 🟢 contents_index_toc_refresh    ← refresh_content_index_toc
 │   ├── 🟢 contents_list                 ← list_content
 │   ├── 🟢 content_read                  ← read_content
 │   ├── 🟢 content_write                 ← write_content
@@ -131,7 +123,9 @@ user-agent-cms
 │   ├── 🟢 content_merge                 ← merge_content
 │   └── batch_invoke                      (имя без изменений)
 │
-├── 🗃 Базы · 12
+├── 🗃 Базы · 14
+│   ├── 🟢 databases_index_toc_read     ← read_databases_index_toc / read_database_frame_index_toc
+│   ├── 🟢 databases_index_toc_refresh  ← refresh_databases_index_toc / refresh_database_frame_index_toc
 │   ├── 🟢 databases_list               ← list_databases
 │   ├── 🟢 database_get                 ← get_database
 │   ├── 🟢 database_register            ← register_database
@@ -145,7 +139,9 @@ user-agent-cms
 │   ├── 🟢 database_property_read       ← read_database_property
 │   └── 🟢 database_property_write      ← write_database_property
 │
-├── 📡 Каналы · 6
+├── 📡 Каналы · 8
+│   ├── 🟢 channels_index_toc_read      ← read_channels_index_toc
+│   ├── 🟢 channels_index_toc_refresh   ← refresh_channels_index_toc
 │   ├── 🟢 channels_list                ← list_channels
 │   ├── 🟢 channel_get                  ← get_channel
 │   ├── 🟢 channel_register             ← register_channel
@@ -153,7 +149,9 @@ user-agent-cms
 │   ├── 🟢 channel_delete               ← delete_channel
 │   └── 🟢 channel_rename               ← rename_channel
 │
-├── 🖼 Медиатеки · 6
+├── 🖼 Медиатеки · 8
+│   ├── 🟢 media_libraries_index_toc_read    ← read_media_library_index_toc
+│   ├── 🟢 media_libraries_index_toc_refresh ← refresh_media_library_index_toc
 │   ├── 🟢 media_libraries_list         ← list_media_libraries
 │   ├── 🟢 media_library_get            ← get_media_library
 │   ├── 🟢 media_library_register       ← register_media_library
@@ -161,7 +159,9 @@ user-agent-cms
 │   ├── 🟢 media_library_delete         ← delete_media_library
 │   └── 🟢 media_library_rename         ← rename_media_library
 │
-├── 📦 Репозитории · 6
+├── 📦 Репозитории · 8
+│   ├── 🟢 repositories_index_toc_read  ← read_repository_index_toc
+│   ├── 🟢 repositories_index_toc_refresh ← refresh_repository_index_toc
 │   ├── 🟢 repositories_list            ← list_repositories
 │   ├── 🟢 repository_get               ← get_repository
 │   ├── 🟢 repository_register          ← register_repository
@@ -272,11 +272,10 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🌐 Web · 3
-│   ├── search_web
-│   ├── search_web_images
-│   └── read_web_page
-├── 🔧 tool_* · 4
+├── 🔧 tool_* · 7
+│   ├── 🟢 tool_web_search                 ← search_web
+│   ├── 🟢 tool_web_images_search          ← search_web_images
+│   ├── 🟢 tool_web_page_read              ← read_web_page
 │   ├── 🟢 tool_document_text_extract      ← extract_document_text
 │   ├── 🟢 tool_script_run                 ← run_script
 │   ├── 🟢 tool_command_exec               ← exec_command
@@ -316,7 +315,7 @@ UI
 └── get_ui_open_location — тот же API, акцент на URL → убрать из канона, оставить get_ui_focus
 
 Переименовать
-├── 🟢 record_slug_generate ← generate_workspace_slug (slug для topic/content/store/…)
+├── 🔴 record_slug_generate ← generate_workspace_slug (slug для topic/content/store/… — TBD)
 └── assign_workspace_id → assign_record_awn_id (awn-id в frontmatter записи)
 
 id
@@ -346,7 +345,8 @@ id
 - [x] **Платформа и настройки:** канон в MCP + legacy — `platform-tools.js`, `settings-tools.js` (регистрация **до** workspace); `dependencies_*` — `dependencies-tools.js`, в дереве и `index.js` **в блоке хранилища** (нужен `workspaceId`)
 - [x] **Comments:** канон в MCP + legacy — `mcp-server/lib/comment-tools.js`
 - [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
-- [x] **tool_*:** extract + exec — `mcp-server/lib/tool-tools.js` (legacy `run_script`, `exec_*`, `extract_document_text`)
+- [x] **tool_*:** web + extract + exec — `web-search-tools.js` (`tool_web_*`), `tool-tools.js` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`)
+- [x] **Hub index TOC:** `*_index_toc_read` / `*_index_toc_refresh` в группах hub-tools + `page-tools` / `content-tools`; legacy `read_*_index_toc`
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`

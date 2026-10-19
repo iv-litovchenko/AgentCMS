@@ -16,7 +16,7 @@ description: Правила, запреты и антипаттерны аген
 
 - **Только по моему запросу.** Не стартуй сам: не вызывай tools и не читай хранилище, пока я не попросил.
 - **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `run_script` / `exec_command` / `exec_shell`.
-- **Пути и типы не угадывай.** Бери из `read_*_index_toc`, `contents_list`, `resolve_workspace_path`, `get_ui_focus`, `get_type`.
+- **Пути и типы не угадывай.** Бери из `*_index_toc_read`, `contents_list`, `resolve_workspace_path`, `get_ui_focus`, `get_type`.
 - **Удаление и выполнение** (риск — см. п. 3). Если в настройках платформы включены `confirm-delete` / `confirm-exec`, передавай `confirm: true` только после моего явного согласия.
 - **Связи.** Перед удалением или переносом записи проверь `workspace_dependencies_read`.
 - **Git.** Коммит, push, pull — только по моей просьбе.
@@ -46,7 +46,7 @@ description: Правила, запреты и антипаттерны аген
 | `read_dialogs` / `append_dialog` | `read_discussion` / `append_discussion` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |
 | `list_vaults` / `list_workspaces` | `workspaces_list` |
-| `get_topic_map` | `topics_list` + `read_topic_index_toc` + `contents_list` (`kind: root`) |
+| `get_topic_map` | `topics_list` + `topics_index_toc_read` + `contents_list` (`kind: root`) |
 | `get_content_map` | `read_content_index_toc` + `content_read` (`part=properties`) |
 | `read_content`, `write_content`, `list_content`, … | `content_read`, `content_write`, `contents_list`, … |
 | `read_content_body`, … | `content_read` / `content_write` с `part` |
