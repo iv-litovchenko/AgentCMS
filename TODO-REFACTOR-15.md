@@ -32,7 +32,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 19
+├── 🚀 Старт и workspace · 20
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -51,7 +51,8 @@ user-agent-cms
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
 │   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
 │   ├── 🟢 workspace_activity_list            ← list_recent_activity
-│   └── 🟢 workspace_feed_list                ← list_workspace_feed
+│   ├── 🟢 workspace_feed_list                ← list_workspace_feed
+│   └── 🟢 workspace_memory_audit           ← audit_workspace_memory
 │
 ├── 🎬 Session · session_* · workspaceId · 17
 │   ├── 🟢 session_context_get                ← get_session_context
@@ -96,10 +97,10 @@ user-agent-cms
 │   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
 │
 ├── 🗺 id, URL · 4
-│   ├── 🟢 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
-│   ├── 🟢 get_workspace_page_preview_from_path  ← get_workspace_url_page_preview
-│   ├── 🟢 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
-│   └── 🟢 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
+│   ├── 🔴 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
+│   ├── 🔴 get_workspace_page_preview_from_path  ← get_workspace_url_page_preview
+│   ├── 🔴 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
+│   └── 🔴 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
 │
 ├── 🧭 Темы · topics_ / topic_ · 25
 │   ├── 🟢 topics_list                    ← list_topics
@@ -183,7 +184,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete            ← delete_repository
 │   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы · 28
+├── 🔍 Поиск и индексы · 27
 │   ├── 🟢 search_content                   ← search_workspace_content
 │   ├── 🟢 search_semantic                  ← search_workspace_semantic
 │   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
@@ -210,8 +211,7 @@ user-agent-cms
 │   ├── 🟢 entity_type_upsert               ← upsert_workspace_entity_type
 │   ├── 🟢 entity_alias_merge               ← merge_workspace_entity_alias
 │   ├── 🟢 entity_reject                    ← reject_workspace_entity
-│   ├── 🟢 entity_seed                      ← seed_workspace_entity
-│   └── 🟢 workspace_memory_audit           ← audit_workspace_memory
+│   └── 🟢 entity_seed                      ← seed_workspace_entity
 │
 ├── 🆔 Record · record_* · workspaceId · 6
 │   ├── 🟢 record_find_by_id                  ← find_by_id ← resolve_workspace_id
