@@ -64,32 +64,43 @@ export function registerWorkspaceTools(reg, client) {
     options: { agentScope: false }
   });
 
+  const workspacesScanSchema = z.object({
+    roots: z.array(z.string()).optional().describe("Extra absolute or project-relative roots to scan"),
+    maxDepth: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .optional()
+      .describe("Directory depth (default 6)")
+  });
+  const workspacesScanHandler = (payload) =>
+    client.post(
+      "/api/agents/discover",
+      {
+        ...(payload?.roots ? { roots: payload.roots } : {}),
+        ...(payload?.maxDepth != null ? { maxDepth: payload.maxDepth } : {})
+      },
+      { agentScope: false }
+    );
+  const noWorkspaceScope = { agentScope: false };
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspaces_discover",
-    legacy: "discover_workspaces",
+    canonical: "workspaces_scan",
+    legacy: "workspaces_discover",
     description:
       "Scan disk for workspace folders that already have manifest.md (awn.hub.topic.ws): project workspaces/, home, Desktop, optional roots. Use workspace_register with path to add one to the registry.",
-    schema: z.object({
-      roots: z.array(z.string()).optional().describe("Extra absolute or project-relative roots to scan"),
-      maxDepth: z
-        .number()
-        .int()
-        .min(1)
-        .max(10)
-        .optional()
-        .describe("Directory depth (default 6)")
-    }),
-    handler: (payload) =>
-      client.post(
-        "/api/agents/discover",
-        {
-          ...(payload?.roots ? { roots: payload.roots } : {}),
-          ...(payload?.maxDepth != null ? { maxDepth: payload.maxDepth } : {})
-        },
-        { agentScope: false }
-      ),
-    options: { agentScope: false }
+    schema: workspacesScanSchema,
+    handler: workspacesScanHandler,
+    options: noWorkspaceScope
   });
+  reg(
+    "discover_workspaces",
+    "Deprecated alias for workspaces_scan.",
+    workspacesScanSchema,
+    workspacesScanHandler,
+    noWorkspaceScope
+  );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspace_update",

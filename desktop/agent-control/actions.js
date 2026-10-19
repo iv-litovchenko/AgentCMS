@@ -239,7 +239,7 @@ const SERVER_TEST = {
 
 const MCP_TEST = {
   path: "/api/agent/mcp-ping",
-  hint: "test_mcp_connection — JSON с ok и mcpVersion"
+  hint: "tool_mcp_ping — JSON с ok и mcpVersion"
 };
 
 function getServerPortsPayload() {

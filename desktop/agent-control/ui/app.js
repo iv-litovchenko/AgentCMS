@@ -897,7 +897,7 @@ function renderCmdRow(kind, tag) {
   const command = getCurlCommand(kind);
   const hint =
     kind === "mcp"
-      ? bootstrap?.mcpTest?.hint || "test_mcp_connection — JSON с ok и mcpVersion"
+      ? bootstrap?.mcpTest?.hint || "tool_mcp_ping — JSON с ok и mcpVersion"
       : bootstrap?.serverTest?.hint || "CMS отвечает по HTTPS";
 
   return `

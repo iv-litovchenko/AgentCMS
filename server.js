@@ -14884,7 +14884,7 @@ const SESSION_CONTEXT_API_MAP = {
   // Dev/HTTP catalog — not included in get_session_context (agents use MCP tools only).
   // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
-  mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
+  mcpPing: "GET /api/agent/mcp-ping — tool_mcp_ping MCP (health check)",
   storageSummary:
     "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",

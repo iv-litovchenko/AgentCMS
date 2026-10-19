@@ -96,7 +96,7 @@ module.exports = {
           http: "GET /api/agent/heartbeat-registry"
         },
         {
-          name: "test_mcp_connection",
+          name: "tool_mcp_ping",
           description: "Ping CMS: ok, agentId, serverTime, versions. Проверка связи MCP → Agent CMS.",
           parameters: "—",
           http: "GET /api/agent/mcp-ping"

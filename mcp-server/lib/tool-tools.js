@@ -15,7 +15,23 @@ const mcpConfirm = z
   .optional()
   .describe("Required true when platform confirm-exec is enabled (explicit user approval)");
 
+const noWorkspaceScope = { agentScope: false };
+
 export function registerToolTools(reg, client, pagePathSchema) {
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "tool_mcp_ping",
+    legacy: "mcp_connection_test",
+    description:
+      "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
+    options: noWorkspaceScope
+  });
+  reg("test_mcp_connection", "Deprecated alias for tool_mcp_ping.", z.object({}), () =>
+    client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
+    noWorkspaceScope
+  );
+
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "tool_document_text_extract",
     legacy: "extract_document_text",

@@ -38,6 +38,7 @@ batch_invoke:
     - ask_workspace
     - search_and_get_context
     - notify_user
+    - tool_mcp_ping
     - mcp_connection_test
     - test_mcp_connection
     - comment_reaction_toggle

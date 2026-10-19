@@ -28,9 +28,9 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 29
+├── 🚀 Старт и workspace · 28
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
-│   ├── 🟢 workspaces_discover                ← discover_workspaces
+│   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
 │   ├── 🟢 workspace_register                 ← register_workspace
 │   ├── 🟢 workspace_update                   ← update_workspace
@@ -51,7 +51,6 @@ user-agent-cms
 │   ├── 🔴 workspace_always_context_registry_get ← get_workspace_always_context_registry (TBD)
 │   ├── 🔴 workspace_cron_registry_get        ← get_workspace_cron_registry (TBD)
 │   ├── 🔴 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry (TBD)
-│   ├── 🔴 mcp_connection_test                ← test_mcp_connection (ожидает platform_* / блок платформы)
 │   ├── 🔴 workspace_storage_info_get         ← get_workspace_storage_info (TBD)
 │   ├── 🔴 agent_identity_get                 ← get_agent_identity (TBD)
 │   ├── 🔴 user_identity_get                  ← get_user_identity (TBD)
@@ -276,7 +275,8 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🔧 tool_* · 7
+├── 🔧 tool_* · 8
+│   ├── 🟢 tool_mcp_ping                   ← mcp_connection_test ← test_mcp_connection
 │   ├── 🟢 tool_web_search                 ← search_web
 │   ├── 🟢 tool_web_images_search          ← search_web_images
 │   ├── 🟢 tool_web_page_read              ← read_web_page

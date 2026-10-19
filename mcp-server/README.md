@@ -62,7 +62,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_discover`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `mcp_connection_test`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
+| Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
 | Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `rebuild_workspace_*` — **не** `content_read`. Legacy: `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, `get_topic_map`, `get_content_map` |
@@ -77,7 +77,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |
 | Reference | `reference_entry_create`, `reference_entries_list`, … (legacy `create_reference_entry`, …) → `0-contents/0-reference` |
 | FS | `batch_invoke`; legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
-| tool_* | `tool_web_search`, `tool_web_images_search`, `tool_web_page_read`, `tool_document_text_extract`, `tool_script_run`, `tool_command_exec`, `tool_shell_exec` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`) |
+| tool_* | `tool_mcp_ping`, `tool_web_search`, `tool_web_images_search`, `tool_web_page_read`, `tool_document_text_extract`, `tool_script_run`, `tool_command_exec`, `tool_shell_exec` (legacy `test_mcp_connection`, `search_web*`, …) |
 | Медиа-облако | `module_media_cloud_providers_list`, `module_media_cloud_status`, `module_media_cloud_sync`, `module_media_cloud_links_repair`; stub: `module_media_cloud_upload`, `module_media_cloud_url` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, `*_zzz`) |
 
 Бинарники в слот — **`write_content_binary`** / **`write_content_binary_from_url`** (`placement` + ref); legacy path upload — только **`MCP_LEGACY_TOOLS=1`** (`upload_file`, …). Alias: **`import_content_from_url`** → **`write_content_binary_from_url`**.  

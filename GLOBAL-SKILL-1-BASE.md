@@ -335,10 +335,10 @@ Git-модуль хранилища (`module_git_*`) и другие модул�
 
 ## 18. Хранилища, настройки, типы
 
-**Хранилища:** `workspaces_list`, `workspace_create`, `workspaces_discover` → `workspace_register`, `workspace_update`, `workspace_default_set`, `workspace_orchestrator_set`. Группы: `workspace_groups_list`, `workspace_group_create` / `workspace_group_update` / `workspace_group_delete`, `workspace_group_assign`, `workspace_group_unassign`, `workspace_groups_reorder`.
+**Хранилища:** `workspaces_list`, `workspace_create`, `workspaces_scan` → `workspace_register`, `workspace_update`, `workspace_default_set`, `workspace_orchestrator_set`. Группы: `workspace_groups_list`, `workspace_group_create` / `workspace_group_update` / `workspace_group_delete`, `workspace_group_assign`, `workspace_group_unassign`, `workspace_groups_reorder`.
 
 **Настройки** — 4 независимых scope: `platform` (MCP policy, индексы, always-context), `workspace` (`awn-id-*`, voice, колонки зависимостей), `integrations` (skills, MCP, git-партии), `user` (меню, сайдбар). `settings_list`, `setting_read`, `setting_write` (`sys-*` и `awn-id-*` — только чтение). Секретов в settings нет — для темы есть `.env`.
 
 **Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
 
-**Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `mcp_connection_test`, `workspace_storage_info_get`, …
+**Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `tool_mcp_ping`, `workspace_storage_info_get`, …

@@ -5,16 +5,6 @@ const pageUrl = z.string().url().describe("Public http(s) URL");
 
 export function registerAgentUtilsTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "mcp_connection_test",
-    legacy: "test_mcp_connection",
-    description:
-      "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
-    options: { agentScope: false }
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
     canonical: "record_slug_generate",
     legacy: "generate_workspace_slug",
     description:
