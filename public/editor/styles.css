@@ -1308,7 +1308,7 @@ body.workspace-idle-screensaver-active {
     var(--discuss-panel-width, 280px);
 }
 
-.app.home-view.app-home-discuss-open .agent-canvas-pane:not(.hidden) {
+.app.home-view.app-home-discuss-open .agent-canvas-stack:not(.app-landing-stack) {
   grid-column: 3;
   min-width: 0;
 }
@@ -1327,6 +1327,36 @@ body.workspace-idle-screensaver-active {
   display: none;
 }
 
+.agent-canvas-stack {
+  grid-row: 2 / 3;
+  grid-column: 3 / -1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.app.home-view .agent-canvas-stack:not(.app-landing-stack) {
+  display: flex;
+}
+
+.app.app-landing-view .app-landing-stack {
+  display: flex;
+  grid-column: 1 / -1;
+}
+
+.agent-canvas-stack > .agent-canvas-pane,
+.agent-canvas-stack > .app-landing-pane {
+  grid-row: auto;
+  grid-column: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .agent-canvas-pane {
   grid-row: 2 / 3;
   grid-column: 3 / -1;
@@ -1339,6 +1369,11 @@ body.workspace-idle-screensaver-active {
   justify-content: flex-start;
   padding: 16px 18px 24px;
   box-sizing: border-box;
+}
+
+.agent-canvas-stack > .agent-canvas-pane {
+  grid-row: auto;
+  grid-column: auto;
 }
 
 .app.home-view .agent-canvas-pane:not(.hidden) {
@@ -1367,12 +1402,21 @@ body.workspace-idle-screensaver-active {
   display: none !important;
 }
 
-.app.not-found-view #not-found-pane.agent-canvas-pane:not(.hidden) {
+.app.not-found-view .agent-canvas-stack:not(.app-landing-stack) {
   display: flex;
   grid-row: 1 / -1;
   grid-column: 1 / -1;
   min-height: 100%;
   height: 100%;
+}
+
+.app.not-found-view #not-found-pane.agent-canvas-pane:not(.hidden) {
+  display: flex;
+  grid-row: auto;
+  grid-column: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
   padding: 0;
   overflow: hidden;
 }
@@ -1438,8 +1482,6 @@ body.workspace-idle-screensaver-active {
 }
 
 .app-landing-pane {
-  grid-row: 2 / 3;
-  grid-column: 1 / -1;
   min-height: 0;
   min-width: 0;
   overflow: visible;
@@ -1449,6 +1491,11 @@ body.workspace-idle-screensaver-active {
   padding: 0;
   background: transparent;
   position: relative;
+}
+
+.app-landing-stack {
+  grid-row: 2 / 3;
+  grid-column: 1 / -1;
 }
 
 /* Workspace mode: не крутить бесконечные landing-анимации в фоне */
@@ -1546,7 +1593,7 @@ body.workspace-idle-screensaver-active {
   grid-template-columns: minmax(0, 1fr) var(--discuss-panel-width, 280px);
 }
 
-.app.app-landing-view.app-landing-discuss-open .app-landing-pane:not(.hidden) {
+.app.app-landing-view.app-landing-discuss-open .app-landing-stack {
   grid-column: 1;
   min-width: 0;
 }
@@ -69322,6 +69369,7 @@ button.node-navigation-memory-title:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .agent-canvas-stack,
   .agent-canvas-pane,
   .home-pane,
   .home-pane-2,
@@ -70399,7 +70447,7 @@ body.is-cms-page-picker-active #discuss-aside * {
     grid-template-columns: var(--sidebar-width) var(--sidebar-resize-bar-width) minmax(0, 1fr);
   }
 
-  .app.home-view.app-home-discuss-open .agent-canvas-pane:not(.hidden) {
+  .app.home-view.app-home-discuss-open .agent-canvas-stack:not(.app-landing-stack) {
     grid-column: 3;
     grid-row: 2 / 3;
   }
@@ -71792,11 +71840,19 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none !important;
 }
 
-.app.maintenance-view #maintenance-pane.agent-canvas-pane:not(.hidden) {
+.app.maintenance-view .agent-canvas-stack:not(.app-landing-stack) {
   display: flex;
   grid-row: 1 / -1;
   grid-column: 1 / -1;
   min-height: 100%;
+}
+
+.app.maintenance-view #maintenance-pane.agent-canvas-pane:not(.hidden) {
+  display: flex;
+  grid-row: auto;
+  grid-column: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 @media (max-width: 640px) {
@@ -82409,26 +82465,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   backdrop-filter: blur(6px);
   min-width: 0;
   pointer-events: auto;
-}
-
-.agent-canvas-pane.context-buffer-docked {
-  overflow: hidden;
-}
-
-.agent-canvas-pane.context-buffer-docked > :not(#context-buffer-band) {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-}
-
-.app-landing-pane.context-buffer-docked {
-  overflow: hidden;
-}
-
-.app-landing-pane.context-buffer-docked > :not(#context-buffer-band) {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
 }
 
 .app.not-found-view .context-buffer-band--global {

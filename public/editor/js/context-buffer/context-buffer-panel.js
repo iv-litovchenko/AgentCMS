@@ -11,8 +11,6 @@
   };
 
   const COLLAPSED_STORAGE_KEY = "agentcms.contextBufferBand.collapsed.v1";
-  const DOCK_PARENT_CLASS = "context-buffer-docked";
-
   let getActiveAgentId = () => "main";
   let showToast = null;
   let getCurrentPageItem = null;
@@ -247,22 +245,16 @@
     if (!app || !bandNode) return null;
     if (app.classList.contains("not-found-view")) return null;
     if (app.classList.contains("app-landing-view")) {
-      return document.querySelector(".app-landing-pane:not(.hidden)");
+      return document.getElementById("app-landing-stack");
     }
     if (app.classList.contains("home-view")) {
-      return (
-        document.querySelector(".agent-canvas-pane:not(.hidden)") ||
-        document.getElementById("home-pane")
-      );
+      return document.getElementById("agent-canvas-stack");
     }
     return document.getElementById("workspace-main-stack");
   }
 
   function syncContextBufferMount() {
     if (!bandNode) return;
-    for (const docked of document.querySelectorAll(`.${DOCK_PARENT_CLASS}`)) {
-      docked.classList.remove(DOCK_PARENT_CLASS);
-    }
     const parent = resolveContextBufferMountParent();
     if (!parent) {
       bandNode.hidden = true;
@@ -271,12 +263,6 @@
     bandNode.hidden = false;
     if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
-    }
-    if (
-      parent.classList.contains("agent-canvas-pane") ||
-      parent.classList.contains("app-landing-pane")
-    ) {
-      parent.classList.add(DOCK_PARENT_CLASS);
     }
   }
 
