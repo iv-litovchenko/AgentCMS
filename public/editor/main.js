@@ -27338,7 +27338,11 @@ async function shouldHideTopicStorageSlots(nodePath, entries = null) {
   return readTopicSlotsDisabledForPath(nodePath);
 }
 
+/** Правая колонка слотов в node-overview отключена (слоты — в hero/strip и browse). */
+const ENABLE_NODE_NAVIGATION_HUB_RAIL = false;
+
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
+  if (!ENABLE_NODE_NAVIGATION_HUB_RAIL) return false;
   if (isRepositoryManifestPath(nodePath)) return false;
   if (isHubWorkspaceFilesSlotPage(nodePath)) return false;
   return !usesNavigationHubInlineSubsections(nodePath);
@@ -84393,13 +84397,13 @@ async function renderEntryOverview() {
     const preservedHubWorkspaceSlotStrip = detachPreservedHubWorkspaceSlotCounterStrip(topicPath);
 
     const isArea = isAreaNodePath(topicPath);
-    const useSplitLayout = !isArea;
+    const useSplitLayout = shouldUseNavigationSplitRailLayout(topicPath);
 
     const isHubFilesSlotWorkspace = isHubWorkspaceFilesSlotPage(topicPath);
     const isAwnChannelWorkspace = isAwnChannelHubWorkspacePath(topicPath);
     const isMediaLibraryWorkspace = isMediaLibraryHubWorkspacePath(topicPath);
     const hub = document.createElement("div");
-    hub.className = useSplitLayout && !isHubFilesSlotWorkspace
+    hub.className = useSplitLayout
       ? "node-navigation-hub node-navigation-hub--split"
       : "node-navigation-hub";
     if (isHubFilesSlotWorkspace) {
@@ -84513,7 +84517,7 @@ async function renderEntryOverview() {
 
     if (!isArea) {
       hub.appendChild(hubMain);
-      if (useSplitLayout && !isHubFilesSlotWorkspace) {
+      if (useSplitLayout) {
         const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
         if (isStale()) return;
         await appendNodeNavigationSplitRail(hub, topicPath, {
@@ -84564,7 +84568,7 @@ async function renderEntryOverview() {
   if (isStale()) return;
 
   const isArea = isAreaNodePath(topicPath);
-  const useSplitLayout = !isArea;
+  const useSplitLayout = shouldUseNavigationSplitRailLayout(topicPath);
 
   const hub = document.createElement("div");
   hub.className = useSplitLayout
@@ -84708,19 +84712,19 @@ async function renderEntryOverview() {
       : "";
 
   if (!isArea) {
-    const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
-    if (isStale()) return;
     hub.appendChild(hubMain);
     if (useSplitLayout) {
+      const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
+      if (isStale()) return;
       await appendNodeNavigationSplitRail(hub, topicPath, {
-          ...memoryBundle,
-          entryOverviewNavigationIndex: navigationIndex,
-          entryOverviewMemoryKind: context.memoryKind
-        }, {
-          isStale,
-          documentMarkdown,
-          documentHeroTitle: title
-        });
+        ...memoryBundle,
+        entryOverviewNavigationIndex: navigationIndex,
+        entryOverviewMemoryKind: context.memoryKind
+      }, {
+        isStale,
+        documentMarkdown,
+        documentHeroTitle: title
+      });
     } else {
       syncNodeOverviewNavigationSplitClass(false);
     }
@@ -118599,14 +118603,6 @@ function createMenuAwnChannelRow(channel) {
 
   if (slug) {
     if (isPendingCreate) {
-      const keyBtn = document.createElement("button");
-      keyBtn.type = "button";
-      keyBtn.className = "menu-awn-databases-store-badge menu-awn-channels-key-btn";
-      keyBtn.textContent = slug;
-      keyBtn.title = `Создать awn-channels/${slug}/ (manifest + awn-storage/files|assets)`;
-      keyBtn.setAttribute("aria-label", `Создать канал ${slug}`);
-      keyBtn.addEventListener("click", openCreateModal);
-      metaNode.appendChild(keyBtn);
       row.setAttribute("role", "button");
       row.tabIndex = 0;
       row.addEventListener("click", openCreateModal);
@@ -118616,11 +118612,6 @@ function createMenuAwnChannelRow(channel) {
     } else {
       row.setAttribute("role", "button");
       row.tabIndex = 0;
-      const slugBadge = document.createElement("span");
-      slugBadge.className = "menu-awn-databases-store-badge menu-awn-channels-slug-badge";
-      slugBadge.textContent = slug;
-      slugBadge.title = `ключ: ${slug} · ${folderPath}/awn-storage/files/`;
-      metaNode.appendChild(slugBadge);
       const openChannel = (event) => {
         event?.preventDefault?.();
         event?.stopPropagation();
@@ -118641,7 +118632,7 @@ function createMenuAwnChannelRow(channel) {
     createMenuAwnChannelKindNode({ slug, icon: channel.icon || "📡" }),
     ...(idBadge ? [idBadge] : []),
     nameNode,
-    metaNode
+    ...(metaNode.childNodes.length ? [metaNode] : [])
   );
   return row;
 }
@@ -128926,18 +128917,6 @@ function createMenuRepositoryRowBody(entry) {
   const metaNode = document.createElement("span");
   metaNode.className = "menu-repository-meta";
 
-  if (slug) {
-    const folderPath = String(entry.folderPath || `awn-repositories/${slug}`)
-      .replace(/\\/g, "/")
-      .replace(/^\/+/, "")
-      .trim();
-    const slugBadge = document.createElement("span");
-    slugBadge.className = "menu-repository-slug menu-repository-slug-badge";
-    slugBadge.textContent = slug;
-    slugBadge.title = folderPath ? `ключ: ${slug} · ${folderPath}/` : `ключ: ${slug}`;
-    metaNode.appendChild(slugBadge);
-  }
-
   if (entry.entryCount != null && Number(entry.entryCount) >= 0) {
     const count = Number(entry.entryCount);
     const filesBadge = document.createElement("span");
@@ -129729,9 +129708,6 @@ function createMenuMediaLibraryRow(library) {
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-databases-store-meta";
 
-  const folderPath = library.folderPath || `awn-media/${slug}`;
-  const keyTitle = `Создать awn-media/${slug}/ (manifest + awn-storage/files|assets)`;
-
   const provisionAndOpenLibrary = async () => {
     let entry = library;
     if (!isRegistered) {
@@ -129762,36 +129738,31 @@ function createMenuMediaLibraryRow(library) {
     await openMediaLibraryWorkspaceEntry(coerced, { skipRouteSync: true });
   };
 
+  const openCreateModal = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    openMediaLibraryCreateModal({
+      slug,
+      name: displayName,
+      description: library.description && !library.stub ? library.description : "",
+      preset: isPreset,
+      lockSlug: isPreset
+    });
+  };
+
   if (slug) {
     if (isPendingCreate) {
       row.title = `Заготовка «${displayName}» — создайте по ключу «${slug}»`;
-      const keyBtn = document.createElement("button");
-      keyBtn.type = "button";
-      keyBtn.className = "menu-awn-databases-store-badge menu-media-library-key-btn";
-      keyBtn.textContent = slug;
-      keyBtn.title = keyTitle;
-      keyBtn.setAttribute("aria-label", `Создать медиатеку ${slug}`);
-      keyBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openMediaLibraryCreateModal({
-          slug,
-          name: displayName,
-          description: library.description && !library.stub ? library.description : "",
-          preset: isPreset,
-          lockSlug: isPreset
-        });
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      row.addEventListener("click", openCreateModal);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") openCreateModal(event);
       });
-      metaNode.appendChild(keyBtn);
     } else {
       row.setAttribute("role", "button");
       row.tabIndex = 0;
       row.title = library.description || library.manifestPath || displayName;
-      const slugBadge = document.createElement("span");
-      slugBadge.className = "menu-awn-databases-store-badge menu-media-library-slug-badge";
-      slugBadge.textContent = slug;
-      slugBadge.title = `ключ: ${slug} · ${folderPath}/awn-storage/files/`;
-      metaNode.appendChild(slugBadge);
     }
   }
 
@@ -129799,7 +129770,7 @@ function createMenuMediaLibraryRow(library) {
     createMenuMediaLibraryKindNode(),
     ...(idBadge ? [idBadge] : []),
     nameNode,
-    metaNode
+    ...(metaNode.childNodes.length ? [metaNode] : [])
   );
 
   if (!isPendingCreate) {
