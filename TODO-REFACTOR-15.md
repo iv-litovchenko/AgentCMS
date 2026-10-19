@@ -77,13 +77,6 @@ user-agent-cms
 │   ├── 🟢 registry_queries_list              ← list_workspace_registry_queries ← session_registry_queries_list
 │   └── 🟢 registry_query_run                 ← run_workspace_registry_query ← session_registry_query_run
 │
-├── 🆔 Record · record_* · workspaceId · 5
-│   ├── 🟢 record_find_by_id                  ← find_by_id ← resolve_workspace_id
-│   ├── 🟢 record_id_exists
-│   ├── 🟢 record_id_assign                   ← assign_workspace_id
-│   ├── 🟢 record_generate_slug               ← generate_workspace_slug ← record_slug_generate
-│   └── 🟢 record_slug_exists
-│
 ├── 🧭 Навигация · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
 │   ├── 🟢 nav_map_workspace_refresh          ← workspace_map_refresh / refresh_workspace_map
@@ -220,6 +213,14 @@ user-agent-cms
 │   ├── 🟢 entity_seed                      ← seed_workspace_entity
 │   └── 🟢 workspace_memory_audit           ← audit_workspace_memory
 │
+├── 🆔 Record · record_* · workspaceId · 6
+│   ├── 🟢 record_find_by_id                  ← find_by_id ← resolve_workspace_id
+│   ├── 🟢 record_id_exists
+│   ├── 🟢 record_id_assign                   ← assign_workspace_id
+│   ├── 🟢 record_generate_slug               ← generate_workspace_slug ← record_slug_generate
+│   ├── 🟢 record_slug_exists
+│   └── 🟢 record_path_resolve                ← resolve_workspace_path
+│
 ├── 🧠 Facts · glossary · reference · 13
 │   ├── 🧠 fact_* · workspaceId · 4
 │   ├── 🟢 fact_create                    ← workspace_fact_create ← create_workspace_fact
@@ -291,9 +292,8 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 6
+├── 🔴 TBD · канон / группа не зафиксированы · 5
 │   ├── 🔴 batch_invoke
-│   ├── 🔴 resolve_workspace_path
 │   ├── 🔴 notify_user
 │   ├── 🔴 session_ui_focus_get             ← get_ui_focus ← get_user_active_context_now
 │   ├── 🔴 get_ui_open_location             ← legacy session_ui_focus_get (тот же API)

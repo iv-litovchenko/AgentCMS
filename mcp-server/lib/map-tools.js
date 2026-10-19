@@ -647,15 +647,6 @@ export function registerMapTools(reg, client, pagePath) {
       })
   });
 
-  reg(
-    "resolve_workspace_path",
-    "Walk up from any workspace path: breadcrumbs (workspace→file), manifest ancestors, slot/ref, mcp hints.",
-    z.object({
-      path: workspaceRelPath
-    }),
-    ({ path }) => client.get("/api/agent/resolve-path", { path })
-  );
-
   const getTopicUrlSchema = z.object({
     path: workspaceRelPath
       .optional()

@@ -45,8 +45,8 @@ agent-cms MCP
 │   ├── read_topic_index_toc · refresh_topic_index_toc
 │   ├── read_content_index_toc · refresh_content_index_toc
 │   ├── read_workspace_map · refresh_workspace_map
-│   ├── resolve_workspace_path · get_topic_url
-│   ├── record_find_by_id · record_id_exists · record_id_assign · record_generate_slug · record_slug_exists
+│   ├── get_topic_url
+│   ├── record_find_by_id · record_id_exists · record_id_assign · record_generate_slug · record_slug_exists · record_path_resolve
 │   └── deprecated: get_topic_map · get_content_map
 │
 ├── 🔍 Поиск · DQL · индексы

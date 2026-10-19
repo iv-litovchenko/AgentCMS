@@ -17,7 +17,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 
 1. `workspaces_list` → выбери id → `session_context_get({ workspaceId })`. Во всех вызовах — тот же `workspaceId` (селектор в UI на MCP не влияет).
 2. Человек говорит «вот это» без пути → `session_ui_focus_get` (готовые `path` / `slot` / `ref`).
-3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
+3. Дали только путь → `record_path_resolve` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `session_agent_profile_get` / `session_user_profile_get` (темы `0-agent` / `0-user`, не workspaceId).
 
 **«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `session_list_always_context`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
@@ -160,7 +160,7 @@ Workspace — папка с md-файлами. Хабы:
 `expectedHash` — `hash` из последнего чтения/записи; файл изменился → `conflict`. Frontmatter через body не меняется — только `part=properties`.
 
 - Новый `.md` — `content_create`. Бинарник — `content_binary_write` или `content_binary_write_from_url` (не `.md`).
-- Показать картинку из заметки: ссылку `awn-storage/assets/pasted/x.png` достроить до `awn-topics/<тема>/awn-storage/…` (путь — из `resolve_workspace_path`), затем `content_read` с `kind: root`, `format: "base64"`.
+- Показать картинку из заметки: ссылку `awn-storage/assets/pasted/x.png` достроить до `awn-topics/<тема>/awn-storage/…` (путь — из `record_path_resolve`), затем `content_read` с `kind: root`, `format: "base64"`.
 
 ---
 

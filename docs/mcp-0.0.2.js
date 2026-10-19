@@ -183,7 +183,7 @@ module.exports = {
           http: "POST /api/agent/workspace-page-index"
         },
         {
-          name: "resolve_workspace_path",
+          name: "record_path_resolve",
           description: "Произвольный path → цепочка manifest (topic/area/ws), slot/ref, mcp hints.",
           parameters: "path",
           http: "GET /api/agent/resolve-path"

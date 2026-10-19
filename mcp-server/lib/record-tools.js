@@ -150,4 +150,21 @@ export function registerRecordTools(reg, client) {
     slugExistsSchema,
     slugExistsHandler
   );
+
+  const pathResolveSchema = z.object({
+    path: z
+      .string()
+      .min(1)
+      .describe("Workspace-relative file or folder path, e.g. awn-topics/tema/awn-storage/main/readme.md")
+  });
+  const pathResolveHandler = ({ path }) => client.get("/api/agent/resolve-path", { path });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "record_path_resolve",
+    legacy: "resolve_workspace_path",
+    description:
+      "Walk up from any workspace path: breadcrumbs, manifest ancestors, slot/ref, MCP placement hints.",
+    schema: pathResolveSchema,
+    handler: pathResolveHandler
+  });
 }

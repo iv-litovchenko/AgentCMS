@@ -14922,7 +14922,7 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
-  resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
+  resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — record_path_resolve MCP: manifest-цепочка вверх, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_workspace_open_url_from_path",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",

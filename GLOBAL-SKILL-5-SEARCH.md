@@ -14,7 +14,7 @@ description: Как искать и ориентироваться в Agent CMS 
 | Каталоги хабов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` (+ `refresh_*`) |
 | Поиск (по умолчанию) | `search_hybrid`; несколько вопросов — `search_batch` |
 | Точный текст, имена файлов / по смыслу | `search_content` / `search_semantic` |
-| Внутри темы | `resolve_workspace_path` → `topic.folderPath` → параметр `pathPrefix` |
+| Внутри темы | `record_path_resolve` → `topic.folderPath` → параметр `pathPrefix` |
 | Backlinks и исходящие | **только** `search_links` (нужен `index_link_rebuild`) |
 | Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
 | Люди, даты, суммы, теги | `index_entity_query`, `index_entity_catalog_list` (MVP) |
