@@ -102,14 +102,15 @@ export function registerSidecarTools(reg, client) {
       properties
     });
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "annotation_sidecar_write",
-    legacy: "sidecar_write",
+    canonical: "annotation_sidecar_update",
+    legacy: "annotation_sidecar_write",
     description:
       "Update an existing sidecar. Sidecar must exist — use annotation_sidecar_create first. Pass full content or body/properties patch.",
     schema: writeSchema,
     handler: writeHandler
   });
-  reg("write_sidecar", "Deprecated alias for annotation_sidecar_write.", writeSchema, writeHandler);
+  reg("sidecar_write", "Deprecated alias for annotation_sidecar_update.", writeSchema, writeHandler);
+  reg("write_sidecar", "Deprecated alias for annotation_sidecar_update.", writeSchema, writeHandler);
 
   const deleteHandler = (args) => client.delete("/api/storage/sidecar", sidecarQuery(args));
   registerCanonicalWithLegacyAlias(reg, {

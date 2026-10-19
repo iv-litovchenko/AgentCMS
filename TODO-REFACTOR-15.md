@@ -240,7 +240,7 @@ user-agent-cms
 │       ├── 🟢 annotation_sidecar_path_resolve  ← sidecar_path_resolve ← resolve_sidecar_path
 │       ├── 🟢 annotation_sidecar_read          ← sidecar_read ← read_sidecar
 │       ├── 🟢 annotation_sidecar_create        ← sidecar_create ← create_sidecar
-│       ├── 🟢 annotation_sidecar_write         ← sidecar_write ← write_sidecar
+│       ├── 🟢 annotation_sidecar_update        ← annotation_sidecar_write ← sidecar_write ← write_sidecar
 │       └── 🟢 annotation_sidecar_delete        ← sidecar_delete ← delete_sidecar
 │
 ├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)

@@ -287,7 +287,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Метаданные к файлу: `photo.png` → `photo.sidecar.md`. Сам не создаётся.
 
-**Sidecar** (`awn.annotation.sidecar`, `*.sidecar.md`): `annotation_sidecar_path_resolve`, `annotation_sidecar_read`, `annotation_sidecar_create` (409, если есть), `annotation_sidecar_write`, `annotation_sidecar_delete`. Текст из картинок и PDF — `index_ocr_run`.
+**Sidecar** (`awn.annotation.sidecar`, `*.sidecar.md`): `annotation_sidecar_path_resolve`, `annotation_sidecar_read`, `annotation_sidecar_create` (409, если есть), `annotation_sidecar_update`, `annotation_sidecar_delete`. Текст из картинок и PDF — `index_ocr_run`.
 
 ---
 
