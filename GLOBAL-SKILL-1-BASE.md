@@ -39,10 +39,40 @@ Workspace — папка с md-файлами. Хабы:
 Поток: сырое → канал (или `inbox` темы) → тема или база.
 
 - **`manifest.md`** — карточка единицы: frontmatter + описание.
-- **`awn-id`** — глобальный номер записи. `find_by_id({ id })`; старым проставить — `assign_workspace_id`.
+- **`awn-id`** — глобальный номер записи (не `workspaceId`). `find_by_id({ id })`; старым проставить — `assign_workspace_id`. Остальные свойства — «Базовые свойства» ниже.
 - **Служебные папки:** `awn-temp/` (все временные файлы), `awn-scripts/`, `awn-recycler/` (корзина, раздел 16), `.agent-cms/` (кэши, журнал, настройки).
 - **Файлы корня** (`AGENTS.md`, `SKILL.md`, `NOTE.md`, `TODO.md`, `dependencies.csv`) — раздел 15.
 - **Свободная память** — папки без `manifest.md`: `list_folder` + `read_content` / `write_content` с `kind: root`. Описание папки — `{folder}/sidecar.md`. В тему превращает `create_topic`.
+
+### Базовые свойства (frontmatter)
+
+Есть у любой записи и карточки (`manifest.md`, запись слота). Читать/писать — `read_` / `write_content` с `part: properties` (patch) или `*_topic_property`. Полный список полей типа — `read_topic_schema` / `get_type`; здесь только общие.
+
+| Свойство | Что значит | Правило |
+|----------|-----------|---------|
+| `awn-type` | Тип сущности (`awn.hub.topic`, `awn.content.record`…) | Не менять |
+| `awn-id` | Глобальный числовой номер в workspace (≠ `workspaceId`, ≠ slug) | Не менять; поиск — `find_by_id` |
+| `awn-name` | Отображаемое имя в меню и ответах; пусто → берётся slug (имя папки/файла) | Менять для смены названия; slug — `rename_*` |
+| `awn-description` | Короткое описание, одна-две фразы | — |
+| `awn-summary` | Развёрнутое резюме: о чём запись, факты, выводы (подробнее description) | Хорошо для поиска и контекста |
+| `awn-note` / `awn-todo` | Рабочая заметка / на чём остановились и следующий шаг | `awn-note-todo-sticker` устарел — писать в `awn-todo` |
+| `awn-status` | `new` · `draft` · `open` · `planned` · `in-progress` · `blocked` · `waiting-review` · `done` · `closed` · `archived` · `backlog` · `incoming` · `in-discussion` · `outgoing` · `none` | Только эти ключи; по умолчанию `open` |
+| `awn-quality` | Готовность после проверки, 0–10 (<4 — доработать, 4 — норма) | — |
+| `awn-importance` | Важность для человека, 0–10; поднимает в поиске, наследуется внутрь темы | — |
+| `awn-tags` / `awn-taxonomy` | Свободные теги (список строк) / значения справочников из `awn-databases/taxonomies/` | — |
+| `awn-emoji`, `awn-preview`, `awn-sort` | Эмодзи вместо иконки, картинка превью (`assets/preview/`), порядок в меню | Превью — слот `assets` |
+| `awn-web-url` | URL оригинала в интернете | — |
+| `awn-main` / `awn-focus` | Показ на главной / в быстром навигаторе | — |
+| `awn-slots-flexible` | Тема без типовых слотов (только hub, см. раздел 4) | — |
+| `awn-runtime-load-always` | Всегда подгружать в контекст агента (`get_session_context`) | Включать редко |
+| `awn-runtime-cron` · `-cron-schedule` · `-heartbeat` · `-reminder` · `-commands` | Запуск по расписанию (cron-выражение), heartbeat, напоминание, в инструкции есть команды | Раздел 11 |
+| `awn-index-exclude-record` / `-subtree` | Исключить запись / всё содержимое папки из поиска и индексов | — |
+| `awn-create` · `awn-update` · `awn-version` · `awn-owner` | Создан / изменён / версия / владелец | Системные, не писать |
+| `awn-viewed` · `awn-deadline` · `awn-auto-toc` | Заглушки — пока не заполняются и ни на что не влияют | Не опираться |
+| `awn-viz-graph` / `-mindmap` / `-roadmap` | Настройки узла на графе, карте знаний и roadmap | Только по просьбе |
+| `awn-location-*`, `awn-is-real-world-*` | Физическая локация, координаты, признак реального объекта/события (записи) | — |
+
+Префикс `awn-` — системные поля платформы; свои поля темы задаются в `schema` и могут быть без префикса. Поля типа ведут свои хабы (например `awn-code` / `awn-target-path` у short-link) — смотри схему типа.
 
 ---
 
