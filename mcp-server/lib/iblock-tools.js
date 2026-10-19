@@ -42,7 +42,7 @@ export function registerDatabaseTools(reg, client) {
     verbLegacy: "get_database",
     legacyFrameName: "get",
     description:
-      "One database store: schema, records tree (MD or CSV). whole-file-csv → read_content/write_content (kind: database, slot: data, ref: main.csv).",
+      "One database store: schema, records tree (MD or CSV). whole-file-csv → content_read/content_write (kind: database, slot: data, ref: main.csv).",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),

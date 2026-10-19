@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const termTags = z
   .union([z.array(z.string()), z.string()])
@@ -37,41 +38,45 @@ const searchTermsSchema = z.object({
 });
 
 export function registerGlossaryTools(reg, client) {
-  reg(
-    "create_glossary_term",
-    "Create a glossary term in awn-databases/0-contents/0-glossary (md-lite collection).",
-    createTermSchema,
-    (payload) => client.post("/api/agent/workspace-glossary/create", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "glossary_term_create",
+    legacy: "create_glossary_term",
+    description: "Create a glossary term in awn-databases/0-contents/0-glossary (md-lite collection).",
+    schema: createTermSchema,
+    handler: (payload) => client.post("/api/agent/workspace-glossary/create", payload)
+  });
 
-  reg(
-    "update_glossary_term",
-    "Update glossary term by record id or path in contents/glossary.",
-    updateTermSchema,
-    (payload) => client.post("/api/agent/workspace-glossary/update", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "glossary_term_update",
+    legacy: "update_glossary_term",
+    description: "Update glossary term by record id or path in contents/glossary.",
+    schema: updateTermSchema,
+    handler: (payload) => client.post("/api/agent/workspace-glossary/update", payload)
+  });
 
-  reg(
-    "list_glossary_terms",
-    "List glossary terms from contents/glossary (alphabetical). Optional prefix and tags.",
-    listTermsSchema,
-    ({ prefix, tags, limit }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "glossary_terms_list",
+    legacy: "list_glossary_terms",
+    description: "List glossary terms from contents/glossary (alphabetical). Optional prefix and tags.",
+    schema: listTermsSchema,
+    handler: ({ prefix, tags, limit }) =>
       client.get("/api/agent/workspace-glossary/list", {
         ...(prefix ? { prefix } : {}),
         ...(tags ? { tags: Array.isArray(tags) ? tags.join(",") : tags } : {}),
         ...(limit ? { limit } : {})
       })
-  );
+  });
 
-  reg(
-    "search_glossary_terms",
-    "Semantic + fulltext search over contents/glossary only.",
-    searchTermsSchema,
-    ({ query, limit, includeSnippets }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "glossary_terms_search",
+    legacy: "search_glossary_terms",
+    description: "Semantic + fulltext search over contents/glossary only.",
+    schema: searchTermsSchema,
+    handler: ({ query, limit, includeSnippets }) =>
       client.get("/api/agent/workspace-glossary/search", {
         q: query,
         ...(limit ? { limit } : {}),
         ...(includeSnippets === false ? { includeSnippets: "false" } : {})
       })
-  );
+  });
 }

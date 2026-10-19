@@ -640,10 +640,12 @@ export function registerMapTools(reg, client, pagePath) {
   const workspaceTopicIndexTocDescription =
     "Quick TOC for workspace topics: path + type + title + description (awn-topics/index.md). Hub sections 0-agent-kit / 0-shared pinned at top (pinnedSections). No body.";
 
-  reg(
-    "list_topics",
-    "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_content (kind: root, includeFolders=true).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topics_list",
+    legacy: "list_topics",
+    description:
+      "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → read_topic_index_toc; folders without manifest → list_content (kind: root, includeFolders=true).",
+    schema: z.object({
       parentPath: pagePath
         .optional()
         .describe("Area/topic manifest or folder — omit for all manifest nodes in workspace"),
@@ -656,13 +658,13 @@ export function registerMapTools(reg, client, pagePath) {
         .optional()
         .describe("Include adoptable folders without manifest.md (default false)")
     }),
-    ({ parentPath, scope, includeFolders }) =>
+    handler: ({ parentPath, scope, includeFolders }) =>
       client.get("/api/agent/topics", {
         ...(parentPath ? { parentPath } : {}),
         ...(scope ? { scope } : {}),
         ...(includeFolders === true ? { includeFolders: "true" } : {})
       })
-  );
+  });
 
   registerTocTool(reg, {
     canonical: "read_topic_index_toc",

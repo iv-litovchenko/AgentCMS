@@ -13,7 +13,6 @@ import {
   readContentSchema,
   writeContentSchema,
   createContent,
-  importContentFromUrl,
   renameContent,
   moveContent,
   deleteContent,
@@ -60,21 +59,26 @@ export function registerContentTools({ reg, client, pagePath }) {
     (args) => withMdRefFallback(args, (a) => contentExists(client, a))
   );
 
-  reg(
-    "get_content_meta",
-    "Lightweight content metadata: exists, driver, file stat — no body. Prefer read_content with part=meta.",
-    address({}),
-    (args) => withMdRefFallback(args, (a) => getContentMeta(client, a))
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_meta_get",
+    legacy: "get_content_meta",
+    description: "Lightweight content metadata: exists, driver, file stat — no body. Prefer content_read with part=meta.",
+    schema: address({}),
+    handler: (args) => withMdRefFallback(args, (a) => getContentMeta(client, a))
+  });
 
-  reg(
-    "read_content",
+  const readContentDescription =
     "Read content by placement.kind: topic | channel | media | database | repository | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
-      "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
-      `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
-      "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
-      "full=true — whole body (required before write_content replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64 (images → MCP image content for chat clients).",
-    address({
+    "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
+    `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
+    "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
+    "full=true — whole body (required before content_write replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64 (images → MCP image content for chat clients).";
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_read",
+    legacy: "read_content",
+    description: readContentDescription,
+    schema: address({
       part: contentPartSchema,
       format: z.enum(["base64"]).optional(),
       maxBytes: z.number().int().optional(),
@@ -94,7 +98,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       full: z.boolean().optional().describe("Return the whole body, ignore line window"),
       offsetBytes: z.number().int().min(0).optional().describe("root only: byte-offset read (no line window)")
     }),
-    (args) =>
+    handler: (args) =>
       withMdRefFallback(args, (a) => {
         if (a.part === "meta") return readContentMeta(client, a);
         if (a.part === "all") return readContentAll(client, a);
@@ -102,12 +106,14 @@ export function registerContentTools({ reg, client, pagePath }) {
         if (a.part === "schema") return readContentSchema(client, a);
         return readContentBody(client, a);
       })
-  );
+  });
 
-  reg(
-    "list_content",
-    "List items: placement.kind topic|channel|media|database|repository + slot; or kind root + path (folder, \".\" for vault root; depth=1|2|all). Legacy: list_folder, list_root_files.",
-    z
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_list",
+    legacy: "list_content",
+    description:
+      'List items: placement.kind topic|channel|media|database|repository + slot; or kind root + path (folder, "." for vault root; depth=1|2|all). Legacy: list_folder, list_root_files.',
+    schema: z
       .object({
         placement: z
           .object({
@@ -127,19 +133,21 @@ export function registerContentTools({ reg, client, pagePath }) {
         maxBodyChars: z.number().int().min(200).max(20000).optional()
       })
       .strict(),
-    (args) => listContentItems(client, args)
-  );
+    handler: (args) => listContentItems(client, args)
+  });
 
-  reg(
-    "get_content_binary_url",
-    "Absolute HTTPS URL to view binary content (image opens directly in browser). Same placement as read_content_binary. " +
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_url_get",
+    legacy: "get_content_binary_url",
+    description:
+      "Absolute HTTPS URL to view binary content (image opens directly in browser). Same placement as content_binary_read. " +
       "Optional thumb + max for images. Does not return file bytes.",
-    address({
+    schema: address({
       thumb: z.boolean().optional().describe("Request thumbnail for images (default true)"),
       max: z.number().int().min(64).max(2000).optional().describe("Thumbnail max px (default server 480)")
     }),
-    (args) => getContentBinaryUrl(client, args)
-  );
+    handler: (args) => getContentBinaryUrl(client, args)
+  });
 
   reg(
     "get_workspace_url_page_preview",
@@ -157,11 +165,13 @@ export function registerContentTools({ reg, client, pagePath }) {
     (args) => getWorkspaceUrlPagePreview(client, args)
   );
 
-  reg(
-    "read_content_binary",
-    "Read a binary file by placement (same address as read_content). Always base64; images also return MCP image content. " +
-      "Not for .md — use read_content. Partial read: maxBytes, offsetBytes.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_read",
+    legacy: "read_content_binary",
+    description:
+      "Read a binary file by placement (same address as content_read). Always base64; images also return MCP image content. " +
+      "Not for .md — use content_read. Partial read: maxBytes, offsetBytes.",
+    schema: address({
       maxBytes: z
         .number()
         .int()
@@ -171,32 +181,38 @@ export function registerContentTools({ reg, client, pagePath }) {
         .describe("Max bytes to return as base64 (default server limit)"),
       offsetBytes: z.number().int().min(0).optional().describe("Byte offset for partial binary read")
     }),
-    (args) => readContentBinary(client, args),
-    { formatResult: (data) => formatReadFileToolResult(data, jsonText) }
-  );
+    handler: (args) => readContentBinary(client, args),
+    options: { formatResult: (data) => formatReadFileToolResult(data, jsonText) }
+  });
 
-  reg(
-    "write_content_binary",
-    "Write/upload a binary file by placement. data (base64) required; mimeType optional. " +
-      "Same paths as write_content data=… — prefer this tool for agents. Not for .md text.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_write",
+    legacy: "write_content_binary",
+    description:
+      "Write/upload a binary file by placement. data (base64) required; mimeType optional. " +
+      "Same paths as content_write data=… — prefer this tool for agents. Not for .md text.",
+    schema: address({
       data: z.string().min(1).describe("Base64-encoded file bytes"),
       mimeType: z.string().optional(),
       createSubdir: z.boolean().optional().describe("Create subdirs in ref (default true)")
     }),
-    (args) => writeContentBinary(client, args)
-  );
+    handler: (args) => writeContentBinary(client, args)
+  });
 
-  reg(
-    "write_content",
-    "Write content by placement (same as read_content). part=body|properties|schema. " +
-      "part=body mode: replace (default, whole body; frontmatter kept) | append | prepend | patch (oldString→newString, unique unless replaceAll) | " +
-      "replace_lines (startLine..endLine → content; content=\"\" deletes) | insert (afterLine or beforeLine + content). " +
-      "Line numbers = read_content / search_workspace_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
-      "expectedHash = hash from read_content: mismatch → conflict error; required for replace_lines/insert. " +
-      "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
-      "Binary: data (base64); root uses placement.path as file path.",
-    address({
+  const writeContentDescription =
+    "Write content by placement (same as content_read). part=body|properties|schema. " +
+    "part=body mode: replace (default, whole body; frontmatter kept) | append | prepend | patch (oldString→newString, unique unless replaceAll) | " +
+    "replace_lines (startLine..endLine → content; content=\"\" deletes) | insert (afterLine or beforeLine + content). " +
+    "Line numbers = content_read / search_workspace_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
+    "expectedHash = hash from content_read: mismatch → conflict error; required for replace_lines/insert. " +
+    "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
+    "Binary: data (base64); root uses placement.path as file path.";
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_write",
+    legacy: "write_content",
+    description: writeContentDescription,
+    schema: address({
       part: contentPartSchema,
       mode: z.enum(WRITE_MODES).optional().describe("part=body edit mode (default replace)"),
       content: z.string().optional().describe("Text for replace / append / prepend / replace_lines / insert"),
@@ -207,63 +223,65 @@ export function registerContentTools({ reg, client, pagePath }) {
       endLine: z.number().int().min(1).optional().describe("mode=replace_lines: last line (inclusive, default startLine)"),
       afterLine: z.number().int().min(0).optional().describe("mode=insert: insert after this line"),
       beforeLine: z.number().int().min(1).optional().describe("mode=insert: insert before this line"),
-      expectedHash: z.string().optional().describe("hash from read_content / previous write; mismatch → conflict"),
+      expectedHash: z.string().optional().describe("hash from content_read / previous write; mismatch → conflict"),
       data: z.string().optional().describe("Base64 file bytes (upload); use instead of content"),
       mimeType: z.string().optional(),
       createSubdir: z.boolean().optional()
     }),
-    async (args) => {
+    handler: async (args) => {
       if (args.part === "properties") return writeContentProperties(client, args);
       if (args.part === "schema") return writeContentSchema(client, args);
       return writeContentBody(client, args);
     }
-  );
+  });
 
-  reg(
-    "read_content_property",
-    "Read one frontmatter property of a .md content item.",
-    address({ key: z.string().min(1) }),
-    (args) => withMdRefFallback(args, (a) => readContentProperty(client, a))
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_property_read",
+    legacy: "read_content_property",
+    description: "Read one frontmatter property of a .md content item.",
+    schema: address({ key: z.string().min(1) }),
+    handler: (args) => withMdRefFallback(args, (a) => readContentProperty(client, a))
+  });
 
-  reg(
-    "write_content_property",
-    "Set one frontmatter property on a .md content item.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_property_write",
+    legacy: "write_content_property",
+    description: "Set one frontmatter property on a .md content item.",
+    schema: address({
       key: z.string().min(1),
       value: z.string()
     }),
-    (args) => writeContentProperty(client, args)
-  );
+    handler: (args) => writeContentProperty(client, args)
+  });
 
   if (isLegacyMcpToolsEnabled()) {
     reg(
       "read_content_body",
-      "[Legacy] Use read_content with part=body.",
+      "[Legacy] Use content_read with part=body.",
       address({}),
       (args) => readContentBody(client, args)
     );
     reg(
       "write_content_body",
-      "[Legacy] Use write_content with part=body.",
+      "[Legacy] Use content_write with part=body.",
       address({ content: z.string() }),
       (args) => writeContentBody(client, args)
     );
     reg(
       "read_content_properties",
-      "[Legacy] Use read_content with part=properties.",
+      "[Legacy] Use content_read with part=properties.",
       address({}),
       (args) => readContentProperties(client, args)
     );
     reg(
       "write_content_properties",
-      "[Legacy] Use write_content with part=properties.",
+      "[Legacy] Use content_write with part=properties.",
       address({ content: z.string() }),
       (args) => writeContentProperties(client, args)
     );
     reg(
       "read_content_schema",
-      "[Legacy] Use read_content with part=schema.",
+      "[Legacy] Use content_read with part=schema.",
       address({
         mode: z.enum(["effective", "layers", "local"]).optional(),
         ref: z.string().min(1).optional()
@@ -272,7 +290,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     );
     reg(
       "write_content_schema",
-      "[Legacy] Use write_content with part=schema.",
+      "[Legacy] Use content_write with part=schema.",
       address({
         ref: z.string().min(1).optional(),
         content: z.string().describe("YAML with awn_schema slot_* blocks")
@@ -281,10 +299,12 @@ export function registerContentTools({ reg, client, pagePath }) {
     );
   }
 
-  reg(
-    "create_content",
-    "Create typed content in a slot (placement or path+slot). Database (kind: database, slot: data): same as legacy database_element_create — isSection or awn.content.category for sections.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_create",
+    legacy: "create_content",
+    description:
+      "Create typed content in a slot (placement or path+slot). Database (kind: database, slot: data): same as legacy database_element_create — isSection or awn.content.category for sections.",
+    schema: address({
       awnType: z
         .enum(["awn.content.record", "awn.content.category"])
         .optional()
@@ -305,8 +325,8 @@ export function registerContentTools({ reg, client, pagePath }) {
       author: z.string().optional(),
       status: z.string().optional()
     }),
-    (args) => createContent(client, args)
-  );
+    handler: (args) => createContent(client, args)
+  });
 
   const writeContentBinaryFromUrlSchema = address({
     url: z.string().url(),
@@ -320,73 +340,89 @@ export function registerContentTools({ reg, client, pagePath }) {
     createSubdir: z.boolean().optional()
   });
   const writeContentBinaryFromUrlHandler = (args) => writeContentBinaryFromUrl(client, args);
+  const writeContentBinaryFromUrlDescription =
+    "Download http(s) URL into a binary file by placement (same slots as content_binary_write). " +
+    "Requires placement.ref or fileName; not for .md text.";
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "write_content_binary_from_url",
-    legacy: "import_content_from_url",
-    description:
-      "Download http(s) URL into a binary file by placement (same slots as write_content_binary). " +
-      "Requires placement.ref or fileName; not for .md text.",
+    canonical: "content_binary_write_from_url",
+    legacy: "write_content_binary_from_url",
+    description: writeContentBinaryFromUrlDescription,
     schema: writeContentBinaryFromUrlSchema,
     handler: writeContentBinaryFromUrlHandler
   });
-
   reg(
-    "rename_content",
-    "Rename content item in an external slot. Address like read_content: placement { kind, path, slot, ref }. Required: displayName or title (new title).",
-    address({
+    "import_content_from_url",
+    "Deprecated alias for content_binary_write_from_url.",
+    writeContentBinaryFromUrlSchema,
+    writeContentBinaryFromUrlHandler
+  );
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_rename",
+    legacy: "rename_content",
+    description:
+      "Rename content item in an external slot. Address like content_read: placement { kind, path, slot, ref }. Required: displayName or title (new title).",
+    schema: address({
       displayName: z.string().min(1).optional().describe("New display name (or title)"),
       title: z.string().min(1).optional()
     }),
-    (args) => renameContent(client, args)
-  );
+    handler: (args) => renameContent(client, args)
+  });
 
-  reg(
-    "move_content",
-    "Move content within or across topics. Source: placement { kind, path, slot, ref } like read_content. Database data slot: targetParent (section id) and/or slug (or targetRef as new slug). external/memory/main and media: targetPath + targetRef. Storage slots: targetFolder + targetRef or targetParent.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_move",
+    legacy: "move_content",
+    description:
+      "Move content within or across topics. Source: placement { kind, path, slot, ref } like content_read. Database data slot: targetParent (section id) and/or slug (or targetRef as new slug). external/memory/main and media: targetPath + targetRef. Storage slots: targetFolder + targetRef or targetParent.",
+    schema: address({
       targetPath: pagePath.optional(),
       targetRef: z.string().optional(),
       targetParent: z.string().optional(),
       targetFolder: z.string().optional(),
       slug: z.string().optional().describe("Database data slot: new record/section slug (records/rename).")
     }),
-    (args) => moveContent(client, args)
-  );
+    handler: (args) => moveContent(client, args)
+  });
 
-  reg(
-    "delete_content",
-    "Delete content from an external slot. Address: placement { kind, path, slot, ref } like read_content.",
-    address({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_delete",
+    legacy: "delete_content",
+    description: "Delete content from an external slot. Address: placement { kind, path, slot, ref } like content_read.",
+    schema: address({
       confirm: z.boolean().optional()
     }),
-    (args) => deleteContent(client, args)
-  );
+    handler: (args) => deleteContent(client, args)
+  });
 
-  reg(
-    "split_content",
-    "Split one .md note into several files by top-level H1 lines (# title — single # only). " +
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_split",
+    legacy: "split_content",
+    description:
+      "Split one .md note into several files by top-level H1 lines (# title — single # only). " +
       "Each part gets title «Base (n)» from source title or file name; preamble before first H1 → «Base (0)» when includePreamble. " +
       "New refs: same folder, {stem}-0.md, {stem}-1.md, … Copies frontmatter; updates title and id per part. deleteSource defaults true.",
-    address({
+    schema: address({
       includePreamble: z.boolean().optional().describe("Create part (0) for body before first H1 (default true)"),
       deleteSource: z.boolean().optional().describe("Delete source file after split (default true)")
     }),
-    (args) => withMdRefFallback(args, (a) => splitContent(client, a))
-  );
+    handler: (args) => withMdRefFallback(args, (a) => splitContent(client, a))
+  });
 
-  reg(
-    "merge_content",
-    "Merge several .md notes into one (same placement slot). Bodies joined with --- between parts. " +
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_merge",
+    legacy: "merge_content",
+    description:
+      "Merge several .md notes into one (same placement slot). Bodies joined with --- between parts. " +
       "Keeps target file frontmatter; optional union of tags (mergeTags, default true). targetRef must be in refs (default first). deleteSources optional.",
-    address({
+    schema: address({
       refs: z.array(z.string().min(1)).min(2).describe("Markdown refs in merge order, e.g. [\"a.md\", \"b.md\"]"),
       targetRef: z.string().min(1).optional().describe("Which ref receives merged body (default: first in refs)"),
       mergeTags: z.boolean().optional().describe("Union tags from all sources (default true)"),
       deleteSources: z.boolean().optional().describe("Delete non-target refs after merge (default false)")
     }),
-    (args) => mergeContent(client, args)
-  );
+    handler: (args) => mergeContent(client, args)
+  });
 }
 
 export { placementSchema };

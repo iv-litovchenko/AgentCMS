@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const factKind = z
   .enum(["decision", "preference", "entity", "procedure", "open-question", "note", "fact"])
@@ -50,10 +51,6 @@ const searchFactsSchema = z.object({
   includeSnippets: z.boolean().optional().describe("Include snippets (default true)")
 });
 
-function registerFactTool(reg, name, description, schema, handler) {
-  reg(name, description, schema, handler);
-}
-
 export function registerFactsTools(reg, client) {
   const createHandler = (payload) => client.post("/api/agent/workspace-facts/create", payload);
   const updateHandler = (payload) => client.post("/api/agent/workspace-facts/update", payload);
@@ -72,35 +69,38 @@ export function registerFactsTools(reg, client) {
       ...(includeSnippets === false ? { includeSnippets: "false" } : {})
     });
 
-  registerFactTool(
-    reg,
-    "create_workspace_fact",
-    "Create a distilled fact in awn-databases/0-contents/0-facts (md-lite collection). Not for full dialog logs.",
-    createFactSchema,
-    createHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_fact_create",
+    legacy: "create_workspace_fact",
+    description:
+      "Create a distilled fact in awn-databases/0-contents/0-facts (md-lite collection). Not for full dialog logs.",
+    schema: createFactSchema,
+    handler: createHandler
+  });
 
-  registerFactTool(
-    reg,
-    "update_workspace_fact",
-    "Update an existing fact by record id or path in 0-contents/0-facts.",
-    updateFactSchema,
-    updateHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_fact_update",
+    legacy: "update_workspace_fact",
+    description: "Update an existing fact by record id or path in 0-contents/0-facts.",
+    schema: updateFactSchema,
+    handler: updateHandler
+  });
 
-  registerFactTool(
-    reg,
-    "list_workspace_facts",
-    "List recent facts from 0-contents/0-facts (newest first). No semantic search — use search_workspace_facts.",
-    listFactsSchema,
-    listHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_facts_list",
+    legacy: "list_workspace_facts",
+    description:
+      "List recent facts from 0-contents/0-facts (newest first). No semantic search — use workspace_facts_search.",
+    schema: listFactsSchema,
+    handler: listHandler
+  });
 
-  registerFactTool(
-    reg,
-    "search_workspace_facts",
-    "Semantic + fulltext search over 0-contents/0-facts only. Returns cited hits for the agent to synthesize an answer.",
-    searchFactsSchema,
-    searchHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_facts_search",
+    legacy: "search_workspace_facts",
+    description:
+      "Semantic + fulltext search over 0-contents/0-facts only. Returns cited hits for the agent to synthesize an answer.",
+    schema: searchFactsSchema,
+    handler: searchHandler
+  });
 }

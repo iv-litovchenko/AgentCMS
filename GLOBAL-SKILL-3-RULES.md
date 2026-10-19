@@ -16,7 +16,7 @@ description: Правила, запреты и антипаттерны аген
 
 - **Только по моему запросу.** Не стартуй сам: не вызывай tools и не читай хранилище, пока я не попросил.
 - **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `run_script` / `exec_command` / `exec_shell`.
-- **Пути и типы не угадывай.** Бери из `read_*_index_toc`, `list_content`, `resolve_workspace_path`, `get_ui_focus`, `get_type`.
+- **Пути и типы не угадывай.** Бери из `read_*_index_toc`, `contents_list`, `resolve_workspace_path`, `get_ui_focus`, `get_type`.
 - **Удаление и выполнение** (риск — см. п. 3). Если в настройках платформы включены `confirm-delete` / `confirm-exec`, передавай `confirm: true` только после моего явного согласия.
 - **Связи.** Перед удалением или переносом записи проверь `read_dependencies`.
 - **Git.** Коммит, push, pull — только по моей просьбе.
@@ -25,7 +25,7 @@ description: Правила, запреты и антипаттерны аген
 
 ## Факты
 
-Писать `create_workspace_fact`, только если принято решение, выявлено моё предпочтение, появилась новая сущность (URL, проект, контакт) или я попросил «сохрани как факт». Не писать каждую реплику, черновики и то, что уже есть в manifest. Норма: 0 фактов за обычный чат, 1–3 за полезную сессию.
+Писать `workspace_fact_create`, только если принято решение, выявлено моё предпочтение, появилась новая сущность (URL, проект, контакт) или я попросил «сохрани как факт». Не писать каждую реплику, черновики и то, что уже есть в manifest. Норма: 0 фактов за обычный чат, 1–3 за полезную сессию.
 
 ## Антипаттерны
 
@@ -44,14 +44,15 @@ description: Правила, запреты и антипаттерны аген
 | Устарело | Используй |
 |----------|-----------|
 | `read_dialogs` / `append_dialog` | `read_discussion` / `append_discussion` |
-| `list_system_files` / `read_system_file` / `write_system_file` | `list_content` / `read_content` / `write_content` (`kind: root`) |
+| `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |
 | `list_vaults` | `list_workspaces` |
-| `get_topic_map` | `list_topics` + `read_topic_index_toc` + `list_content` (`kind: root`) |
-| `get_content_map` | `read_content_index_toc` + `read_content` (`part=properties`) |
-| `read_content_body`, `write_content_body` и подобные | `read_content` / `write_content` с `part` |
-| `list_channel_items`, `upload_channel_file`, `list_media_library_items`, `upload_media_library_file` | `list_content` / `write_content` с `kind: channel` / `media` |
-| `write_file`, `patch_file`, `list_folder`, `list_root_files`, `read_root_file`, `write_root_file` | `list_content` / `read_content` / `write_content` с `kind: root` (`mode: patch`) — только при `MCP_LEGACY_TOOLS=1` |
-| `page_*`, `get_page_*` | `topic_*`, `get_topic_*` |
+| `get_topic_map` | `topics_list` + `read_topic_index_toc` + `contents_list` (`kind: root`) |
+| `get_content_map` | `read_content_index_toc` + `content_read` (`part=properties`) |
+| `read_content`, `write_content`, `list_content`, … | `content_read`, `content_write`, `contents_list`, … |
+| `read_content_body`, … | `content_read` / `content_write` с `part` |
+| `list_channel_items`, `upload_channel_file`, … | `contents_list` / `content_write` с `kind: channel` / `media` |
+| `write_file`, `patch_file`, `list_folder`, … | `contents_list` / `content_read` / `content_write` (`kind: root`) — legacy FS при `MCP_LEGACY_TOOLS=1` |
+| `page_*`, `get_page_*` | `topic_*` (legacy `get_topic`, `read_topic_*`) |
 | `create_database`, `database_frame_*`, `list_databases`, … | `database_register`, `databases_list`, … (канон `database_*` / `databases_*`) |
 
 ## Контекст переполняется

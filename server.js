@@ -12746,7 +12746,7 @@ async function buildAgentPageMap(options = {}) {
       "Legacy page-map (MCP get_topic_map deprecated). Prefer read_topic_index_toc + list_folder. " +
       "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
     whenToUse: {
-      list_topics: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
+      topics_list: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
       read_topic_index_toc: `Канон: обзор страниц workspace (${AWN_TOPICS_INDEX_REL}, без обхода папок без manifest).`,
       list_folder: "Папки без manifest.md и произвольные пути.",
       get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на list_topics + read_topic_index_toc + list_folder."
@@ -12853,7 +12853,7 @@ async function buildAgentTopicsList(options = {}) {
       "Секции hub (0-agent-kit, 0-shared) — pinned вверху flat-списка и в INDEX. " +
       "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
     whenToUse: {
-      list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
+      topics_list: "Обход дерева по parent или плоский список manifest-узлов.",
       read_topic_index_toc: `Таблица ${AWN_TOPICS_INDEX_REL} (комментарии, конфигурации, stats).`,
       list_folder: "Папки без manifest.md (не входят в list_topics по умолчанию)."
     },
@@ -14924,7 +14924,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_workspace_open_url_from_path",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
@@ -14952,7 +14952,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageMap:
     "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: list_topics / read_topic_index_toc + list_folder",
   listTopics:
-    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP list_topics (дерево тем, без INDEX.md)",
+    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP topics_list (дерево тем, без INDEX.md)",
   contentMap:
     "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
   contentIndex:
@@ -14980,9 +14980,9 @@ const SESSION_CONTEXT_API_MAP = {
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
-  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP get_topic; PUT /api/agent/topic — update_topic",
+  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP topic_get; PUT /api/agent/topic — topic_update",
   topicSlotsTemplate:
-    "GET /api/agent/topic-slots-template?path= — MCP get_topic_slots_template; PUT — set_topic_slots_template (standard|flexible|none)",
+    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|none)",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -14993,21 +14993,21 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — create_workspace_fact MCP",
-  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — update_workspace_fact MCP",
-  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — list_workspace_facts MCP",
-  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — search_workspace_facts MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — workspace_fact_create MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — workspace_fact_update MCP",
+  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — workspace_facts_list MCP",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — workspace_facts_search MCP",
   workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
   workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
   workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",
-  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — create_glossary_term MCP",
-  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
-  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
-  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
-  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — create_reference_entry MCP",
-  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — update_reference_entry MCP",
-  workspaceReferenceList: "GET /api/agent/workspace-reference/list — list_reference_entries MCP",
-  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — search_reference_entries MCP",
+  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — glossary_term_create MCP",
+  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — glossary_term_update MCP",
+  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — glossary_terms_list MCP",
+  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — glossary_terms_search MCP",
+  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — reference_entry_create MCP",
+  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — reference_entry_update MCP",
+  workspaceReferenceList: "GET /api/agent/workspace-reference/list — reference_entries_list MCP",
+  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — reference_entries_search MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:

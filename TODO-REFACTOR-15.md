@@ -74,14 +74,14 @@ user-agent-cms
 │   ├── refresh_repository_index_toc
 │   ├── read_media_library_index_toc
 │   ├── refresh_media_library_index_toc
-│   ├── list_topics
-│   ├── get_topic
-│   ├── get_topic_url
-│   ├── get_topic_meta
+│   ├── 🟢 topics_list                    ← list_topics
+│   ├── 🟢 topic_get                      ← get_topic
+│   ├── get_topic_url                     (legacy → get_workspace_open_url_from_path)
+│   ├── 🟢 topic_meta_get                 ← get_topic_meta
 │   ├── topic_exists
 │   ├── list_slots
-│   ├── get_topic_slots_template
-│   ├── set_topic_slots_template
+│   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
+│   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
 │   ├── list_types
 │   ├── get_type
 │   ├── find_by_id
@@ -94,43 +94,43 @@ user-agent-cms
 │   └── get_link_preview
 │
 ├── 📄 Контент · 18
-│   ├── list_content
-│   ├── read_content
-│   ├── write_content
-│   ├── read_content_binary
-│   ├── write_content_binary
-│   ├── write_content_binary_from_url
-│   ├── get_content_binary_url
+│   ├── 🟢 contents_list                 ← list_content
+│   ├── 🟢 content_read                  ← read_content
+│   ├── 🟢 content_write                 ← write_content
+│   ├── 🟢 content_binary_read           ← read_content_binary
+│   ├── 🟢 content_binary_write          ← write_content_binary
+│   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
+│   ├── 🟢 content_binary_url_get        ← get_content_binary_url
 │   ├── content_exists
-│   ├── get_content_meta
-│   ├── read_content_property
-│   ├── write_content_property
-│   ├── create_content
-│   ├── delete_content
-│   ├── rename_content
-│   ├── move_content
-│   ├── split_content
-│   ├── merge_content
-│   └── batch_invoke
+│   ├── 🟢 content_meta_get              ← get_content_meta
+│   ├── 🟢 content_property_read         ← read_content_property
+│   ├── 🟢 content_property_write        ← write_content_property
+│   ├── 🟢 content_create                ← create_content
+│   ├── 🟢 content_delete                ← delete_content
+│   ├── 🟢 content_rename                ← rename_content
+│   ├── 🟢 content_move                  ← move_content
+│   ├── 🟢 content_split                 ← split_content
+│   ├── 🟢 content_merge                 ← merge_content
+│   └── batch_invoke                      (имя без изменений)
 │
 ├── 🧩 Тема · 17
-│   ├── 🔴 topic_body_read              ← read_topic_body
-│   ├── 🔴 topic_body_write             ← write_topic_body
-│   ├── 🔴 topic_properties_read        ← read_topic_properties
-│   ├── 🔴 topic_properties_write       ← write_topic_properties
-│   ├── 🔴 topic_property_read          ← read_topic_property
-│   ├── 🔴 topic_property_write         ← write_topic_property
-│   ├── 🔴 topic_schema_read            ← read_topic_schema
-│   ├── 🔴 topic_schema_write           ← write_topic_schema
-│   ├── 🔴 topic_config_read            ← read_topic_config
-│   ├── 🔴 topic_config_write           ← write_topic_config
-│   ├── 🔴 topic_env_read               ← read_topic_env
-│   ├── 🔴 topic_env_write              ← write_topic_env
-│   ├── 🔴 topic_create                 ← create_topic
-│   ├── 🔴 topic_update                 ← update_topic
-│   ├── 🔴 topic_delete                 ← delete_topic
-│   ├── 🔴 topic_rename                 ← rename_topic
-│   └── 🔴 topic_move                   ← move_topic
+│   ├── 🟢 topic_body_read              ← read_topic_body
+│   ├── 🟢 topic_body_write             ← write_topic_body
+│   ├── 🟢 topic_properties_read        ← read_topic_properties
+│   ├── 🟢 topic_properties_write       ← write_topic_properties
+│   ├── 🟢 topic_property_read          ← read_topic_property
+│   ├── 🟢 topic_property_write         ← write_topic_property
+│   ├── 🟢 topic_schema_read            ← read_topic_schema
+│   ├── 🟢 topic_schema_write           ← write_topic_schema
+│   ├── 🟢 topic_config_read            ← read_topic_config
+│   ├── 🟢 topic_config_write           ← write_topic_config
+│   ├── 🟢 topic_env_read               ← read_topic_env
+│   ├── 🟢 topic_env_write              ← write_topic_env
+│   ├── 🟢 topic_create                 ← create_topic
+│   ├── 🟢 topic_update                 ← update_topic
+│   ├── 🟢 topic_delete                 ← delete_topic
+│   ├── 🟢 topic_rename                 ← rename_topic
+│   └── 🟢 topic_move                   ← move_topic
 │
 ├── 🗃 Базы · 12
 │   ├── 🟢 databases_list               ← list_databases
@@ -205,18 +205,18 @@ user-agent-cms
 │   └── list_workspace_notifications
 │
 ├── 🧠 Facts · glossary · reference · 12
-│   ├── create_workspace_fact
-│   ├── update_workspace_fact
-│   ├── list_workspace_facts
-│   ├── search_workspace_facts
-│   ├── create_glossary_term
-│   ├── update_glossary_term
-│   ├── list_glossary_terms
-│   ├── search_glossary_terms
-│   ├── create_reference_entry
-│   ├── update_reference_entry
-│   ├── list_reference_entries
-│   └── search_reference_entries
+│   ├── 🟢 workspace_fact_create          ← create_workspace_fact
+│   ├── 🟢 workspace_fact_update          ← update_workspace_fact
+│   ├── 🟢 workspace_facts_list           ← list_workspace_facts
+│   ├── 🟢 workspace_facts_search         ← search_workspace_facts
+│   ├── 🟢 glossary_term_create           ← create_glossary_term
+│   ├── 🟢 glossary_term_update           ← update_glossary_term
+│   ├── 🟢 glossary_terms_list            ← list_glossary_terms
+│   ├── 🟢 glossary_terms_search          ← search_glossary_terms
+│   ├── 🟢 reference_entry_create         ← create_reference_entry
+│   ├── 🟢 reference_entry_update         ← update_reference_entry
+│   ├── 🟢 reference_entries_list         ← list_reference_entries
+│   └── 🟢 reference_entries_search       ← search_reference_entries
 │
 ├── 💬 Inbox · discussion · comments · 10
 │   ├── list_inbox
@@ -333,8 +333,9 @@ id
 - [x] **Каналы:** канон в MCP + legacy alias (`mcp-server/lib/channel-tools.js`)
 - [x] **Базы:** канон в MCP + legacy (`list_databases`, `database_frame_*`) — `mcp-server/lib/iblock-tools.js`
 - [x] **Модули:** имена `module_*` — без переименования (git, short link, media cloud, file hub)
-- [ ] **Волна 1 (🔴 в дереве):** тема — канон `сущность_действие`, старые имена → legacy
-- [ ] Карты/TOC темы: `topics_list`, `topic_get`, `topic_meta_get`, … (отдельно от блока «Тема»)
+- [x] **Facts · glossary · reference:** канон в MCP + legacy — `facts-tools.js`, `glossary-tools.js`, `reference-tools.js`
+- [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
+- [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`; `batch_invoke` без переименования)
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`
