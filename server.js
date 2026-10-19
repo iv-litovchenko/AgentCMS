@@ -14981,6 +14981,8 @@ const SESSION_CONTEXT_API_MAP = {
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP get_topic; PUT /api/agent/topic — update_topic",
+  topicSlotsTemplate:
+    "GET /api/agent/topic-slots-template?path= — MCP get_topic_slots_template; PUT — set_topic_slots_template (standard|flexible|none)",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -15756,6 +15758,122 @@ async function readTopicSlotsFlexible(manifestRelPath) {
 
 async function readTopicSlotsDisabled(manifestRelPath) {
   return readTopicSlotsFlexible(manifestRelPath);
+}
+
+const TOPIC_SLOTS_TEMPLATE_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+
+function isAllowedTopicSlotsTemplateValue(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  return (
+    value === TOPIC_SLOTS_TEMPLATE_STANDARD ||
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  );
+}
+
+function upsertTopicSlotsTemplateInFrontmatter(frontmatter, template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  let next = removeYamlScalarLine(frontmatter, "awn-slots-flexible");
+  next = removeYamlScalarLine(next, "awn-slots-disabled");
+  return upsertYamlScalarLine(next, "awn-slots-template", normalized);
+}
+
+function buildAgentTopicSlotsTemplatePayload(manifestRel, template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return {
+    version: 1,
+    model: "awn-topic-slots-template",
+    path: manifestRel,
+    template: normalized,
+    label: TOPIC_SLOTS_TEMPLATE_LABELS[normalized] || normalized,
+    slotsFlexible: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+    slotsDisabled: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+    hint:
+      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; none — single-file slots only."
+  };
+}
+
+async function getAgentTopicSlotsTemplate(inputPath) {
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (slots template applies to topic/area hub manifests only)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const absolute = normalizeWorkspacePath(manifestRel);
+  if (!absolute || !isManifestMdAbsolute(absolute)) {
+    return { error: "Path must be manifest.md", status: 400, path: manifestRel };
+  }
+  try {
+    await fs.access(absolute);
+  } catch {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+  const template = await readTopicSlotsTemplate(manifestRel);
+  return buildAgentTopicSlotsTemplatePayload(manifestRel, template);
+}
+
+async function setAgentTopicSlotsTemplate(inputPath, template) {
+  if (!isAllowedTopicSlotsTemplateValue(template)) {
+    return {
+      error: "Invalid template",
+      status: 400,
+      allowed: [TOPIC_SLOTS_TEMPLATE_STANDARD, TOPIC_SLOTS_TEMPLATE_FLEXIBLE, TOPIC_SLOTS_TEMPLATE_NONE]
+    };
+  }
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (slots template applies to topic/area hub manifests only)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(manifestRel);
+  if (!nodeAbsolute) {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const normalized = normalizeTopicSlotsTemplate(template);
+  const current = await readTopicSlotsTemplate(manifestRel);
+  if (current === normalized) {
+    return { ...buildAgentTopicSlotsTemplatePayload(manifestRel, normalized), updated: false };
+  }
+
+  const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
+  const parts = splitNodeFrontmatter(raw);
+  let nextFrontmatter = upsertTopicSlotsTemplateInFrontmatter(parts.frontmatter, normalized);
+  nextFrontmatter = applyAwnTimestampsToFrontmatter(nextFrontmatter, { diskFrontmatter: parts.frontmatter });
+  const nextContent = joinNodeFrontmatter(nextFrontmatter, parts.body);
+  await writeWorkspaceTextFileWithHistory(manifestRel, manifestRel, nextContent);
+  await invalidateNodeReadStateForManifest(manifestRel);
+  await recordWorkspaceActivityAsync({
+    action: "update",
+    path: manifestRel,
+    manifestPath: manifestRel,
+    label: path.posix.basename(manifestRel) || manifestRel,
+    fileKind: inferWorkspaceActivityFileKind(manifestRel)
+  });
+
+  return {
+    ...buildAgentTopicSlotsTemplatePayload(manifestRel, normalized),
+    updated: true,
+    previousTemplate: current
+  };
 }
 
 const SHARED_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
@@ -22897,6 +23015,41 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update topic",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/topic-slots-template") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const result = await getAgentTopicSlotsTemplate(relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic slots template",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/topic-slots-template") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const template = payload?.template;
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (template === undefined || template === null || String(template).trim() === "") {
+        return sendJson(res, 400, { error: "Missing template" });
+      }
+      const result = await setAgentTopicSlotsTemplate(relPath, template);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to set topic slots template",
         details: String(error.message || error)
       });
     }

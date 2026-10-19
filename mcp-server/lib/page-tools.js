@@ -50,6 +50,25 @@ export function registerPageTools({ reg, client, pagePath }) {
     ({ path }) => client.get("/api/agent/topic", { path })
   );
 
+  const topicSlotsTemplateSchema = z.enum(["standard", "flexible", "none"]);
+
+  reg(
+    "get_topic_slots_template",
+    "Read awn-slots-template for a topic/area manifest (standard | flexible | none). Legacy awn-slots-flexible is normalized. Response includes slotsFlexible for compat.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/agent/topic-slots-template", { path })
+  );
+
+  reg(
+    "set_topic_slots_template",
+    "Set awn-slots-template on manifest.md. Removes legacy awn-slots-flexible / awn-slots-disabled. standard = typed slots; flexible = whole awn-storage/ except assets/, history/, comments/; none = single-file slots only.",
+    z.object({
+      path: pagePath,
+      template: topicSlotsTemplateSchema
+    }),
+    ({ path, template }) => client.put("/api/agent/topic-slots-template", { path, template })
+  );
+
   const updateTopicSchema = z
     .object({
       path: pagePath,

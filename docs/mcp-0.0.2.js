@@ -262,6 +262,18 @@ module.exports = {
       tools: [
         { name: "get_topic", description: "Карточка hub: properties + body.", parameters: "path", http: "GET /api/agent/topic" },
         {
+          name: "get_topic_slots_template",
+          description: "Шаблон слотов темы: standard | flexible | none.",
+          parameters: "path",
+          http: "GET /api/agent/topic-slots-template"
+        },
+        {
+          name: "set_topic_slots_template",
+          description: "Установить awn-slots-template (legacy flexible-ключи снимаются).",
+          parameters: "path, template",
+          http: "PUT /api/agent/topic-slots-template"
+        },
+        {
           name: "update_topic",
           description: "Patch name/description/body manifest.",
           parameters: "path, name?, description?, body?",
