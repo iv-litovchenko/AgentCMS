@@ -13,7 +13,7 @@
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
-**Итого в дереве: 234 метода** (legacy-алиасы и `*_zzz` stub не считаются; `get_topic_url` = alias, не отдельная строка).
+**Итого в дереве: 233 метода** (legacy-алиасы и `*_zzz` stub не считаются).
 
 ```
 user-agent-cms
@@ -95,12 +95,11 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_media_libraries_read ← media_libraries_index_toc_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
 │
-├── 🗺 id, URL · 5
-│   ├── 🔴 get_workspace_open_url_from_path   ← get_topic_url
-│   ├── 🔴 get_workspace_url_page_preview
-│   ├── 🔴 get_external_url_page_preview      ← get_link_preview
-│   ├── 🔴 get_link_preview                   (legacy alias)
-│   └── 🔴 content_binary_url_get             ← get_content_binary_url
+├── 🗺 id, URL · 4
+│   ├── 🟢 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
+│   ├── 🟢 get_workspace_page_preview_from_path  ← get_workspace_url_page_preview
+│   ├── 🟢 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
+│   └── 🟢 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
 │
 ├── 🧭 Темы · topics_ / topic_ · 25
 │   ├── 🟢 topics_list                    ← list_topics
@@ -312,7 +311,6 @@ Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.
 ---
 
 ## Осталось (не 🟢 в дереве)
-- **URL · 5:** канон имён для open/preview + `content_binary_url_get`
 - **Поиск:** `search_and_get_context`, `ask_workspace`
 - **Индексы 🟡:** дожать `index_*` (сверка с legacy в коде)
 - **Доки:** `GLOBAL-SKILL-*`, `docs/mcp-0.0.2.js` — только канон, без дублирующих секций

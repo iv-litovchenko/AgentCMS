@@ -44,8 +44,9 @@ export function registerAgentUtilsTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_external_url_page_preview",
-    legacy: "get_link_preview",
+    canonical: "get_external_page_preview_from_url",
+    legacy: "get_external_url_page_preview",
+    extraLegacy: ["get_link_preview"],
     description:
       "Preview card for a public external http(s) page (OpenGraph): title, description, image — not Agent CMS content.",
     schema: z.object({

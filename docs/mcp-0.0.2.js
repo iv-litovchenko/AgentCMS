@@ -189,8 +189,8 @@ module.exports = {
           http: "GET /api/agent/resolve-path"
         },
         {
-          name: "get_topic_url",
-          description: "Web-адрес темы/файла Agent CMS для открытия в браузере (CHPU). path — manifest, файл, слот; view — edit/todo/nav/…",
+          name: "get_record_url_from_path",
+          description: "Web-адрес темы/файла Agent CMS для открытия в браузере (CHPU). Legacy: get_topic_url.",
           parameters: "path?, view?, forceView?",
           http: "GET /api/agent/page-url"
         },
@@ -360,7 +360,7 @@ module.exports = {
         { name: "content_binary_read", description: "Binary base64.", parameters: "placement, maxBytes?", http: "—" },
         { name: "content_binary_write", description: "Upload binary base64.", parameters: "placement, data", http: "—" },
         { name: "content_binary_write_from_url", description: "Download URL → slot file.", parameters: "placement, url, fileName?", http: "POST /api/media/file/import" },
-        { name: "content_binary_url_get", description: "HTTPS view URL for binary.", parameters: "placement", http: "—" },
+        { name: "get_record_binary_url_from_path", description: "HTTPS view URL for binary.", parameters: "placement", http: "—" },
         { name: "content_create", description: "Запись/категория; inbox: slot=inbox.", parameters: "placement, awnType?, body?, …", http: "POST /api/storage/file/create" },
         { name: "content_rename", description: "Переименовать.", parameters: "placement, displayName?", http: "—" },
         { name: "content_move", description: "Переместить.", parameters: "placement, targetPath?, …", http: "—" },

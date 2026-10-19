@@ -99,7 +99,7 @@ Workspace — папка с md-файлами. Хабы:
 | Секреты | `topic_env_read` / `topic_env_write` |
 | Слоты-шаблон | `topic_slots_template_get` / `topic_slots_template_set` |
 | Есть ли / лёгкая мета | `topic_exists` / `topic_meta_get` |
-| Ссылка / slug | `get_workspace_open_url_from_path({ path, view? })` (legacy `get_topic_url`) / `record_slug_generate` |
+| Ссылка / slug | `get_record_url_from_path({ path, view? })` (legacy `get_topic_url`) / `record_generate_slug` |
 
 `schema.yml` — поля формы (override типа); `config.yml` — только UI.
 
@@ -318,7 +318,7 @@ Workspace — папка с md-файлами. Хабы:
 | Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `utility_document_text_extract` |
-| Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `get_external_url_page_preview` |
+| Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `get_external_page_preview_from_url` |
 | Скрипт | `utility_script_run` (`.py` / `.js` / `.sh`) |
 | Команда | `utility_command_exec` (массив args) / `utility_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |

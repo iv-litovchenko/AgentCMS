@@ -47,7 +47,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 Затем при необходимости: `session_context_get_user_open_url_location_in_ui` → `read_*` / `write_*` по задаче.
 
-**Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `utility_web_*` (legacy `tool_web_*`), `get_external_url_page_preview` (legacy `get_link_preview`).
+**Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `utility_web_*` (legacy `tool_web_*`), `get_external_page_preview_from_url` (legacy `get_link_preview`, …).
 
 ### Два слоя API
 
@@ -65,7 +65,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Старт | `workspaces_list`, `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_*`, `workspace_summary_get` — см. `session-tools.js`; остальное **с `workspaceId`** |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
-| Навигация и поиск | `nav_*`, `record_find_by_id`, `record_path_resolve`, `get_workspace_open_url_from_path`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
+| Навигация и поиск | `nav_*`, `record_find_by_id`, `record_path_resolve`, `get_record_url_from_path`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |

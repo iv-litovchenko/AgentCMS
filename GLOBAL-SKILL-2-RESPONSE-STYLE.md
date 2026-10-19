@@ -8,7 +8,7 @@ description: Как отвечать человеку при работе с Age
 Начинай каждый ответ человеку с префикса и пробела:
 
 - `🗄️` — ответ опирается на данные из workspace (поиск, чтение тем/контента, факты).
-- `🌐` — опирается на данные из интернета (`utility_web_search`, `utility_web_page_read`, `get_external_url_page_preview`).
+- `🌐` — опирается на данные из интернета (`utility_web_search`, `utility_web_page_read`, `get_external_page_preview_from_url`).
 - `🌐🗄️` — оба источника.
 - `💭` — только рассуждение, общие знания или уточняющий вопрос.
 

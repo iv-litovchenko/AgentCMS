@@ -47,6 +47,10 @@ description: Правила, запреты и антипаттерны аген
 | `list_inbox` / `triage_inbox_item` | `inbox_items_list` / `inbox_item_triage` |
 | `tool_*` (web, exec, ping, extract), `search_web*`, `exec_*`, `run_script` | `utility_*` (те же суффиксы) |
 | `batch_invoke` / `tool_batch_invoke` / `request_batch_invoke` | `batch_tools_invoke` |
+| `get_topic_url` / `get_workspace_open_url_from_path` | `get_record_url_from_path` |
+| `get_workspace_url_page_preview` | `get_workspace_page_preview_from_path` |
+| `get_link_preview` / `get_external_url_page_preview` | `get_external_page_preview_from_url` |
+| `content_binary_url_get` / `get_content_binary_url` | `get_record_binary_url_from_path` |
 | `notify_user` | `user_notification_send` |
 | `list_workspace_notifications` / `workspace_notifications_list` | `user_notifications_list` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |

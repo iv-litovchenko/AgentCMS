@@ -118,7 +118,9 @@ batch_invoke:
     - content_read
     - content_meta_get
     - content_binary_read
+    - get_record_binary_url_from_path
     - content_binary_url_get
+    - get_content_binary_url
     - content_property_read
     - session_note_read
     - session_todo_read

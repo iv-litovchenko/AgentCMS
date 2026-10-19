@@ -14924,7 +14924,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — record_path_resolve MCP: manifest-цепочка вверх, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_workspace_open_url_from_path",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_record_url_from_path",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
@@ -15057,7 +15057,7 @@ const SESSION_CONTEXT_API_MAP = {
   webPage:
     "GET /api/web/page?url=&maxChars=&maxBytes= — utility_web_page_read MCP (fetch external page as plain text)",
   webPreview:
-    "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
+    "GET /api/web/preview?url= — get_external_page_preview_from_url MCP (OpenGraph/meta card)",
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — utility_document_text_extract MCP",
   agentIdentity:
