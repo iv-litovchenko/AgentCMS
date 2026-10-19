@@ -285,7 +285,7 @@ Workspace — папка с md-файлами. Хабы:
 | `session_list_in_focus` | `awn-focus` |
 | `session_list_on_main` | `awn-main` на главной |
 
-Произвольная выборка из каталога: `session_registry_queries_list` → `session_registry_query_run({ id })`.
+Произвольная выборка из каталога: `registry_queries_list` → `registry_query_run({ id })`.
 
 ---
 

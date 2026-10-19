@@ -53,7 +53,7 @@ agent-cms MCP
 │   ├── search_workspace_content · semantic · hybrid · batch
 │   ├── search_workspace_links
 │   ├── query_workspace_storage
-│   ├── list_workspace_registry_queries · run_workspace_registry_query
+│   ├── registry_queries_list · registry_query_run
 │   ├── get_workspace_index_status · get_workspace_index_monitor
 │   ├── rebuild_workspace_fulltext · semantic · storage · link · entity
 │   ├── run_workspace_ocr_index · rebuild_workspace_indexes · sync_workspace_index_file
@@ -62,7 +62,7 @@ agent-cms MCP
 │       list_workspace_entity_catalog · explain_workspace_entity_search
 │
 ├── 🧠 Память · Q&A · лента
-│   ├── audit_workspace_memory · list_workspace_feed
+│   ├── workspace_memory_audit · workspace_feed_list
 │   ├── ask_workspace · search_and_get_context
 │   ├── create/update_workspace_fact · list/search_workspace_facts
 │   ├── create/update_glossary_term · list/search_glossary_terms

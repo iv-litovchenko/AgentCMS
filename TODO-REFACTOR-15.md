@@ -30,7 +30,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 19
+├── 🚀 Старт и workspace · 20
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -49,9 +49,10 @@ user-agent-cms
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
 │   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
 │   ├── 🟢 workspace_activity_list            ← list_recent_activity
+│   ├── 🟢 workspace_feed_list                ← list_workspace_feed
 │   └── 🟢 workspace_notifications_list     ← list_workspace_notifications
 │
-├── 🎬 Session · session_* · workspaceId · 18
+├── 🎬 Session · session_* · workspaceId · 16
 │   ├── 🟢 session_context_get                ← get_session_context
 │   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
 │   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
@@ -60,8 +61,6 @@ user-agent-cms
 │   ├── 🟢 session_list_heartbeat             ← session_heartbeat_registry_list ← get_workspace_heartbeat_registry
 │   ├── 🟢 session_list_in_focus              ← session_nav_focus_list ← session_nav_focus_get
 │   ├── 🟢 session_list_on_main               ← session_nav_main_list ← session_nav_main_get
-│   ├── 🟡 session_registry_queries_list      ← list_workspace_registry_queries
-│   ├── 🟡 session_registry_query_run         ← run_workspace_registry_query
 │   ├── session_note_* (2)
 │   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
 │   │   └── 🟢 session_note_write             ← workspace_note_write ← write_workspace_note
@@ -73,6 +72,10 @@ user-agent-cms
 │       ├── 🟢 session_context_buffer_append  ← session_buffer_append ← append_context_buffer
 │       ├── 🟢 session_context_buffer_remove  ← session_buffer_item_remove ← remove_context_buffer_item
 │       └── 🟢 session_context_buffer_clear   ← session_buffer_clear ← clear_context_buffer
+│
+├── 📋 Registry queries · registry_* · 2
+│   ├── 🟢 registry_queries_list              ← list_workspace_registry_queries ← session_registry_queries_list
+│   └── 🟢 registry_query_run                 ← run_workspace_registry_query ← session_registry_query_run
 │
 ├── 🧭 Навигация · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
@@ -180,7 +183,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete            ← delete_repository
 │   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы · 29
+├── 🔍 Поиск и индексы · 28
 │   ├── 🟢 search_content                   ← search_workspace_content
 │   ├── 🟢 search_semantic                  ← search_workspace_semantic
 │   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
@@ -208,8 +211,7 @@ user-agent-cms
 │   ├── 🟢 entity_alias_merge               ← merge_workspace_entity_alias
 │   ├── 🟢 entity_reject                    ← reject_workspace_entity
 │   ├── 🟢 entity_seed                      ← seed_workspace_entity
-│   ├── audit_workspace_memory
-│   └── list_workspace_feed
+│   └── 🟢 workspace_memory_audit           ← audit_workspace_memory
 │
 ├── 🧠 Facts · glossary · reference · 13
 │   ├── 🧠 fact_* · workspaceId · 4

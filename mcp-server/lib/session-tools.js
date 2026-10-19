@@ -118,13 +118,19 @@ export function registerSessionTools(reg, client) {
 
   const registryQueriesListHandler = () => client.get("/api/agent/registry-queries");
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_registry_queries_list",
+    canonical: "registry_queries_list",
     legacy: "list_workspace_registry_queries",
     description:
       "Named registry queries (.agent-cms/settings/registry-queries.yml): always-context, cron, nav-focus, nav-main, storage-index presets.",
     schema: emptySchema,
     handler: registryQueriesListHandler
   });
+  reg(
+    "session_registry_queries_list",
+    "Deprecated alias for registry_queries_list.",
+    emptySchema,
+    registryQueriesListHandler
+  );
 
   const registryQueryRunSchema = z.object({
     id: z.string().min(1).describe("Query id, e.g. always-context, cron, nav-focus, nav-main, topics"),
@@ -134,20 +140,26 @@ export function registerSessionTools(reg, client) {
     client.post("/api/agent/registry-queries/run", { id: registryId || id });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_registry_query_run",
+    canonical: "registry_query_run",
     legacy: "run_workspace_registry_query",
     description:
-      "Run a named registry query by id (see session_registry_queries_list). Storage-index, nav-focus, nav-main, runtime cron/heartbeat, etc.",
+      "Run a named registry query by id (see registry_queries_list). Storage-index, nav-focus, nav-main, runtime cron/heartbeat, etc.",
     schema: registryQueryRunSchema,
     handler: registryQueryRunHandler
   });
+  reg(
+    "session_registry_query_run",
+    "Deprecated alias for registry_query_run.",
+    registryQueryRunSchema,
+    registryQueryRunHandler
+  );
 
   const navFocusListHandler = () => client.post("/api/agent/registry-queries/run", { id: "nav-focus" });
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "session_list_in_focus",
     legacy: "session_nav_focus_list",
     description:
-      "Records with awn-focus (preset query nav-focus). Shorthand for session_registry_query_run({ id: \"nav-focus\" }).",
+      "Records with awn-focus (preset query nav-focus). Shorthand for registry_query_run({ id: \"nav-focus\" }).",
     schema: emptySchema,
     handler: navFocusListHandler
   });
@@ -158,7 +170,7 @@ export function registerSessionTools(reg, client) {
     canonical: "session_list_on_main",
     legacy: "session_nav_main_list",
     description:
-      "Records with awn-main on home (preset query nav-main). Shorthand for session_registry_query_run({ id: \"nav-main\" }).",
+      "Records with awn-main on home (preset query nav-main). Shorthand for registry_query_run({ id: \"nav-main\" }).",
     schema: emptySchema,
     handler: navMainListHandler
   });
