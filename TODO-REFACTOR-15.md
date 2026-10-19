@@ -20,7 +20,7 @@
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа · platform_* · 7
+├── ⚙️ Платформа (Platform) · platform_* · 7
 │   ├── 🟢 platform_info_get
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
@@ -29,12 +29,12 @@ user-agent-cms
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │
-├── 🎛 Settings · settings_* · setting_* · 3
+├── 🎛 Настройки (Settings) · settings_* · setting_* · 3
 │   ├── 🟢 settings_list
 │   ├── 🟢 setting_read
 │   └── 🟢 setting_write
 │
-├── 🚀 Старт и workspace · 20
+├── 🚀 Старт и workspace (Start & workspace) · 20
 │   ├── 🟢 workspaces_list
 │   ├── 🟢 workspaces_scan
 │   ├── 🟢 workspace_create
@@ -56,7 +56,7 @@ user-agent-cms
 │   ├── 🟢 workspace_feed_list
 │   └── 🟢 workspace_memory_audit
 │
-├── 🎬 Session · session_* · workspaceId · 17
+├── 🎬 Сессия (Session) · session_* · workspaceId · 17
 │   ├── 🟢 session_context_get
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui
 │   ├── 🟢 session_agent_profile_get
@@ -78,11 +78,11 @@ user-agent-cms
 │       ├── 🟢 session_context_buffer_remove
 │       └── 🟢 session_context_buffer_clear
 │
-├── 📋 Registry queries · registry_* · 2
+├── 📋 Запросы реестра (Registry queries) · registry_* · 2
 │   ├── 🟢 registry_queries_list
 │   └── 🟢 registry_query_run
 │
-├── 🧭 Навигация · nav_* · 14
+├── 🧭 Навигация (Navigation) · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read
 │   ├── 🟢 nav_map_workspace_refresh
 │   ├── 🟢 nav_index_toc_topics_read
@@ -98,13 +98,13 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_media_libraries_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh
 │
-├── 🗺 id, URL · 4
+├── 🗺 ID и URL (ID & URL) · 4
 │   ├── 🔴 get_record_url_from_path              ← get_workspace_open_url_from_path ← get_topic_url
 │   ├── 🔴 get_workspace_page_preview_from_path  ← get_workspace_url_page_preview
 │   ├── 🔴 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
 │   └── 🔴 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
 │
-├── 🧭 Темы · topics_ / topic_ · 25
+├── 🧭 Темы (Topics) · topics_ / topic_ · 25
 │   ├── 🟢 topics_list
 │   ├── 🟢 topic_get
 │   ├── 🟢 topic_meta_get
@@ -129,7 +129,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент · 17
+├── 📄 Контент (Content) · 17
 │   ├── 🟢 contents_list
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
@@ -148,7 +148,7 @@ user-agent-cms
 │   ├── 🟢 content_merge
 │   └── 🟢 contents_slots_list
 │
-├── 🗃 Базы · 12
+├── 🗃 Базы (Databases) · 12
 │   ├── 🟢 databases_list
 │   ├── 🟢 database_get
 │   ├── 🟢 database_register
@@ -162,7 +162,7 @@ user-agent-cms
 │   ├── 🟢 database_property_read
 │   └── 🟢 database_property_write
 │
-├── 📡 Каналы · 6
+├── 📡 Каналы (Channels) · channel_* · 6
 │   ├── 🟢 channels_list
 │   ├── 🟢 channel_get
 │   ├── 🟢 channel_register
@@ -170,7 +170,7 @@ user-agent-cms
 │   ├── 🟢 channel_delete
 │   └── 🟢 channel_rename
 │
-├── 🖼 Медиатеки · 6
+├── 🖼 Медиатеки (Media libraries) · 6
 │   ├── 🟢 media_libraries_list
 │   ├── 🟢 media_library_get
 │   ├── 🟢 media_library_register
@@ -178,7 +178,7 @@ user-agent-cms
 │   ├── 🟢 media_library_delete
 │   └── 🟢 media_library_rename
 │
-├── 📦 Репозитории · 6
+├── 📦 Репозитории (Repositories) · 6
 │   ├── 🟢 repositories_list
 │   ├── 🟢 repository_get
 │   ├── 🟢 repository_register
@@ -186,7 +186,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete
 │   └── 🟢 repository_rename
 │
-├── 🔍 Поиск и индексы · 16
+├── 🔍 Поиск и индексы (Search & indexes) · 16
 │   ├── 0. query_*
 │   │   ├── 🟢 query_context_get
 │   │   └── 🟢 query_workspace_ask
@@ -224,7 +224,7 @@ user-agent-cms
 │       ├── 🟢 index_rebuild_all
 │       └── 🟢 index_search_query_batch
 │
-├── 🆔 Record · record_* · workspaceId · 7
+├── 🆔 Запись (Record) · record_* · workspaceId · 7
 │   ├── 🔴 record_find_by_id
 │   ├── 🔴 record_index_sync
 │   ├── 🟢 record_id_exists
@@ -233,8 +233,8 @@ user-agent-cms
 │   ├── 🟢 record_slug_exists
 │   └── 🟢 record_path_resolve
 │
-├── 🧠 Facts · glossary · reference · 13
-│   ├── 🧠 fact_* · workspaceId · 4
+├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 13
+│   ├── 🧠 fact_* (Facts) · workspaceId · 4
 │   ├── 🟢 fact_create
 │   ├── 🟢 fact_update
 │   ├── 🟢 facts_list
@@ -248,7 +248,7 @@ user-agent-cms
 │   ├── 🟢 reference_entries_list
 │   └── 🟢 reference_entries_search
 │
-├── 📝 Annotations · annotation_* · domain annotations · 11
+├── 📝 Аннотации (Annotations) · annotation_* · 11
 │   ├── annotation_comment · awn.annotation.comment · slot comments/ (6)
 │   │   ├── 🟢 annotation_comments_list
 │   │   ├── 🟢 annotation_comment_append
@@ -263,7 +263,7 @@ user-agent-cms
 │       ├── 🟢 annotation_sidecar_update
 │       └── 🟢 annotation_sidecar_delete
 │
-├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)
+├── 🧰 Модули (Modules) · module_* · 23 (🟢 канон, без волны переименования)
 │   ├── 🟢 module_git_status
 │   ├── 🟢 module_git_diff
 │   ├── 🟢 module_git_commit
@@ -288,7 +288,7 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🛠 Утилиты · utility_* · 8
+├── 🛠 Утилиты (Utilities) · utility_* · 8
 │   ├── 🟢 utility_mcp_ping
 │   ├── 🟢 utility_web_search
 │   ├── 🟢 utility_web_images_search
@@ -298,23 +298,23 @@ user-agent-cms
 │   ├── 🟢 utility_command_exec
 │   └── 🟢 utility_shell_exec
 │
-├── 📥 Inbox · 2
+├── 📥 Входящие (Inbox) · 2
 │   ├── 🟢 inbox_items_list
 │   └── 🟢 inbox_item_triage
 │
-├── 💬 Discussion · 2
+├── 💬 Обсуждение (Discussion) · 2
 │   ├── 🟢 discussion_read
 │   └── 🟢 discussion_append
 │
-├── 📓 Journal · 2
+├── 📓 Журнал (Journal) · 2
 │   ├── 🟢 journal_entry_append
 │   └── 🟢 journal_entries_list
 │
-├── 🔔 Уведомления · 2
+├── 🔔 Уведомления (Notifications) · 2
 │   ├── 🟢 user_notifications_list
 │   └── 🟢 user_notification_send
 │
-└── ⚡ Специальные · 1
+└── ⚡ Специальные (Special) · 1
     └── 🟢 batch_tools_invoke
 ```
 
