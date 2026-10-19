@@ -112171,7 +112171,7 @@ async function renderAgentShortLinksView() {
       const empty = document.createElement("div");
       empty.className = "agent-tool-empty-card";
       empty.innerHTML =
-        '<p class="agent-tool-empty-title">Коротких ссылок пока нет</p><p class="agent-tool-empty-text">Создайте через «Поделиться» в меню ссылок на странице или MCP <code>create_short_link</code>.</p>';
+        '<p class="agent-tool-empty-title">Коротких ссылок пока нет</p><p class="agent-tool-empty-text">Создайте через «Поделиться» в меню ссылок на странице или MCP <code>module_short_link_create</code>.</p>';
       shell.appendChild(empty);
     } else {
       const list = document.createElement("ul");
@@ -112384,7 +112384,7 @@ const WORKSPACE_MODULES_CATALOG = [
     status: "active"
   },
   { id: "module-large-files", label: "Крупные файлы", view: "large-files", mcp: "—", status: "active" },
-  { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "create_short_link, get_short_link, delete_short_link, list_short_links", status: "active" },
+  { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "module_short_link_create, module_short_link_get, module_short_link_delete, module_short_link_list", status: "active" },
   { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_workspace_links", status: "active" },
   { id: "module-run-scripts", label: "Запуск скриптов", view: "run-scripts", mcp: "run_script", status: "stub" },
   {

@@ -54,7 +54,7 @@ entries:
     view: short-links
     implementation: active
     ui-surfaces: [picker]
-    mcp: [create_short_link, get_short_link, delete_short_link, list_short_links]
+    mcp: [module_short_link_create, module_short_link_get, module_short_link_delete, module_short_link_list]
   - module-id: module-broken-links
     label: Битые ссылки
     view: broken-links

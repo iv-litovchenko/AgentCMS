@@ -1,6 +1,6 @@
 ---
 name: agent-cms-modules
-description: Модули платформы Agent CMS — git-модуль (status, diff, commit, push, pull, remote, init), короткие ссылки (create/get/delete/list), другие module_* по мере появления. Применяй по просьбе человека: git-операции, публичные короткие URL, module_git_* / create_short_link и т.д.
+description: Модули платформы Agent CMS — git-модуль (module_git_*), короткие ссылки (module_short_link_*), другие module_* по мере появления. Применяй по просьбе человека: git-операции, публичные короткие URL, module_git_* / module_short_link_*.
 ---
 
 # Agent CMS — модули
@@ -10,7 +10,7 @@ description: Модули платформы Agent CMS — git-модуль (sta
 | Модуль | Tools | Статус |
 |--------|-------|--------|
 | Git | `module_git_*` | есть |
-| Короткие ссылки | `create_short_link`, `get_short_link`, `delete_short_link`, `list_short_links` | есть |
+| Короткие ссылки | `module_short_link_*` (legacy: `create_short_link`, …) | есть |
 
 Новые модули добавляй в эту таблицу и отдельным разделом ниже.
 
@@ -43,10 +43,10 @@ Git **самого хранилища** (клоны в `awn-repositories/` — �
 
 | Задача | Tool / UI |
 |--------|-----------|
-| Создать (идемпотентно) | `create_short_link({ path, view?, code?, replace? })` или «Поделиться» в меню «Ссылки» |
-| Найти по коду или пути | `get_short_link({ code })` / `get_short_link({ path })` |
-| Список | `list_short_links()` или модуль редактора «Короткие ссылки» |
-| Удалить | `delete_short_link({ code })` |
+| Создать (идемпотентно) | `module_short_link_create({ path, view?, code?, replace? })` или «Поделиться» в меню «Ссылки» |
+| Найти по коду или пути | `module_short_link_get({ code })` / `module_short_link_get({ path })` |
+| Список | `module_short_link_list()` или модуль редактора «Короткие ссылки» |
+| Удалить | `module_short_link_delete({ code })` |
 
 **URL:** `/link/{workspaceId}/{code}` — лендинг с превью workspace и страницы, кнопка «Просмотр» → полный CHPU-URL. API: `GET /api/public/short-link?agentId=&code=`, обложка `…/cover`.
 
