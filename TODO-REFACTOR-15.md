@@ -20,7 +20,7 @@
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа (Platform) · platform_* · 7
+├── ⚙️ Платформа (Platform) · 7
 │   ├── 🟢 platform_info_get
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
@@ -29,7 +29,7 @@ user-agent-cms
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │
-├── 🎛 Настройки (Settings) · settings_* · setting_* · 3
+├── 🎛 Настройки (Settings) · 3
 │   ├── 🟢 settings_list
 │   ├── 🟢 setting_read
 │   └── 🟢 setting_write
@@ -56,7 +56,7 @@ user-agent-cms
 │   ├── 🟢 workspace_feed_list
 │   └── 🟢 workspace_memory_audit
 │
-├── 🎬 Сессия (Session) · session_* · workspaceId · 17
+├── 🎬 Сессия (Session) · 17
 │   ├── 🟢 session_context_get
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui
 │   ├── 🟢 session_agent_profile_get
@@ -66,23 +66,23 @@ user-agent-cms
 │   ├── 🟢 session_list_heartbeat
 │   ├── 🟢 session_list_in_focus
 │   ├── 🟢 session_list_on_main
-│   ├── session_note_* (2)
+│   ├── Заметка (Note) · 2
 │   │   ├── 🟢 session_note_read
 │   │   └── 🟢 session_note_write
-│   ├── session_todo_* (2)
+│   ├── Todo (Todo) · 2
 │   │   ├── 🟢 session_todo_read
 │   │   └── 🟢 session_todo_write
-│   └── session_context_buffer_* (4)
+│   └── Буфер контекста (Context buffer) · 4
 │       ├── 🟢 session_context_buffer_read
 │       ├── 🟢 session_context_buffer_append
 │       ├── 🟢 session_context_buffer_remove
 │       └── 🟢 session_context_buffer_clear
 │
-├── 📋 Запросы реестра (Registry queries) · registry_* · 2
+├── 📋 Запросы реестра (Registry queries) · 2
 │   ├── 🟢 registry_queries_list
 │   └── 🟢 registry_query_run
 │
-├── 🧭 Навигация (Navigation) · nav_* · 14
+├── 🧭 Навигация (Navigation) · 14
 │   ├── 🟢 nav_map_workspace_read
 │   ├── 🟢 nav_map_workspace_refresh
 │   ├── 🟢 nav_index_toc_topics_read
@@ -104,7 +104,7 @@ user-agent-cms
 │   ├── 🔴 get_external_page_preview_from_url    ← get_external_url_page_preview ← get_link_preview
 │   └── 🔴 get_record_binary_url_from_path       ← content_binary_url_get ← get_content_binary_url
 │
-├── 🧭 Темы (Topics) · topics_ / topic_ · 25
+├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list
 │   ├── 🟢 topic_get
 │   ├── 🟢 topic_meta_get
@@ -162,7 +162,7 @@ user-agent-cms
 │   ├── 🟢 database_property_read
 │   └── 🟢 database_property_write
 │
-├── 📡 Каналы (Channels) · channel_* · 6
+├── 📡 Каналы (Channels) · 6
 │   ├── 🟢 channels_list
 │   ├── 🟢 channel_get
 │   ├── 🟢 channel_register
@@ -187,24 +187,24 @@ user-agent-cms
 │   └── 🟢 repository_rename
 │
 ├── 🔍 Поиск и индексы (Search & indexes) · 15
-│   ├── 0. query_*
+│   ├── 0. Запрос (Query) · 1
 │   │   └── 🟢 query_workspace_ask
-│   ├── 1. index_1_ocr_*
+│   ├── 1. OCR (OCR) · 1
 │   │   └── 🟡 index_1_ocr_run_zzz
-│   ├── 2. index_2_fulltext_*
+│   ├── 2. Слова (Fulltext) · 2
 │   │   ├── 🟢 index_2_fulltext_search_query
 │   │   └── 🟢 index_2_fulltext_rebuild
-│   ├── 3. index_3_semantic_*
+│   ├── 3. Смысл (Semantic) · 3
 │   │   ├── 🟢 index_3_semantic_search_query
 │   │   ├── 🟢 index_3_hybrid_search_query
 │   │   └── 🟢 index_3_semantic_rebuild
-│   ├── 4. index_4_storage_*
+│   ├── 4. Поля (Storage) · 2
 │   │   ├── 🟢 index_4_storage_query
 │   │   └── 🟢 index_4_storage_rebuild
-│   ├── 5. index_5_link_*
+│   ├── 5. Связи (Links) · 2
 │   │   ├── 🟢 index_5_link_search_query
 │   │   └── 🟢 index_5_link_rebuild
-│   ├── 6. index_6_entity_*_zzz (UI «6. Сущности», эксперимент)
+│   ├── 6. Сущности (Entities) · 10
 │   │   ├── 🟡 index_6_entity_query_zzz
 │   │   ├── 🟡 index_6_entity_catalog_list_zzz
 │   │   ├── 🟡 index_6_entity_query_explain_zzz
@@ -215,15 +215,15 @@ user-agent-cms
 │   │   ├── 🟡 index_6_entity_alias_merge_zzz
 │   │   ├── 🟡 index_6_entity_reject_zzz
 │   │   └── 🟡 index_6_entity_seed_zzz
-│   ├── 7. ID → 🆔 Record (UI «7. ID (awn-id)»)
-│   ├── index_* (UI «Мониторинг», без № в popover)
+│   ├── 7. ID (Record) · 0
+│   ├── Мониторинг (Monitoring) · 2
 │   │   ├── 🟢 index_status_get
 │   │   └── 🟢 index_monitor_get
-│   └── index_ops_* (без № в popover — rebuild / batch)
+│   └── Операции (Ops) · 2
 │       ├── 🟢 index_rebuild_all
 │       └── 🟢 index_search_query_batch
 │
-├── 🆔 Запись (Record) · record_* · workspaceId · 7
+├── 🆔 Запись (Record) · 7
 │   ├── 🔴 record_find_by_id
 │   ├── 🔴 record_index_sync
 │   ├── 🟢 record_id_exists
@@ -232,37 +232,39 @@ user-agent-cms
 │   ├── 🟢 record_slug_exists
 │   └── 🟢 record_path_resolve
 │
-├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 13
-│   ├── 🧠 fact_* (Facts) · workspaceId · 4
-│   ├── 🟢 fact_create
-│   ├── 🟢 fact_update
-│   ├── 🟢 facts_list
-│   ├── 🟢 facts_search
-│   ├── 🟢 glossary_term_create
-│   ├── 🟢 glossary_term_update
-│   ├── 🟢 glossary_terms_list
-│   ├── 🟢 glossary_terms_search
-│   ├── 🟢 reference_entry_create
-│   ├── 🟢 reference_entry_update
-│   ├── 🟢 reference_entries_list
-│   └── 🟢 reference_entries_search
+├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 12
+│   ├── Факты (Facts) · 4
+│   │   ├── 🟢 fact_create
+│   │   ├── 🟢 fact_update
+│   │   ├── 🟢 facts_list
+│   │   └── 🟢 facts_search
+│   ├── Глоссарий (Glossary) · 4
+│   │   ├── 🟢 glossary_term_create
+│   │   ├── 🟢 glossary_term_update
+│   │   ├── 🟢 glossary_terms_list
+│   │   └── 🟢 glossary_terms_search
+│   └── Справочник (Reference) · 4
+│       ├── 🟢 reference_entry_create
+│       ├── 🟢 reference_entry_update
+│       ├── 🟢 reference_entries_list
+│       └── 🟢 reference_entries_search
 │
-├── 📝 Аннотации (Annotations) · annotation_* · 11
-│   ├── annotation_comment · awn.annotation.comment · slot comments/ (6)
+├── 📝 Аннотации (Annotations) · 11
+│   ├── Комментарии (Comments) · 6
 │   │   ├── 🟢 annotation_comments_list
 │   │   ├── 🟢 annotation_comment_append
 │   │   ├── 🟢 annotation_comment_read
 │   │   ├── 🟢 annotation_comment_update
 │   │   ├── 🟢 annotation_comment_delete
 │   │   └── 🟢 annotation_comment_reaction_toggle
-│   └── annotation_sidecar · awn.annotation.sidecar · *.sidecar.md (5)
+│   └── Сайдкар (Sidecar) · 5
 │       ├── 🟢 annotation_sidecar_path_resolve
 │       ├── 🟢 annotation_sidecar_read
 │       ├── 🟢 annotation_sidecar_create
 │       ├── 🟢 annotation_sidecar_update
 │       └── 🟢 annotation_sidecar_delete
 │
-├── 🧰 Модули (Modules) · module_* · 23 (🟢 канон, без волны переименования)
+├── 🧰 Модули (Modules) · 23
 │   ├── 🟢 module_git_status
 │   ├── 🟢 module_git_diff
 │   ├── 🟢 module_git_commit
@@ -287,7 +289,7 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🛠 Утилиты (Utilities) · utility_* · 8
+├── 🛠 Утилиты (Utilities) · 8
 │   ├── 🟢 utility_mcp_ping
 │   ├── 🟢 utility_web_search
 │   ├── 🟢 utility_web_images_search
