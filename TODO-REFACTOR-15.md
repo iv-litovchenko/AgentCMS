@@ -94,14 +94,12 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_media_libraries_read ← media_libraries_index_toc_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
 │
-├── 🗺 id, URL, типы · 7
-│   ├── 🟡 list_types
-│   ├── 🟡 get_type
-│   ├── 🟡 list_slots
+├── 🗺 id, URL · 5
 │   ├── 🔴 get_workspace_open_url_from_path   ← get_topic_url
 │   ├── 🔴 get_workspace_url_page_preview
 │   ├── 🔴 get_external_url_page_preview      ← get_link_preview
-│   └── 🔴 get_link_preview                   (legacy alias)
+│   ├── 🔴 get_link_preview                   (legacy alias)
+│   └── 🔴 content_binary_url_get             ← get_content_binary_url
 │
 ├── 🧭 Темы · topics_ / topic_ · 25
 │   ├── 🟢 topics_list                    ← list_topics
@@ -293,14 +291,16 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 3
-│   ├── 🔴 batch_invoke
-│   ├── 🔴 notify_user
-│   └── 🔴 content_binary_url_get           ← get_content_binary_url
+├── 📓 Journal · 2
+│   ├── 🟢 journal_entry_append              ← append_journal_entry
+│   └── 🟢 journal_entries_list              ← list_journal_entries
 │
-└── 📓 Journal · 2
-    ├── 🟢 journal_entry_append              ← append_journal_entry
-    └── 🟢 journal_entries_list              ← list_journal_entries
+└── 🔴 TBD · канон / группа не зафиксированы · 5
+    ├── 🔴 batch_invoke
+    ├── 🔴 notify_user
+    ├── 🔴 list_types
+    ├── 🔴 get_type
+    └── 🔴 list_slots
 ```
 
 Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_inbound_*_zzz`.
