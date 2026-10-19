@@ -278,7 +278,7 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🔧 tool_* · 8
+├── 🛠 Утилиты · 8
 │   ├── 🟢 tool_mcp_ping                   ← mcp_connection_test ← test_mcp_connection
 │   ├── 🟢 tool_web_search                 ← search_web
 │   ├── 🟢 tool_web_images_search          ← search_web_images
