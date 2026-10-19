@@ -48563,13 +48563,49 @@ img.is-svg-media,
 
 .node-navigation-workspace-counter-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   width: 100%;
   min-width: 0;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #f8fafc;
   overflow: hidden;
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter-pin-btn {
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  align-self: stretch;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  line-height: 1;
+  color: #64748b;
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter-pin-btn:hover:not(:disabled) {
+  border-left-color: #cbd5e1;
+  background: #eff6ff;
+  color: #334155;
+}
+
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-active):not(
+    :has(.node-navigation-workspace-counter.is-flag)
+  )
+  .node-navigation-workspace-counter-pin-btn {
+  border-left-color: #fcd34d;
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter-types-trigger) {
@@ -48654,8 +48690,28 @@ img.is-svg-media,
   background: linear-gradient(180deg, #fffbeb 0%, #fde68a 100%);
 }
 
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-flag.is-active) {
+  border-color: #fca5a5;
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-flag.is-active:hover),
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-flag.is-active:focus-within) {
+  border-color: #f87171;
+  background: linear-gradient(180deg, #fef2f2 0%, #fecaca 100%);
+}
+
+.node-navigation-workspace-counter-card:has(.node-navigation-workspace-counter.is-flag.is-active)
+  .node-navigation-workspace-counter-pin-btn {
+  border-left-color: #fca5a5;
+}
+
 .node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-active {
   color: #92400e;
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-flag.is-active {
+  color: #991b1b;
 }
 
 .node-navigation-workspace-counter-card .node-navigation-workspace-counter.is-pending {
@@ -63335,6 +63391,17 @@ button.node-navigation-memory-title:focus-visible {
 .node-entry-overview-slot-counters .node-navigation-workspace-counter.is-active.is-empty .node-navigation-workspace-counter-label-main {
   color: #92400e;
   opacity: 1;
+}
+
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-flag.is-active {
+  color: #991b1b;
+}
+
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-flag.is-active .node-navigation-workspace-counter-value,
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-flag.is-active .node-navigation-workspace-counter-flag,
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-flag.is-active .node-navigation-workspace-counter-label,
+.node-entry-overview-slot-counters .node-navigation-workspace-counter.is-flag.is-active .node-navigation-workspace-counter-label-main {
+  color: #b91c1c;
 }
 
 .node-entry-overview-browse-slot-counters {

@@ -81515,6 +81515,24 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
   return btn;
 }
 
+function createWorkspaceCounterSlotPinButton(slot) {
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const slotLabel = slot?.label || resolveDataStorageSlotDisplayLabel(slot?.id || spec?.key || "");
+  const pinBtn = document.createElement("button");
+  pinBtn.type = "button";
+  pinBtn.className =
+    "menu-pin-branch-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn node-navigation-workspace-counter-pin-btn";
+  pinBtn.textContent = "📍";
+  pinBtn.setAttribute("aria-label", "Закрепить слот на странице темы");
+  pinBtn.title = slotLabel ? `Закрепить «${slotLabel}» на странице просмотра темы` : "Закрепить на странице просмотра темы";
+  pinBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.alert("Закрепить на странице просмотра темы");
+  });
+  return pinBtn;
+}
+
 function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, onClick } = {}) {
   const card = document.createElement("div");
   card.className = "node-navigation-workspace-counter-card";
@@ -81523,7 +81541,7 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
   }
 
   const mainBtn = renderEntryOverviewWorkspaceCounterButton(slot, { isActive, onClick });
-  card.append(mainBtn);
+  card.append(mainBtn, createWorkspaceCounterSlotPinButton(slot));
   return card;
 }
 
