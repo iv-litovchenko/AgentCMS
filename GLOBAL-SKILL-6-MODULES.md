@@ -1,6 +1,6 @@
 ---
 name: agent-cms-modules
-description: Модули платформы Agent CMS — git-модуль (module_git_*), короткие ссылки (module_short_link_*), другие module_* по мере появления. Применяй по просьбе человека: git-операции, публичные короткие URL, module_git_* / module_short_link_*.
+description: Модули платформы Agent CMS — git (module_git_*), короткие ссылки (module_short_link_*), медиа-облако (module_media_cloud_*). По просьбе человека.
 ---
 
 # Agent CMS — модули
@@ -11,6 +11,7 @@ description: Модули платформы Agent CMS — git-модуль (mod
 |--------|-------|--------|
 | Git | `module_git_*` | есть |
 | Короткие ссылки | `module_short_link_*` (legacy: `create_short_link`, …) | есть |
+| Медиа-облако | `module_media_cloud_*` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, …) | локально есть; remote — stub |
 
 Новые модули добавляй в эту таблицу и отдельным разделом ниже.
 
@@ -51,3 +52,16 @@ Git **самого хранилища** (клоны в `awn-repositories/` — �
 **URL:** `/link/{workspaceId}/{code}` — лендинг с превью workspace и страницы, кнопка «Просмотр» → полный CHPU-URL. API: `GET /api/public/short-link?agentId=&code=`, обложка `…/cover`.
 
 **Ограничение:** при перемещении/удалении целевого файла запись в реестре остаётся — ссылка может устареть (`targetExists: false` в UI/API).
+
+## Медиа-облако
+
+Локальный offload в `awn-media-cloud/_blobs/` (симлинк на месте файла). Remote Google/Яндекс — только stub.
+
+| Задача | Tool |
+|--------|------|
+| Справочник провайдеров | `module_media_cloud_providers_list` |
+| Статус symlink / registry | `module_media_cloud_status` (`path` manifest, `file` — полный путь от корня, `scope`: file \| topic) |
+| Включить/выключить offload | `module_media_cloud_sync` |
+| Починить symlink | `module_media_cloud_links_repair` |
+| Upload на API провайдера | `module_media_cloud_upload` (stub) |
+| Публичный URL на провайдере | `module_media_cloud_url` (stub) |

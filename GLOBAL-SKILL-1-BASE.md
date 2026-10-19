@@ -218,7 +218,7 @@ Workspace — папка с md-файлами. Хабы:
 Файлы и картинки уровня хранилища. Слоты: `files`, `assets`. `placement: { kind: "media", path: "<slug>", slot, ref }`.
 
 - Tools: `list_media_libraries`, `get_media_library`, `register_` / `update_` / `rename_` / `delete_media_library`; картинка из сети — `write_content_binary_from_url`.
-- **Медиа-облако:** `sync_media_cloud_file` (`path` — manifest темы, `file` — **полный** путь от корня), `get_media_cloud_file_status`, `repair_media_cloud_links`, `list_media_cloud_providers`. Пока только локально (`awn-media-cloud/`), в Google и Яндекс не грузит.
+- **Медиа-облако:** `module_media_cloud_*` — `providers_list`, `status`, `sync`, `links_repair` (`path` — manifest темы, `file` — **полный** путь от корня). Пока только локально (`awn-media-cloud/`), в Google и Яндекс не грузит. Скилл `agent-cms-modules`.
 
 ---
 

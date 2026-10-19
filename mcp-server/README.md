@@ -77,10 +77,10 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | Reference | `create_reference_entry`, `update_reference_entry`, `list_reference_entries`, `search_reference_entries` → `awn-databases/contents/reference` |
 | FS | `batch_invoke`; legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
-| Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |
+| Медиа-облако | `module_media_cloud_providers_list`, `module_media_cloud_status`, `module_media_cloud_sync`, `module_media_cloud_links_repair`; stub: `module_media_cloud_upload`, `module_media_cloud_url` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, `*_zzz`) |
 
 Бинарники в слот — **`write_content_binary`** / **`write_content_binary_from_url`** (`placement` + ref); legacy path upload — только **`MCP_LEGACY_TOOLS=1`** (`upload_file`, …). Alias: **`import_content_from_url`** → **`write_content_binary_from_url`**.  
-Локальная выгрузка в **`awn-media-cloud/_blobs/`** (симлинк на месте файла) — **`sync_media_cloud_file`**; удалённый API-провайдер — пока только заглушки `*_zzz`.
+Локальная выгрузка в **`awn-media-cloud/_blobs/`** (симлинк на месте файла) — **`module_media_cloud_sync`**; удалённый API — **`module_media_cloud_upload`** / **`module_media_cloud_url`** (stub).
 
 ## Документация
 

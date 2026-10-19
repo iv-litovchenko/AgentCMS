@@ -18,7 +18,7 @@ module.exports = {
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: list_databases / get_database … (legacy database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
-    "Медиа в облако: list_media_cloud_providers, get_media_cloud_file_status, sync_media_cloud_file, repair_media_cloud_links; заглушки upload_media_cloud_to_provider_zzz, get_remote_url_zzz.",
+    "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",
     "notify_user — колокольчик CMS (не Shell).",
     "contents/facts: create_workspace_fact, update_workspace_fact, list_workspace_facts, search_workspace_facts.",
     "contents/glossary: create_glossary_term, update_glossary_term, list_glossary_terms, search_glossary_terms.",
@@ -631,42 +631,42 @@ module.exports = {
     },
     {
       id: "media-cloud",
-      title: "Медиа в облако (awn-media-cloud)",
+      title: "Медиа-облако (module_media_cloud_*)",
       tools: [
         {
-          name: "list_media_cloud_providers",
-          description: "Справочник провайдеров из platform.yml (media-cloud-providers) + defaultProvider.",
-          parameters: "agentId",
+          name: "module_media_cloud_providers_list",
+          description: "Справочник провайдеров (legacy list_media_cloud_providers).",
+          parameters: "workspaceId",
           http: "GET /api/media-cloud/providers"
         },
         {
-          name: "get_media_cloud_file_status",
-          description: "Статус выгрузки: symlink, providers[], scope file|topic.",
-          parameters: "agentId, path, file? (scope=file), scope?, provider?",
+          name: "module_media_cloud_status",
+          description: "Статус offload (legacy get_media_cloud_file_status).",
+          parameters: "workspaceId, path, file?, scope?, provider?",
           http: "GET /api/gdrive/status"
         },
         {
-          name: "sync_media_cloud_file",
-          description: "Переключить локальную выгрузку в _blobs/ или провайдер в registry (как UI «Выгрузка в облако»).",
-          parameters: "agentId, path, file? (scope=file), scope?, provider?",
+          name: "module_media_cloud_sync",
+          description: "Toggle локальный offload (legacy sync_media_cloud_file).",
+          parameters: "workspaceId, path, file?, scope?, provider?",
           http: "POST /api/gdrive/toggle"
         },
         {
-          name: "repair_media_cloud_links",
-          description: "Восстановить симлинки по registry.json.",
-          parameters: "agentId",
+          name: "module_media_cloud_links_repair",
+          description: "Починить symlink (legacy repair_media_cloud_links).",
+          parameters: "workspaceId",
           http: "POST /api/gdrive/repair-links"
         },
         {
-          name: "upload_media_cloud_to_provider_zzz",
-          description: "Заглушка: будущая выгрузка на API Google/Яндекс.",
-          parameters: "agentId, path, file, provider?",
+          name: "module_media_cloud_upload",
+          description: "Stub remote upload (legacy upload_media_cloud_to_provider_zzz).",
+          parameters: "workspaceId, path, file, provider?",
           http: "— (stub)"
         },
         {
-          name: "get_remote_url_zzz",
-          description: "Заглушка: будущий remoteUrl после upload на провайдер.",
-          parameters: "agentId, path, file, provider?",
+          name: "module_media_cloud_url",
+          description: "Stub remote URL (legacy get_remote_url_zzz).",
+          parameters: "workspaceId, path, file, provider?",
           http: "— (stub)"
         }
       ]
