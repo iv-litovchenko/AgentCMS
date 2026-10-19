@@ -231,9 +231,9 @@ Workspace — папка с md-файлами. Хабы:
 | Решение, предпочтение, сущность (1–2 фразы) | `workspace_fact_create` |
 | Термин и определение | `glossary_term_create` |
 | Справочная статья | `reference_entry_create` |
-| Событие | `append_journal_entry` |
+| Событие | `journal_entry_append` |
 | Обсуждение темы | `append_discussion` |
-| Комментарий к manifest или записи | `append_comment` |
+| Комментарий к manifest или записи | `comment_append` |
 | Входящее | `content_create({ slot: "inbox", status: "new" })` |
 | Заметка на сессию / договорённость | `workspace_note_write` (`NOTE.md`) / `workspace_todo_write` (`TODO.md`) |
 | Инструкции агента | `AGENTS.md` / `SKILL.md` через `content_write` (`kind: root`, `path: AGENTS.md`) |
@@ -243,12 +243,12 @@ Workspace — папка с md-файлами. Хабы:
 
 Комментарии, дискуссии, факты, термины и справочник — только через свои tools (не `content_write`):
 
-- **Журнал** (`.agent-cms/journal/`, файл на ISO-неделю): `append_journal_entry`, `list_journal_entries`, `list_workspace_notifications`. События, не логи чатов.
+- **Журнал** (`.agent-cms/journal/`, файл на ISO-неделю): `journal_entry_append`, `journal_entries_list`, `workspace_notifications_list`. События, не логи чатов.
 - **Факты:** `workspace_fact_create`, `workspace_fact_update`, `workspace_facts_list`, `workspace_facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `create_workspace_fact`, …
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
 - **Дискуссия:** `read_discussion` / `append_discussion`.
-- **Комментарии:** `list_comments`, `append_comment`, `read_comment`, `update_comment`, `delete_comment`, `toggle_comment_reaction`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
+- **Комментарии:** `comments_list`, `comment_append`, `comment_read`, `comment_update`, `comment_delete`, `comment_reaction_toggle`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
 - **`NOTE.md` / `TODO.md`** в корне: `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.
 
 ---
@@ -305,10 +305,10 @@ Workspace — папка с md-файлами. Хабы:
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `contents_list` (`path: "."`) → `content_read` / `content_write` (`path: AGENTS.md`; история на write) |
 | Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
-| Текст из pdf, docx, xlsx, html | `extract_document_text` |
+| Текст из pdf, docx, xlsx, html | `tool_document_text_extract` |
 | Веб | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
-| Скрипт | `run_script` (`.py` / `.js` / `.sh`) |
-| Команда | `exec_command` (массив args) / `exec_shell` (строка с пайпами) |
+| Скрипт | `tool_script_run` (`.py` / `.js` / `.sh`) |
+| Команда | `tool_command_exec` (массив args) / `tool_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
 
 **`batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item.

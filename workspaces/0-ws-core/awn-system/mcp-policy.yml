@@ -6,11 +6,14 @@ description: >
 
 mcp:
   # single-call write tools (blocked in mcp-mode=readonly)
-  write_tool_pattern: "^(write_|create_|register_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|write_database_|register_database|create_database|delete_database|rename_database|database_register|database_update|database_delete|database_rename|database_schema_write|database_properties_write|database_property_write|delete_channel|rename_channel|channel_register|channel_update|channel_delete|channel_rename|delete_media_library|rename_media_library|media_library_register|media_library_update|media_library_delete|media_library_rename|delete_repository|rename_repository|repository_register|repository_update|repository_delete|repository_rename|refresh_databases_index_toc|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|workspace_fact_create|workspace_fact_update|glossary_term_create|glossary_term_update|reference_entry_create|reference_entry_update|topic_create|topic_update|topic_delete|topic_rename|topic_move|topic_body_write|topic_properties_write|topic_property_write|topic_schema_write|topic_config_write|topic_env_write|topic_slots_template_set|content_create|content_write|content_delete|content_rename|content_move|content_split|content_merge|content_binary_write|content_binary_write_from_url|content_property_write|workspace_note_write|workspace_todo_write|sidecar_create|sidecar_write|sidecar_delete|context_buffer_append|context_buffer_item_remove|context_buffer_clear|setting_write|workspace_dependencies_write|workspace_create|workspace_register|workspace_update|workspace_default_set|workspace_orchestrator_set|workspace_group_create|workspace_group_update|workspace_group_delete|workspace_group_assign|workspace_group_unassign|workspace_groups_reorder|notify_user|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
+  write_tool_pattern: "^(write_|create_|register_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|write_database_|register_database|create_database|delete_database|rename_database|database_register|database_update|database_delete|database_rename|database_schema_write|database_properties_write|database_property_write|delete_channel|rename_channel|channel_register|channel_update|channel_delete|channel_rename|delete_media_library|rename_media_library|media_library_register|media_library_update|media_library_delete|media_library_rename|delete_repository|rename_repository|repository_register|repository_update|repository_delete|repository_rename|refresh_databases_index_toc|database_frame_write_|database_frame_create_|database_frame_refresh_|refresh_database_frame_index_toc|database_frame_delete_|database_frame_rename_|workspace_fact_create|workspace_fact_update|glossary_term_create|glossary_term_update|reference_entry_create|reference_entry_update|topic_create|topic_update|topic_delete|topic_rename|topic_move|topic_body_write|topic_properties_write|topic_property_write|topic_schema_write|topic_config_write|topic_env_write|topic_slots_template_set|content_create|content_write|content_delete|content_rename|content_move|content_split|content_merge|content_binary_write|content_binary_write_from_url|content_property_write|workspace_note_write|workspace_todo_write|sidecar_create|sidecar_write|sidecar_delete|context_buffer_append|context_buffer_item_remove|context_buffer_clear|comment_append|comment_update|comment_delete|journal_entry_append|setting_write|workspace_dependencies_write|workspace_create|workspace_register|workspace_update|workspace_default_set|workspace_orchestrator_set|workspace_group_create|workspace_group_update|workspace_group_delete|workspace_group_assign|workspace_group_unassign|workspace_groups_reorder|notify_user|tool_script_run|tool_command_exec|tool_shell_exec|run_script|exec_|module_git_commit|module_git_init|module_git_push|module_git_pull|module_git_remote)"
   exec_tools:
+    - tool_script_run
+    - tool_command_exec
+    - tool_shell_exec
+    - run_script
     - exec_command
     - exec_shell
-    - run_script
   # exec разрешён только при mcp-mode=full
   exec_allowed_modes:
     - full
@@ -36,6 +39,7 @@ batch_invoke:
     - notify_user
     - mcp_connection_test
     - test_mcp_connection
+    - comment_reaction_toggle
     - toggle_comment_reaction
     - triage_inbox_item
     - rebuild_workspace_indexes
@@ -47,9 +51,12 @@ batch_invoke:
     - sync_workspace_index_file
 
   exec_tools:
+    - tool_script_run
+    - tool_command_exec
+    - tool_shell_exec
+    - run_script
     - exec_command
     - exec_shell
-    - run_script
 
   read_name_patterns:
     - "^read_"
@@ -92,6 +99,9 @@ batch_invoke:
     - sidecar_path_resolve
     - sidecar_read
     - context_buffer_read
+    - comments_list
+    - comment_read
+    - tool_document_text_extract
     - settings_list
     - setting_read
     - list_settings

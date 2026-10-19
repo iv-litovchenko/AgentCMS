@@ -201,7 +201,7 @@ user-agent-cms
 │   ├── seed_workspace_entity
 │   ├── audit_workspace_memory
 │   ├── list_workspace_feed
-│   └── list_workspace_notifications
+│   └── 🔴 workspace_notifications_list     ← list_workspace_notifications (имя/группа — TBD)
 │
 ├── 🧠 Facts · glossary · reference · 12
 │   ├── 🟢 workspace_fact_create          ← create_workspace_fact
@@ -222,12 +222,12 @@ user-agent-cms
 │   ├── triage_inbox_item
 │   ├── read_discussion
 │   ├── append_discussion
-│   ├── list_comments
-│   ├── append_comment
-│   ├── read_comment
-│   ├── update_comment
-│   ├── delete_comment
-│   └── toggle_comment_reaction
+│   ├── 🟢 comments_list                   ← list_comments
+│   ├── 🟢 comment_append                  ← append_comment
+│   ├── 🟢 comment_read                    ← read_comment
+│   ├── 🟢 comment_update                  ← update_comment
+│   ├── 🟢 comment_delete                  ← delete_comment
+│   └── 🟢 comment_reaction_toggle         ← toggle_comment_reaction
 │
 ├── 📎 Sidecar · pads · buffer · 13
 │   ├── sidecar (5)
@@ -272,16 +272,19 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-└── 🌐 Web · exec · journal · 9
-    ├── search_web
-    ├── search_web_images
-    ├── read_web_page
-    ├── extract_document_text
-    ├── run_script
-    ├── exec_command
-    ├── exec_shell
-    ├── append_journal_entry
-    └── list_journal_entries
+├── 🌐 Web · 3
+│   ├── search_web
+│   ├── search_web_images
+│   └── read_web_page
+├── 🔧 tool_* · 4
+│   ├── 🟢 tool_document_text_extract      ← extract_document_text
+│   ├── 🟢 tool_script_run                 ← run_script
+│   ├── 🟢 tool_command_exec               ← exec_command
+│   └── 🟢 tool_shell_exec                 ← exec_shell
+└── 📓 Journal · 3
+    ├── 🟢 journal_entry_append              ← append_journal_entry
+    ├── 🟢 journal_entries_list              ← list_journal_entries
+    └── 🔴 workspace_notifications_list      ← list_workspace_notifications (имя/группа — TBD)
 ```
 
 Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_inbound_*_zzz`.
@@ -341,6 +344,9 @@ id
 - [x] **Sidecar · context_buffer:** `sidecar_*`, `context_buffer_*` — `sidecar-tools.js`, `context-buffer-tools.js`
 - [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
 - [x] **Платформа и настройки:** канон в MCP + legacy — `platform-tools.js`, `settings-tools.js` (регистрация **до** workspace); `dependencies_*` — `dependencies-tools.js`, в дереве и `index.js` **в блоке хранилища** (нужен `workspaceId`)
+- [x] **Comments:** канон в MCP + legacy — `mcp-server/lib/comment-tools.js`
+- [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
+- [x] **tool_*:** extract + exec — `mcp-server/lib/tool-tools.js` (legacy `run_script`, `exec_*`, `extract_document_text`)
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`

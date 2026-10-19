@@ -26,7 +26,7 @@ import { registerMediaLibraryTools } from "./lib/media-library-tools.js";
 import { registerChannelTools } from "./lib/channel-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
-import { registerExecTools } from "./lib/exec-tools.js";
+import { registerToolTools } from "./lib/tool-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
 import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
@@ -45,6 +45,7 @@ import { registerDependenciesTools } from "./lib/dependencies-tools.js";
 import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { registerShortLinksTools } from "./lib/short-links-tools.js";
+import { registerCommentTools } from "./lib/comment-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
@@ -349,87 +350,7 @@ function createServer() {
       client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
-  reg(
-    "list_comments",
-    "List discuss comments for manifest or a file in a slot (UI comments panel). Storage: awn-storage/comments/{target}/.",
-    z.object({
-      path: pagePath,
-      mode: z.string().optional().describe("description (default) | external | media | …"),
-      file: z.string().optional().describe("Record path in slot when commenting on content, e.g. memory/razdel/zapis.md"),
-      name: z.string().optional()
-    }),
-    ({ path, mode, file, name }) => client.get("/api/file/comments", { path, mode, file, name })
-  );
-
-  reg(
-    "append_comment",
-    "Append discuss comment to manifest or file in slot. Do not use create_content or write_file in comments/.",
-    z.object({
-      path: pagePath,
-      body: z.string().min(1),
-      author: z.string().optional().describe("Display author, default guest"),
-      replyTo: z.string().optional().describe("Parent comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, body, author, replyTo, mode, file, name }) =>
-      client.post("/api/file/comments", { path, body, author, replyTo, mode, file, name })
-  );
-
-  reg(
-    "toggle_comment_reaction",
-    "Toggle reaction on a discuss comment (default reaction: up).",
-    z.object({
-      path: pagePath,
-      commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-      reaction: z.string().optional().describe("Default up"),
-      author: z.string().optional(),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, commentId, reaction, author, mode, file, name }) =>
-      client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
-  );
-
-  const commentTargetFields = {
-    path: pagePath,
-    commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-    mode: z.string().optional(),
-    file: z.string().optional(),
-    name: z.string().optional()
-  };
-
-  reg(
-    "read_comment",
-    "Read one discuss comment by commentId (awn-id in frontmatter when assigned).",
-    z.object(commentTargetFields),
-    ({ path, commentId, mode, file, name }) =>
-      client.get("/api/file/comment", { path, commentId, mode, file, name })
-  );
-
-  reg(
-    "update_comment",
-    "Update discuss comment body. Preserves author, replyTo, reactions; updates awn-update.",
-    z.object({
-      ...commentTargetFields,
-      body: z.string().min(1)
-    }),
-    ({ path, commentId, body, mode, file, name }) =>
-      client.patch("/api/file/comment", { path, commentId, body, mode, file, name })
-  );
-
-  reg(
-    "delete_comment",
-    "Delete discuss comment file. When platform confirm-delete is enabled, pass confirm=true.",
-    z.object({
-      ...commentTargetFields,
-      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
-    }),
-    ({ path, commentId, mode, file, name }) =>
-      client.delete("/api/file/comment", { path, commentId, mode, file, name })
-  );
+  registerCommentTools(reg, client, { pagePath });
 
   // ── Workspace pads + FS + system ───────────────────────────────────────────
 
@@ -437,8 +358,8 @@ function createServer() {
   registerFileHubQueueTools(reg, client);
   registerContextBufferTools(reg, client);
   registerWorkspaceFsTools(reg, client);
-  registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
+  registerToolTools(reg, client, pagePath);
   registerAgentUtilsTools(reg, client);
   registerMediaCloudTools(reg, client, { pagePath });
   registerSidecarTools(reg, client);

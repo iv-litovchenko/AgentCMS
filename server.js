@@ -6593,7 +6593,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
         layer === "discussion" || layer === "thread"
         ? "append_discussion"
         : layer === "comments"
-          ? "append_comment"
+          ? "comment_append"
           : null;
     return {
       error: `Folder awn-storage/${layer}/ is not writable via filesystem tools${hint ? `; use ${hint}` : ""}`,
@@ -15045,11 +15045,11 @@ const SESSION_CONTEXT_API_MAP = {
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
-    "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
+    "POST /api/exec/run-script — tool_script_run MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
-    "POST /api/exec/command — exec_command MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/command — tool_command_exec MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
   execShell:
-    "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/shell — tool_shell_exec MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
     "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google direct HTML or Custom Search API)",
   webImages:
@@ -15059,7 +15059,7 @@ const SESSION_CONTEXT_API_MAP = {
   webPreview:
     "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
   webExtract:
-    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
+    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — tool_document_text_extract MCP",
   agentIdentity:
     "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:

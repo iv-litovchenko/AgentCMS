@@ -96,7 +96,7 @@
         },
         {
           phrases: ["открой журнал"],
-          tools: ["list_journal_entries", "get_topic_url"],
+          tools: ["journal_entries_list", "get_topic_url"],
           status: "mcp"
         },
         {
@@ -141,7 +141,7 @@
       title: "Записать (с подтверждением)",
       note: "«да / подтверждаю» перед delete и move.",
       items: [
-        { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "append_journal_entry"], status: "mcp" },
+        { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "journal_entry_append"], status: "mcp" },
         { phrases: ["добавь задачу …"], tools: ["workspace_todo_write"], status: "mcp" },
         { phrases: ["зафиксируй факт …"], tools: ["retain_workspace_fact"], status: "mcp" },
         { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },

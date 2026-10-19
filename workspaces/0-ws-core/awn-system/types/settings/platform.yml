@@ -184,7 +184,7 @@ fields:
   batch-deny-exec:
     type: awn.field.boolean
     title: Запретить exec в batch
-    description: true — exec_command / exec_shell / run_script нельзя в batch_invoke (рекомендуется)
+    description: true — tool_command_exec / tool_shell_exec / tool_script_run нельзя в batch_invoke (рекомендуется)
     default: true
     group: mcp
     sort: 14
@@ -192,7 +192,7 @@ fields:
   confirm-exec:
     type: awn.field.boolean
     title: Подтверждение exec
-    description: true — exec_* и run_script требуют confirm=true в вызове MCP
+    description: true — tool_* exec (и legacy exec_* / run_script) требуют confirm=true в вызове MCP
     default: true
     group: mcp
     sort: 15
