@@ -167,4 +167,18 @@ export function registerRecordTools(reg, client) {
     schema: pathResolveSchema,
     handler: pathResolveHandler
   });
+
+  const recordIndexSyncSchema = z.object({
+    path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "record_index_sync",
+    legacy: "sync_workspace_index_file",
+    extraLegacy: ["index_file_sync", "index_9_file_sync"],
+    description:
+      "After saving one record/file: incrementally update fulltext, semantic, storage catalog, and link graph for that path. Requires prior full index_rebuild_all.",
+    schema: recordIndexSyncSchema,
+    handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
+  });
 }

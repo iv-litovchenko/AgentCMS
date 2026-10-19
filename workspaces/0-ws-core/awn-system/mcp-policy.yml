@@ -75,8 +75,7 @@ batch_invoke:
     - index_entity_rebuild
     - index_1_ocr_run
     - index_ocr_run
-    - index_file_sync
-    - index_file_sync
+    - record_index_sync
     - rebuild_workspace_indexes
     - rebuild_workspace_semantic_index
     - rebuild_workspace_storage_index

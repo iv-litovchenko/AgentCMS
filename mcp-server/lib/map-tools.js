@@ -716,20 +716,6 @@ function registerSearchWorkspaceTools(reg, client) {
     (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   );
 
-  const indexFileSyncSchema = z.object({
-    path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_file_sync",
-    legacy: "sync_workspace_index_file",
-    extraLegacy: ["index_9_file_sync"],
-    description:
-      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of index_rebuild_all.",
-    schema: indexFileSyncSchema,
-    handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
-  });
-
 }
 
 export function registerMapTools(reg, client, pagePath) {

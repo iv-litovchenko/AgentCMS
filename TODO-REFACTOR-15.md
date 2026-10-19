@@ -8,7 +8,7 @@
 - **Список реестра** → **множественное** + `_list`: `databases_list`, `channels_list` (не `database_list` — это звучит как «список внутри одной базы»).
 - **Одна запись / поля** → **единственное** + `_get|_register|_read|…`: `database_get`, `topic_body_read`.
 - Старые `list_*` / `get_*` / `read_*` → legacy после миграции.
-- **Слои индекса `index_N_*`:** **`_search_query`** — поиск (hits); **`_query`** без `search` — structured (storage); **`index_{N}_*_rebuild` / `index_1_ocr_run`** — слои 1–6. **Без номера:** `index_status_get`, `index_monitor_get`, `index_rebuild_all`, `index_file_sync`, `index_search_query_batch`.
+- **Слои индекса `index_N_*`:** **`_search_query`** — поиск (hits); **`_query`** без `search` — structured (storage); **`index_{N}_*_rebuild` / `index_1_ocr_run`** — слои 1–6. **Без номера:** `index_status_get`, `index_monitor_get`, `index_rebuild_all`, `index_search_query_batch`. **Запись:** `record_index_sync` — индексы одного файла после save.
 - **Слой 6 (entity, эксперимент):** в дереве только **`index_6_entity_*_zzz`** (🟡); рабочие **`index_6_entity_*`** без `_zzz` — MCP + legacy, не в счётчике.
 
 ---
@@ -221,13 +221,13 @@ user-agent-cms
 │   ├── index_* (UI «Мониторинг», без № в popover)
 │   │   ├── 🟢 index_status_get
 │   │   └── 🟢 index_monitor_get
-│   └── index_ops_* (без № в popover — rebuild / sync / batch)
+│   └── index_ops_* (без № в popover — rebuild / batch)
 │       ├── 🟢 index_rebuild_all
-│       ├── 🟢 index_file_sync
 │       └── 🟢 index_search_query_batch
 │
-├── 🆔 Record · record_* · workspaceId · 6
+├── 🆔 Record · record_* · workspaceId · 7
 │   ├── 🔴 record_find_by_id
+│   ├── 🔴 record_index_sync
 │   ├── 🟢 record_id_exists
 │   ├── 🟢 record_id_assign
 │   ├── 🟢 record_generate_slug
