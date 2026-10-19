@@ -6542,7 +6542,7 @@ const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".cfg",
   ".conf"
 ]);
-const WORKSPACE_FS_WRITE_MAX_BYTES = 512_000;
+const WORKSPACE_FS_WRITE_MAX_BYTES = 1024 * 1024;
 const WORKSPACE_FS_UPLOAD_MAX_BYTES = 45 * 1024 * 1024;
 function normalizeWorkspaceFsRelPath(raw) {
   return String(raw || "")
