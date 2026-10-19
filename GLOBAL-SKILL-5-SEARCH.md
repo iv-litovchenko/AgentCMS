@@ -28,7 +28,7 @@ description: Как искать и ориентироваться в Agent CMS 
 
 ## Индексы (номера как в UI popover)
 
-После правки одного файла — `record_index_sync`; полный pipeline — `index_rebuild_all` (только после массовых изменений). По слоям 1–6: `index_1_ocr_run_zzz` (stub, 🟡) / рабочий `index_1_ocr_run`, `index_2_fulltext_rebuild`, `index_3_semantic_rebuild`, `index_4_storage_rebuild`, `index_5_link_rebuild`, `index_6_entity_rebuild`. **6. Сущности (эксперимент)** — в каноне дерева `index_6_entity_*_zzz` (🟡); API без `_zzz`. **7. ID** — `record_*`; **Карта** / **Мониторинг** без № — `nav_map_workspace_*`, `index_status_get`, `index_monitor_get`.
+После правки одного файла — `index_record_sync`; полный pipeline — `index_rebuild_all` (только после массовых изменений). По слоям 1–6: `index_1_ocr_run_zzz` (stub, 🟡) / рабочий `index_1_ocr_run`, `index_2_fulltext_rebuild`, `index_3_semantic_rebuild`, `index_4_storage_rebuild`, `index_5_link_rebuild`, `index_6_entity_rebuild`. **6. Сущности (эксперимент)** — в каноне дерева `index_6_entity_*_zzz` (🟡); API без `_zzz`. **7. ID** — `record_*`; **Карта** / **Мониторинг** без № — `nav_map_workspace_*`, `index_status_get`, `index_monitor_get`.
 
 ## DQL для `index_4_storage_query`
 

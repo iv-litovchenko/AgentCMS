@@ -47,13 +47,13 @@ description: Правила, запреты и антипаттерны аген
 | `list_inbox` / `triage_inbox_item` | `inbox_items_list` / `inbox_item_triage` |
 | `tool_*` (web, exec, ping, extract), `search_web*`, `exec_*`, `run_script` | `utility_*` (те же суффиксы) |
 | `batch_invoke` / `tool_batch_invoke` / `request_batch_invoke` | `batch_tools_invoke` |
-| `get_topic_url` / `get_workspace_open_url_from_path` | `get_record_url_from_path` |
-| `get_workspace_url_page_preview` | `get_workspace_page_preview_from_path` |
-| `get_link_preview` / `get_external_url_page_preview` | `get_external_page_preview_from_url` |
-| `content_binary_url_get` / `get_content_binary_url` | `get_record_binary_url_from_path` |
+| `get_topic_url` / `get_workspace_open_url_from_path` | `record_url_get` |
+| `get_workspace_url_page_preview` | `record_preview_get` |
+| `get_link_preview` / `get_external_url_page_preview` | `utility_web_page_preview` |
+| `content_binary_url_get` / `get_content_binary_url` | `record_binary_url_get` |
 | `search_content` / `search_semantic` / `search_hybrid` / `search_links` / `search_batch` | `index_2_fulltext_search_query` / `index_3_semantic_search_query` / `index_3_hybrid_search_query` / `index_5_link_search_query` / `index_search_query_batch` |
 | `ask_workspace` / `search_and_get_context` / `query_context_get` | `query_workspace_ask` |
-| `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run_zzz` … `record_index_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
+| `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run_zzz` … `index_record_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
 | `get_workspace_index_status` / `get_workspace_index_monitor` | `index_status_get` / `index_monitor_get` |
 | `index_entity_*` (query, catalog, rebuild, …) | `index_6_entity_*` |
 | `notify_user` | `user_notification_send` |

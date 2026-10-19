@@ -81,7 +81,7 @@
       items: [
         {
           phrases: ["открой …", "перейди к …"],
-          tools: ["index_3_hybrid_search_query", "get_record_url_from_path"],
+          tools: ["index_3_hybrid_search_query", "record_url_get"],
           status: "mcp"
         },
         {

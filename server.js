@@ -14907,10 +14907,10 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
-  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_find_by_id)",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_id_resolve)",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (MCP: record_id_assign; body: path, force?)",
   workspaceSlugGenerate:
-    "GET|POST /api/workspace-slug/generate — record_generate_slug MCP (text, preset?, slug?, stripExtension?)",
+    "GET|POST /api/workspace-slug/generate — record_slug_generate MCP (text, preset?, slug?, stripExtension?)",
   workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
   workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
@@ -14924,7 +14924,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — record_path_resolve MCP: manifest-цепочка вверх, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_record_url_from_path",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: record_url_get",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
@@ -15057,7 +15057,7 @@ const SESSION_CONTEXT_API_MAP = {
   webPage:
     "GET /api/web/page?url=&maxChars=&maxBytes= — utility_web_page_read MCP (fetch external page as plain text)",
   webPreview:
-    "GET /api/web/preview?url= — get_external_page_preview_from_url MCP (OpenGraph/meta card)",
+    "GET /api/web/preview?url= — utility_web_page_preview MCP (OpenGraph/meta card)",
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — utility_document_text_extract MCP",
   agentIdentity:

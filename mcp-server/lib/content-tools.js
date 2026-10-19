@@ -148,8 +148,9 @@ export function registerContentTools({ reg, client, pagePath }) {
   const pagePreviewHandler = (args) => getWorkspaceUrlPagePreview(client, args);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_page_preview_from_path",
-    legacy: "get_workspace_url_page_preview",
+    canonical: "record_preview_get",
+    legacy: "get_workspace_page_preview_from_path",
+    extraLegacy: ["get_workspace_url_page_preview"],
     description:
       "Preview card for an internal Agent CMS .md page: title, excerpt, preview image URL, openUrl (CHPU). " +
       "Use path (workspace-relative .md) or placement with .md ref (topic/channel/…).",
@@ -158,9 +159,9 @@ export function registerContentTools({ reg, client, pagePath }) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_record_binary_url_from_path",
-    legacy: "content_binary_url_get",
-    extraLegacy: ["get_content_binary_url"],
+    canonical: "record_binary_url_get",
+    legacy: "get_record_binary_url_from_path",
+    extraLegacy: ["content_binary_url_get", "get_content_binary_url"],
     description:
       "Absolute HTTPS URL to view binary content (image opens directly in browser). Same placement as content_binary_read. " +
       "Optional thumb + max for images. Does not return file bytes.",
