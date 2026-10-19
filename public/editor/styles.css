@@ -60059,6 +60059,30 @@ button.node-navigation-memory-title:focus-visible {
   fill: currentColor;
 }
 
+.node-overview-slots-template-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 0.35rem;
+  cursor: default;
+}
+
+.node-overview-slots-template-select {
+  max-width: 7.5rem;
+  height: 1.55rem;
+  margin: 0;
+  padding: 0 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.node-overview-slots-template-wrap.is-active,
 .node-overview-shared-slot-btn.is-active {
   border-color: #86efac;
   background: rgba(220, 252, 231, 0.92);

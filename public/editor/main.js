@@ -24388,6 +24388,26 @@ function upsertAwnFlagInPropsYaml(content, flagKey, enabled) {
   return stringifyPropsYaml(entries);
 }
 
+function upsertAwnSlotsTemplateInPropsYaml(content, template) {
+  const normalizedTemplate = normalizeTopicSlotsTemplate(template);
+  let entries = parsePropsYaml(content || "");
+  entries = entries.filter((entry) => {
+    const key = normalizePropsKey(entry.key);
+    return key !== AWN_TOPIC_SLOTS_FLEXIBLE_KEY && key !== AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY;
+  });
+  const index = entries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
+  );
+  const nextEntry = {
+    key: AWN_TOPIC_SLOTS_TEMPLATE_KEY,
+    kind: "string",
+    value: normalizedTemplate
+  };
+  if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
+  else entries.push(nextEntry);
+  return stringifyPropsYaml(entries);
+}
+
 function upsertAwnFocusInPropsYaml(content, enabled) {
   return upsertAwnFlagInPropsYaml(content, "awn-focus", enabled);
 }
@@ -24420,7 +24440,8 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
 
   const apiPath = getResolvedNodePath(nodePathRaw);
   const canToggle =
-    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY ||
+    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
       ? canShowNodeOverviewSharedSlotToggle(nodePathRaw)
       : canShowNodeOverviewPinActions(nodePathRaw);
   if (!apiPath || !canToggle) {
@@ -24548,58 +24569,102 @@ function isContentRecordOverviewEntry(contextOrKind) {
   );
 }
 
-async function setTopicSharedSlotState(nodePath, enabled, options = {}) {
+async function setTopicSlotsTemplate(nodePath, template, options = {}) {
+  const normalizedTemplate = normalizeTopicSlotsTemplate(template);
   const label = getLabelFromPath(nodePath) || nodePath;
-  const changed = await saveNodeNavFlagState(nodePath, AWN_TOPIC_SLOTS_FLEXIBLE_KEY, enabled, {
-    ...options,
-    confirmRemove: !enabled,
-    removeTitle: "Выключить",
-    removeMessage: `Выключить «Гибкий слот» для «${label}»? Снова появятся типовые слоты awn-storage (main, inbox, media…).`,
-    unavailableMessage: "«Гибкий слот» доступен только для manifest темы",
-    successOn: `«Гибкий слот» включён для «${label}»`,
-    successOff: `«Гибкий слот» выключен для «${label}»`,
-    errorMessage: "Не удалось изменить «Гибкий слот»"
-  });
-  if (!changed) return false;
-
-  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
-  invalidateTopicSlotsDisabledCache(manifestPath);
-  if (manifestPath) topicSlotsDisabledCache.set(manifestPath, enabled);
-
-  if (
-    activeContentMode === NODE_NAVIGATION_MODE ||
-    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
-    activeContentMode === NODE_OVERVIEW_MODE
-  ) {
-    try {
-      await refreshNavigationHubAfterSlotMutation();
-    } catch {
-      // ignore refresh errors
-    }
-    if (activeContentMode === NODE_NAVIGATION_MODE) {
-      await renderNodeNavigation();
-    } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-      await renderEntryOverview();
-    } else if (activeContentMode === NODE_OVERVIEW_MODE) {
-      await renderNodeOverview();
-    }
+  const nodePathRaw = String(nodePath || "").trim();
+  const apiPath = getResolvedNodePath(nodePathRaw);
+  if (!apiPath || !canShowNodeOverviewSharedSlotToggle(nodePathRaw)) {
+    showToast("Шаблон слотов доступен только для manifest темы", "error");
+    return false;
   }
 
-  const toggledManifest = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  const currentTemplate = Array.isArray(options.propEntries) && options.propEntries.length
+    ? getTopicSlotsTemplateFromEntries(options.propEntries)
+    : getTopicSlotsTemplateForManifestPath(apiPath);
+  if (currentTemplate === normalizedTemplate) return true;
+
   if (
-    activeContentMode === "topic-schema" &&
-    toggledManifest &&
-    toggledManifest === getTopicSchemaManifestPath(activePath)
+    normalizedTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD &&
+    currentTemplate !== TOPIC_SLOTS_TEMPLATE_STANDARD &&
+    options.confirm !== false
   ) {
-    renderTopicSchemaEditor();
+    const confirmed = await askConfirm(
+      `Вернуть «Стандартный» шаблон слотов для «${label}»? Типовые папки awn-storage (main, inbox, media…) снова будут в UI.`,
+      { okLabel: "Применить" }
+    );
+    if (!confirmed) return false;
   }
 
-  return true;
-}
+  try {
+    const getResponse = await fetch(
+      buildApiUrl("/api/file/properties", { path: apiPath }, options.agentId || activeWorkspaceId)
+    );
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const stampedContent = upsertAwnSlotsTemplateInPropsYaml(current.content || "", normalizedTemplate);
+    const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, options.agentId || activeWorkspaceId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, content: stampedContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+    }
 
-async function toggleTopicSharedSlot(nodePath, propEntries = null) {
-  const active = isTopicSharedSlotActiveForNode(nodePath, propEntries);
-  return setTopicSharedSlotState(nodePath, !active);
+    const manifestPath = resolveManifestPathForNodeApi(apiPath);
+    invalidateTopicSlotsDisabledCache(manifestPath);
+    if (manifestPath) topicSlotsTemplateCache.set(manifestPath, normalizedTemplate);
+
+    await refreshAllFocusPanels();
+    const activeApi = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+    const savedApi = normalizeMenuNodePath(apiPath || "");
+    if (activeApi && savedApi && activeApi === savedApi) {
+      await loadPropertiesForActivePath().catch(() => null);
+    }
+    updateNodeOverviewHeroActionStates();
+
+    if (
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
+      activeContentMode === NODE_OVERVIEW_MODE
+    ) {
+      try {
+        await refreshNavigationHubAfterSlotMutation();
+      } catch {
+        // ignore refresh errors
+      }
+      if (activeContentMode === NODE_NAVIGATION_MODE) {
+        await renderNodeNavigation();
+      } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+        await renderEntryOverview();
+      } else if (activeContentMode === NODE_OVERVIEW_MODE) {
+        await renderNodeOverview();
+      }
+    }
+
+    const toggledManifest = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+    if (
+      activeContentMode === "topic-schema" &&
+      toggledManifest &&
+      toggledManifest === getTopicSchemaManifestPath(activePath)
+    ) {
+      renderTopicSchemaEditor();
+    }
+
+    showToast(
+      `Шаблон слотов: ${TOPIC_SLOTS_TEMPLATE_LABELS[normalizedTemplate] || normalizedTemplate} («${label}»)`,
+      "success"
+    );
+    return true;
+  } catch (error) {
+    showToast(error?.message || "Не удалось сохранить шаблон слотов", "error");
+    return false;
+  }
 }
 
 async function removeNodeFromFocus(focusItem) {
@@ -27140,12 +27205,28 @@ function usesNavigationHubInlineSubsections(nodePath = getResolvedNodePath(activ
 
 const AWN_TOPIC_SLOTS_FLEXIBLE_KEY = "awn-slots-flexible";
 const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
+const AWN_TOPIC_SLOTS_TEMPLATE_KEY = "awn-slots-template";
+const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
+const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_NONE = "none";
+const TOPIC_SLOTS_TEMPLATE_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+const TOPIC_SLOTS_TEMPLATE_SELECT_ORDER = [
+  TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+  TOPIC_SLOTS_TEMPLATE_STANDARD,
+  TOPIC_SLOTS_TEMPLATE_NONE
+];
 
-const topicSlotsDisabledCache = new Map();
+const topicSlotsTemplateCache = new Map();
+/** @deprecated use topicSlotsTemplateCache; kept for boolean flexible reads */
+const topicSlotsDisabledCache = topicSlotsTemplateCache;
 const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
 const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
-  "Структура содержимого задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
+  "Весь awn-storage/ темы, включая main/, inbox/, media/ и любые свои папки; не показывается только assets/.";
 const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
 const TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS = new Set([
   "main-single",
@@ -27158,8 +27239,56 @@ function isTopicFlexibleSingleFileSlotKey(slotKey) {
   return TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS.has(String(slotKey || "").trim());
 }
 
+function normalizeTopicSlotsTemplate(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function getTopicSlotsTemplateFromEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  const templateEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
+  );
+  if (templateEntry) {
+    return normalizeTopicSlotsTemplate(getPropsEntryDisplayValue(templateEntry));
+  }
+  if (isTopicSlotsFlexibleLegacyFromEntries(entries)) {
+    return TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsFlexibleLegacyFromEntries(entries) {
+  const flexibleEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+  );
+  if (flexibleEntry) {
+    if (flexibleEntry.kind === "bool") return Boolean(flexibleEntry.value);
+    const raw = String(flexibleEntry.value ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+  }
+  const legacyEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
+  );
+  if (!legacyEntry) return false;
+  if (legacyEntry.kind === "bool") return Boolean(legacyEntry.value);
+  const raw = String(legacyEntry.value ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+}
+
+function isTopicSlotsFlexibleFromEntries(entries) {
+  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+function isTopicSlotsNoneFromEntries(entries) {
+  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_NONE;
+}
+
 function filterTopicFlexibleSingleFileSlotSpecs(specs, topicPath = getResolvedNodePath(activePath)) {
-  if (!isTopicSharedSlotActive(topicPath)) return specs;
+  if (!isTopicSlotsLiteTemplateActive(topicPath)) return specs;
   return (specs || []).filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
 }
 
@@ -27208,48 +27337,50 @@ function shouldUseFlexibleSlotAssetUrls(nodePath = activePath) {
   return isTopicSharedSlotActive(nodePath);
 }
 
-function isTopicSlotsFlexibleFromEntries(entries) {
-  if (!Array.isArray(entries) || !entries.length) return false;
-  const flexibleEntry = entries.find(
-    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
-  );
-  if (flexibleEntry) {
-    if (flexibleEntry.kind === "bool") return Boolean(flexibleEntry.value);
-    const raw = String(flexibleEntry.value ?? "").trim().toLowerCase();
-    return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
-  }
-  const legacyEntry = entries.find(
-    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
-  );
-  if (!legacyEntry) return false;
-  if (legacyEntry.kind === "bool") return Boolean(legacyEntry.value);
-  const raw = String(legacyEntry.value ?? "").trim().toLowerCase();
-  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
-}
-
 function isTopicSlotsDisabledFromEntries(entries) {
   return isTopicSlotsFlexibleFromEntries(entries);
+}
+
+function getTopicSlotsTemplateForManifestPath(manifestPath) {
+  const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  if (topicSlotsTemplateCache.has(normalized)) {
+    return topicSlotsTemplateCache.get(normalized);
+  }
+  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
+  if (activeManifestPath === normalized) {
+    const entries = resolveNodeOverviewPropsEntries();
+    if (entries?.length) return getTopicSlotsTemplateFromEntries(entries);
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsLiteTemplateActive(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return false;
+  const template = getTopicSlotsTemplateForManifestPath(manifestPath);
+  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
 function invalidateTopicSlotsDisabledCache(manifestPath = "") {
   const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) {
-    topicSlotsDisabledCache.clear();
+    topicSlotsTemplateCache.clear();
     return;
   }
-  topicSlotsDisabledCache.delete(normalized);
+  topicSlotsTemplateCache.delete(normalized);
 }
 
 function isTopicSharedSlotActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
-  if (topicSlotsDisabledCache.has(manifestPath)) return topicSlotsDisabledCache.get(manifestPath);
-  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
-  if (activeManifestPath === manifestPath) {
-    const entries = resolveNodeOverviewPropsEntries();
-    if (entries?.length) return isTopicSlotsDisabledFromEntries(entries);
-  }
-  return false;
+  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+function isTopicSlotsNoneActive(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return false;
+  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
 /** В режиме awn-slots-flexible типовые слоты (media, inbox…) не используются — только external / awn-storage/. */
@@ -27302,47 +27433,53 @@ function buildExternalMemoryFileRef(contextRelPath, relativePath) {
   );
 }
 
-async function readTopicSlotsDisabledForPath(nodePath) {
+async function readTopicSlotsTemplateForPath(nodePath) {
   const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
-  if (!manifestPath) return false;
+  if (!manifestPath) return TOPIC_SLOTS_TEMPLATE_STANDARD;
 
   const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
   if (activeManifestPath === manifestPath) {
     const entries = resolveNodeOverviewPropsEntries();
     if (entries?.length) {
-      const disabled = isTopicSlotsDisabledFromEntries(entries);
-      topicSlotsDisabledCache.set(manifestPath, disabled);
-      return disabled;
+      const template = getTopicSlotsTemplateFromEntries(entries);
+      topicSlotsTemplateCache.set(manifestPath, template);
+      return template;
     }
   }
 
-  if (topicSlotsDisabledCache.has(manifestPath)) {
-    return topicSlotsDisabledCache.get(manifestPath);
+  if (topicSlotsTemplateCache.has(manifestPath)) {
+    return topicSlotsTemplateCache.get(manifestPath);
   }
 
   try {
     const response = await fetch(buildApiUrl("/api/file/properties", { path: manifestPath }));
-    if (!response.ok) return false;
+    if (!response.ok) return TOPIC_SLOTS_TEMPLATE_STANDARD;
     const data = await response.json();
-    const disabled = isTopicSlotsDisabledFromEntries(parsePropsYaml(data.content || ""));
-    topicSlotsDisabledCache.set(manifestPath, disabled);
-    return disabled;
+    const template = getTopicSlotsTemplateFromEntries(parsePropsYaml(data.content || ""));
+    topicSlotsTemplateCache.set(manifestPath, template);
+    return template;
   } catch {
-    return false;
+    return TOPIC_SLOTS_TEMPLATE_STANDARD;
   }
+}
+
+async function readTopicSlotsDisabledForPath(nodePath) {
+  return (await readTopicSlotsTemplateForPath(nodePath)) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
 async function shouldHideTopicStorageSlots(nodePath, entries = null) {
   if (isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath)) return false;
-  if (entries?.length && isTopicSlotsDisabledFromEntries(entries)) return true;
-  return readTopicSlotsDisabledForPath(nodePath);
+  if (entries?.length) {
+    const template = getTopicSlotsTemplateFromEntries(entries);
+    if (template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE) {
+      return true;
+    }
+  }
+  const template = await readTopicSlotsTemplateForPath(nodePath);
+  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
-/** Правая колонка слотов в node-overview отключена (слоты — в hero/strip и browse). */
-const ENABLE_NODE_NAVIGATION_HUB_RAIL = false;
-
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
-  if (!ENABLE_NODE_NAVIGATION_HUB_RAIL) return false;
   if (isRepositoryManifestPath(nodePath)) return false;
   if (isHubWorkspaceFilesSlotPage(nodePath)) return false;
   return !usesNavigationHubInlineSubsections(nodePath);
@@ -48038,6 +48175,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-cron-schedule",
   "awn-runtime-reminder",
   "awn-runtime-commands",
+  "awn-slots-template",
   "awn-slots-flexible"
 ];
 
@@ -48233,9 +48371,13 @@ const PROPS_FIELD_META = {
     label: "На главной",
     hint: "Показывать в карусели на главной странице"
   },
+  "awn-slots-template": {
+    label: "Шаблон слотов",
+    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/; none — только однофайловые слоты"
+  },
   "awn-slots-flexible": {
-    label: "Гибкий слот (Flexible)",
-    hint: "Общий гибкий слот: произвольная структура многофайловой памяти в awn-storage/"
+    label: "Гибкий слот (устар.)",
+    hint: "Заменено на awn-slots-template: flexible"
   },
   "awn-status": {
     label: "Статус",
@@ -60023,6 +60165,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-materials": "materials",
   "awn-focus": "nav",
   "awn-main": "nav",
+  "awn-slots-template": "nav",
   "awn-slots-flexible": "nav",
   "awn-category": "taxonomy",
   "awn-owner": "taxonomy",
@@ -60679,6 +60822,7 @@ function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
 const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-focus": "boolean",
   "awn-main": "boolean",
+  "awn-slots-template": "choice-one",
   "awn-slots-flexible": "boolean",
   "awn-runtime-cron": "runtime-schedule-type",
   "awn-runtime-reminder": "boolean",
@@ -64271,12 +64415,27 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
   const populationId = `${Date.now()}-${Math.random()}`;
   thumbWrap.dataset.previewPopulationId = populationId;
   thumbWrap.replaceChildren();
+  delete thumbWrap.dataset.previewThumbRetried;
   thumbWrap.classList.remove("is-preview-loading");
   thumbWrap.dataset.overviewTitle = title;
   thumbWrap.dataset.hasPreview = imageUrl ? "1" : "0";
 
   const handlePreviewFail = () => {
     if (thumbWrap.dataset.previewPopulationId !== populationId) return;
+    const thumbFallback =
+      imageUrl && thumbWrap.dataset.previewThumbRetried !== "1"
+        ? appendMediaThumbToApiUrl(imageUrl, MEDIA_THUMB_MAX_SMALL)
+        : "";
+    if (thumbFallback && thumbFallback !== imageUrl) {
+      thumbWrap.dataset.previewThumbRetried = "1";
+      populatePreviewThumbWrap(
+        thumbWrap,
+        { imageUrl: thumbFallback, previewPath: preview?.previewPath || "" },
+        title,
+        nodePath
+      );
+      return;
+    }
     populatePreviewThumbWrap(
       thumbWrap,
       { broken: true, previewPath: preview?.previewPath || "" },
@@ -68375,7 +68534,7 @@ function createOverviewMainIcon() {
 
 function createOverviewSharedSlotIcon() {
   return createOverviewActionIcon(
-    '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.18"/><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.1"/><ellipse cx="8" cy="8" rx="3" ry="7" fill="none" stroke="currentColor" stroke-width="0.9"/><line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="0.9"/></svg>'
+    '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="6.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="10.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="2.5" width="12" height="3" rx="0.75"/><rect x="2" y="6.5" width="12" height="3" rx="0.75"/><rect x="2" y="10.5" width="8" height="3" rx="0.75"/></svg>'
   );
 }
 
@@ -68471,11 +68630,21 @@ function syncNodeOverviewMainButton(btn, nodePath, propEntries = null) {
 }
 
 function syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries = null) {
-  const on = isTopicSharedSlotActiveForNode(nodePath, propEntries);
-  btn.classList.toggle("is-active", on);
-  btn.title = on ? "Гибкий слот: включён" : "Гибкий слот: выключен";
+  const template = Array.isArray(propEntries) && propEntries.length
+    ? getTopicSlotsTemplateFromEntries(propEntries)
+    : getTopicSlotsTemplateForManifestPath(
+        resolveManifestPathForNodeApi(getResolvedNodePath(nodePath) || nodePath)
+      );
+  const select = btn.matches("select")
+    ? btn
+    : btn.querySelector(".node-overview-slots-template-select");
+  if (select) {
+    select.value = template;
+  }
+  const label = TOPIC_SLOTS_TEMPLATE_LABELS[template] || template;
+  btn.title = `Шаблон слотов: ${label}`;
   btn.setAttribute("aria-label", btn.title);
-  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("is-active", template !== TOPIC_SLOTS_TEMPLATE_STANDARD);
 }
 
 function normalizeHeroActionNodePath(nodePath) {
@@ -68578,18 +68747,27 @@ function createNodeOverviewMainButton(nodePath, propEntries = null) {
 
 function createNodeOverviewSharedSlotButton(nodePath, propEntries = null) {
   const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "node-overview-action-btn node-overview-shared-slot-btn";
-  btn.dataset.path = resolvedPath;
-  btn.append(createOverviewSharedSlotIcon(), document.createTextNode("Гибкий слот"));
-  syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries);
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
+  const wrap = document.createElement("label");
+  wrap.className = "node-overview-action-btn node-overview-shared-slot-btn node-overview-slots-template-wrap";
+  wrap.dataset.path = resolvedPath;
+
+  const select = document.createElement("select");
+  select.className = "node-overview-slots-template-select";
+  select.setAttribute("aria-label", "Шаблон слотов");
+  for (const value of TOPIC_SLOTS_TEMPLATE_SELECT_ORDER) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = TOPIC_SLOTS_TEMPLATE_LABELS[value] || value;
+    select.appendChild(option);
+  }
+  wrap.append(createOverviewSharedSlotIcon(), select);
+  syncNodeOverviewSharedSlotButton(wrap, nodePath, propEntries);
+  select.addEventListener("change", (event) => {
     event.stopPropagation();
-    void toggleTopicSharedSlot(nodePath, propEntries);
+    void setTopicSlotsTemplate(nodePath, select.value, { propEntries });
   });
-  return btn;
+  select.addEventListener("click", (event) => event.stopPropagation());
+  return wrap;
 }
 
 function createNodeOverviewHeroActions(nodePath, options = {}) {
@@ -71700,6 +71878,7 @@ function buildNodeSettingsSlotStatuses({
 function buildNodeMemorySlotStatuses({
   isArea = false,
   slotsDisabled = false,
+  slotsTemplate = TOPIC_SLOTS_TEMPLATE_STANDARD,
   internalData = null,
   externalData = null,
   tabularData = null,
@@ -71734,6 +71913,14 @@ function buildNodeMemorySlotStatuses({
   const hasTabular = tabularRows > 0;
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
+
+  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+    return [
+      hasInternal ? { id: "internal", label: "Однофайловая", filled: true, modeId: "internal" } : null,
+      hasTabular ? { id: "tabular", label: "Табличная", filled: true, modeId: "tabular" } : null,
+      hasTodo ? { id: "todo", label: "TODO", filled: true, modeId: "todo" } : null
+    ].filter(Boolean);
+  }
 
   if (slotsDisabled) {
     const liteSpecs = [
@@ -83115,7 +83302,8 @@ function createEntryOverviewThumbWrap(context, preview, title, entries) {
     return null;
   }
 
-  const thumbMount = createOverviewThumbWrap(preview, title, context.relPath, {
+  const thumbContextPath = getPreviewResolutionContextPath(context.relPath);
+  const thumbMount = createOverviewThumbWrap(preview, title, thumbContextPath, {
     readOnly: true,
     entryOverviewContext: context,
     propEntries: entries
@@ -84453,13 +84641,13 @@ async function renderEntryOverview() {
     const preservedHubWorkspaceSlotStrip = detachPreservedHubWorkspaceSlotCounterStrip(topicPath);
 
     const isArea = isAreaNodePath(topicPath);
-    const useSplitLayout = shouldUseNavigationSplitRailLayout(topicPath);
+    const useSplitLayout = !isArea;
 
     const isHubFilesSlotWorkspace = isHubWorkspaceFilesSlotPage(topicPath);
     const isAwnChannelWorkspace = isAwnChannelHubWorkspacePath(topicPath);
     const isMediaLibraryWorkspace = isMediaLibraryHubWorkspacePath(topicPath);
     const hub = document.createElement("div");
-    hub.className = useSplitLayout
+    hub.className = useSplitLayout && !isHubFilesSlotWorkspace
       ? "node-navigation-hub node-navigation-hub--split"
       : "node-navigation-hub";
     if (isHubFilesSlotWorkspace) {
@@ -84573,7 +84761,7 @@ async function renderEntryOverview() {
 
     if (!isArea) {
       hub.appendChild(hubMain);
-      if (useSplitLayout) {
+      if (useSplitLayout && !isHubFilesSlotWorkspace) {
         const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
         if (isStale()) return;
         await appendNodeNavigationSplitRail(hub, topicPath, {
@@ -84616,15 +84804,16 @@ async function renderEntryOverview() {
   if (activeEntryOverviewContext && activeEntryOverviewContext.title !== title) {
     activeEntryOverviewContext = { ...activeEntryOverviewContext, title };
   }
+  const previewContextPath = getPreviewResolutionContextPath(context.relPath);
   const previewPath = getPropsEntryValueByKey(entries, "awn-preview");
-  let preview = previewPath ? buildPreviewUiFromPath(previewPath, context.relPath) : null;
+  let preview = previewPath ? buildPreviewUiFromPath(previewPath, previewContextPath) : null;
   if (!preview?.imageUrl && context.entryKind !== "awn.media.asset") {
     preview = (await fetchNodeOverviewPreview(context.relPath, entries)) || preview;
   }
   if (isStale()) return;
 
   const isArea = isAreaNodePath(topicPath);
-  const useSplitLayout = shouldUseNavigationSplitRailLayout(topicPath);
+  const useSplitLayout = !isArea;
 
   const hub = document.createElement("div");
   hub.className = useSplitLayout
@@ -84768,10 +84957,10 @@ async function renderEntryOverview() {
       : "";
 
   if (!isArea) {
+    const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
+    if (isStale()) return;
     hub.appendChild(hubMain);
     if (useSplitLayout) {
-      const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);
-      if (isStale()) return;
       await appendNodeNavigationSplitRail(hub, topicPath, {
         ...memoryBundle,
         entryOverviewNavigationIndex: navigationIndex,
@@ -95318,6 +95507,7 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 function buildNodeNavigationMemoryPanelsWrap({
   isInlineNavHub = false,
   slotsDisabled = false,
+  slotsTemplate = TOPIC_SLOTS_TEMPLATE_STANDARD,
   nodePath,
   externalData,
   internalData,
@@ -95328,14 +95518,15 @@ function buildNodeNavigationMemoryPanelsWrap({
 }) {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
 
   if (!isInlineNavHub) {
     const panels = [
-      renderNavigationExternalPart(externalData, { slotsDisabled }),
+      slotsNone ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
       renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
-      slotsDisabled ? null : renderNavigationMediaPart(mediaData),
-      slotsDisabled || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      slotsDisabled || slotsNone ? null : renderNavigationMediaPart(mediaData),
+      slotsDisabled || slotsNone || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -95352,7 +95543,9 @@ function buildNodeNavigationMemoryPanelsWrap({
 
 async function fetchNodeNavigationMemoryBundle(nodePath) {
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
-  const slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  const slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
+  const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -95368,14 +95561,28 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
-          fetchExternalFilesForNavigation(nodePath),
+          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          slotsDisabled || slotsNone
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          slotsDisabled || slotsNone
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  return { isArea: isInlineNavHub, slotsDisabled, internalData, externalData, tabularData, mediaData, assetsData, todoData };
+  return {
+    isArea: isInlineNavHub,
+    slotsDisabled,
+    slotsTemplate,
+    internalData,
+    externalData,
+    tabularData,
+    mediaData,
+    assetsData,
+    todoData
+  };
 }
 
 async function appendNodeNavigationSplitRail(
@@ -95385,7 +95592,9 @@ async function appendNodeNavigationSplitRail(
   { isStale = () => false, documentMarkdown = null } = {}
 ) {
   if (usesNavigationHubInlineSubsections(nodePath)) return false;
-  if (await shouldHideTopicStorageSlots(nodePath)) {
+  const slotsTemplate =
+    prefetched.slotsTemplate ?? (await readTopicSlotsTemplateForPath(nodePath));
+  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
     const childEntries = getNavigationSubsectionEntries();
     const flatNavigationIndexes =
       prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
@@ -95491,10 +95700,14 @@ async function renderNodeNavigation() {
   const childEntries = getNavigationSubsectionEntries();
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
-  let slotsDisabled = isTopicSlotsDisabledFromEntries(entries);
-  if (!slotsDisabled && !entries?.length) {
-    slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  let slotsTemplate = entries?.length
+    ? getTopicSlotsTemplateFromEntries(entries)
+    : TOPIC_SLOTS_TEMPLATE_STANDARD;
+  if (!entries?.length) {
+    slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   }
+  const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
@@ -95531,13 +95744,13 @@ async function renderNodeNavigation() {
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
-          fetchExternalFilesForNavigation(nodePath),
+          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          slotsDisabled
+          slotsDisabled || slotsNone ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          slotsDisabled || slotsNone
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
@@ -95557,6 +95770,7 @@ async function renderNodeNavigation() {
     todoData,
     mediaData,
     assetsData,
+    slotsTemplate,
     outsideSlotsReport: outsideSlotsReport || null
   });
   if (isStale()) return;
@@ -95565,6 +95779,7 @@ async function renderNodeNavigation() {
     nodePath,
     isArea: isInlineNavHub,
     slotsDisabled,
+    slotsTemplate,
     descriptionRaw: modeContentCache.description || "",
     internalData,
     externalData,
@@ -95675,6 +95890,7 @@ async function renderNodeNavigation() {
       slugIssue: getNodeManifestSlugIssue(nodePath),
       recordPath: getOverviewNodeApiPath(nodePath),
       pageManifestPath: getOverviewNodeApiPath(nodePath),
+      thumbContextPath: manifestApiPath || nodePath,
       onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
       showUnread: showHeroUnread,
       entryOverviewNav: topicSiblingNav,
@@ -95707,6 +95923,7 @@ async function renderNodeNavigation() {
   const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
     isInlineNavHub,
     slotsDisabled,
+    slotsTemplate,
     nodePath,
     externalData,
     internalData,
@@ -95728,7 +95945,7 @@ async function renderNodeNavigation() {
       externalData,
       mediaData
     });
-    if (slotsDisabled) {
+    if (slotsDisabled || slotsNone) {
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
       if (!topicSlotCounters.length) {

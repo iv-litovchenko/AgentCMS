@@ -15706,23 +15706,52 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
   return getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
 }
 
-function readTopicSlotsFlexibleFromFrontmatter(frontmatter) {
+const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
+const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_NONE = "none";
+
+function normalizeTopicSlotsTemplate(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function readTopicSlotsTemplateFromFrontmatter(frontmatter) {
+  const templateRaw = getYamlScalar(frontmatter, "awn-slots-template");
+  if (templateRaw !== undefined && templateRaw !== null && String(templateRaw).trim() !== "") {
+    return normalizeTopicSlotsTemplate(templateRaw);
+  }
   const flexibleRaw = getYamlScalar(frontmatter, "awn-slots-flexible");
   if (flexibleRaw !== undefined && flexibleRaw !== null && String(flexibleRaw).trim() !== "") {
-    return getYamlBoolean(frontmatter, "awn-slots-flexible");
+    return getYamlBoolean(frontmatter, "awn-slots-flexible")
+      ? TOPIC_SLOTS_TEMPLATE_FLEXIBLE
+      : TOPIC_SLOTS_TEMPLATE_STANDARD;
   }
-  return getYamlBoolean(frontmatter, "awn-slots-disabled");
+  if (getYamlBoolean(frontmatter, "awn-slots-disabled")) {
+    return TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function readTopicSlotsFlexibleFromFrontmatter(frontmatter) {
+  return readTopicSlotsTemplateFromFrontmatter(frontmatter) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+async function readTopicSlotsTemplate(manifestRelPath) {
+  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(normalized);
+    return readTopicSlotsTemplateFromFrontmatter(frontmatter);
+  } catch {
+    return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  }
 }
 
 async function readTopicSlotsFlexible(manifestRelPath) {
-  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized) return false;
-  try {
-    const { frontmatter } = await readNodeFrontmatterContent(normalized);
-    return readTopicSlotsFlexibleFromFrontmatter(frontmatter);
-  } catch {
-    return false;
-  }
+  return (await readTopicSlotsTemplate(manifestRelPath)) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
 async function readTopicSlotsDisabled(manifestRelPath) {
@@ -15911,7 +15940,8 @@ async function buildPageOutsideSlotsReport(manifestRelPath) {
 function shouldSkipSharedSlotStorageDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return true;
-  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(lower)) return true;
+  // Гибкий слот: весь awn-storage/, кроме assets/ (превью, вложения, materials…).
+  if (lower === String(STORAGE_SUBFOLDER_ASSETS || "assets").toLowerCase()) return true;
   return shouldSkipDirectoryListing(name);
 }
 
@@ -15936,11 +15966,10 @@ function resolveSharedSlotStorageEntryRelPath(manifestRelPath, relPath) {
 
 function isSharedSlotExcludedRelPath(relPath) {
   const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/$/, "");
-  if (!rel) return true;
+  if (!rel) return false;
   const lower = rel.toLowerCase();
-  const rootSegment = lower.split("/")[0];
-  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(rootSegment)) return true;
-  if (!rel.includes("/") && SHARED_SLOT_ROOT_SKIP_FILES.has(lower)) return true;
+  const assets = String(STORAGE_SUBFOLDER_ASSETS || "assets").toLowerCase();
+  if (lower === assets || lower.startsWith(`${assets}/`)) return true;
   return false;
 }
 
