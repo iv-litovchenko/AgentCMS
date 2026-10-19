@@ -53,10 +53,6 @@ user-agent-cms
 │   ├── 🟢 workspace_activity_list            ← list_recent_activity
 │   └── 🟢 workspace_feed_list                ← list_workspace_feed
 │
-├── 🔔 Уведомления · 2
-│   ├── 🟢 workspace_notifications_list       ← list_workspace_notifications
-│   └── 🟢 user_notification_send             ← notify_user
-│
 ├── 🎬 Session · session_* · workspaceId · 17
 │   ├── 🟢 session_context_get                ← get_session_context
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui ← get_ui_focus ← session_ui_focus_get ← get_ui_open_location
@@ -291,9 +287,6 @@ user-agent-cms
 │   ├── 🟢 utility_command_exec            ← tool_command_exec ← exec_command
 │   └── 🟢 utility_shell_exec              ← tool_shell_exec ← exec_shell
 │
-├── ⚡ Оркестрация · 1
-│   └── 🟢 tool_batch_invoke               ← batch_invoke
-│
 ├── 📥 Inbox · 2
 │   ├── 🟢 inbox_items_list              ← list_inbox
 │   └── 🟢 inbox_item_triage             ← triage_inbox_item
@@ -306,6 +299,12 @@ user-agent-cms
 │   ├── 🟢 journal_entry_append              ← append_journal_entry
 │   └── 🟢 journal_entries_list              ← list_journal_entries
 │
+├── 🔔 Уведомления · 2
+│   ├── 🟢 user_notifications_list            ← list_workspace_notifications ← workspace_notifications_list
+│   └── 🟢 user_notification_send             ← notify_user
+│
+└── ⚡ Специальные · 1
+    └── 🟢 request_batch_invoke              ← tool_batch_invoke ← batch_invoke
 ```
 
 Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.

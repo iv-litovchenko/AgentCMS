@@ -112364,7 +112364,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-journal",
     label: "Журнал",
     view: "journal",
-    mcp: "append_journal_entry, list_journal_entries, list_workspace_notifications",
+    mcp: "journal_entry_append, journal_entries_list, user_notifications_list",
     status: "active"
   },
   {

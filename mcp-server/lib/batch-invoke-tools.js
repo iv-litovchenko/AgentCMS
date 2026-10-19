@@ -73,7 +73,7 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
         throw new Error(`Unknown MCP tool "${toolName}"`);
       }
       if (toolRegistry.agentScope.get(toolName) === false) {
-        throw new Error(`Tool "${toolName}" is not workspace-scoped and cannot be used in tool_batch_invoke`);
+        throw new Error(`Tool "${toolName}" is not workspace-scoped and cannot be used in request_batch_invoke`);
       }
 
       const useParallel = parallel ?? getBatchDefaultParallel(category);
@@ -126,12 +126,13 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
   };
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_batch_invoke",
-    legacy: "batch_invoke",
+    canonical: "request_batch_invoke",
+    legacy: "tool_batch_invoke",
+    extraLegacy: ["batch_invoke"],
     description:
       "Пакетный вызов одного и того же MCP-tool. Передай tool + items[] (аргументы без workspaceId/agentId). " +
       "Для read/list/search — parallel=true; для write/create/delete — parallel=false. " +
-      "Нельзя: tool_batch_invoke, utility_* exec, search_batch, session_context_get. " +
+      "Нельзя: request_batch_invoke, utility_* exec, search_batch, session_context_get. " +
       "Лимиты: config.yml (batch-read-limit / batch-write-limit) + mcp-policy.yml (denylist).",
     schema: batchSchema,
     handler: batchHandler

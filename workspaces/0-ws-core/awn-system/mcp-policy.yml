@@ -28,6 +28,7 @@ batch_invoke:
     write: false
 
   denied_tools:
+    - request_batch_invoke
     - tool_batch_invoke
     - batch_invoke
     - search_batch

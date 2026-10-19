@@ -243,7 +243,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Комментарии, дискуссии, факты, термины и справочник — только через свои tools (не `content_write`):
 
-- **Журнал** (`.agent-cms/journal/`, файл на ISO-неделю): `journal_entry_append`, `journal_entries_list`, `workspace_notifications_list`. События, не логи чатов.
+- **Журнал** (`.agent-cms/journal/`, файл на ISO-неделю): `journal_entry_append`, `journal_entries_list`. События, не логи чатов. **Колокольчик:** `user_notifications_list`, `user_notification_send`.
 - **Факты:** `fact_create`, `fact_update`, `facts_list`, `facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `workspace_fact_*`, `create_workspace_fact`, …
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
@@ -323,7 +323,7 @@ Workspace — папка с md-файлами. Хабы:
 | Команда | `utility_command_exec` (массив args) / `utility_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
 
-**`tool_batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item. Legacy: `batch_invoke`.
+**`request_batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item. Legacy: `tool_batch_invoke`, `batch_invoke`.
 
 ---
 

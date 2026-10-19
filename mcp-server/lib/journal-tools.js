@@ -51,8 +51,9 @@ export function registerJournalTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_notifications_list",
+    canonical: "user_notifications_list",
     legacy: "list_workspace_notifications",
+    extraLegacy: ["workspace_notifications_list"],
     description:
       "Notification bell feed — journal entries in UI notification format (same as GET /api/agent/workspace-notifications). Use since for incremental poll.",
     schema: z.object({
