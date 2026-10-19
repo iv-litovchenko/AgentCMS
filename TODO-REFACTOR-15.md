@@ -1,7 +1,7 @@
 # Рефакторинг — часть 15 (MCP Agent CMS)
 
 **Цель:** канон имён tools, без legacy в доке; убрать дубли и переименовать утилиты.  
-**Статус:** набросок (дерево + решения). **🔴** = не в коде · **🟢** = ок в MCP (канон или `module_*`, + legacy где есть).
+**Статус:** набросок (дерево + решения). **🔴** = не в коде · **🟢** = переименовано в MCP (+ legacy) · **🟡** = имя оставили (`*_exists`, `list_slots` — уже `сущность_глагол`).
 
 ### Именование `сущность_действие`
 
@@ -13,7 +13,7 @@
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
-**Итого в дереве: 233 метода** (legacy-алиасы и `*_zzz` stub не считаются).
+**Итого в дереве: 232 метода** (legacy-алиасы и `*_zzz` stub не считаются; `get_topic_url` = alias, не отдельная строка).
 
 ```
 user-agent-cms
@@ -59,11 +59,9 @@ user-agent-cms
 │   ├── read_dependencies
 │   └── write_dependencies
 │
-├── 🗺 Карты, TOC, id, URL · 32
+├── 🗺 Карты, TOC (хабы), id, URL · 22
 │   ├── read_workspace_map
 │   ├── refresh_workspace_map
-│   ├── read_topic_index_toc
-│   ├── refresh_topic_index_toc
 │   ├── read_content_index_toc
 │   ├── refresh_content_index_toc
 │   ├── read_databases_index_toc
@@ -74,24 +72,44 @@ user-agent-cms
 │   ├── refresh_repository_index_toc
 │   ├── read_media_library_index_toc
 │   ├── refresh_media_library_index_toc
-│   ├── 🟢 topics_list                    ← list_topics
-│   ├── 🟢 topic_get                      ← get_topic
-│   ├── get_topic_url                     (legacy → get_workspace_open_url_from_path)
-│   ├── 🟢 topic_meta_get                 ← get_topic_meta
-│   ├── topic_exists
-│   ├── list_slots
-│   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
-│   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
 │   ├── list_types
 │   ├── get_type
 │   ├── find_by_id
 │   ├── resolve_workspace_id
 │   ├── assign_workspace_id
 │   ├── resolve_workspace_path
-│   ├── get_workspace_open_url_from_path
+│   ├── get_workspace_open_url_from_path   (канон URL; legacy get_topic_url)
 │   ├── get_workspace_url_page_preview
 │   ├── get_external_url_page_preview
 │   └── get_link_preview
+│
+├── 🧭 Темы · topics_ / topic_ · 26
+│   ├── read_topic_index_toc
+│   ├── refresh_topic_index_toc
+│   ├── 🟢 topics_list                    ← list_topics
+│   ├── 🟢 topic_get                      ← get_topic
+│   ├── 🟢 topic_meta_get                 ← get_topic_meta
+│   ├── 🟡 topic_exists
+│   ├── 🟡 list_slots
+│   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
+│   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
+│   ├── 🟢 topic_body_read                ← read_topic_body
+│   ├── 🟢 topic_body_write               ← write_topic_body
+│   ├── 🟢 topic_properties_read          ← read_topic_properties
+│   ├── 🟢 topic_properties_write         ← write_topic_properties
+│   ├── 🟢 topic_property_read            ← read_topic_property
+│   ├── 🟢 topic_property_write           ← write_topic_property
+│   ├── 🟢 topic_schema_read              ← read_topic_schema
+│   ├── 🟢 topic_schema_write             ← write_topic_schema
+│   ├── 🟢 topic_config_read              ← read_topic_config
+│   ├── 🟢 topic_config_write             ← write_topic_config
+│   ├── 🟢 topic_env_read                 ← read_topic_env
+│   ├── 🟢 topic_env_write                ← write_topic_env
+│   ├── 🟢 topic_create                   ← create_topic
+│   ├── 🟢 topic_update                   ← update_topic
+│   ├── 🟢 topic_delete                   ← delete_topic
+│   ├── 🟢 topic_rename                   ← rename_topic
+│   └── 🟢 topic_move                     ← move_topic
 │
 ├── 📄 Контент · 18
 │   ├── 🟢 contents_list                 ← list_content
@@ -101,7 +119,7 @@ user-agent-cms
 │   ├── 🟢 content_binary_write          ← write_content_binary
 │   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
 │   ├── 🟢 content_binary_url_get        ← get_content_binary_url
-│   ├── content_exists
+│   ├── 🟡 content_exists
 │   ├── 🟢 content_meta_get              ← get_content_meta
 │   ├── 🟢 content_property_read         ← read_content_property
 │   ├── 🟢 content_property_write        ← write_content_property
@@ -112,25 +130,6 @@ user-agent-cms
 │   ├── 🟢 content_split                 ← split_content
 │   ├── 🟢 content_merge                 ← merge_content
 │   └── batch_invoke                      (имя без изменений)
-│
-├── 🧩 Тема · 17
-│   ├── 🟢 topic_body_read              ← read_topic_body
-│   ├── 🟢 topic_body_write             ← write_topic_body
-│   ├── 🟢 topic_properties_read        ← read_topic_properties
-│   ├── 🟢 topic_properties_write       ← write_topic_properties
-│   ├── 🟢 topic_property_read          ← read_topic_property
-│   ├── 🟢 topic_property_write         ← write_topic_property
-│   ├── 🟢 topic_schema_read            ← read_topic_schema
-│   ├── 🟢 topic_schema_write           ← write_topic_schema
-│   ├── 🟢 topic_config_read            ← read_topic_config
-│   ├── 🟢 topic_config_write           ← write_topic_config
-│   ├── 🟢 topic_env_read               ← read_topic_env
-│   ├── 🟢 topic_env_write              ← write_topic_env
-│   ├── 🟢 topic_create                 ← create_topic
-│   ├── 🟢 topic_update                 ← update_topic
-│   ├── 🟢 topic_delete                 ← delete_topic
-│   ├── 🟢 topic_rename                 ← rename_topic
-│   └── 🟢 topic_move                   ← move_topic
 │
 ├── 🗃 Базы · 12
 │   ├── 🟢 databases_list               ← list_databases
@@ -231,19 +230,22 @@ user-agent-cms
 │   └── toggle_comment_reaction
 │
 ├── 📎 Sidecar · pads · buffer · 13
-│   ├── resolve_sidecar_path
-│   ├── read_sidecar
-│   ├── create_sidecar
-│   ├── write_sidecar
-│   ├── delete_sidecar
-│   ├── read_workspace_note
-│   ├── write_workspace_note
-│   ├── read_workspace_todo
-│   ├── write_workspace_todo
-│   ├── read_context_buffer
-│   ├── append_context_buffer
-│   ├── remove_context_buffer_item
-│   └── clear_context_buffer
+│   ├── sidecar (5)
+│   │   ├── 🟢 sidecar_path_resolve         ← resolve_sidecar_path
+│   │   ├── 🟢 sidecar_read                 ← read_sidecar
+│   │   ├── 🟢 sidecar_create               ← create_sidecar
+│   │   ├── 🟢 sidecar_write                ← write_sidecar
+│   │   └── 🟢 sidecar_delete               ← delete_sidecar
+│   ├── pads (4)
+│   │   ├── 🟢 workspace_note_read          ← read_workspace_note
+│   │   ├── 🟢 workspace_note_write         ← write_workspace_note
+│   │   ├── 🟢 workspace_todo_read          ← read_workspace_todo
+│   │   └── 🟢 workspace_todo_write         ← write_workspace_todo
+│   └── context_buffer (4)
+│       ├── 🟢 context_buffer_read            ← read_context_buffer
+│       ├── 🟢 context_buffer_append          ← append_context_buffer
+│       ├── 🟢 context_buffer_item_remove     ← remove_context_buffer_item
+│       └── 🟢 context_buffer_clear           ← clear_context_buffer
 │
 ├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)
 │   ├── 🟢 module_git_status
@@ -336,6 +338,7 @@ id
 - [x] **Facts · glossary · reference:** канон в MCP + legacy — `facts-tools.js`, `glossary-tools.js`, `reference-tools.js`
 - [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
 - [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`; `batch_invoke` без переименования)
+- [x] **Sidecar · context_buffer:** `sidecar_*`, `context_buffer_*` — `sidecar-tools.js`, `context-buffer-tools.js`
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`

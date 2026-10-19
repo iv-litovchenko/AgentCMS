@@ -235,7 +235,7 @@ Workspace — папка с md-файлами. Хабы:
 | Обсуждение темы | `append_discussion` |
 | Комментарий к manifest или записи | `append_comment` |
 | Входящее | `content_create({ slot: "inbox", status: "new" })` |
-| Заметка на сессию / договорённость | `write_workspace_note` (`NOTE.md`) / `write_workspace_todo` (`TODO.md`) |
+| Заметка на сессию / договорённость | `workspace_note_write` (`NOTE.md`) / `workspace_todo_write` (`TODO.md`) |
 | Инструкции агента | `AGENTS.md` / `SKILL.md` через `content_write` (`kind: root`, `path: AGENTS.md`) |
 | Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
 | Однотипные табличные данные | база (раздел 6) |
@@ -249,7 +249,7 @@ Workspace — папка с md-файлами. Хабы:
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
 - **Дискуссия:** `read_discussion` / `append_discussion`.
 - **Комментарии:** `list_comments`, `append_comment`, `read_comment`, `update_comment`, `delete_comment`, `toggle_comment_reaction`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
-- **`NOTE.md` / `TODO.md`** в корне: `read_` / `write_workspace_note`, `read_` / `write_workspace_todo` (по умолчанию append). Это не слоты `notes` и `todo-single`.
+- **`NOTE.md` / `TODO.md`** в корне: `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.
 
 ---
 
@@ -287,7 +287,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Метаданные к файлу: `photo.png` → `photo.sidecar.md`. Сам не создаётся.
 
-`resolve_sidecar_path`, `read_sidecar`, `create_sidecar` (409, если есть), `write_sidecar`, `delete_sidecar` (исходник не трогает). Текст из картинок и PDF — `run_workspace_ocr_index`.
+`sidecar_path_resolve`, `sidecar_read`, `sidecar_create` (409, если есть), `sidecar_write`, `sidecar_delete` (legacy `resolve_sidecar_path`, …). Текст из картинок и PDF — `run_workspace_ocr_index`.
 
 ---
 

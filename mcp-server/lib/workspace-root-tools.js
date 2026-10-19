@@ -13,13 +13,13 @@ const writeMode = z
   .describe("replace (default) — overwrite; append — add after existing content");
 
 const listRootFilesDescription =
-  "[Legacy] Prefer list_content with placement { kind: root, path: \".\" }. List workspace root files (AGENTS.md, SKILL.md, …). For NOTE.md/TODO.md prefer read_workspace_note / read_workspace_todo.";
+  "[Legacy] Prefer list_content with placement { kind: root, path: \".\" }. List workspace root files (AGENTS.md, SKILL.md, …). For NOTE.md/TODO.md prefer workspace_note_read / workspace_todo_read.";
 
 const readRootFileDescription =
   "[Legacy] Prefer read_content with placement { kind: root, path: name }. Read workspace root file by basename only (no slashes), e.g. AGENTS.md.";
 
 const writeRootFileDescription =
-  "[Legacy] Prefer write_content with placement { kind: root, path: name }. Write workspace root file by basename (history on save). For NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.";
+  "[Legacy] Prefer write_content with placement { kind: root, path: name }. Write workspace root file by basename (history on save). For NOTE.md/TODO.md prefer workspace_note_write / workspace_todo_write.";
 
 export function registerWorkspaceRootTools(reg, client, { jsonText } = {}) {
   if (!isLegacyMcpToolsEnabled()) return;

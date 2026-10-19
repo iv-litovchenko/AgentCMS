@@ -102,7 +102,7 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
     reg(
       "write_file",
-      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Pads: write_workspace_note, write_workspace_todo.",
+      "[Legacy] Prefer write_content with placement.kind=root. Plain-text workspace file; mode=replace|append. Pads: workspace_note_write, workspace_todo_write.",
       z.object({
         path: workspacePath,
         content: z.string(),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const pagePath = z
   .string()
@@ -34,29 +35,34 @@ function sidecarQuery({ sourcePath, path, slot, file }) {
 }
 
 export function registerSidecarTools(reg, client) {
-  reg(
-    "resolve_sidecar_path",
-    "Resolve sidecar path for a workspace file. Naming: photo.png → photo.sidecar.md (same folder). Use sourcePath for any location, or path+slot+file.",
-    sidecarAddress,
-    (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "sidecar_path_resolve",
+    legacy: "resolve_sidecar_path",
+    description:
+      "Resolve sidecar path for a workspace file. Naming: photo.png → photo.sidecar.md (same folder). Use sourcePath for any location, or path+slot+file.",
+    schema: sidecarAddress,
+    handler: (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
+  });
 
-  reg(
-    "read_sidecar",
-    "Read sidecar metadata for a source file. Returns exists:false when sidecar was never created.",
-    sidecarAddress,
-    (args) => client.get("/api/storage/sidecar", sidecarQuery(args))
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "sidecar_read",
+    legacy: "read_sidecar",
+    description: "Read sidecar metadata for a source file. Returns exists:false when sidecar was never created.",
+    schema: sidecarAddress,
+    handler: (args) => client.get("/api/storage/sidecar", sidecarQuery(args))
+  });
 
-  reg(
-    "create_sidecar",
-    "Explicitly create a sidecar (awn.annotation.sidecar) for an existing file. Fails with 409 if sidecar already exists. Not created automatically on upload.",
-    sidecarAddress.extend({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "sidecar_create",
+    legacy: "create_sidecar",
+    description:
+      "Explicitly create a sidecar (awn.annotation.sidecar) for an existing file. Fails with 409 if sidecar already exists. Not created automatically on upload.",
+    schema: sidecarAddress.extend({
       title: z.string().optional().describe("awn-name, default from source file name"),
       body: z.string().optional().describe("Initial description body"),
       properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
     }),
-    ({ sourcePath, path, slot, file, title, body, properties }) =>
+    handler: ({ sourcePath, path, slot, file, title, body, properties }) =>
       client.post("/api/storage/sidecar", {
         mode: "create",
         sourcePath,
@@ -67,17 +73,19 @@ export function registerSidecarTools(reg, client) {
         body,
         properties
       })
-  );
+  });
 
-  reg(
-    "write_sidecar",
-    "Update an existing sidecar. Sidecar must exist — use create_sidecar first. Pass full content or body/properties patch.",
-    sidecarAddress.extend({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "sidecar_write",
+    legacy: "write_sidecar",
+    description:
+      "Update an existing sidecar. Sidecar must exist — use sidecar_create first. Pass full content or body/properties patch.",
+    schema: sidecarAddress.extend({
       content: z.string().optional().describe("Full markdown (frontmatter + body)"),
       body: z.string().optional().describe("Body only; keeps/patches frontmatter"),
       properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
     }),
-    ({ sourcePath, path, slot, file, content, body, properties }) =>
+    handler: ({ sourcePath, path, slot, file, content, body, properties }) =>
       client.post("/api/storage/sidecar", {
         sourcePath,
         path,
@@ -87,12 +95,14 @@ export function registerSidecarTools(reg, client) {
         body,
         properties
       })
-  );
+  });
 
-  reg(
-    "delete_sidecar",
-    "Delete sidecar for a source file. Does not delete the source file. 404 if sidecar was never created. Address: sourcePath or path+slot+file.",
-    sidecarAddress,
-    (args) => client.delete("/api/storage/sidecar", sidecarQuery(args))
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "sidecar_delete",
+    legacy: "delete_sidecar",
+    description:
+      "Delete sidecar for a source file. Does not delete the source file. 404 if sidecar was never created. Address: sourcePath or path+slot+file.",
+    schema: sidecarAddress,
+    handler: (args) => client.delete("/api/storage/sidecar", sidecarQuery(args))
+  });
 }

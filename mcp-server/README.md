@@ -70,7 +70,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
-| Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
+| Workspace pads | `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (legacy `read_workspace_*`) |
 | Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
 | Fact bank | `workspace_fact_create`, `workspace_facts_list`, … (legacy `create_workspace_fact`, …) → `0-contents/0-facts` |
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |

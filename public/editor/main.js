@@ -112391,7 +112391,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-todo-list",
     label: "Список задач",
     view: "todo-list",
-    mcp: "read_workspace_todo, write_workspace_todo",
+    mcp: "workspace_todo_read, workspace_todo_write",
     status: "stub"
   },
   { id: "module-catalog", label: "Каталог модулей и инструментов", view: "module-catalog", mcp: "list_tools", status: "stub" }

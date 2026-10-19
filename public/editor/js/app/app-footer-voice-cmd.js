@@ -142,7 +142,7 @@
       note: "«да / подтверждаю» перед delete и move.",
       items: [
         { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "append_journal_entry"], status: "mcp" },
-        { phrases: ["добавь задачу …"], tools: ["write_workspace_todo"], status: "mcp" },
+        { phrases: ["добавь задачу …"], tools: ["workspace_todo_write"], status: "mcp" },
         { phrases: ["зафиксируй факт …"], tools: ["retain_workspace_fact"], status: "mcp" },
         { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },
         { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_topic", "move_topic", "delete_topic"], status: "mcp" },
