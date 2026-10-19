@@ -71,7 +71,7 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | Типы | `list_types`, `get_type` |
 | awn-databases | `list_databases` / `get_database` … (legacy `database_frame_*`); записи — `*_content_*` |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
-| File hub queue | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub` |
+| Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
 | Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` |
 | Glossary | `create_glossary_term`, `update_glossary_term`, `list_glossary_terms`, `search_glossary_terms` → `awn-databases/contents/glossary` |
 | Reference | `create_reference_entry`, `update_reference_entry`, `list_reference_entries`, `search_reference_entries` → `awn-databases/contents/reference` |

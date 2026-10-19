@@ -1,6 +1,6 @@
 ---
 name: agent-cms-modules
-description: Модули платформы Agent CMS — git (module_git_*), короткие ссылки (module_short_link_*), медиа-облако (module_media_cloud_*). По просьбе человека.
+description: Модули платформы Agent CMS — git (module_git_*), короткие ссылки (module_short_link_*), медиа-облако (module_media_cloud_*), файлообменник (module_file_hub_*). По просьбе человека.
 ---
 
 # Agent CMS — модули
@@ -12,6 +12,7 @@ description: Модули платформы Agent CMS — git (module_git_*), �
 | Git | `module_git_*` | есть |
 | Короткие ссылки | `module_short_link_*` (legacy: `create_short_link`, …) | есть |
 | Медиа-облако | `module_media_cloud_*` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, …) | локально есть; remote — stub |
+| Файлообменник | `module_file_hub_outbound_*`; inbound — stub `*_zzz` (legacy: `*_file_hub_*`) | outbound есть |
 
 Новые модули добавляй в эту таблицу и отдельным разделом ниже.
 
@@ -65,3 +66,16 @@ Git **самого хранилища** (клоны в `awn-repositories/` — �
 | Починить symlink | `module_media_cloud_links_repair` |
 | Upload на API провайдера | `module_media_cloud_upload` (stub) |
 | Публичный URL на провайдере | `module_media_cloud_url` (stub) |
+
+## Файлообменник (Shell)
+
+Две панели UI: **inbound** (Shell → vault) и **outbound** (vault → Shell). MCP outbound = очередь экспорта контента.
+
+| Задача | Tool |
+|--------|------|
+| Список исходящих | `module_file_hub_outbound_list` |
+| Добавить контент в выдачу | `module_file_hub_outbound_enqueue` (`path` — файл контента) |
+| Убрать из очереди | `module_file_hub_outbound_remove` |
+| Очистить очередь | `module_file_hub_outbound_clear` |
+| Inbound inbox | `module_file_hub_inbound_list_zzz` (stub) |
+| Inbound upload | `module_file_hub_inbound_upload_zzz` (stub) |

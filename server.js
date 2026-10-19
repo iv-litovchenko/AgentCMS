@@ -15028,12 +15028,12 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   workspaceFileHubQueue:
-    "GET /api/workspace/file-hub/queue — read_file_hub_queue MCP (.agent-cms/state/file-hub-queue.json)",
+    "GET /api/workspace/file-hub/queue — module_file_hub_outbound_list MCP (.agent-cms/state/file-hub-queue.json)",
   workspaceFileHubAdd:
-    "POST /api/workspace/file-hub/add — add_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
+    "POST /api/workspace/file-hub/add — module_file_hub_outbound_enqueue MCP { path, name?, topic?, place?, size? }",
   workspaceFileHubRemove:
-    "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
-  workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
+    "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
+  workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
     "GET /api/workspace/context-buffer — read_context_buffer MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:

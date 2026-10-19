@@ -296,7 +296,7 @@ Workspace — папка с md-файлами. Хабы:
 | Веб | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
 | Скрипт | `run_script` (`.py` / `.js` / `.sh`) |
 | Команда | `exec_command` (массив args) / `exec_shell` (строка с пайпами) |
-| Файлообменник | `read_file_hub_queue`, `add_file_to_file_hub`, `remove_file_from_file_hub`, `clear_file_hub_queue` |
+| Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
 
 **`batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item.
 
