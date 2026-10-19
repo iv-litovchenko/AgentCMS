@@ -245,31 +245,4 @@ export function registerWorkspaceTools(reg, client) {
     options: { agentScope: false }
   });
 
-  const refreshWorkspaceMapSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing WS-MAP.md if present (default true). false → 409 when file exists.")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_map_read",
-    legacy: "read_workspace_map",
-    description:
-      "Light WS-MAP.md metadata: every manifest.md in workspace (disk walk, not get_topic_map). ID, status, type, path, title, description. No body.",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/workspace-wsmap")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_map_refresh",
-    legacy: "refresh_workspace_map",
-    description:
-      "Rebuild WS-MAP.md at workspace root: flat table from all manifest.md files on disk (topics, infoblocks, media, channels, …).",
-    schema: refreshWorkspaceMapSchema,
-    handler: ({ overwrite }) =>
-      client.post("/api/agent/workspace-wsmap", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
-  });
 }

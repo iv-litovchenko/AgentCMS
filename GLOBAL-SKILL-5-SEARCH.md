@@ -9,13 +9,13 @@ description: Как искать и ориентироваться в Agent CMS 
 
 | Задача | Tool |
 |--------|------|
-| Обзор | `topics_list`; INDEX — `topics_index_toc_read`; все manifest — `workspace_map_read`; папки без manifest — `contents_list` (`kind: root`) |
+| Обзор | `topics_list`; INDEX — `nav_index_toc_topics_read`; все manifest — `nav_map_workspace_read`; папки без manifest — `contents_list` (`kind: root`) |
 | Тема / слот | `read_content_index_toc` |
 | Каталоги хабов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` (+ `refresh_*`) |
-| Поиск (по умолчанию) | `search_workspace_hybrid`; несколько вопросов — `search_workspace_batch` |
-| Точный текст, имена файлов / по смыслу | `search_workspace_content` / `search_workspace_semantic` |
+| Поиск (по умолчанию) | `search_hybrid`; несколько вопросов — `search_batch` |
+| Точный текст, имена файлов / по смыслу | `search_content` / `search_semantic` |
 | Внутри темы | `resolve_workspace_path` → `topic.folderPath` → параметр `pathPrefix` |
-| Backlinks и исходящие | **только** `search_workspace_links` (нужен `rebuild_workspace_link_index`) |
+| Backlinks и исходящие | **только** `search_links` (нужен `rebuild_workspace_link_index`) |
 | Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
 | Люди, даты, суммы, теги | `query_workspace_entities`, `list_workspace_entity_catalog` |
 | Выборка по frontmatter | `query_workspace_storage({ dql })` |

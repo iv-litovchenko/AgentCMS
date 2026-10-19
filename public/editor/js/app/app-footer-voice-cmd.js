@@ -81,7 +81,7 @@
       items: [
         {
           phrases: ["открой …", "перейди к …"],
-          tools: ["search_workspace_hybrid", "get_topic_url"],
+          tools: ["search_hybrid", "get_topic_url"],
           status: "mcp"
         },
         {
@@ -121,10 +121,10 @@
       id: "search",
       title: "Поиск и ответ",
       items: [
-        { phrases: ["найди …", "где про …"], tools: ["search_workspace_hybrid"], status: "mcp" },
-        { phrases: ["поищи смысл …"], tools: ["search_workspace_semantic"], status: "mcp" },
+        { phrases: ["найди …", "где про …"], tools: ["search_hybrid"], status: "mcp" },
+        { phrases: ["поищи смысл …"], tools: ["search_semantic"], status: "mcp" },
         { phrases: ["что мы решили про …"], tools: ["search_and_get_context", "ask_workspace"], status: "mcp" },
-        { phrases: ["покажи ссылки на …"], tools: ["search_workspace_links"], status: "mcp" }
+        { phrases: ["покажи ссылки на …"], tools: ["search_links"], status: "mcp" }
       ]
     },
     {
@@ -133,7 +133,7 @@
       items: [
         { phrases: ["прочитай страницу …"], tools: ["read_topic_body"], status: "mcp" },
         { phrases: ["свойства страницы"], tools: ["read_topic_properties"], status: "mcp" },
-        { phrases: ["напомни факты про …"], tools: ["search_workspace_facts", "list_workspace_facts"], status: "mcp" }
+        { phrases: ["напомни факты про …"], tools: ["facts_search", "facts_list"], status: "mcp" }
       ]
     },
     {
@@ -143,7 +143,7 @@
       items: [
         { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "journal_entry_append"], status: "mcp" },
         { phrases: ["добавь задачу …"], tools: ["workspace_todo_write"], status: "mcp" },
-        { phrases: ["зафиксируй факт …"], tools: ["retain_workspace_fact"], status: "mcp" },
+        { phrases: ["зафиксируй факт …"], tools: ["fact_create"], status: "mcp" },
         { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },
         { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_topic", "move_topic", "delete_topic"], status: "mcp" },
         { phrases: ["разбери inbox …"], tools: ["triage_inbox_item"], status: "mcp" },

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const require = createRequire(import.meta.url);
@@ -108,39 +107,6 @@ export function registerChannelTools(reg, client, options = {}) {
       slug: z.string().min(1).describe("New folder name under awn-channels/, e.g. telegram")
     }),
     handler: ({ path, slug }) => client.post("/api/agent/channels/rename", { path, slug })
-  });
-
-  const readChannelsIndexSchema = z.object({});
-  const readChannelsIndexHandler = () => client.get("/api/agent/channels-index");
-  const readChannelsIndexDescription = "Read awn-channels/index.md (catalog table of ingress channels).";
-
-  registerTocTool(reg, {
-    canonical: "channels_index_toc_read",
-    legacy: "read_channels_index_toc",
-    description: readChannelsIndexDescription,
-    schema: readChannelsIndexSchema,
-    handler: readChannelsIndexHandler
-  });
-
-  const refreshChannelsIndexSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-
-  const refreshChannelsIndexDescription =
-    "Rebuild awn-channels/index.md from channel manifests and presets.";
-
-  registerTocTool(reg, {
-    canonical: "channels_index_toc_refresh",
-    legacy: "refresh_channels_index_toc",
-    description: refreshChannelsIndexDescription,
-    schema: refreshChannelsIndexSchema,
-    handler: ({ overwrite }) =>
-      client.post("/api/agent/channels-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
   });
 
   if (!isLegacyMcpToolsEnabled()) return;

@@ -20,7 +20,7 @@ module.exports = {
     "Бинарники: content_binary_write / content_binary_write_from_url; legacy upload_file при MCP_LEGACY_TOOLS=1.",
     "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",
     "notify_user — колокольчик CMS (не Shell).",
-    "contents/facts: workspace_fact_create, workspace_facts_list, … (legacy create_workspace_fact, …).",
+    "contents/facts: fact_create, facts_list, … (legacy workspace_fact_*, create_workspace_fact, …).",
     "contents/glossary: glossary_term_create, glossary_terms_list, … (legacy create_glossary_term, …).",
     "contents/reference: reference_entry_create, reference_entries_list, … (legacy create_reference_entry, …)."
   ],
@@ -491,25 +491,25 @@ module.exports = {
       title: "Банк фактов (contents/facts)",
       tools: [
         {
-          name: "workspace_fact_create",
+          name: "fact_create",
           description: "Создать факт в awn-databases/contents/facts/.",
           parameters: "body, kind?, source?, tags?, name?, sourceRef?, supersedes?",
           http: "POST /api/agent/workspace-facts/create"
         },
         {
-          name: "workspace_fact_update",
+          name: "fact_update",
           description: "Обновить факт по record id/path.",
           parameters: "record, body?, kind?, source?, tags?, name?, sourceRef?, supersedes?",
           http: "POST /api/agent/workspace-facts/update"
         },
         {
-          name: "workspace_facts_list",
+          name: "facts_list",
           description: "Список фактов (новые первые), без semantic.",
           parameters: "kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/list"
         },
         {
-          name: "workspace_facts_search",
+          name: "facts_search",
           description: "Поиск по contents/facts (semantic + fulltext).",
           parameters: "query, kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/search"

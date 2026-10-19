@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const storePath = z
@@ -113,52 +112,6 @@ export function registerDatabaseTools(reg, client) {
     schema: updateDatabaseSchema,
     handler: (payload) => client.put("/api/awn-databases/stores", payload)
   });
-
-  const readDatabasesIndexTocSchema = z.object({});
-  const readDatabasesIndexTocHandler = () => client.get("/api/agent/awn-databases-index");
-  const readDatabasesIndexTocDescription =
-    "Quick TOC for all database stores: kind, group, path, title, description, recordCount (awn-databases/index.md).";
-
-  registerTocTool(reg, {
-    canonical: "databases_index_toc_read",
-    legacy: "read_databases_index_toc",
-    description: readDatabasesIndexTocDescription,
-    schema: readDatabasesIndexTocSchema,
-    handler: readDatabasesIndexTocHandler
-  });
-  reg(
-    "read_database_frame_index_toc",
-    "Deprecated alias for databases_index_toc_read.",
-    readDatabasesIndexTocSchema,
-    readDatabasesIndexTocHandler
-  );
-
-  const refreshDatabasesIndexTocSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-  const refreshDatabasesIndexTocDescription =
-    "Refresh awn-databases/index.md from databases_list. overwrite=false skips if file exists.";
-  const refreshDatabasesIndexTocHandler = ({ overwrite }) =>
-    client.post("/api/agent/awn-databases-index", {
-      ...(overwrite === false ? { overwrite: false } : {})
-    });
-
-  registerTocTool(reg, {
-    canonical: "databases_index_toc_refresh",
-    legacy: "refresh_databases_index_toc",
-    description: refreshDatabasesIndexTocDescription,
-    schema: refreshDatabasesIndexTocSchema,
-    handler: refreshDatabasesIndexTocHandler
-  });
-  reg(
-    "refresh_database_frame_index_toc",
-    "Deprecated alias for databases_index_toc_refresh.",
-    refreshDatabasesIndexTocSchema,
-    refreshDatabasesIndexTocHandler
-  );
 
   registerDatabaseTool(reg, {
     canonical: "database_schema_read",

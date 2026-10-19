@@ -28,7 +28,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 31
+├── 🚀 Старт и workspace · 29
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_discover                ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -45,8 +45,6 @@ user-agent-cms
 │   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
-│   ├── 🟢 workspace_map_read                 ← read_workspace_map
-│   ├── 🟢 workspace_map_refresh              ← refresh_workspace_map
 │   ├── 🔴 session_context_get                ← get_session_context (имя/граница light vs heavy — TBD)
 │   ├── 🔴 get_ui_focus                       ← get_user_active_context_now (канон ui_* — TBD)
 │   ├── 🔴 get_ui_open_location               (дубль get_ui_focus → legacy-only — TBD)
@@ -61,9 +59,26 @@ user-agent-cms
 │   ├── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
 │   └── 🔴 notify_user                        (TBD)
 │
-├── 🗺 id, URL, типы · 10
+├── 🧭 Навигация · nav_* · 14
+│   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
+│   ├── 🟢 nav_map_workspace_refresh          ← workspace_map_refresh / refresh_workspace_map
+│   ├── 🟢 nav_index_toc_topics_read          ← topics_index_toc_read / read_topic_index_toc
+│   ├── 🟢 nav_index_toc_topics_refresh       ← refresh_topic_index_toc
+│   ├── 🟢 nav_index_toc_contents_read        ← contents_index_toc_read / read_content_index_toc
+│   ├── 🟢 nav_index_toc_contents_refresh     ← refresh_content_index_toc
+│   ├── 🟢 nav_index_toc_databases_read       ← databases_index_toc_read / read_database_frame_index_toc
+│   ├── 🟢 nav_index_toc_databases_refresh    ← refresh_databases_index_toc / refresh_database_frame_index_toc
+│   ├── 🟢 nav_index_toc_channels_read        ← channels_index_toc_read
+│   ├── 🟢 nav_index_toc_channels_refresh     ← refresh_channels_index_toc
+│   ├── 🟢 nav_index_toc_repositories_read    ← repositories_index_toc_read
+│   ├── 🟢 nav_index_toc_repositories_refresh ← refresh_repository_index_toc
+│   ├── 🟢 nav_index_toc_media_libraries_read ← media_libraries_index_toc_read
+│   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
+│
+├── 🗺 id, URL, типы · 11
 │   ├── list_types
 │   ├── get_type
+│   ├── 🟡 list_slots
 │   ├── find_by_id
 │   ├── resolve_workspace_id
 │   ├── assign_workspace_id
@@ -73,14 +88,11 @@ user-agent-cms
 │   ├── get_external_url_page_preview
 │   └── get_link_preview
 │
-├── 🧭 Темы · topics_ / topic_ · 28
-│   ├── 🟢 topics_index_toc_read          ← read_topic_index_toc
-│   ├── 🟢 topics_index_toc_refresh       ← refresh_topic_index_toc
+├── 🧭 Темы · topics_ / topic_ · 25
 │   ├── 🟢 topics_list                    ← list_topics
 │   ├── 🟢 topic_get                      ← get_topic
 │   ├── 🟢 topic_meta_get                 ← get_topic_meta
 │   ├── 🟡 topic_exists
-│   ├── 🟡 list_slots
 │   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
 │   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
 │   ├── 🟢 topic_body_read                ← read_topic_body
@@ -101,9 +113,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename                   ← rename_topic
 │   └── 🟢 topic_move                     ← move_topic
 │
-├── 📄 Контент · 20
-│   ├── 🟢 contents_index_toc_read       ← read_content_index_toc
-│   ├── 🟢 contents_index_toc_refresh    ← refresh_content_index_toc
+├── 📄 Контент · 18
 │   ├── 🟢 contents_list                 ← list_content
 │   ├── 🟢 content_read                  ← read_content
 │   ├── 🟢 content_write                 ← write_content
@@ -123,9 +133,7 @@ user-agent-cms
 │   ├── 🟢 content_merge                 ← merge_content
 │   └── 🟡 batch_invoke                      (имя без изменений)
 │
-├── 🗃 Базы · 14
-│   ├── 🟢 databases_index_toc_read     ← read_databases_index_toc / read_database_frame_index_toc
-│   ├── 🟢 databases_index_toc_refresh  ← refresh_databases_index_toc / refresh_database_frame_index_toc
+├── 🗃 Базы · 12
 │   ├── 🟢 databases_list               ← list_databases
 │   ├── 🟢 database_get                 ← get_database
 │   ├── 🟢 database_register            ← register_database
@@ -139,9 +147,7 @@ user-agent-cms
 │   ├── 🟢 database_property_read       ← read_database_property
 │   └── 🟢 database_property_write      ← write_database_property
 │
-├── 📡 Каналы · 8
-│   ├── 🟢 channels_index_toc_read      ← read_channels_index_toc
-│   ├── 🟢 channels_index_toc_refresh   ← refresh_channels_index_toc
+├── 📡 Каналы · 6
 │   ├── 🟢 channels_list                ← list_channels
 │   ├── 🟢 channel_get                  ← get_channel
 │   ├── 🟢 channel_register             ← register_channel
@@ -149,9 +155,7 @@ user-agent-cms
 │   ├── 🟢 channel_delete               ← delete_channel
 │   └── 🟢 channel_rename               ← rename_channel
 │
-├── 🖼 Медиатеки · 8
-│   ├── 🟢 media_libraries_index_toc_read    ← read_media_library_index_toc
-│   ├── 🟢 media_libraries_index_toc_refresh ← refresh_media_library_index_toc
+├── 🖼 Медиатеки · 6
 │   ├── 🟢 media_libraries_list         ← list_media_libraries
 │   ├── 🟢 media_library_get            ← get_media_library
 │   ├── 🟢 media_library_register       ← register_media_library
@@ -159,9 +163,7 @@ user-agent-cms
 │   ├── 🟢 media_library_delete         ← delete_media_library
 │   └── 🟢 media_library_rename         ← rename_media_library
 │
-├── 📦 Репозитории · 8
-│   ├── 🟢 repositories_index_toc_read  ← read_repository_index_toc
-│   ├── 🟢 repositories_index_toc_refresh ← refresh_repository_index_toc
+├── 📦 Репозитории · 6
 │   ├── 🟢 repositories_list            ← list_repositories
 │   ├── 🟢 repository_get               ← get_repository
 │   ├── 🟢 repository_register          ← register_repository
@@ -169,12 +171,13 @@ user-agent-cms
 │   ├── 🟢 repository_delete            ← delete_repository
 │   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы · 32
-│   ├── search_workspace_content
-│   ├── search_workspace_semantic
-│   ├── search_workspace_hybrid
-│   ├── search_workspace_batch
-│   ├── search_workspace_links
+├── 🔍 Поиск и индексы · 33
+│   ├── 🔍 search_* · workspaceId · 5
+│   ├── 🟢 search_content              ← search_workspace_content
+│   ├── 🟢 search_semantic             ← search_workspace_semantic
+│   ├── 🟢 search_hybrid               ← search_workspace_hybrid
+│   ├── 🟢 search_batch                ← search_workspace_batch (denied in batch_invoke)
+│   ├── 🟢 search_links                ← search_workspace_links
 │   ├── search_and_get_context
 │   ├── ask_workspace
 │   ├── query_workspace_storage
@@ -203,11 +206,12 @@ user-agent-cms
 │   ├── list_workspace_feed
 │   └── 🔴 workspace_notifications_list     ← list_workspace_notifications (имя/группа — TBD)
 │
-├── 🧠 Facts · glossary · reference · 12
-│   ├── 🟢 workspace_fact_create          ← create_workspace_fact
-│   ├── 🟢 workspace_fact_update          ← update_workspace_fact
-│   ├── 🟢 workspace_facts_list           ← list_workspace_facts
-│   ├── 🟢 workspace_facts_search         ← search_workspace_facts
+├── 🧠 Facts · glossary · reference · 13
+│   ├── 🧠 fact_* · workspaceId · 4
+│   ├── 🟢 fact_create                    ← workspace_fact_create ← create_workspace_fact
+│   ├── 🟢 fact_update                    ← workspace_fact_update ← update_workspace_fact
+│   ├── 🟢 facts_list                     ← workspace_facts_list ← list_workspace_facts
+│   ├── 🟢 facts_search                   ← workspace_facts_search ← search_workspace_facts
 │   ├── 🟢 glossary_term_create           ← create_glossary_term
 │   ├── 🟢 glossary_term_update           ← update_glossary_term
 │   ├── 🟢 glossary_terms_list            ← list_glossary_terms
@@ -346,8 +350,7 @@ id
 - [x] **Comments:** канон в MCP + legacy — `mcp-server/lib/comment-tools.js`
 - [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
 - [x] **tool_*:** web + extract + exec — `web-search-tools.js` (`tool_web_*`), `tool-tools.js` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`)
-- [x] **Hub index TOC:** `*_index_toc_read` / `*_index_toc_refresh` в группах hub-tools + `page-tools` / `content-tools`; legacy `read_*_index_toc`
-- [x] **WS-MAP:** `workspace_map_read` / `workspace_map_refresh` — `workspace-tools.js`; legacy `read_workspace_map` / `refresh_workspace_map`
+- [x] **Навигация `nav_*`:** `nav-tools.js` — `nav_map_workspace_*`, `nav_index_toc_{hub}_*`; legacy `*_index_toc_*`, `read_*_index_toc`, `read_workspace_map`
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`

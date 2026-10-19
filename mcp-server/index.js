@@ -46,6 +46,7 @@ import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { registerShortLinksTools } from "./lib/short-links-tools.js";
 import { registerCommentTools } from "./lib/comment-tools.js";
+import { registerNavTools } from "./lib/nav-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
@@ -236,8 +237,9 @@ function createServer() {
   registerGitModuleTools(reg, client);
   registerShortLinksTools(reg, client);
 
-  // ── Навигация (3) ──────────────────────────────────────────────────────────
+  // ── Навигация (nav_* · WS-MAP + hub index.md) ─────────────────────────────
 
+  registerNavTools(reg, client, pagePath);
   registerMapTools(reg, client, pagePath);
 
   registerSearchWorkspaceTools(reg, client);
@@ -270,9 +272,9 @@ function createServer() {
   // ── Page / Slot / Content / Types ──────────────────────────────────────────
 
   registerPageTools({ reg, client, pagePath });
+  registerTypeListTools({ reg, client });
   registerSlotTools({ reg, client, pagePath });
   registerContentTools({ reg, client, pagePath });
-  registerTypeListTools({ reg, client });
 
   // ── Intake (4) ─────────────────────────────────────────────────────────────
 

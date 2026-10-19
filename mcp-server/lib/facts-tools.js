@@ -70,37 +70,41 @@ export function registerFactsTools(reg, client) {
     });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_fact_create",
-    legacy: "create_workspace_fact",
+    canonical: "fact_create",
+    legacy: "workspace_fact_create",
     description:
       "Create a distilled fact in awn-databases/0-contents/0-facts (md-lite collection). Not for full dialog logs.",
     schema: createFactSchema,
     handler: createHandler
   });
+  reg("create_workspace_fact", "Deprecated alias for fact_create.", createFactSchema, createHandler);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_fact_update",
-    legacy: "update_workspace_fact",
+    canonical: "fact_update",
+    legacy: "workspace_fact_update",
     description: "Update an existing fact by record id or path in 0-contents/0-facts.",
     schema: updateFactSchema,
     handler: updateHandler
   });
+  reg("update_workspace_fact", "Deprecated alias for fact_update.", updateFactSchema, updateHandler);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_facts_list",
-    legacy: "list_workspace_facts",
+    canonical: "facts_list",
+    legacy: "workspace_facts_list",
     description:
-      "List recent facts from 0-contents/0-facts (newest first). No semantic search — use workspace_facts_search.",
+      "List recent facts from 0-contents/0-facts (newest first). No semantic search — use facts_search.",
     schema: listFactsSchema,
     handler: listHandler
   });
+  reg("list_workspace_facts", "Deprecated alias for facts_list.", listFactsSchema, listHandler);
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "workspace_facts_search",
-    legacy: "search_workspace_facts",
+    canonical: "facts_search",
+    legacy: "workspace_facts_search",
     description:
       "Semantic + fulltext search over 0-contents/0-facts only. Returns cited hits for the agent to synthesize an answer.",
     schema: searchFactsSchema,
     handler: searchHandler
   });
+  reg("search_workspace_facts", "Deprecated alias for facts_search.", searchFactsSchema, searchHandler);
 }

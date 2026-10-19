@@ -54,7 +54,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Слой | Вопрос агента | Tools |
 |------|----------------|-------|
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
-| **Индексы и поиск** | Hub TOC, WS-MAP, поиск, кэш | `*_index_toc_*`, `workspace_map_read` / `workspace_map_refresh`, `search_workspace_*`, `rebuild_workspace_*`, … |
+| **Индексы и поиск** | Навигация, поиск, кэш | `nav_map_workspace_*`, `nav_index_toc_*`, `search_*`, `rebuild_workspace_*`, … |
 
 Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
 
@@ -65,7 +65,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_discover`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `mcp_connection_test`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
-| Навигация и поиск | `*_index_toc_read` / `*_index_toc_refresh`, `workspace_map_read` / `workspace_map_refresh`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_workspace_*`, `rebuild_workspace_*` — **не** `content_read`. Legacy: `read_*_index_toc`, `read_workspace_map`, `get_topic_map`, `get_content_map` |
+| Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `rebuild_workspace_*` — **не** `content_read`. Legacy: `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, `get_topic_map`, `get_content_map` |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |
@@ -73,7 +73,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
 | Workspace pads | `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (legacy `read_workspace_*`) |
 | Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
-| Fact bank | `workspace_fact_create`, `workspace_facts_list`, … (legacy `create_workspace_fact`, …) → `0-contents/0-facts` |
+| Fact bank | `fact_create`, `facts_list`, … (legacy `workspace_fact_*`, `create_workspace_fact`, …) → `0-contents/0-facts` |
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |
 | Reference | `reference_entry_create`, `reference_entries_list`, … (legacy `create_reference_entry`, …) → `0-contents/0-reference` |
 | FS | `batch_invoke`; legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |

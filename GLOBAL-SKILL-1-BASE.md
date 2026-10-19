@@ -20,7 +20,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
 4. Кто ты и кто человек — `agent_identity_get` / `user_identity_get`.
 
-**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `topics_index_toc_read`, `contents_index_toc_read`.
+**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
 
 ---
 
@@ -228,7 +228,7 @@ Workspace — папка с md-файлами. Хабы:
 
 | Что | Куда |
 |-----|------|
-| Решение, предпочтение, сущность (1–2 фразы) | `workspace_fact_create` |
+| Решение, предпочтение, сущность (1–2 фразы) | `fact_create` |
 | Термин и определение | `glossary_term_create` |
 | Справочная статья | `reference_entry_create` |
 | Событие | `journal_entry_append` |
@@ -244,7 +244,7 @@ Workspace — папка с md-файлами. Хабы:
 Комментарии, дискуссии, факты, термины и справочник — только через свои tools (не `content_write`):
 
 - **Журнал** (`.agent-cms/journal/`, файл на ISO-неделю): `journal_entry_append`, `journal_entries_list`, `workspace_notifications_list`. События, не логи чатов.
-- **Факты:** `workspace_fact_create`, `workspace_fact_update`, `workspace_facts_list`, `workspace_facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `create_workspace_fact`, …
+- **Факты:** `fact_create`, `fact_update`, `facts_list`, `facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `workspace_fact_*`, `create_workspace_fact`, …
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
 - **Дискуссия:** `read_discussion` / `append_discussion`.

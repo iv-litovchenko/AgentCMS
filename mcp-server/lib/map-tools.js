@@ -55,17 +55,21 @@ function registerSearchWorkspaceTools(reg, client) {
       limit: limit || 30
     });
 
-  reg(
-    "search_workspace_content",
-    "Full-text search across the workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. pathPrefix limits to a topic/area/folder subtree. Same as UI header search.",
-    searchWorkspaceSchema,
-    runSearch
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "search_content",
+    legacy: "search_workspace_content",
+    description:
+      "Full-text search across the workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. pathPrefix limits to a topic/area/folder subtree. Same as UI header search.",
+    schema: searchWorkspaceSchema,
+    handler: runSearch
+  });
 
-  reg(
-    "search_workspace_semantic",
-    "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "search_semantic",
+    legacy: "search_workspace_semantic",
+    description:
+      "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
+    schema: z.object({
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
         .optional()
@@ -73,63 +77,64 @@ function registerSearchWorkspaceTools(reg, client) {
       extensions: searchExtensions,
       limit: z.number().int().min(1).max(50).optional()
     }),
-    ({ query, pathPrefix, extensions, limit }) =>
+    handler: ({ query, pathPrefix, extensions, limit }) =>
       client.get("/api/search/semantic", {
         q: query,
         pathPrefix: pathPrefix || undefined,
         extensions: formatSearchExtensionsParam(extensions),
         limit: limit || 20
       })
-  );
+  });
 
-  reg(
-    "search_workspace_hybrid",
-    "Hybrid workspace search in one call: semantic + fulltext, optionally narrowed by pathPrefix and storage-index field filters (where on frontmatter: awn-date, tags, author…). Returns merged cited hits — agent synthesizes the answer.",
-    z.object({
-      query: z.string().min(2).describe("Search phrase or question"),
-      pathPrefix: workspaceRelPath
-        .optional()
-        .describe("Limit to workspace subtree, e.g. awn-topics/tema-archiv"),
-      extensions: searchExtensions,
-      where: z
-        .array(
-          z.object({
-            field: z.string().min(1),
-            eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
-            contains: z.string().optional(),
-            gte: z.union([z.string(), z.number()]).optional(),
-            lte: z.union([z.string(), z.number()]).optional(),
-            gt: z.union([z.string(), z.number()]).optional(),
-            lt: z.union([z.string(), z.number()]).optional()
-          })
-        )
-        .optional()
-        .describe("Frontmatter filters via storage-index (applied before text/semantic search)"),
-      scopes: z
-        .array(z.enum(["semantic", "fulltext"]))
-        .optional()
-        .describe("Search layers (default: semantic + fulltext)"),
-      limit: z.number().int().min(1).max(50).optional().describe("Max merged hits (default 20)"),
-      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
-      entityIds: z
-        .array(z.string().min(1))
-        .optional()
-        .describe("Restrict search to files mentioning ALL listed entity ids (AND)"),
-      entityWhere: z
-        .object({
-          type: z.string().optional().describe("Entity type filter before path union"),
-          q: z.string().optional().describe("Substring match on entity label")
+  const searchHybridSchema = z.object({
+    query: z.string().min(2).describe("Search phrase or question"),
+    pathPrefix: workspaceRelPath
+      .optional()
+      .describe("Limit to workspace subtree, e.g. awn-topics/tema-archiv"),
+    extensions: searchExtensions,
+    where: z
+      .array(
+        z.object({
+          field: z.string().min(1),
+          eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+          contains: z.string().optional(),
+          gte: z.union([z.string(), z.number()]).optional(),
+          lte: z.union([z.string(), z.number()]).optional(),
+          gt: z.union([z.string(), z.number()]).optional(),
+          lt: z.union([z.string(), z.number()]).optional()
         })
-        .optional()
-        .describe("Resolve entities by type/label, then search only in their mention paths (OR across matches)")
-    }),
-    (payload) => client.post("/api/search/hybrid", payload)
-  );
+      )
+      .optional()
+      .describe("Frontmatter filters via storage-index (applied before text/semantic search)"),
+    scopes: z
+      .array(z.enum(["semantic", "fulltext"]))
+      .optional()
+      .describe("Search layers (default: semantic + fulltext)"),
+    limit: z.number().int().min(1).max(50).optional().describe("Max merged hits (default 20)"),
+    includeSnippets: z.boolean().optional().describe("Include text snippets (default true)"),
+    entityIds: z
+      .array(z.string().min(1))
+      .optional()
+      .describe("Restrict search to files mentioning ALL listed entity ids (AND)"),
+    entityWhere: z
+      .object({
+        type: z.string().optional().describe("Entity type filter before path union"),
+        q: z.string().optional().describe("Substring match on entity label")
+      })
+      .optional()
+      .describe("Resolve entities by type/label, then search only in their mention paths (OR across matches)")
+  });
 
-  reg(
-    "search_workspace_batch",
-    "Batch hybrid search: multiple questions/facts in one MCP call (max 20). Each item runs semantic + fulltext like search_workspace_hybrid. Use when the user asks several archive questions at once — one round-trip instead of N separate searches.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "search_hybrid",
+    legacy: "search_workspace_hybrid",
+    description:
+      "Hybrid workspace search in one call: semantic + fulltext, optionally narrowed by pathPrefix and storage-index field filters (where on frontmatter: awn-date, tags, author…). Returns merged cited hits — agent synthesizes the answer.",
+    schema: searchHybridSchema,
+    handler: (payload) => client.post("/api/search/hybrid", payload)
+  });
+
+  const searchBatchSchema = z.object({
       queries: z
         .array(z.string().min(2))
         .min(1)
@@ -172,9 +177,16 @@ function registerSearchWorkspaceTools(reg, client) {
           q: z.string().optional()
         })
         .optional()
-    }),
-    (payload) => client.post("/api/search/batch", payload)
-  );
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "search_batch",
+    legacy: "search_workspace_batch",
+    description:
+      "Batch hybrid search: multiple questions/facts in one MCP call (max 20). Each item runs semantic + fulltext like search_hybrid. Use when the user asks several archive questions at once — one round-trip instead of N separate searches.",
+    schema: searchBatchSchema,
+    handler: (payload) => client.post("/api/search/batch", payload)
+  });
 
   reg(
     "query_workspace_storage",
@@ -284,14 +296,14 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_fulltext_index",
-    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_workspace_content on large archives.",
+    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_content on large archives.",
     z.object({}),
     () => client.post("/api/search/fulltext/reindex", {})
   );
 
   reg(
     "rebuild_workspace_link_index",
-    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_workspace_links.",
+    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_links.",
     z.object({}),
     () => client.post("/api/link-index/reindex", {})
   );
@@ -457,10 +469,12 @@ function registerSearchWorkspaceTools(reg, client) {
     (payload) => client.post("/api/entity-index/explain", payload || {})
   );
 
-  reg(
-    "search_workspace_links",
-    "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "search_links",
+    legacy: "search_workspace_links",
+    description:
+      "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
+    schema: z.object({
       path: z.string().describe("Workspace-relative file path"),
       mode: z
         .enum(["backlinks", "outbound", "neighbors", "inbound"])
@@ -470,8 +484,8 @@ function registerSearchWorkspaceTools(reg, client) {
       limit: z.number().int().min(1).max(200).optional().describe("Max results (default 50)"),
       pathPrefix: z.string().optional().describe("Restrict results to subtree")
     }),
-    (payload) => client.post("/api/link-index/query", payload)
-  );
+    handler: (payload) => client.post("/api/link-index/query", payload)
+  });
 
   reg(
     "run_workspace_ocr_index",
@@ -556,14 +570,14 @@ export function registerMapTools(reg, client, pagePath) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_topic_map",
     description:
-      "Deprecated. Prefer topics_index_toc_read (workspace overview) + contents_list (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
+      "Deprecated. Prefer nav_index_toc_topics_read (workspace overview) + contents_list (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
     schema: getTopicMapSchema,
     handler: getTopicMapHandler
   });
 
   reg(
     "get_content_map",
-    "Deprecated. Prefer contents_index_toc_read (overview) and content_read with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
+    "Deprecated. Prefer nav_index_toc_contents_read (overview) and content_read with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
     z.object({
       path: pagePath,
       slot: z
@@ -583,7 +597,7 @@ export function registerMapTools(reg, client, pagePath) {
     canonical: "topics_list",
     legacy: "list_topics",
     description:
-      "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → topics_index_toc_read; folders without manifest → contents_list (kind: root, includeFolders=true).",
+      "Topic tree nodes (ws/area/section/topic): flat list or filtered by parentPath. Hub sections 0-agent-kit and 0-shared are pinned first (pinnedSections). No body. INDEX → nav_index_toc_topics_read; folders without manifest → contents_list (kind: root, includeFolders=true).",
     schema: z.object({
       parentPath: pagePath
         .optional()

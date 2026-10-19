@@ -30,7 +30,6 @@ import {
 import { jsonText } from "./client.js";
 import { formatReadFileToolResult } from "./workspace-fs-tools.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
-import { registerTocTool } from "./register-toc-tool.js";
 import {
   buildContentSlotSchema,
   withContentAddress,
@@ -71,7 +70,7 @@ export function registerContentTools({ reg, client, pagePath }) {
   const readContentDescription =
     "Read content by placement.kind: topic | channel | media | database | repository | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
     "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
-    `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
+    `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_* startLine. ` +
     "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
     "full=true — whole body (required before content_write replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64 (images → MCP image content for chat clients).";
 
@@ -204,7 +203,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Write content by placement (same as content_read). part=body|properties|schema. " +
     "part=body mode: replace (default, whole body; frontmatter kept) | append | prepend | patch (oldString→newString, unique unless replaceAll) | " +
     "replace_lines (startLine..endLine → content; content=\"\" deletes) | insert (afterLine or beforeLine + content). " +
-    "Line numbers = content_read / search_workspace_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
+    "Line numbers = content_read / search_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
     "expectedHash = hash from content_read: mismatch → conflict error; required for replace_lines/insert. " +
     "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
     "Binary: data (base64); root uses placement.path as file path.";
@@ -425,56 +424,6 @@ export function registerContentTools({ reg, client, pagePath }) {
     handler: (args) => mergeContent(client, args)
   });
 
-  const getContentIndexTocSchema = z.object({
-    path: pagePath,
-    slot: z
-      .string()
-      .min(1)
-      .optional()
-      .describe(
-        "Optional slot filter (memory/main, inbox, media…). Omit for topic-wide index across all data slots."
-      )
-  });
-
-  registerTocTool(reg, {
-    canonical: "contents_index_toc_read",
-    legacy: "read_content_index_toc",
-    description:
-      "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
-    schema: getContentIndexTocSchema,
-    handler: ({ path, slot }) =>
-      client.get("/api/agent/content-index", {
-        path,
-        ...(slot ? { slot } : {})
-      })
-  });
-
-  const refreshContentIndexSchema = z.object({
-    path: pagePath,
-    slot: z
-      .string()
-      .min(1)
-      .optional()
-      .describe("Optional slot (memory/main, inbox…). Omit to refresh topic-wide index.md next to manifest.md."),
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-
-  registerTocTool(reg, {
-    canonical: "contents_index_toc_refresh",
-    legacy: "refresh_content_index_toc",
-    description:
-      "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
-    schema: refreshContentIndexSchema,
-    handler: ({ path, slot, overwrite }) =>
-      client.post("/api/agent/content-index", {
-        path,
-        ...(slot ? { slot } : {}),
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
-  });
 }
 
 export { placementSchema };

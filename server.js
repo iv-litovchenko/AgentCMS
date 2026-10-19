@@ -13424,10 +13424,10 @@ async function buildAgentWorkspaceWsmap() {
     hint:
       "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …) " +
       "и список файлов/папок в корне вне hub-каталогов awn-*. " +
-      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: workspace_map_read / workspace_map_refresh.",
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: nav_map_workspace_read / nav_map_workspace_refresh.",
     whenToUse: {
-      workspace_map_read: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
-      workspace_map_refresh: "Пересобрать и сохранить WS-MAP.md в корне workspace."
+      nav_map_workspace_read: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      nav_map_workspace_refresh: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {
@@ -14993,10 +14993,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — workspace_fact_create MCP",
-  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — workspace_fact_update MCP",
-  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — workspace_facts_list MCP",
-  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — workspace_facts_search MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — fact_create MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — fact_update MCP",
+  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — facts_list MCP",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — facts_search MCP",
   workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
   workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
   workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",

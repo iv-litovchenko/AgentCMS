@@ -389,7 +389,7 @@ fields:
     type: awn.field.string
     title: "{NOT WORK} Разрешённые tools"
     description: Список через запятую; пусто = все tools сервера
-    default: workspaces_list, topic_body_read, search_workspace_content
+    default: workspaces_list, topic_body_read, search_content
     group: example-mcp-bridge
     sort: 22
 
