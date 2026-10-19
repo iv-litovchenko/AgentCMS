@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { z } from "zod";
 import { normalizeWorkspaceScopedArgs, runWithAgentId } from "./agent-scope.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 import { assertWorkspaceMcpToolAllowed, loadWorkspaceAgentSettings } from "./workspace-settings-guard.js";
 
 const require = createRequire(import.meta.url);
@@ -46,13 +47,7 @@ async function invokeBatchItem({
 }
 
 export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
-  reg(
-    "batch_invoke",
-    "Пакетный вызов одного и того же MCP-tool. Передай tool + items[] (аргументы без workspaceId/agentId). " +
-      "Для read/list/search — parallel=true; для write/create/delete — parallel=false. " +
-      "Нельзя: batch_invoke, exec_*, search_batch, session_context_get. " +
-      "Лимиты: config.yml (batch-read-limit / batch-write-limit) + mcp-policy.yml (denylist).",
-    z.object({
+  const batchSchema = z.object({
       tool: z.string().min(1).describe("Имя MCP-tool (один тип на весь batch)"),
       items: z
         .array(z.record(z.any()))
@@ -63,8 +58,9 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
         .boolean()
         .optional()
         .describe("true — параллельно (по умолчанию для read); false — строго по порядку")
-    }),
-    async (args) => {
+  });
+
+  const batchHandler = async (args) => {
       const { tool, items, parallel } = args;
       const { workspaceId: agentId } = normalizeWorkspaceScopedArgs(args);
       const toolName = String(tool || "").trim();
@@ -77,7 +73,7 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
         throw new Error(`Unknown MCP tool "${toolName}"`);
       }
       if (toolRegistry.agentScope.get(toolName) === false) {
-        throw new Error(`Tool "${toolName}" is not workspace-scoped and cannot be used in batch_invoke`);
+        throw new Error(`Tool "${toolName}" is not workspace-scoped and cannot be used in tool_batch_invoke`);
       }
 
       const useParallel = parallel ?? getBatchDefaultParallel(category);
@@ -127,8 +123,19 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
         },
         items: results
       };
-    }
-  );
+  };
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "tool_batch_invoke",
+    legacy: "batch_invoke",
+    description:
+      "Пакетный вызов одного и того же MCP-tool. Передай tool + items[] (аргументы без workspaceId/agentId). " +
+      "Для read/list/search — parallel=true; для write/create/delete — parallel=false. " +
+      "Нельзя: tool_batch_invoke, utility_* exec, search_batch, session_context_get. " +
+      "Лимиты: config.yml (batch-read-limit / batch-write-limit) + mcp-policy.yml (denylist).",
+    schema: batchSchema,
+    handler: batchHandler
+  });
 }
 
 export function createToolRegistry() {

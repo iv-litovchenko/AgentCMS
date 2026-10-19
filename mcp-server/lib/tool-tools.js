@@ -19,22 +19,20 @@ const noWorkspaceScope = { agentScope: false };
 
 export function registerToolTools(reg, client, pagePathSchema) {
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_mcp_ping",
-    legacy: "mcp_connection_test",
+    canonical: "utility_mcp_ping",
+    legacy: "tool_mcp_ping",
+    extraLegacy: ["mcp_connection_test", "test_mcp_connection"],
     description:
       "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
     schema: z.object({}),
     handler: () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
     options: noWorkspaceScope
   });
-  reg("test_mcp_connection", "Deprecated alias for tool_mcp_ping.", z.object({}), () =>
-    client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
-    noWorkspaceScope
-  );
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_document_text_extract",
-    legacy: "extract_document_text",
+    canonical: "utility_document_text_extract",
+    legacy: "tool_document_text_extract",
+    extraLegacy: ["extract_document_text"],
     description: "Extract plain text from pdf, docx, xlsx, html, txt, md, json — from URL or workspace path.",
     schema: z.object({
       url: pageUrl.optional(),
@@ -47,8 +45,9 @@ export function registerToolTools(reg, client, pagePathSchema) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_script_run",
-    legacy: "run_script",
+    canonical: "utility_script_run",
+    legacy: "tool_script_run",
+    extraLegacy: ["run_script"],
     description:
       "Run a workspace script file (.py → python3, .js/.mjs → node, .sh → bash). Returns exitCode, stdout, stderr.",
     schema: z.object({
@@ -75,8 +74,9 @@ export function registerToolTools(reg, client, pagePathSchema) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_command_exec",
-    legacy: "exec_command",
+    canonical: "utility_command_exec",
+    legacy: "tool_command_exec",
+    extraLegacy: ["exec_command"],
     description:
       "Execute a command with args array (no shell). Example: command=git, args=[status]. Returns exitCode, stdout, stderr.",
     schema: z.object({
@@ -93,10 +93,11 @@ export function registerToolTools(reg, client, pagePathSchema) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_shell_exec",
-    legacy: "exec_shell",
+    canonical: "utility_shell_exec",
+    legacy: "tool_shell_exec",
+    extraLegacy: ["exec_shell"],
     description:
-      "Run an arbitrary shell command string (pipes, redirects, &&). Use tool_command_exec when args array is enough.",
+      "Run an arbitrary shell command string (pipes, redirects, &&). Use utility_command_exec when args array is enough.",
     schema: z.object({
       command: z.string().min(1).describe("Shell command string, e.g. ls -la | head"),
       cwd: workspacePath.optional(),

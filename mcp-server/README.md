@@ -47,7 +47,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 Затем при необходимости: `session_context_get_user_open_url_location_in_ui` → `read_*` / `write_*` по задаче.
 
-**Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `tool_web_*`, `get_external_url_page_preview` (legacy `get_link_preview`).
+**Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `utility_web_*` (legacy `tool_web_*`), `get_external_url_page_preview` (legacy `get_link_preview`).
 
 ### Два слоя API
 
@@ -76,8 +76,8 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Fact bank | `fact_create`, `facts_list`, … (legacy `workspace_fact_*`, `create_workspace_fact`, …) → `0-contents/0-facts` |
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |
 | Reference | `reference_entry_create`, `reference_entries_list`, … (legacy `create_reference_entry`, …) → `0-contents/0-reference` |
-| FS | `batch_invoke`; legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
-| Утилиты (`tool_*`) | `tool_mcp_ping`, `tool_web_search`, `tool_web_images_search`, `tool_web_page_read`, `tool_document_text_extract`, `tool_script_run`, `tool_command_exec`, `tool_shell_exec` (legacy `test_mcp_connection`, `search_web*`, …) |
+| FS | `tool_batch_invoke` (legacy `batch_invoke`); legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
+| Утилиты (`utility_*`) | `utility_mcp_ping`, `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `utility_document_text_extract`, `utility_script_run`, `utility_command_exec`, `utility_shell_exec` (legacy `tool_*`, `search_web*`, `exec_*`, …) |
 | Медиа-облако | `module_media_cloud_providers_list`, `module_media_cloud_status`, `module_media_cloud_sync`, `module_media_cloud_links_repair`; stub: `module_media_cloud_upload`, `module_media_cloud_url` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, `*_zzz`) |
 
 Бинарники в слот — **`write_content_binary`** / **`write_content_binary_from_url`** (`placement` + ref); legacy path upload — только **`MCP_LEGACY_TOOLS=1`** (`upload_file`, …). Alias: **`import_content_from_url`** → **`write_content_binary_from_url`**.  

@@ -237,7 +237,7 @@ Workspace — папка с md-файлами. Хабы:
 | Входящее | `content_create({ slot: "inbox", status: "new" })` |
 | Заметка на сессию / договорённость | `session_note_write` (`NOTE.md`) / `session_todo_write` (`TODO.md`) |
 | Инструкции агента | `AGENTS.md` / `SKILL.md` через `content_write` (`kind: root`, `path: AGENTS.md`) |
-| Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
+| Уведомление в 🔔 | `user_notification_send` или журнал с `notify: true` |
 | Однотипные табличные данные | база (раздел 6) |
 | Всё остальное | слот темы (раздел 4) |
 
@@ -317,13 +317,13 @@ Workspace — папка с md-файлами. Хабы:
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `contents_list` (`path: "."`) → `content_read` / `content_write` (`path: AGENTS.md`; история на write) |
 | Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
-| Текст из pdf, docx, xlsx, html | `tool_document_text_extract` |
-| Веб | `tool_web_search`, `tool_web_images_search`, `tool_web_page_read`, `get_external_url_page_preview` |
-| Скрипт | `tool_script_run` (`.py` / `.js` / `.sh`) |
-| Команда | `tool_command_exec` (массив args) / `tool_shell_exec` (строка с пайпами) |
+| Текст из pdf, docx, xlsx, html | `utility_document_text_extract` |
+| Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `get_external_url_page_preview` |
+| Скрипт | `utility_script_run` (`.py` / `.js` / `.sh`) |
+| Команда | `utility_command_exec` (массив args) / `utility_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
 
-**`batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item.
+**`tool_batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item. Legacy: `batch_invoke`.
 
 ---
 
@@ -353,4 +353,4 @@ Git-модуль хранилища (`module_git_*`) и другие модул�
 
 **Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
 
-**Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `tool_mcp_ping`, `workspace_summary_get`, …
+**Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `utility_mcp_ping`, `workspace_summary_get`, …

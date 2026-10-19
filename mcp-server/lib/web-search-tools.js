@@ -20,11 +20,12 @@ const searchCommon = {
 
 const noWorkspaceScope = { agentScope: false };
 
-/** Web search + fetch tools (canonical names: tool_web_*). */
+/** Web search + fetch (canonical: utility_web_*). */
 export function registerToolWebTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_web_search",
-    legacy: "search_web",
+    canonical: "utility_web_search",
+    legacy: "tool_web_search",
+    extraLegacy: ["search_web"],
     description:
       "Search the public web. Default: direct Google HTML search (no API keys). Optional WEB_SEARCH_MODE=api with GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID.",
     schema: z.object({
@@ -37,8 +38,9 @@ export function registerToolWebTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_web_images_search",
-    legacy: "search_web_images",
+    canonical: "utility_web_images_search",
+    legacy: "tool_web_images_search",
+    extraLegacy: ["search_web_images"],
     description: "Search images on the web (Google Images, direct HTML by default).",
     schema: z.object({
       query: searchQuery,
@@ -58,8 +60,9 @@ export function registerToolWebTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "tool_web_page_read",
-    legacy: "read_web_page",
+    canonical: "utility_web_page_read",
+    legacy: "tool_web_page_read",
+    extraLegacy: ["read_web_page"],
     description:
       "Fetch a public web page and return readable plain text (HTML → text). For binaries use content_binary_write_from_url. Private/local URLs are blocked.",
     schema: z.object({

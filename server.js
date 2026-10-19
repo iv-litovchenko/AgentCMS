@@ -14884,7 +14884,7 @@ const SESSION_CONTEXT_API_MAP = {
   // Dev/HTTP catalog — not included in get_session_context (agents use MCP tools only).
   // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
-  mcpPing: "GET /api/agent/mcp-ping — tool_mcp_ping MCP (health check)",
+  mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -15045,21 +15045,21 @@ const SESSION_CONTEXT_API_MAP = {
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
-    "POST /api/exec/run-script — tool_script_run MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
+    "POST /api/exec/run-script — utility_script_run MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
-    "POST /api/exec/command — tool_command_exec MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/command — utility_command_exec MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
   execShell:
-    "POST /api/exec/shell — tool_shell_exec MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/shell — utility_shell_exec MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
-    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — tool_web_search MCP (Google direct HTML or Custom Search API)",
+    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — utility_web_search MCP (Google direct HTML or Custom Search API)",
   webImages:
-    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — tool_web_images_search MCP (Google Images direct or API)",
+    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — utility_web_images_search MCP (Google Images direct or API)",
   webPage:
-    "GET /api/web/page?url=&maxChars=&maxBytes= — tool_web_page_read MCP (fetch external page as plain text)",
+    "GET /api/web/page?url=&maxChars=&maxBytes= — utility_web_page_read MCP (fetch external page as plain text)",
   webPreview:
     "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
   webExtract:
-    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — tool_document_text_extract MCP",
+    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — utility_document_text_extract MCP",
   agentIdentity:
     "GET /api/agent/identity/agent — session_agent_profile_get MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:

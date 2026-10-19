@@ -45,6 +45,7 @@ import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { registerShortLinksTools } from "./lib/short-links-tools.js";
 import { registerAnnotationTools } from "./lib/annotation-tools.js";
 import { registerIntakeTools } from "./lib/intake-tools.js";
+import { registerNotificationTools } from "./lib/notification-tools.js";
 import { registerNavTools } from "./lib/nav-tools.js";
 import { registerSessionTools } from "./lib/session-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
@@ -209,19 +210,7 @@ function createServer() {
   registerMediaCloudTools(reg, client, { pagePath });
   registerWorkspaceRootTools(reg, client, { jsonText });
 
-  // ── Уведомление (1) ────────────────────────────────────────────────────────
-
-  reg(
-    "notify_user",
-    "Push notification to CMS bell.",
-    z.object({
-      title: z.string().min(1),
-      message: z.string().optional(),
-      path: pagePath.optional()
-    }),
-    ({ title, message, path }) =>
-      client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
-  );
+  registerNotificationTools({ reg, client, pagePath });
 
   registerBatchInvokeTools({ reg, client, toolRegistry });
 

@@ -18,7 +18,7 @@ description: Модули платформы Agent CMS — git (module_git_*), �
 
 ## Git
 
-Git **самого хранилища** (клоны в `awn-repositories/` — через `tool_command_exec` / `tool_shell_exec`). Кроме `module_git_status` и `module_git_diff` всё заблокировано при `mcp-mode=readonly`. Коммит, push и pull — только по просьбе человека.
+Git **самого хранилища** (клоны в `awn-repositories/` — через `utility_command_exec` / `utility_shell_exec`). Кроме `module_git_status` и `module_git_diff` всё заблокировано при `mcp-mode=readonly`. Коммит, push и pull — только по просьбе человека.
 
 | Задача | Tool |
 |--------|------|

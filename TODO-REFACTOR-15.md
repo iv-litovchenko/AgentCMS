@@ -32,7 +32,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 20
+├── 🚀 Старт и workspace · 19
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -51,8 +51,11 @@ user-agent-cms
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
 │   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
 │   ├── 🟢 workspace_activity_list            ← list_recent_activity
-│   ├── 🟢 workspace_feed_list                ← list_workspace_feed
-│   └── 🟢 workspace_notifications_list     ← list_workspace_notifications
+│   └── 🟢 workspace_feed_list                ← list_workspace_feed
+│
+├── 🔔 Уведомления · 2
+│   ├── 🟢 workspace_notifications_list       ← list_workspace_notifications
+│   └── 🟢 user_notification_send             ← notify_user
 │
 ├── 🎬 Session · session_* · workspaceId · 17
 │   ├── 🟢 session_context_get                ← get_session_context
@@ -278,15 +281,18 @@ user-agent-cms
 │   ├── 🟢 module_file_hub_inbound_list_zzz
 │   └── 🟢 module_file_hub_inbound_upload_zzz
 │
-├── 🛠 Утилиты · 8
-│   ├── 🟢 tool_mcp_ping                   ← mcp_connection_test ← test_mcp_connection
-│   ├── 🟢 tool_web_search                 ← search_web
-│   ├── 🟢 tool_web_images_search          ← search_web_images
-│   ├── 🟢 tool_web_page_read              ← read_web_page
-│   ├── 🟢 tool_document_text_extract      ← extract_document_text
-│   ├── 🟢 tool_script_run                 ← run_script
-│   ├── 🟢 tool_command_exec               ← exec_command
-│   └── 🟢 tool_shell_exec                 ← exec_shell
+├── 🛠 Утилиты · utility_* · 8
+│   ├── 🟢 utility_mcp_ping                ← tool_mcp_ping ← mcp_connection_test ← test_mcp_connection
+│   ├── 🟢 utility_web_search              ← tool_web_search ← search_web
+│   ├── 🟢 utility_web_images_search         ← tool_web_images_search ← search_web_images
+│   ├── 🟢 utility_web_page_read           ← tool_web_page_read ← read_web_page
+│   ├── 🟢 utility_document_text_extract   ← tool_document_text_extract ← extract_document_text
+│   ├── 🟢 utility_script_run              ← tool_script_run ← run_script
+│   ├── 🟢 utility_command_exec            ← tool_command_exec ← exec_command
+│   └── 🟢 utility_shell_exec              ← tool_shell_exec ← exec_shell
+│
+├── ⚡ Оркестрация · 1
+│   └── 🟢 tool_batch_invoke               ← batch_invoke
 │
 ├── 📥 Inbox · 2
 │   ├── 🟢 inbox_items_list              ← list_inbox
@@ -300,9 +306,6 @@ user-agent-cms
 │   ├── 🟢 journal_entry_append              ← append_journal_entry
 │   └── 🟢 journal_entries_list              ← list_journal_entries
 │
-└── 🔴 TBD · канон / группа не зафиксированы · 2
-    ├── 🔴 batch_invoke
-    └── 🔴 notify_user
 ```
 
 Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.
@@ -310,8 +313,6 @@ Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.
 ---
 
 ## Осталось (не 🟢 в дереве)
-
-- **TBD:** `batch_invoke`, `notify_user`
 - **URL · 5:** канон имён для open/preview + `content_binary_url_get`
 - **Поиск:** `search_and_get_context`, `ask_workspace`
 - **Индексы 🟡:** дожать `index_*` (сверка с legacy в коде)

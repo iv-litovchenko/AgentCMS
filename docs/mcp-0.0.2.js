@@ -19,7 +19,7 @@ module.exports = {
     "awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: content_binary_write / content_binary_write_from_url; legacy upload_file при MCP_LEGACY_TOOLS=1.",
     "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",
-    "notify_user — колокольчик CMS (не Shell).",
+    "user_notification_send — колокольчик CMS (не Shell). Legacy: notify_user.",
     "contents/facts: fact_create, facts_list, … (legacy workspace_fact_*, create_workspace_fact, …).",
     "contents/glossary: glossary_term_create, glossary_terms_list, … (legacy create_glossary_term, …).",
     "contents/reference: reference_entry_create, reference_entries_list, … (legacy create_reference_entry, …)."
@@ -96,7 +96,7 @@ module.exports = {
           http: "GET /api/agent/heartbeat-registry"
         },
         {
-          name: "tool_mcp_ping",
+          name: "utility_mcp_ping",
           description: "Ping CMS: ok, agentId, serverTime, versions. Проверка связи MCP → Agent CMS.",
           parameters: "—",
           http: "GET /api/agent/mcp-ping"
@@ -598,7 +598,7 @@ module.exports = {
           parameters: "placement, mode?, …",
           http: "POST /api/workspace/fs/write|patch"
         },
-        { name: "batch_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
+        { name: "tool_batch_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
         { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → list_content path=\".\"", parameters: "—", http: "GET /api/system-files" },
         { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → read_content kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
         { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → write_content kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },
@@ -615,20 +615,20 @@ module.exports = {
       title: "Выполнение команд",
       tools: [
         {
-          name: "run_script",
-          description: "Запуск файла из workspace (.py, .js, .sh).",
+          name: "utility_script_run",
+          description: "Запуск файла из workspace (.py, .js, .sh). Legacy: run_script.",
           parameters: "script, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env?",
           http: "POST /api/exec/run-script"
         },
         {
-          name: "exec_command",
-          description: "Команда + args без shell (git, npm, …).",
+          name: "utility_command_exec",
+          description: "Команда + args без shell (git, npm, …). Legacy: exec_command.",
           parameters: "command, args?, cwd?, topicPath?, timeoutMs?, env?",
           http: "POST /api/exec/command"
         },
         {
-          name: "exec_shell",
-          description: "Произвольная shell-строка (pipes, &&).",
+          name: "utility_shell_exec",
+          description: "Произвольная shell-строка (pipes, &&). Legacy: exec_shell.",
           parameters: "command, cwd?, topicPath?, timeoutMs?, env?",
           http: "POST /api/exec/shell"
         }
@@ -678,11 +678,17 @@ module.exports = {
     },
     {
       id: "notifications",
-      title: "Уведомление",
+      title: "Уведомления",
       tools: [
         {
-          name: "notify_user",
-          description: "Уведомление в колокольчик CMS.",
+          name: "workspace_notifications_list",
+          description: "Лента колокольчика (since / limit). Legacy: list_workspace_notifications.",
+          parameters: "since?, limit?",
+          http: "GET /api/agent/workspace-notifications"
+        },
+        {
+          name: "user_notification_send",
+          description: "Push в колокольчик CMS.",
           parameters: "title, message?, path?",
           http: "POST /api/agent/activity/notify"
         }
