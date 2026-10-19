@@ -43,8 +43,8 @@
 
 | Статус | Tool |
 | ------ | ---- |
-| ❌ | `upload_media_cloud_to_provider_zzz` — реальный API провайдера |
-| ❌ | `get_remote_url_zzz` — реальный remote URL |
+| ❌ | `module_media_cloud_upload` — реальный API провайдера (legacy `upload_media_cloud_to_provider_zzz`) |
+| ❌ | `module_media_cloud_url` — реальный remote URL (legacy `get_remote_url_zzz`) |
 
 Сейчас: локальные blobs + заглушки.
 
