@@ -252,6 +252,16 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 11. Крон, heartbeat, always-context
 
+**Старт чата:** `get_session_context` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `get_workspace_always_context_registry`.
+
+Состав `alwaysContext` (все три источника суммируются):
+
+1. **`awn-runtime-load-always: true`** на теме или content-записи.
+2. **`always-context-md-files`** (scope `platform`) — какие **корневые** `.md` workspace подмешивать (по умолчанию `AGENTS.md`; также AUTH, BOOTSTRAP, ONBOARDING, SKILL, README, NOTE, TODO). `read_setting` / `write_setting`.
+3. **`always-context-ws-folder`** (scope `platform`) — путь от корня workspace; **рекурсивно** `.md`, `.yml`, `.yaml`, `.txt` (по умолчанию `awn-topics/0-shared/0-context/awn-storage/`). Пустая строка — каталог отключён.
+
+**`GLOBAL-SKILL-*`** сюда не входят — скиллы клиента или `read_platform_doc`.
+
 Флаги frontmatter темы/записи (`write_topic_properties` / `write_content`, `part=properties`):
 
 | Поле | Значение | Реестр |
