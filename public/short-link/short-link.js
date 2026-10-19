@@ -18,6 +18,7 @@
   const targetEl = document.getElementById("short-link-target");
   const staleEl = document.getElementById("short-link-stale");
   const openBtn = document.getElementById("short-link-open-btn");
+  const codeBadgeEl = document.getElementById("short-link-code-badge");
   const footnoteEl = document.getElementById("short-link-footnote");
 
   function parseRoute() {
@@ -182,10 +183,20 @@
       openBtn.title = "Полная страница недоступна";
     }
 
-    if (footnoteEl) {
-      const code = String(data.code || "").trim();
+    const code = String(data.code || "").trim();
+    if (codeBadgeEl) {
       if (code) {
-        footnoteEl.textContent = `Agent CMS · код ${code}`;
+        codeBadgeEl.textContent = code;
+        codeBadgeEl.title = `Короткий код: ${code}`;
+        codeBadgeEl.classList.remove("hidden");
+      } else {
+        codeBadgeEl.textContent = "";
+        codeBadgeEl.classList.add("hidden");
+      }
+    }
+    if (footnoteEl) {
+      if (code) {
+        footnoteEl.textContent = `Agent CMS · ${code}`;
         footnoteEl.classList.remove("hidden");
       } else {
         footnoteEl.textContent = "";
