@@ -23,6 +23,7 @@ const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } = r
 const { wrapHttpHandler } = require("./lib/runtime/mkcert-ios-ca");
 
 const ROOT = __dirname;
+const { mapPublicUrlPathToDisk, rewritePublicRequestPath } = require("./lib/config/public-static-layout");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -229,8 +230,8 @@ function isVoiceMaintenanceBypassPath(safePath, reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return true;
   if (safePath === "shell/maintenance.html") return true;
-  if (safePath === "js/core/platform-status.js") return true;
-  if (safePath === "js/core/project-version.js") return true;
+  if (safePath === "editor/js/core/platform-status.js") return true;
+  if (safePath === "editor/js/core/project-version.js") return true;
   if (safePath.startsWith("shell/") && /\.(css|js|svg|png|webp|ico|woff2?|webmanifest|wasm)$/i.test(safePath)) {
     return true;
   }
@@ -250,7 +251,8 @@ async function shouldServeVoiceMaintenancePage(reqPath, safePath) {
 async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
   const publicDir = getPublicDir();
   let safePath = path.normalize(relativePath).replace(/^(\.\.[\\/])+/, "").replace(/^[/\\]+/, "");
-  let filePath = path.join(publicDir, safePath);
+  const diskPath = mapPublicUrlPathToDisk(safePath);
+  let filePath = path.join(publicDir, diskPath);
 
   if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);
@@ -274,7 +276,7 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
     return;
   }
 
-  if (safePath === "js/core/project-version.js") {
+  if (safePath === "editor/js/core/project-version.js") {
     const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
     await writeProjectVersionJsResponse(res);
     return;
@@ -320,13 +322,13 @@ async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
 }
 
 async function serveStatic(reqPath, res) {
-  const resolved = resolveVoiceAppPath(reqPath);
+  const resolved = resolveVoiceAppPath(rewritePublicRequestPath(reqPath));
   if (resolved.startsWith("/shell/")) {
     await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
     return;
   }
 
-  if (resolved.startsWith("/shared/") || resolved.startsWith("/vendor/") || resolved.startsWith("/cms/")) {
+  if (resolved.startsWith("/_resources/") || resolved.startsWith("/editor/")) {
     await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
     return;
   }

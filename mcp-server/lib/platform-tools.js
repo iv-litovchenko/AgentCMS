@@ -52,16 +52,6 @@ export function registerPlatformTools(reg, client) {
   );
 
   reg(
-    "write_platform_doc",
-    "Replace entire .md file in the repository root (simple write). Blocked in mcp-mode=readonly.",
-    z.object({
-      path: repoRootFileName,
-      content: z.string().describe("Full new file content (UTF-8)")
-    }),
-    ({ path, content }) => client.post("/api/platform/docs/write", { path, content }, { agentScope: true })
-  );
-
-  reg(
     "list_platform_config",
     "Catalog of platform configuration locations: workspace registry, platform.yml, awn-system registry, prototype data/ paths. Values: list_settings.",
     z.object({}),

@@ -20,7 +20,15 @@ let suppressServerDownNotify = false;
 let maintenanceModeEnabled = false;
 let maintenanceModeBusy = false;
 
+function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
+  const state = enabled ? "включён" : "выключен";
+  return `Заглушка 503 для Editor, ${VOICE_UI_LABEL} и Commander · сейчас ${state}`;
+}
+
 const SERVER_POLL_MS = 8000;
+
+/** Отображаемое имя Voice в Control (логика/порты без изменений). */
+const VOICE_UI_LABEL = "Voice-Chat";
 
 const SETUP_CHECK_LABELS = {
   deps: "Зависимости",
@@ -651,7 +659,7 @@ async function handleServerStatusUpdate(server, options = {}) {
   renderServerStatus(server);
 
   if (wasRunning && !server?.running && !options.skipNotify && !suppressServerDownNotify) {
-    window.agentControl.notify("Сервер остановлен", "CMS и Voice больше не отвечают.");
+    window.agentControl.notify("Сервер остановлен", `CMS и ${VOICE_UI_LABEL} больше не отвечают.`);
     appendLog("Сервер перестал отвечать.\n", "stderr");
   }
   suppressServerDownNotify = false;
@@ -946,7 +954,7 @@ function renderMobileVoiceBlock() {
     mobile.mkcertCaUrl ||
     (lanIp ? `http://${lanIp}:${ports.voiceHttp}/dev/mkcert-root-ca.pem` : "");
 
-  let note = "Откройте Voice на iPhone — Mac и телефон в одной сети или Mac на точке доступа iPhone.";
+  let note = `Откройте ${VOICE_UI_LABEL} на iPhone — Mac и телефон в одной сети или Mac на точке доступа iPhone.`;
   if (!lanIp) {
     note =
       "IP Mac не определён. Нажмите «Обновить» в блоке Система. После смены сети пересоздайте сертификаты (шаг 1).";
@@ -966,8 +974,8 @@ function renderMobileVoiceBlock() {
         <button type="button" class="ghost-btn cmd-btn" data-copy-target="mobile-voice-url"${voiceUrl ? "" : " disabled"}>Копировать</button>
       </div>
       <div class="mobile-voice-qr-wrap"${qrHidden ? " hidden" : ""} id="mobile-voice-qr-wrap">
-        <img class="mobile-voice-qr" id="mobile-voice-qr" alt="QR для Voice на iPhone" width="220" height="220" />
-        <p class="mobile-voice-qr-hint">Наведите камеру iPhone → Voice в Safari</p>
+        <img class="mobile-voice-qr" id="mobile-voice-qr" alt="QR для Voice-Chat на iPhone" width="220" height="220" />
+        <p class="mobile-voice-qr-hint">Наведите камеру iPhone → ${VOICE_UI_LABEL} в Safari</p>
       </div>
       ${
         mkcertUrl && lanIp
@@ -1024,6 +1032,9 @@ function renderGuideStepServer() {
   const cmsHttp = `http://localhost:${ports.editorHttp}`;
   const voiceHttps = `https://localhost:${ports.voiceHttps}`;
   const voiceHttp = `http://localhost:${ports.voiceHttp}`;
+  const commanderHttp = `http://localhost:${ports.commanderHttp}/`;
+  const commanderHttps = `https://localhost:${ports.editorHttps}/commander/`;
+  const commanderOpenUrl = isRunning ? commanderHttps : commanderHttp;
   const linkDisabled = isRunning ? "" : " disabled";
   const browserLinks = `
     <div class="server-browser-row" role="group" aria-label="Открыть или скопировать ссылки">
@@ -1044,13 +1055,26 @@ function renderGuideStepServer() {
         <button type="button" class="link-btn browser-link link-btn--voice" data-open-url="${escapeAttr(voiceHttps)}"${linkDisabled}>
           <span class="browser-link-icon">${BROWSER_ICON}</span>
           <span class="browser-link-text">
-            <span>Voice</span>
+            <span>${VOICE_UI_LABEL}</span>
             <code>:${ports.voiceHttps}</code>
           </span>
         </button>
         <div class="browser-link-copy-pair">
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttp)}" data-copy-label="Voice HTTP" title="Копировать HTTP"${linkDisabled}>HTTP</button>
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttps)}" data-copy-label="Voice HTTPS" title="Копировать HTTPS"${linkDisabled}>HTTPS</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttp)}" data-copy-label="${VOICE_UI_LABEL} HTTP" title="Копировать HTTP"${linkDisabled}>HTTP</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(voiceHttps)}" data-copy-label="${VOICE_UI_LABEL} HTTPS" title="Копировать HTTPS"${linkDisabled}>HTTPS</button>
+        </div>
+      </div>
+      <div class="browser-link-wrap">
+        <button type="button" class="link-btn browser-link link-btn--commander" data-open-url="${escapeAttr(commanderOpenUrl)}"${linkDisabled}>
+          <span class="browser-link-icon">${BROWSER_ICON}</span>
+          <span class="browser-link-text">
+            <span>Commander</span>
+            <code>:${ports.commanderHttp}</code>
+          </span>
+        </button>
+        <div class="browser-link-copy-pair">
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander HTTP" title="Копировать HTTP (отдельный порт)"${linkDisabled}>HTTP</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttps)}" data-copy-label="Commander HTTPS" title="Копировать HTTPS (/commander/ на Editor)"${linkDisabled}>HTTPS</button>
         </div>
       </div>
     </div>
@@ -1058,8 +1082,6 @@ function renderGuideStepServer() {
 
   const maintenanceDisabled = maintenanceModeBusy;
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
-  const maintenanceStateLabel = maintenanceModeEnabled ? "включён" : "выключен";
-
   const autoStart = server?.autoStart;
   const autostartSupported = autoStart?.supported !== false;
   const autostartOn = Boolean(autoStart?.enabled);
@@ -1081,7 +1103,7 @@ function renderGuideStepServer() {
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
         <div class="maintenance-toggle-copy">
           <strong>Режим обслуживания</strong>
-          <span>Заглушка 503 для Editor и Voice · сейчас ${maintenanceStateLabel}</span>
+          <span>${maintenanceStubSummaryText()}</span>
         </div>
         <label class="toggle-switch" title="maintenance-mode в .agent-cms-global/settings/platform.yml">
           <input type="checkbox" id="maintenance-mode-toggle"${maintenanceChecked}${maintenanceDisabled ? " disabled" : ""} />
@@ -1101,7 +1123,7 @@ function renderGuideStepServer() {
             Сервер
             <span id="server-status-inline"></span>
           </h3>
-          <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
+          <p>Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome</p>
         </div>
         ${controlBlock}
         ${renderMobileVoiceBlock()}
@@ -1505,9 +1527,7 @@ async function bindMaintenanceToggle() {
         card.dataset.state = maintenanceModeEnabled ? "on" : "off";
         const copy = card.querySelector(".maintenance-toggle-copy span");
         if (copy) {
-          copy.textContent = `Заглушка 503 для Editor и Voice · сейчас ${
-            maintenanceModeEnabled ? "включён" : "выключен"
-          }`;
+          copy.textContent = maintenanceStubSummaryText();
         }
       }
     }

@@ -111,6 +111,28 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
       ({ path, content, mode }) =>
         client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
     );
+
+    reg(
+      "upload_file",
+      "[Legacy] Prefer write_content_binary with placement. Upload base64 to arbitrary workspace path.",
+      z.object({
+        path: workspacePath.describe("Full workspace path including file name"),
+        data: z.string().min(1).describe("Base64-encoded file bytes"),
+        mimeType: z.string().optional()
+      }),
+      ({ path, data, mimeType }) => client.post("/api/workspace/fs/upload", { path, data, mimeType })
+    );
+
+    reg(
+      "upload_file_from_url",
+      "[Legacy] Prefer write_content_binary_from_url with placement. Download URL to arbitrary workspace path.",
+      z.object({
+        path: workspacePath.describe("Full workspace path including file name"),
+        url: z.string().url(),
+        mimeType: z.string().optional()
+      }),
+      ({ path, url, mimeType }) => client.post("/api/workspace/fs/import", { path, url, mimeType })
+    );
   }
 
   reg(
@@ -132,28 +154,6 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
         new_string,
         ...(replaceAll ? { replaceAll: true } : {})
       })
-  );
-
-  reg(
-    "upload_file",
-    "Upload a file (base64) to a workspace path including file name. Use for media/assets binaries and imports.",
-    z.object({
-      path: workspacePath.describe("Full workspace path including file name"),
-      data: z.string().min(1).describe("Base64-encoded file bytes"),
-      mimeType: z.string().optional()
-    }),
-    ({ path, data, mimeType }) => client.post("/api/workspace/fs/upload", { path, data, mimeType })
-  );
-
-  reg(
-    "upload_file_from_url",
-    "Download a file from http(s) URL and save to a workspace path (including file name).",
-    z.object({
-      path: workspacePath.describe("Full workspace path including file name"),
-      url: z.string().url(),
-      mimeType: z.string().optional()
-    }),
-    ({ path, url, mimeType }) => client.post("/api/workspace/fs/import", { path, url, mimeType })
   );
 
   reg(

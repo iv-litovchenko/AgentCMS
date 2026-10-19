@@ -1,9 +1,32 @@
 # Карта хранилища (WS-MAP)
 
-Собрано: 2026-10-17T14:12:05.895Z
+Собрано: 2026-10-17T19:39:15.887Z
 Узлов manifest: 165
+Записей в корне (без `awn-*`): 13
 
 Лёгкий реестр **всех** `manifest.md` в workspace (обход диска, не меню и не get_topic_map): ID, статус, тип, путь (до `manifest.md`), название (текст), описание. Для записей внутри темы — `read_content_index_toc` по пути темы. Пересборка: sidebar «Карта», pipeline или MCP `refresh_workspace_map`.
+
+## Корень workspace (без `awn-*`)
+
+Файлы и папки в корне агента, кроме служебных hub-каталогов `awn-*` (они перечислены в таблице manifest ниже).
+
+| Вид | Имя |
+| --- | --- |
+| папка | `aja-test-oblasti-2031` |
+| папка | `aja-test-oblasti-2049` |
+| файл | `BOOTSTRAP.md` |
+| папка | `codex-test` |
+| файл | `config.yml` |
+| папка | `crm-studio` |
+| файл | `manifest.md` |
+| файл | `NOTE.md` |
+| файл | `read-content.json` |
+| файл | `read.json` |
+| файл | `schema.yml` |
+| файл | `sort.json` |
+| файл | `TODO.md` |
+
+## Реестр manifest
 
 | ID | Статус | Тип | Путь | Название | Описание |
 | ---: | --- | --- | --- | --- | --- |

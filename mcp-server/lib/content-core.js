@@ -3,6 +3,7 @@ import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } fr
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { hashText, readTextWindow } from "./content-read-window.js";
 import { applyBodyEdit, assertExpectedHash, ContentConflictError } from "./content-write-edit.js";
+import { planMergeFile, planSplitFiles } from "./content-merge-split.js";
 
 const FULL_TEXT_READ_MAX_BYTES = 10_000_000;
 
@@ -23,6 +24,13 @@ const {
   buildSectionCreateRequest,
   listSectionCapableSlotKeys
 } = require("../../lib/config/storage-slot-routing.js");
+
+export function absolutizeCmsUrl(client, urlPath) {
+  const raw = String(urlPath || "").trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return new URL(raw.startsWith("/") ? raw : `/${raw}`, `${client.baseUrl}/`).href;
+}
 
 function slotToFolder(slot) {
   return slotKeyToStorageFolder(slot);
@@ -139,6 +147,52 @@ function requireRef(address, operation) {
   if (!address.ref) {
     throw new Error(`${operation}: placement.ref is required (file in slot, e.g. folder/note.md)`);
   }
+}
+
+function assertMarkdownNoteSlot(address, operation) {
+  rejectRootLifecycle(address, operation);
+  if (isInternalBundleSlot(address.slot)) {
+    throw new Error(`${operation} is not supported for internal slot "${address.slot}".`);
+  }
+  if (isDatabaseDataSlot(address)) {
+    throw new Error(`${operation} is not supported for database data slot.`);
+  }
+}
+
+function assertBinaryContentAddress(address, operation) {
+  if (isInternalBundleSlot(address.slot)) {
+    throw new Error(`${operation} is not supported for internal slot "${address.slot}".`);
+  }
+  if (address.kind !== "root") {
+    requireRef(address, operation);
+    const ref = String(address.ref || "").toLowerCase();
+    if (ref.endsWith(".md")) {
+      throw new Error(
+        `${operation}: .md is text — use read_content / write_content. Example ref: assets/pasted/photo.png`
+      );
+    }
+  }
+}
+
+function requireMdRef(ref, operation) {
+  const name = String(ref || "").trim();
+  if (!name.toLowerCase().endsWith(".md")) {
+    throw new Error(`${operation}: only .md markdown files are supported (${name || "missing ref"})`);
+  }
+}
+
+async function readMarkdownFileParts(client, address) {
+  const { manifestPath, slot, ref } = address;
+  requireRef(address, "read");
+  const payload = await readMarkdownFull(client, manifestPath, slot, ref);
+  const { properties, description } = splitMarkdownFrontmatter(payload.content || "");
+  return {
+    ref,
+    file: payload.file,
+    properties,
+    body: description,
+    raw: payload.content ?? ""
+  };
 }
 
 async function readRootWorkspaceFile(client, args, workspaceFilePath) {
@@ -295,11 +349,34 @@ export async function readContentBody(client, args) {
   return { placement, file: payload.file, ...readTextWindow(payload.content, windowArgs(args, ref)) };
 }
 
+export async function readContentBinary(client, args) {
+  const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "read_content_binary");
+  const result = await readContentBody(client, {
+    ...args,
+    part: "body",
+    format: "base64",
+    full: true
+  });
+  if (result.format === "base64" && typeof result.data === "string") {
+    return {
+      placement: result.placement,
+      ...(result.file ? { file: result.file } : {}),
+      ...(result.path ? { path: result.path } : {}),
+      ...result
+    };
+  }
+  throw new Error(
+    "read_content_binary: could not read as binary (check ref/path). Text markdown → read_content."
+  );
+}
+
 export async function writeContentBinary(client, args) {
   const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "write_content_binary");
   const { manifestPath, slot, ref, kind, placement, workspaceFilePath } = address;
   const data = String(args.data || "").trim();
-  if (!data) throw new Error("data (base64) is required for binary upload");
+  if (!data) throw new Error("data (base64) is required for write_content_binary");
   if (kind === "root") {
     return client.post("/api/workspace/fs/upload", {
       path: workspaceFilePath,
@@ -611,7 +688,7 @@ export async function importContentFromUrl(client, args) {
   const { manifestPath, slot } = address;
   const { fileName, mimeType, parent, createSubdir } = args;
   if (isInternalBundleSlot(slot)) {
-    throw new Error(`Cannot import_content_from_url to internal slot "${slot}". Use write_content for text slots.`);
+    throw new Error(`Cannot write_content_binary_from_url to internal slot "${slot}". Use write_content for text slots.`);
   }
   return client.post("/api/media/file/import", {
     path: manifestPath,
@@ -625,6 +702,104 @@ export async function importContentFromUrl(client, args) {
     subdir: parent || "",
     createSubdir: Boolean(createSubdir)
   });
+}
+
+export async function getContentBinaryUrl(client, args) {
+  const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "get_content_binary_url");
+  const workspaceFilePath = address.workspaceFilePath;
+  if (!workspaceFilePath) {
+    throw new Error("get_content_binary_url: could not resolve workspace path from placement");
+  }
+  const payload = await readFileHandler(client, {
+    path: workspaceFilePath,
+    format: "base64",
+    maxBytes: 4096,
+    offsetBytes: 0
+  });
+  if (payload?.format !== "base64") {
+    throw new Error("get_content_binary_url: not a binary file (use get_workspace_url_page_preview for .md pages)");
+  }
+  let previewPath = payload.previewUrl;
+  if (previewPath && args.thumb !== false && String(previewPath).includes("/api/workspace/folder/file")) {
+    const parsed = new URL(previewPath, `${client.baseUrl}/`);
+    parsed.searchParams.set("thumb", "1");
+    if (args.max != null) parsed.searchParams.set("max", String(args.max));
+    previewPath = `${parsed.pathname}?${parsed.searchParams.toString()}`;
+  }
+  return {
+    placement: address.placement,
+    path: workspaceFilePath,
+    url: absolutizeCmsUrl(client, previewPath),
+    previewPath,
+    mimeType: payload.mimeType,
+    size: payload.size,
+    name: payload.name
+  };
+}
+
+function resolveWorkspaceMarkdownPath(args) {
+  const direct = String(args.path || "").trim();
+  if (direct) {
+    if (!direct.toLowerCase().endsWith(".md")) {
+      throw new Error("get_workspace_url_page_preview: path must be a .md file");
+    }
+    return direct.replace(/\\/g, "/");
+  }
+  const address = resolveArgs(args);
+  const workspaceFilePath = address.workspaceFilePath;
+  if (!workspaceFilePath) {
+    throw new Error("get_workspace_url_page_preview: provide path or placement with .md ref");
+  }
+  if (!workspaceFilePath.toLowerCase().endsWith(".md")) {
+    throw new Error("get_workspace_url_page_preview: only .md pages (manifest, slot notes, records)");
+  }
+  return workspaceFilePath;
+}
+
+export async function getWorkspaceUrlPagePreview(client, args) {
+  const wsPath = resolveWorkspaceMarkdownPath(args);
+  const payload = await client.get("/api/workspace/folder/page", { file: wsPath });
+  const page = payload?.page || {};
+  const openPayload = await client.get("/api/agent/page-url", {
+    path: wsPath,
+    view: args.view || undefined,
+    forceView: args.forceView ? true : undefined
+  });
+  let placement;
+  if (!args.path) {
+    placement = resolveArgs(args).placement;
+  }
+  return {
+    path: wsPath,
+    ...(placement ? { placement } : {}),
+    title: page.title ?? null,
+    excerpt: page.excerpt ?? "",
+    previewUrl: absolutizeCmsUrl(client, page.previewUrl),
+    previewPath: page.previewUrl ?? null,
+    openUrl: openPayload.url ?? null,
+    pathname: openPayload.pathname ?? null,
+    status: page.status ?? null,
+    tags: page.tags ?? null,
+    updatedAt: page.updatedAt ?? null,
+    isManifest: page.isManifest ?? false
+  };
+}
+
+export async function writeContentBinaryFromUrl(client, args) {
+  const address = resolveArgs(args);
+  if (address.kind === "root") {
+    throw new Error(
+      "write_content_binary_from_url: use placement (kind + path + slot + ref), not placement.kind=root"
+    );
+  }
+  const ref = String(address.ref || args.fileName || "").trim();
+  if (!ref) {
+    throw new Error("write_content_binary_from_url: placement.ref or fileName is required (e.g. assets/pasted/photo.png)");
+  }
+  assertBinaryContentAddress({ ...address, ref }, "write_content_binary_from_url");
+  if (!args.url) throw new Error("url is required");
+  return importContentFromUrl(client, { ...args, fileName: args.fileName || ref });
 }
 
 export async function renameContent(client, args) {
@@ -752,6 +927,110 @@ export async function deleteContent(client, args) {
   if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path: manifestPath, file: ref });
   if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path: manifestPath, file: ref });
   return client.delete("/api/storage/file", { path: manifestPath, folder: slotToFolder(slot), file: ref });
+}
+
+export async function splitContent(client, args) {
+  const address = resolveArgs(args);
+  assertMarkdownNoteSlot(address, "split_content");
+  requireRef(address, "split_content");
+  requireMdRef(address.ref, "split_content");
+
+  const { properties, body } = await readMarkdownFileParts(client, address);
+  const includePreamble = args.includePreamble !== false;
+  const planned = planSplitFiles({
+    properties,
+    sourceRef: address.ref,
+    body,
+    includePreamble
+  });
+
+  for (const file of planned) {
+    const exists = await contentExists(client, {
+      ...args,
+      placement: { ...address.placement, ref: file.ref }
+    });
+    if (exists?.exists) {
+      throw new Error(`split_content: target already exists: ${file.ref}`);
+    }
+  }
+
+  const created = [];
+  for (const file of planned) {
+    await writeMarkdownFull(client, address.manifestPath, address.slot, file.ref, file.fullMarkdown);
+    created.push({ ref: file.ref, title: file.title });
+  }
+
+  const deleteSource = args.deleteSource !== false;
+  if (deleteSource) {
+    await deleteContent(client, args);
+  }
+
+  return {
+    placement: address.placement,
+    sourceRef: address.ref,
+    splitBy: "h1",
+    created,
+    deletedSource: deleteSource
+  };
+}
+
+export async function mergeContent(client, args) {
+  const refs = [...new Set((args.refs || []).map((ref) => String(ref).trim()).filter(Boolean))];
+  if (refs.length < 2) {
+    throw new Error("merge_content: refs must list at least 2 distinct .md files");
+  }
+
+  const baseAddress = resolveArgs(args);
+  assertMarkdownNoteSlot(baseAddress, "merge_content");
+
+  const targetRef = String(args.targetRef || refs[0]).trim();
+  if (!targetRef) throw new Error("merge_content: targetRef is required");
+  if (!refs.includes(targetRef)) {
+    throw new Error("merge_content: targetRef must be one of refs (merged note keeps target frontmatter)");
+  }
+
+  for (const ref of refs) requireMdRef(ref, "merge_content");
+
+  const records = [];
+  for (const ref of refs) {
+    const itemAddress = resolveArgs({
+      ...args,
+      placement: { ...baseAddress.placement, ref }
+    });
+    records.push(await readMarkdownFileParts(client, itemAddress));
+  }
+
+  const targetRecord = records.find((row) => row.ref === targetRef);
+  const bodies = refs.map((ref) => records.find((row) => row.ref === ref).body);
+  const otherProperties = records.filter((row) => row.ref !== targetRef).map((row) => row.properties);
+  const { fullMarkdown } = planMergeFile({
+    targetProperties: targetRecord.properties,
+    bodies,
+    mergeTags: args.mergeTags !== false,
+    otherPropertiesList: otherProperties
+  });
+
+  await writeMarkdownFull(client, baseAddress.manifestPath, baseAddress.slot, targetRef, fullMarkdown);
+
+  const deletedSources = [];
+  if (args.deleteSources) {
+    for (const ref of refs) {
+      if (ref === targetRef) continue;
+      await deleteContent(client, {
+        ...args,
+        placement: { ...baseAddress.placement, ref }
+      });
+      deletedSources.push(ref);
+    }
+  }
+
+  return {
+    placement: baseAddress.placement,
+    targetRef,
+    mergedRefs: refs,
+    mergeTags: args.mergeTags !== false,
+    deletedSources
+  };
 }
 
 export { listSectionCapableSlotKeys };

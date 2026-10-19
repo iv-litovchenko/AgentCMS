@@ -8,7 +8,7 @@ const { CHANNEL_PRESET_ICON_MAP } = require("../lib/config/channel-preset-icon-m
 const ROOT = path.join(__dirname, "..");
 const LUCIDE_DIR = path.join(ROOT, "node_modules", "lucide-static", "icons");
 const SIMPLE_DIR = path.join(ROOT, "node_modules", "simple-icons", "icons");
-const OUT_DIR = path.join(ROOT, "public", "vendor", "channel-preset-icons");
+const OUT_DIR = path.join(ROOT, "public", "_resources", "vendor", "channel-preset-icons");
 const MAP_JS = path.join(OUT_DIR, "map.js");
 
 function readIconSvg(pack, name) {

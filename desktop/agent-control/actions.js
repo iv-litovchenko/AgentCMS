@@ -194,9 +194,9 @@ const APP_PRODUCTS = [
   },
   {
     id: "voice",
-    title: "Agent CMS Voice (Flow window)",
+    title: "Agent CMS Voice-Chat (Flow window)",
     subtitle: "Голосовой клиент",
-    badge: "Voice",
+    badge: "Voice-Chat",
     accent: "voice",
     icon: "voice.svg",
     appBundle: "Agent Shell.app",

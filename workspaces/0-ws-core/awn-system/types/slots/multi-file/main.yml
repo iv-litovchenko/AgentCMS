@@ -1,5 +1,5 @@
 id: awn.slot.main
-name: Память (многофайловая)
+name: Память-страницы (многофайловая)
 kind: slot
 domain: slots
 status: active

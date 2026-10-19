@@ -35,6 +35,8 @@ server_listening() {
 print_https_urls() {
   echo "$AGENT_CMS_EDITOR_HTTPS_URL"
   echo "$AGENT_CMS_VOICE_HTTPS_URL"
+  echo "$AGENT_CMS_COMMANDER_HTTP_URL"
+  echo "${AGENT_CMS_EDITOR_HTTPS_URL%/}/commander/"
 }
 
 start_direct() {

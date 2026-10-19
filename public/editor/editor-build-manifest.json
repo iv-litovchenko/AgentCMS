@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-10-19T00:54:23.875Z",
+  "hash": "9a045769",
+  "main": "main.9a045769.built.js",
+  "mainUrl": "/editor/main.9a045769.built.js",
+  "sourcemap": "main.9a045769.built.js.map",
+  "fallbackMain": "main.built.js",
+  "fallbackMainUrl": "/editor/main.built.js",
+  "bundleEntry": "js/boot/editor-entry.js",
+  "bytes": 3233138
+}

@@ -7,7 +7,7 @@ const path = require("path");
 
 const repoRoot = path.join(__dirname, "..");
 const shellIconsDir = path.join(repoRoot, "public/shell/icons");
-const cmsIconsDir = path.join(repoRoot, "public/cms/icons");
+const cmsIconsDir = path.join(repoRoot, "public/_resources/cms/icons");
 const previewPath = path.join(repoRoot, "public/shell/icon-preview.html");
 
 const SHELL_PICKS = new Set([13, 19, 20, 22]);
@@ -399,7 +399,7 @@ const cmsCards = sortPicksFirst(cmsVariants, CMS_PICKS)
       file,
       title,
       desc,
-      srcPrefix: "/cms/icons",
+      srcPrefix: "/_resources/cms/icons",
       extraClass: [
         CMS_PICKS.has(n) ? "icon-preview-card--pick" : "",
         "icon-preview-card--cms",
@@ -411,7 +411,7 @@ const cmsCards = sortPicksFirst(cmsVariants, CMS_PICKS)
   .join("\n\n");
 
 const shellFavoriteCards = pickGridCards(SHELL_PICKS, shellVariants, "/shell/icons", "shell");
-const cmsFavoriteCards = pickGridCards(CMS_PICKS, cmsVariants, "/cms/icons", "cms");
+const cmsFavoriteCards = pickGridCards(CMS_PICKS, cmsVariants, "/_resources/cms/icons", "cms");
 
 const html = `<!doctype html>
 <html lang="ru">

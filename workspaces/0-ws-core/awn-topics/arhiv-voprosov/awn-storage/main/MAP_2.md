@@ -1,6 +1,6 @@
 # Карта Agent CMS — `[Agent CMS] Test` (архив)
 
-> **Устарело.** Канон для агента: [GLOBAL-SKILL-1-BASE.md](../../../../../0-md/GLOBAL-SKILL-1-BASE.md).  
+> **Устарело.** Канон для агента: [GLOBAL-SKILL-1-BASE.md](../../../../../../GLOBAL-SKILL-1-BASE.md).  
 > **Агент = CMS.** Схема типов — в `awn-system/types/`; данные — в `awn-databases/` (tasks, taxonomies, … + `cms-base/`).  
 > Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.  
 > Итоговая спецификация модели: [SPEC.md](./SPEC.md)

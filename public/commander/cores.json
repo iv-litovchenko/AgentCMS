@@ -20,9 +20,19 @@
     "label": "Claude Sonnet 5.5"
   },
   {
+    "id": "sonnet-v2",
+    "file": "SONNET-5-5.v2.html",
+    "label": "Claude Sonnet 5.5 v2"
+  },
+  {
     "id": "opus",
     "file": "claude-opus-5.5.html",
     "label": "Claude Opus 5.5"
+  },
+  {
+    "id": "opus-v2",
+    "file": "OPUS-5-5.v2.html",
+    "label": "Claude Opus 5.5 v2"
   },
   {
     "id": "fable",

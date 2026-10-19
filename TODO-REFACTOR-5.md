@@ -1,6 +1,6 @@
 # Рефакторинг — часть 5
 
-**Задача:** смена **Agent CMS** → новое имя (slug, UI, MCP, пути state). Кандидаты A–D — выбрать один перед массовым rename.
+**Задача:** смена **Agent CMS** → новое имя (slug, UI, MCP, пути state). Кандидаты A–E — выбрать один перед массовым rename.
 
 **✅** сделано · **❌** не сделано.
 
@@ -12,16 +12,17 @@
 | B | **memory cms** | `memory-cms` | прямой slug без префикса сортировки |
 | C | **1memory cms** | `1memory-cms` | цифра в начале — сортировка **сверху** |
 | D | **memory1 cms** | `memory1-cms` | цифра в slug; порядок в списках зависит от локали сортировки |
+| E | **AH Memory CMS** | `ah-memory-cms` / `0-ah-memory-cms` | расшифровка: **A**gent **H**uman **M**emory CMS; префикс `0-` — сортировка **сверху** (как A) |
 
 После выбора: `.agent-cms/` → `.{slug-state}/`, `agent-cms-core` → `{slug}-core`, MCP `user-agent-cms` → `user-{slug}`, модули `lib/.../agent-cms*` — по таблице ниже.
 
 ## Agent CMS → выбранный вариант (общее)
 
-| Статус | Сейчас | План (после выбора A–D) |
+| Статус | Сейчас | План (после выбора A–E) |
 | ------ | ------ | ----------------------- |
-| ❌ | Agent CMS | a-memory / memory / 1memory / memory1 cms |
+| ❌ | Agent CMS | a-memory / memory / 1memory / memory1 / AH Memory cms |
 | ❌ | `agent-cms` | slug из таблицы выше |
-| ❌ | `.agent-cms/` | `.a-memory-cms/` · `.memory-cms/` · `.1memory-cms/` · `.memory1-cms/` |
+| ❌ | `.agent-cms/` | `.a-memory-cms/` · `.memory-cms/` · `.1memory-cms/` · `.memory1-cms/` · `.ah-memory-cms/` |
 
 | Статус | Область |
 | ------ | ------- |

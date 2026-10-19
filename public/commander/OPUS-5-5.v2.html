@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#03080d">
+<link rel="icon" href="icon.svg">
+<title>J.A.R.V.I.S. — макет голосового ассистента</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Tailwind: общий CSS-фреймворк, на котором агент сам дописывает вёрстку -->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config={corePlugins:{preflight:false},theme:{extend:{
+  colors:{jv:{bg:'#03080d',panel:'rgba(8,28,40,.55)',cyan:'#00d4ff',ice:'#5ff3ff',gold:'#ffb547',red:'#ff4d5e',green:'#3dffa8',purple:'#b48cff',text:'#cfefff',mute:'#6c93a8',line:'rgba(0,212,255,.22)'}},
+  fontFamily:{hud:['Orbitron','system-ui','sans-serif'],mono:['JetBrains Mono','ui-monospace','monospace']}}}};
+</script>
+<style type="text/tailwindcss">
+@layer components{
+  .jv-tile{@apply relative rounded-xl border border-solid border-jv-line bg-jv-panel p-4 overflow-hidden backdrop-blur-md transition duration-300 hover:border-jv-cyan hover:shadow-[0_0_25px_rgba(0,212,255,.18)];}
+  .jv-label{@apply font-hud text-[10px] font-bold tracking-[.2em] uppercase text-jv-cyan;}
+  .jv-value{@apply font-hud text-3xl font-bold text-jv-ice leading-none;}
+  .jv-sub{@apply font-mono text-[11px] text-jv-mute;}
+  .jv-btn{@apply font-hud text-[10px] font-bold tracking-widest uppercase px-3 py-2 rounded-lg border border-solid border-jv-cyan text-jv-cyan bg-jv-cyan/10 hover:bg-jv-cyan/25 cursor-pointer transition;}
+  .jv-badge{@apply inline-block font-mono text-[10px] px-2 py-0.5 rounded border border-solid;}
+  .jv-row{@apply flex items-center justify-between gap-2 py-1.5 border-0 border-b border-dashed border-jv-line text-[13px];}
+}
+</style>
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body data-s="idle">
+
+<div id="boot"><pre id="bootlog"></pre></div>
+
+<div class="wrap">
+<header>
+  <div class="logo">J.A.R.V.I.S.<small>Just A Rather Very Intelligent System</small></div>
+  <span class="pill" id="netpill">● ONLINE · CLOUD LLM</span>
+  <span class="clock" id="clock">--:--:--</span>
+  <nav>
+    <button class="on" data-tab="hud">Интерфейс</button>
+    <button data-tab="brain">Второй мозг</button>
+    <button data-tab="holo">Голо-HUD ✦</button>
+    <button data-tab="lab">Лаборатория ✦28</button>
+    <button data-tab="dash">Дашборды</button>
+    <button data-tab="gest">Жесты</button>
+    <button data-tab="build">Конструктор</button>
+    <button data-tab="gal">Галерея ответов</button>
+    <button data-tab="data">Данные внутри</button>
+    <button data-tab="how">Как устроен</button>
+    <button data-tab="feat">Навороты</button>
+    <button data-tab="stack">Стек и сборка</button>
+  </nav>
+</header>
+
+<!-- ================= HUD ================= -->
+<section class="tab on" id="hud">
+<div class="hud">
+  <div class="col">
+    <div class="panel">
+      <div class="ph">Система <span>macOS · M-series</span></div>
+      <div class="stat">CPU<div class="bar"><i id="cpu" style="width:20%"></i></div><span id="cpuv">20%</span></div>
+      <div class="stat">RAM<div class="bar"><i id="ram" style="width:48%"></i></div><span id="ramv">48%</span></div>
+      <div class="stat">GPU/NPU<div class="bar"><i id="gpu" style="width:10%"></i></div><span id="gpuv">10%</span></div>
+      <div class="stat">NET ↓<div class="bar"><i id="net" style="width:30%"></i></div><span id="netv">30</span></div>
+      <div class="stat">Батарея<div class="bar"><i style="width:86%"></i></div><span>86%</span></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Погода <span>Москва</span></div>
+      <div class="wx"><div class="t">+11°</div><div><div>☁️ Облачно</div><div class="d">Ветер 4 м/с · влажн. 72%</div></div></div>
+      <div class="fc"><div>Чт<b>+12</b>🌦</div><div>Пт<b>+9</b>🌧</div><div>Сб<b>+8</b>☁️</div><div>Вс<b>+10</b>⛅</div><div>Пн<b>+13</b>☀️</div></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Расписание <span>сегодня</span></div>
+      <div id="cal">
+        <div class="ev"><time>10:00</time>Стендап команды</div>
+        <div class="ev"><time>13:30</time>Обед с Пеппер</div>
+        <div class="ev"><time>16:00</time>Тест костюма Mk-85</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Память <span>долговременная</span></div>
+      <div class="mem"><ul id="mem">
+        <li>Зовут: сэр</li>
+        <li>Любит: чёрный кофе, AC/DC</li>
+        <li>Проект: MyJarvis</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="center">
+    <div class="panel">
+      <div class="stage">
+        <canvas id="wave"></canvas>
+        <div class="reactor" id="reactor" title="Нажми, чтобы говорить">
+          <div class="ticks"></div>
+          <div class="rg r1"></div><div class="rg r2"></div><div class="rg r3"></div><div class="rg r4"></div>
+          <div class="core" id="core"></div>
+        </div>
+        <div class="state"><span id="stateTxt">ОЖИДАНИЕ</span><small id="stateSub">Скажи «Джарвис» или нажми на ядро</small></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Диалог <span id="latency">латентность: —</span></div>
+      <div class="chat" id="chat"></div>
+      <div class="inputbar">
+        <button class="btn mic" id="mic" title="Голосовой ввод">🎙</button>
+        <input id="inp" placeholder="Напиши команду… например «какая погода» или «включи свет»" autocomplete="off">
+        <button class="btn" id="send">ОТПР</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="ph">Умный дом <span>Home Assistant</span></div>
+      <div class="dev">💡 Свет в гостиной<div class="sw" data-dev="light"></div></div>
+      <div class="dev">🌡 Кондиционер 22°<div class="sw on" data-dev="ac"></div></div>
+      <div class="dev">🔒 Входная дверь<div class="sw on" data-dev="lock"></div></div>
+      <div class="dev">🪟 Шторы<div class="sw" data-dev="blinds"></div></div>
+      <div class="dev">☕ Кофемашина<div class="sw" data-dev="coffee"></div></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Сейчас играет <span>Spotify</span></div>
+      <div class="np" id="np"><div class="cover"></div><div><div class="tt" id="track">Back In Black</div><div class="ar">AC/DC</div><div class="eq"><i></i><i></i><i></i><i></i><i></i></div></div></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Зрение <span>камера · YOLO</span></div>
+      <div class="cam">
+        <div class="scan"></div><div class="rec">● REC</div>
+        <div class="box" style="left:12%;top:22%;width:28%;height:62%"><span>человек 0.97 · «сэр»</span></div>
+        <div class="box" style="left:58%;top:50%;width:18%;height:22%;border-color:var(--gold)"><span style="background:var(--gold)">кружка 0.88</span></div>
+        <div class="box" style="left:70%;top:14%;width:22%;height:26%;border-color:var(--cy)"><span style="background:var(--cy)">монитор 0.93</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Журнал агента <span>tool calls</span></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================= HOW ================= -->
+<section class="tab" id="how">
+  <div class="lead">
+    <div class="h2">ЧТО ТАКОЕ «ДЖАРВИС» НА САМОМ ДЕЛЕ</div>
+    <p>Это не одна программа, а <b>конвейер</b> из 5–6 независимых модулей, склеенных кодом (обычно Python или Node.js). Каждый модуль можно заменить: облачный на локальный, дешёвый на быстрый. «Мозг» — большая языковая модель (Claude, GPT, Gemini, Llama), которой дали <b>инструменты</b>: управлять домом, компьютером, календарём, искать в интернете. Всё остальное — уши, рот и глаза вокруг неё.</p>
+    <p style="color:var(--mut)">Нажми на любой блок, чтобы увидеть, что внутри и какой код обычно пишут.</p>
+  </div>
+  <div class="pipe" id="pipe"></div>
+  <div class="panel detail" id="pdetail"></div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="panel">
+      <div class="ph">Бюджет задержки <span>цель: ответ за &lt; 1 сек</span></div>
+      <p style="margin:0;font-size:13px;color:#a9cfe0">Главная боль всех джарвисов — пауза между твоей фразой и ответом. Люди хотят, чтобы было как с человеком: ~500–800 мс. Классический конвейер:</p>
+      <div class="lat">
+        <div style="flex:3;background:#3dffa8">VAD 150</div>
+        <div style="flex:3;background:#00d4ff">STT 200</div>
+        <div style="flex:5;background:#ffb547">LLM 1-й токен 350</div>
+        <div style="flex:3;background:#b48cff">TTS 200</div>
+        <div style="flex:1;background:#ff4d5e">50</div>
+      </div>
+      <div style="font:11px var(--mono);color:var(--mut)">≈ 950 мс · хитрость: всё стримится — TTS начинает говорить по первому предложению LLM, не дожидаясь конца.</div>
+    </div>
+    <div class="panel">
+      <div class="ph">Два подхода <span>2025–2026</span></div>
+      <table class="cmp">
+        <tr><th>Каскад</th><th>Speech-to-Speech</th></tr>
+        <tr><td>STT → LLM → TTS по отдельности</td><td>Одна модель слышит и говорит сама</td></tr>
+        <tr><td>Полный контроль, любой голос, дешевле</td><td>Очень быстро, слышит интонацию, смех</td></tr>
+        <tr><td>Whisper + Claude + ElevenLabs</td><td>OpenAI Realtime, Gemini Live, Moshi</td></tr>
+        <tr><td>Можно 100% офлайн</td><td>Почти всегда облако, дороже</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <div class="ph">Сердце: цикл агента <span>как «мозг» вызывает инструменты</span></div>
+<code class="code"><span class="k">import</span> anthropic
+client = anthropic.Anthropic()
+
+tools = [
+  {<span class="s">"name"</span>: <span class="s">"set_light"</span>, <span class="s">"description"</span>: <span class="s">"Вкл/выкл свет в комнате"</span>,
+   <span class="s">"input_schema"</span>: {<span class="s">"type"</span>: <span class="s">"object"</span>, <span class="s">"properties"</span>: {<span class="s">"room"</span>: {<span class="s">"type"</span>: <span class="s">"string"</span>}, <span class="s">"on"</span>: {<span class="s">"type"</span>: <span class="s">"boolean"</span>}}}},
+  {<span class="s">"name"</span>: <span class="s">"get_weather"</span>, ...}, {<span class="s">"name"</span>: <span class="s">"open_app"</span>, ...}, {<span class="s">"name"</span>: <span class="s">"remember"</span>, ...},
+]
+
+<span class="k">while</span> <span class="k">True</span>:
+    <span class="f">wait_for_wake_word</span>(<span class="s">"jarvis"</span>)            <span class="c"># openWakeWord / Porcupine</span>
+    text = <span class="f">transcribe</span>(<span class="f">record_until_silence</span>())  <span class="c"># Silero VAD + Whisper</span>
+    history.append({<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: text})
+    <span class="k">while</span> <span class="k">True</span>:
+        r = client.messages.create(model=<span class="s">"claude-sonnet-5-5"</span>, system=JARVIS_PERSONA,
+                                   tools=tools, messages=history, max_tokens=<span class="f">1024</span>)
+        history.append({<span class="s">"role"</span>: <span class="s">"assistant"</span>, <span class="s">"content"</span>: r.content})
+        <span class="k">if</span> r.stop_reason != <span class="s">"tool_use"</span>: <span class="k">break</span>
+        history.append({<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: <span class="f">run_tools</span>(r.content)})  <span class="c"># Home Assistant, ОС, API…</span>
+    <span class="f">speak</span>(<span class="f">final_text</span>(r))                        <span class="c"># ElevenLabs / Piper — голос «британского дворецкого»</span></code>
+  </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section class="tab" id="feat">
+  <div class="lead">
+    <div class="h2">ВСЕ НАВОРОТЫ, КОТОРЫЕ ЛЮДИ ПРИКРУЧИВАЮТ</div>
+    <p>Собрано из того, что показывают в видео на YouTube, Reddit (r/LocalLLaMA, r/homeassistant) и GitHub-проектах. Сложность: <span class="lvl e">● вечер</span> · <span class="lvl m">● выходные</span> · <span class="lvl h">● месяц+</span>. У некоторых есть кнопка «попробовать» — она запустит демо во вкладке «Интерфейс».</p>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div class="featgrid" id="fgrid"></div>
+</section>
+
+<!-- ================= STACK ================= -->
+<section class="tab" id="stack">
+  <div class="lead"><div class="h2">ИЗ ЧЕГО СОБИРАЮТ</div></div>
+  <div class="panel tbl">
+    <table class="cmp">
+      <tr><th>Модуль</th><th>Облако (проще, качественнее)</th><th>Локально (бесплатно, приватно)</th></tr>
+      <tr><td>Wake word</td><td>Picovoice Porcupine</td><td>openWakeWord, Snowboy (старый)</td></tr>
+      <tr><td>VAD (конец фразы)</td><td>встроен в Realtime API</td><td>Silero VAD, WebRTC VAD</td></tr>
+      <tr><td>Распознавание речи</td><td>Deepgram, AssemblyAI, OpenAI STT</td><td>Whisper / faster-whisper / whisper.cpp, Vosk</td></tr>
+      <tr><td>Мозг (LLM)</td><td>Claude, GPT, Gemini, Grok</td><td>Ollama / LM Studio + Llama, Qwen, Mistral, Gemma</td></tr>
+      <tr><td>Синтез речи</td><td>ElevenLabs, OpenAI TTS, Cartesia</td><td>Piper, Coqui XTTS, Kokoro, Silero TTS (рус.)</td></tr>
+      <tr><td>Инструменты</td><td>MCP-серверы, Zapier, n8n</td><td>Home Assistant, AppleScript, pyautogui</td></tr>
+      <tr><td>Память</td><td>Mem0, Zep</td><td>ChromaDB, SQLite + эмбеддинги</td></tr>
+      <tr><td>Готовые фреймворки</td><td>LiveKit Agents, Pipecat, Vapi</td><td>Home Assistant Assist, OpenVoiceOS, Rhasspy</td></tr>
+      <tr><td>Интерфейс</td><td colspan="2">Веб (как этот макет), Electron/Tauri, Telegram-бот, умная колонка на Raspberry Pi / ESP32-S3, AR-очки</td></tr>
+    </table>
+  </div>
+
+  <div class="h2" style="font:700 16px var(--hud);color:var(--cy);margin:22px 0 10px;letter-spacing:.12em">ТРИ ТИПИЧНЫХ СБОРКИ</div>
+  <div class="tiers">
+    <div class="panel tier"><h4 style="color:var(--green)">🟢 Новичок за вечер</h4><div class="price">≈ $5–20 / мес</div><ul><li>Браузер: Web Speech API (уши и рот бесплатно)</li><li>LLM через API</li><li>3–5 инструментов: погода, поиск, таймер</li><li>Кнопка вместо wake word</li></ul></div>
+    <div class="panel tier"><h4 style="color:var(--gold)">🟡 Энтузиаст</h4><div class="price">≈ $20–60 / мес</div><ul><li>Python-демон, wake word «Джарвис»</li><li>Whisper + Claude + ElevenLabs с клонированным голосом</li><li>Home Assistant, Spotify, календарь, управление ПК</li><li>Память, перебивание, HUD как этот</li></ul></div>
+    <div class="panel tier"><h4 style="color:var(--red)">🔴 Хардкор офлайн</h4><div class="price">≈ $0 / мес, но GPU</div><ul><li>Всё локально: faster-whisper + Ollama (Qwen/Llama) + Piper</li><li>Микрофоны-сателлиты в каждой комнате (ESP32)</li><li>Камеры с распознаванием лиц</li><li>Ничего не уходит в интернет</li></ul></div>
+  </div>
+
+  <div class="h2" style="font:700 16px var(--hud);color:var(--cy);margin:22px 0 10px;letter-spacing:.12em">ПЛАН СБОРКИ ШАГ ЗА ШАГОМ</div>
+  <div class="steps">
+    <div class="step"><div><h4>Текстовый мозг</h4><p>Чат с LLM в терминале + системный промпт «Ты — Джарвис, вежливый британский дворецкий, отвечай кратко, обращайся «сэр»».</p></div></div>
+    <div class="step"><div><h4>Инструменты</h4><p>Даёшь модели функции (tool use / function calling): погода, время, открыть приложение, поиск. Это то, что делает её «ассистентом», а не болтуном.</p></div></div>
+    <div class="step"><div><h4>Уши</h4><p>Микрофон → VAD режет тишину → Whisper превращает в текст. Потом добавляешь wake word, чтобы слушал постоянно.</p></div></div>
+    <div class="step"><div><h4>Голос</h4><p>TTS со стримингом по предложениям. Выбираешь/клонируешь голос. Добавляешь barge-in: перебил — замолчал.</p></div></div>
+    <div class="step"><div><h4>Лицо</h4><p>HUD в браузере или Electron: ядро-реактор, волна, чат, виджеты. Связь с Python через WebSocket.</p></div></div>
+    <div class="step"><div><h4>Навороты</h4><p>Память, умный дом, зрение, проактивность, MCP-серверы, мульти-агенты. Подключаешь по одному.</p></div></div>
+  </div>
+</section>
+
+<!-- ================= ГОЛО-HUD: интерфейс, который собирается сам ================= -->
+<link rel="stylesheet" href="css/holo.css">
+<section class="tab" id="holo">
+  <div class="max-w-4xl mb-3">
+    <div class="h2">ГОЛО-HUD · ИНТЕРФЕЙС, КОТОРЫЙ СОБИРАЕТСЯ САМ</div>
+    <p class="m-0 text-[14px] text-jv-text">Как у Тони Старка: скажи «собери полётный интерфейс» — и компас, авиагоризонт, ленты скорости и высоты, радар, 3D-модель, глобус и тактическая доска <b>раскрываются из центра</b>, линии прорисовываются, цифры набегают. Панели можно <b>таскать за заголовок</b>, закрывать ✕, добавлять по одной. С камерой на вкладке «Жесты»: 👈👉 — сменить сцену, 🖐 — разобрать, ✊ — собрать.</p>
+  </div>
+  <div class="jv-tile mb-3 flex flex-wrap items-center gap-2">
+    <div id="hscenes" class="flex flex-wrap gap-1.5"></div>
+    <div class="flex items-center gap-2 flex-1 min-w-[260px]"><input id="hcmd" class="flex-1 min-w-0 bg-black/40 border border-solid border-jv-line rounded-lg text-jv-text px-3 py-2 font-mono text-[12.5px] outline-none focus:border-jv-cyan" placeholder="«собери мастерскую», «добавь радар», «убери глобус»…"><button id="hgo" class="jv-btn">▶</button></div>
+    <label class="jv-badge border-jv-line text-jv-mute bg-transparent cursor-pointer select-none"><input type="checkbox" id="hslow" class="align-middle mr-1 accent-[#ffb547]">замедлить ×4</label>
+    <label class="jv-badge border-jv-line text-jv-mute bg-transparent cursor-pointer select-none"><input type="checkbox" id="hsfx" checked class="align-middle mr-1 accent-[#00d4ff]">звук сборки</label>
+  </div>
+  <div id="hstage"><svg id="hconn" viewBox="0 0 100 100" preserveAspectRatio="none"></svg><div id="hpanels"></div></div>
+  <div class="flex flex-wrap gap-1.5 mt-3"><span class="jv-sub self-center mr-1">добавить виджет:</span><div id="hpal" class="flex flex-wrap gap-1.5"></div></div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 mt-3">
+    <div class="jv-tile lg:col-span-2"><div class="jv-label mb-2">Спека, которую выдаёт агент</div><pre id="hspec" class="code m-0 !text-[11px] max-h-80 overflow-auto"></pre></div>
+    <div class="jv-tile lg:col-span-3"><div class="jv-label mb-3">Как это устроено</div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[13px] leading-relaxed">
+        <div><b class="text-jv-cyan">1. Спека</b><br>LLM не рисует пиксели — она возвращает короткий JSON: какие виджеты, где, в каком порядке. Слева он живой: перетащи панель — координаты поменяются. Подключите настоящий мозг — и он сам вызывает инструмент <code class="text-jv-gold">hud_compose</code>.</div>
+        <div><b class="text-jv-cyan">2. Живые виджеты</b><br>Каждый виджет — маленькая программа: SVG (компас, горизонт, ленты, радар, доска), d3-geo (глобус), three.js (3D-модель), Canvas (спектр). Все читают общую телеметрию 60 раз в секунду.</div>
+        <div><b class="text-jv-cyan">3. Хореография</b><br>Рамка раскрывается из центра (clip-path), уголки прилетают, линии «рисуются» (stroke-dashoffset), подписи печатаются, цифры набегают от нуля. Каскад по 160 мс. Здесь — Web Animations API; в продакшене — GSAP или Framer Motion, для AR — Unity / Vision Pro.</div>
+      </div>
+      <div class="jv-sub mt-3">В фильмах это рисовали моушн-дизайнеры (Cantina Creative, Perception) в After Effects. Включите «замедлить ×4», чтобы рассмотреть каждый шаг сборки.</div></div>
+  </div>
+</section>
+
+<!-- ================= LAB (12 демо, код в lab.js / lab2.js) ================= -->
+<section class="tab" id="lab">
+  <div class="max-w-4xl mb-4">
+    <div class="h2">ЛАБОРАТОРИЯ</div>
+    <p class="m-0 text-[14px] text-jv-text">28 возможностей «настоящих» джарвисов в трёх группах: основное (звонки, агент за компьютером, голограмма…), то, о чём обычно забывают (переспрос, контекст, уведомления, доступность, сбои), и полезные сценарии (онбординг, навыки, финансы, кухня, документы, режим разработчика…). Каждое демо — живое.</p>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-4 items-start">
+    <aside class="jv-tile !p-2 lg:sticky lg:top-3"><div id="labnav" class="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible"></div></aside>
+    <main id="labmain" class="min-w-0"></main>
+  </div>
+</section>
+
+<!-- ================= SECOND BRAIN ================= -->
+<section class="tab" id="brain">
+  <div class="flex flex-wrap items-end gap-4 mb-3">
+    <div class="max-w-4xl">
+      <div class="h2">ВТОРОЙ МОЗГ</div>
+      <p class="m-0 text-[14px] text-jv-text">Всё, что Джарвис услышал, прочитал и посмотрел, превращается в <b>заметки</b>, связанные ссылками <code class="text-jv-gold">[[…]]</code> (как в Obsidian), и в <b>связи по смыслу</b> через эмбеддинги. Крути колесом, тащи узлы, <b>кликни</b>, чтобы заглянуть внутрь, <b>двойной клик</b>, чтобы разобрать заметку на части (или свернуть целый раздел).</p>
+    </div>
+  </div>
+
+  <div id="bwrap" class="jv-tile !p-0 relative overflow-hidden select-none" style="height:78vh;min-height:560px;background:radial-gradient(ellipse at 40% 40%,rgba(0,80,120,.25),rgba(2,8,14,.9) 70%)">
+    <canvas id="bcan" class="absolute inset-0 w-full h-full cursor-grab"></canvas>
+
+    <!-- верхняя панель -->
+    <div class="absolute left-3 top-3 right-3 flex flex-wrap gap-2 items-start pointer-events-none">
+      <div class="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur border border-solid border-jv-line rounded-lg px-2 py-1">
+        <span class="text-jv-mute">⌕</span>
+        <input id="bsearch" placeholder="поиск по мозгу…" class="bg-transparent border-0 outline-none text-jv-text font-mono text-[12px] w-40 py-1">
+      </div>
+      <div id="bareas" class="pointer-events-auto flex flex-wrap gap-1.5"></div>
+      <div class="pointer-events-auto ml-auto flex flex-wrap gap-1.5">
+        <button id="bmode" class="jv-badge border-jv-cyan text-jv-cyan bg-black/60 cursor-pointer">◎ режим: карта смыслов</button>
+        <button id="bsem" class="jv-badge border-jv-purple text-jv-purple bg-black/60 cursor-pointer">✨ найти связи по смыслу</button>
+        <button id="blabels" class="jv-badge border-jv-line text-jv-mute bg-black/60 cursor-pointer">Aa подписи</button>
+        <button id="bfit" class="jv-badge border-jv-line text-jv-mute bg-black/60 cursor-pointer">⤢ весь мозг</button>
+      </div>
+    </div>
+
+    <!-- мини-карта + статистика -->
+    <div class="absolute left-3 bottom-3 pointer-events-auto">
+      <canvas id="bmini" width="200" height="130" class="block rounded-lg border border-solid border-jv-line bg-black/60 cursor-crosshair" style="width:200px;height:130px"></canvas>
+      <div id="bstats" class="jv-sub mt-1"></div>
+    </div>
+
+    <!-- таймлайн -->
+    <div class="absolute bottom-3 left-[230px] right-3 sm:right-[400px] flex items-center gap-3 bg-black/60 backdrop-blur border border-solid border-jv-line rounded-lg px-3 py-2 pointer-events-auto max-sm:hidden" id="btimebar">
+      <button id="bplay" class="jv-btn !px-2 !py-1">▶ РОСТ</button>
+      <input id="btime" type="range" class="flex-1 accent-[#00d4ff]">
+      <span id="btimel" class="font-mono text-[11px] text-jv-cyan w-28 whitespace-nowrap text-right"></span>
+    </div>
+
+    <div id="btip" class="absolute pointer-events-none hidden bg-black/85 border border-solid border-jv-cyan rounded-md px-2 py-1 text-[12px] z-10"></div>
+    <div class="absolute left-1/2 -translate-x-1/2 top-14 jv-sub bg-black/40 rounded px-2 py-0.5 pointer-events-none" id="bhint">колесо — зум · клик — открыть · двойной клик — разобрать · тащи узлы</div>
+
+    <!-- инспектор -->
+    <aside id="binsp" class="absolute right-0 top-0 bottom-0 w-full sm:w-[380px] bg-[#03111a]/95 backdrop-blur-md border-0 border-l border-solid border-jv-line translate-x-full transition-transform duration-300 overflow-y-auto z-20">
+      <div class="p-4" id="binspc"></div>
+    </aside>
+  </div>
+
+  <div class="jv-tile mt-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="jv-label">🧠 Спроси свой мозг</span>
+      <input id="bask" class="flex-1 min-w-[220px] bg-black/40 border border-solid border-jv-line rounded-lg text-jv-text px-3 py-2 font-mono text-[13px] outline-none focus:border-jv-cyan" placeholder="Например: как мне уменьшить задержку?">
+      <button id="baskgo" class="jv-btn">СПРОСИТЬ</button>
+    </div>
+    <div id="baskchips" class="flex flex-wrap gap-1.5 mt-2"></div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+    <div class="jv-tile"><div class="jv-label mb-2">Откуда берутся заметки</div><div class="text-[13px] leading-relaxed">🎙 разговор → факт в память<br>📰 статья → конспект + тезисы<br>🎬 видео → главы и кадры<br>🤝 встреча → протокол + задачи<br>✍️ вы сами → заметка голосом</div></div>
+    <div class="jv-tile"><div class="jv-label mb-2">Как появляются связи</div><div class="text-[13px] leading-relaxed"><b class="text-jv-cyan">Сплошные</b> — LLM сама ставит <code>[[ссылки]]</code> при записи.<br><b class="text-jv-purple">Пунктир</b> — близость эмбеддингов: заметки похожи по смыслу, хотя ссылок нет.<br><b class="text-jv-gold">«Сны»</b> — ночью агент ищет неочевидные связи и утром показывает.</div></div>
+    <div class="jv-tile"><div class="jv-label mb-2">Под капотом</div><div class="text-[13px] leading-relaxed">Папка Markdown-файлов (совместима с Obsidian) + SQLite с векторами. Граф — d3-force на canvas. Вопрос к мозгу = RAG: поиск ближайших заметок → проход по связям → ответ со ссылками.</div></div>
+  </div>
+</section>
+
+<!-- ================= DASHBOARDS (Tailwind) ================= -->
+<section class="tab" id="dash">
+  <div class="flex flex-wrap items-end gap-4 mb-4">
+    <div class="max-w-3xl">
+      <div class="h2">ДАШБОРДЫ</div>
+      <p class="m-0 text-[14px] text-jv-text">Джарвис собирает экран под ситуацию: утром погода и дорога, на работе агенты и почта, дома камеры и энергия. Каждый дашборд — это <b>JSON-список плиток</b>, а плитки сверстаны на <b>Tailwind</b>. Поэтому агент может добавить новую плитку сам (см. вкладку «Конструктор»).</p>
+    </div>
+    <div class="ml-auto jv-sub">свайп рукой ← → или клавиши [ ] · <span id="dashAuto" class="text-jv-gold">авто: утро</span></div>
+  </div>
+  <div id="dashTabs" class="flex flex-wrap gap-2 mb-4"></div>
+  <div id="dashGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 grid-flow-dense"></div>
+
+  <div class="mt-10 mb-3 flex flex-wrap items-end gap-4">
+    <div class="max-w-3xl">
+      <div class="h2">КУДА ДЖАРВИС ВЫВОДИТ ИНФОРМАЦИЮ</div>
+      <p class="m-0 text-[14px] text-jv-text">Один и тот же факт можно показать на 10 разных поверхностях. Хороший ассистент <b>выбирает, куда</b>, по важности события и по тому, чем ты сейчас занят: за рулём — экран машины и голос, на встрече — только вибро на часы, ночью — ничего, кроме пожара. Это называется <b>маршрутизация уведомлений</b>.</p>
+    </div>
+  </div>
+  <div class="jv-tile mb-3 flex flex-wrap gap-6 items-start">
+    <div><div class="jv-label mb-2">Событие</div><div id="evBtns" class="flex flex-wrap gap-2"></div></div>
+    <div><div class="jv-label mb-2">Где вы сейчас</div><div id="ctxBtns" class="flex flex-wrap gap-2"></div></div>
+  </div>
+  <div id="surfaces" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"></div>
+</section>
+
+<!-- ================= GESTURES ================= -->
+<section class="tab" id="gest">
+  <div class="max-w-4xl mb-4">
+    <div class="h2">УПРАВЛЕНИЕ ЖЕСТАМИ</div>
+    <p class="m-0 text-[14px] text-jv-text">Это <b>работает по-настоящему</b>: включи камеру, и модель <b>MediaPipe</b> от Google прямо в браузере находит 21 точку на руке и распознаёт жесты. Ничего никуда не отправляется. Кроме поз одной руки здесь есть <b>движения</b> (свайпы, помахать, толкнуть, крутилка), <b>жесты двумя руками</b> (хлопок, рамка, сердце, зум), <b>головой</b> (кивок, «нет», палец к губам) и <b>звуком</b> через микрофон: хлопки, щелчок пальцами, свист. В режиме <b>аэромыши</b> указательный палец двигает курсор, а щипок (большой и указательный вместе) делает клик.</p>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <div class="jv-tile lg:col-span-3 !p-0">
+      <div class="relative aspect-video bg-black">
+        <video id="gvid" class="hidden" playsinline muted></video>
+        <canvas id="gcan" width="640" height="480" class="absolute inset-0 w-full h-full"></canvas>
+        <div id="gidle" class="absolute inset-0 grid place-items-center text-center p-6">
+          <div><div class="text-5xl mb-3">🖐</div><div class="jv-sub mb-4 max-w-sm">Камера выключена. Модели рук и лиц (~9 МБ) загрузятся с CDN при первом запуске.</div>
+          <div class="flex gap-2 justify-center"><button id="gstart" class="jv-btn">ВКЛЮЧИТЬ КАМЕРУ</button><button id="gdemo" class="jv-btn !border-jv-line !text-jv-mute !bg-transparent">ПРИМЕР РАЗМЕТКИ</button></div></div>
+        </div>
+        <div class="absolute left-3 top-3 flex gap-2"><span id="gfps" class="jv-badge border-jv-line text-jv-mute bg-black/50">— fps</span><span id="ghands" class="jv-badge border-jv-gold text-jv-gold bg-black/50">рук: 0</span><span id="gfaces" class="jv-badge border-jv-line text-jv-mute/70 bg-black/50">лиц: 0</span><label class="jv-badge border-jv-line text-jv-mute bg-black/50 flex items-center gap-1.5" title="Минимальная уверенность, что это рука. Выше — меньше ложных рук, но хуже ловит в темноте.">строгость <input id="gsens" type="range" min="0.5" max="0.98" step="0.01" value="0.82" class="w-16 accent-[#ffb547]"><span id="gsensv">0.82</span></label></div>
+        <button id="gdemo2" hidden class="absolute right-3 top-9 z-10 jv-badge border-jv-gold text-jv-gold bg-black/70 cursor-pointer">✕ выйти из примера</button>
+        <div class="absolute right-3 top-3"><label class="jv-badge border-jv-cyan text-jv-cyan bg-black/50 cursor-pointer select-none"><input type="checkbox" id="gmouse" class="align-middle mr-1">аэромышь</label></div>
+        <div class="absolute left-0 right-0 bottom-0 p-4 bg-gradient-to-t from-black/90 to-transparent flex items-end gap-4">
+          <div id="gbig" class="text-5xl leading-none">—</div>
+          <div><div id="gname" class="jv-label">жест не найден</div><div id="gact" class="jv-sub mt-1">покажи ладонь в камеру</div></div>
+          <div class="ml-auto w-40"><div class="jv-sub mb-1">удержание</div><div class="h-1.5 bg-jv-cyan/10 rounded-full overflow-hidden"><div id="ghold" class="h-full bg-jv-gold w-0"></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="lg:col-span-2 flex flex-col gap-3">
+      <div class="jv-tile">
+        <div class="flex items-center gap-2 mb-2"><span class="jv-label">👏 Звуковые жесты · микрофон</span><button id="gaudgo" class="jv-btn ml-auto !py-1.5">🎙 СЛУШАТЬ</button></div>
+        <canvas id="gaud" class="w-full h-24 rounded-md bg-black/50 block"></canvas>
+        <div class="flex items-center gap-2 mt-2"><span id="gaudev" class="text-2xl w-10 text-center">—</span><div><div id="gaudn" class="text-[13px] font-semibold">микрофон выключен</div><div id="gauds" class="jv-sub">хлопки, щелчки и свист ловятся по форме звука</div></div></div>
+        <div id="gmap" hidden></div>
+      </div>
+      <div class="jv-tile"><div class="jv-label mb-2">Журнал жестов</div><div id="glog" class="font-mono text-[11px] text-jv-mute h-28 overflow-hidden flex flex-col justify-end"></div></div>
+    </div>
+  </div>
+
+  <div class="jv-tile mt-3">
+    <div class="flex flex-wrap items-center gap-2 mb-3"><span class="jv-label !mb-0">Все жесты · <span id="gcnt"></span></span><span class="jv-sub">подсвечивается то, что распознано сейчас · «симул.» — попробовать без камеры</span></div>
+    <div id="gcat"></div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+    <div class="jv-tile">
+      <div class="jv-label mb-2">Как это сделано · 25 строк</div>
+<pre class="code m-0"><span class="k">import</span> { GestureRecognizer, FilesetResolver } <span class="k">from</span> <span class="s">"@mediapipe/tasks-vision"</span>
+
+<span class="k">const</span> files = <span class="k">await</span> FilesetResolver.<span class="f">forVisionTasks</span>(WASM_URL)
+<span class="k">const</span> gr = <span class="k">await</span> GestureRecognizer.<span class="f">createFromOptions</span>(files, {
+  baseOptions: { modelAssetPath: <span class="s">"gesture_recognizer.task"</span>, delegate: <span class="s">"GPU"</span> },
+  runningMode: <span class="s">"VIDEO"</span>, numHands: <span class="f">1</span> })
+
+<span class="k">function</span> <span class="f">loop</span>() {
+  <span class="k">const</span> r = gr.<span class="f">recognizeForVideo</span>(video, performance.<span class="f">now</span>())
+  <span class="k">const</span> g = r.gestures[<span class="f">0</span>]?.[<span class="f">0</span>]          <span class="c">// {categoryName:"Thumb_Up", score:0.93}</span>
+  <span class="k">const</span> pts = r.landmarks[<span class="f">0</span>]               <span class="c">// 21 точка {x,y,z} от 0 до 1</span>
+  <span class="k">if</span> (g?.score > <span class="f">.7</span>) <span class="f">holdThen</span>(<span class="f">600</span>, () => ACTIONS[g.categoryName]())
+  <span class="k">if</span> (<span class="f">dist</span>(pts[<span class="f">4</span>], pts[<span class="f">8</span>]) < <span class="f">.05</span>) <span class="f">click</span>(cursorX, cursorY)  <span class="c">// щипок</span>
+  <span class="k">if</span> (<span class="f">wristVelocityX</span>() > <span class="f">1.2</span>) <span class="f">nextDashboard</span>()      <span class="c">// свайп</span>
+  <span class="f">requestAnimationFrame</span>(loop)
+}</pre>
+    </div>
+    <div class="jv-tile">
+      <div class="jv-label mb-3">Что ещё распознаёт камера</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[13px]" id="camIdeas"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BUILDER ================= -->
+<section class="tab" id="build">
+  <div class="max-w-4xl mb-4">
+    <div class="h2">КОНСТРУКТОР: АГЕНТ САМ ДОСТРАИВАЕТ ВЁРСТКУ</div>
+    <p class="m-0 text-[14px] text-jv-text">Весь интерфейс стоит на общем фундаменте: <b>Tailwind CSS</b>, дизайн-токены <code class="text-jv-gold">jv-*</code> и набор компонентов <code class="text-jv-gold">.jv-tile .jv-label .jv-value…</code>. Агент получает их описание в системном промпте и может вернуть либо <b>JSON-спеку</b> (безопасно: рисует только готовые виджеты), либо <b>сырой HTML на Tailwind</b> (гибко: любая новая плитка). Попроси плитку, и она появится в дашборде «🤖 Агент».</p>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <div class="lg:col-span-2 flex flex-col gap-3">
+      <div class="jv-tile">
+        <div class="jv-label mb-2">Запрос агенту</div>
+        <div class="flex gap-2"><input id="bq" class="flex-1 min-w-0 bg-black/40 border border-solid border-jv-line rounded-lg text-jv-text px-3 py-2.5 font-mono text-[13px] outline-none focus:border-jv-cyan" placeholder="Добавь плитку…"><button id="bgo" class="jv-btn">СОБРАТЬ</button></div>
+        <div id="bchips" class="flex flex-wrap gap-1.5 mt-3"></div>
+        <div id="bsteps" class="mt-3 font-mono text-[11px] text-jv-mute min-h-[90px]"></div>
+      </div>
+      <div class="jv-tile">
+        <div class="flex items-center gap-2 mb-2"><div class="jv-label">Ответ модели</div>
+          <div class="ml-auto flex gap-1"><button class="jv-badge border-jv-cyan text-jv-cyan bg-transparent cursor-pointer" data-bv="json">JSON-спека</button><button class="jv-badge border-jv-line text-jv-mute bg-transparent cursor-pointer" data-bv="html">Tailwind HTML</button></div></div>
+        <pre id="bout" class="code m-0 max-h-80 overflow-auto text-[11px]">— пока пусто —</pre>
+      </div>
+    </div>
+    <div class="lg:col-span-3 flex flex-col gap-3">
+      <div class="jv-tile">
+        <div class="flex items-center gap-2 mb-3"><div class="jv-label">Превью · дашборд «🤖 Агент»</div><button id="bclear" class="ml-auto jv-badge border-jv-red text-jv-red bg-transparent cursor-pointer">очистить</button><button id="bopen" class="jv-badge border-jv-cyan text-jv-cyan bg-transparent cursor-pointer">открыть в дашбордах →</button></div>
+        <div id="bprev" class="grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-[160px]"></div>
+      </div>
+      <div class="jv-tile">
+        <div class="flex items-center gap-2 mb-2"><div class="jv-label">Песочница: сырой Tailwind-HTML</div><span class="jv-sub">так агент рисует то, чего нет в библиотеке</span></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <textarea id="braw" spellcheck="false" class="w-full h-64 bg-black/50 border border-solid border-jv-line rounded-lg text-[#bfefff] p-3 font-mono text-[11.5px] leading-relaxed outline-none focus:border-jv-cyan resize-y"></textarea>
+          <div><div id="brawprev" class="min-h-[120px]"></div><div class="flex gap-2 mt-3"><button id="brawgo" class="jv-btn">РЕНДЕР</button><button id="brawadd" class="jv-btn">+ В ДАШБОРД</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+    <div class="jv-tile"><div class="jv-label mb-2">Системный промпт агента-верстальщика</div><pre id="bsys" class="code m-0 text-[11px] max-h-96 overflow-auto"></pre></div>
+    <div class="jv-tile"><div class="jv-label mb-2">UI-кит · виджеты, которые он знает</div><div id="bkit" class="flex flex-wrap gap-1.5"></div>
+      <div class="jv-sub mt-4 leading-relaxed">Почему так, а не «пусть пишет любой CSS»: общие токены дают единый стиль, Tailwind-классы модель знает наизусть (их полно в обучающих данных), а JSON-спеку легко проверить. Сырой HTML перед вставкой чистится: без &lt;script&gt; и on*-атрибутов.</div></div>
+  </div>
+</section>
+
+<!-- ================= GALLERY ================= -->
+<section class="tab" id="gal">
+  <div class="lead">
+    <div class="h2">ГАЛЕРЕЯ ОТВЕТОВ</div>
+    <p>Современный джарвис не только говорит: он <b>рисует ответ</b>. Модель возвращает не просто текст, а <b>структурированный блок</b> (JSON): «вот диаграмма», «вот график», «вот конспект видео». Интерфейс превращает этот JSON в виджет. Этот приём называют <b>Generative UI</b>.</p>
+    <p style="color:var(--mut)">У каждой карточки есть кнопка <span style="color:var(--cy)">{ } JSON модели</span>: это то, что на самом деле приходит от нейросети. Кнопка «▶ спросить» задаёт тот же вопрос в интерфейсе, с голосом и вызовами инструментов.</p>
+  </div>
+  <div class="gal" id="galgrid"></div>
+</section>
+
+<!-- ================= DATA ================= -->
+<section class="tab" id="data">
+  <div class="lead">
+    <div class="h2">ДАННЫЕ ВНУТРИ</div>
+    <p>Что хранит и гоняет джарвис под капотом. Это не картинки: история диалога и шина событий <b>живые</b> и обновляются, когда ты общаешься с ним во вкладке «Интерфейс».</p>
+  </div>
+  <div class="dgrid">
+    <div class="panel">
+      <div class="ph">Граф знаний о тебе <span>тяни узлы мышкой · колесо = зум</span></div>
+      <p class="note">После каждого разговора отдельный вызов LLM вытаскивает из диалога факты в виде троек <b>(субъект → связь → объект)</b> и кладёт их в графовую БД (Neo4j, networkx или просто SQLite). Потом на вопрос «с кем у меня обед?» он идёт по связям графа.</p>
+      <div id="biggraph"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Тройки графа <span>то, что лежит в БД</span></div>
+      <div class="triples" id="triples"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <div class="ph">Векторная память: поиск по смыслу <span>эмбеддинги + косинусная близость</span></div>
+    <p class="note">Каждое воспоминание превращается в вектор: сотни или тысячи чисел, здесь показаны цветной полоской. Похожие по смыслу фразы дают похожие полоски. Вопрос тоже превращается в вектор, и находятся ближайшие воспоминания (это RAG). Напиши что-нибудь, например «что я пью по утрам» или «машина».</p>
+    <div class="inputbar" style="margin:0 0 10px"><input id="vq" value="что я пью по утрам" placeholder="Запрос к памяти…"></div>
+    <div class="vrow" style="border:0"><span style="color:var(--cy)">вектор запроса</span><span></span><canvas id="vqv" width="96" height="1"></canvas></div>
+    <div id="vres"></div>
+  </div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="panel">
+      <div class="ph">История диалога · messages[] <span>ровно это уходит в API</span></div>
+      <p class="note">Модель ничего не помнит сама: при каждом запросе ей отправляется вся история, включая вызовы инструментов (<code>tool_use</code>) и их результаты (<code>tool_result</code>). Поговори с ним, и здесь появятся новые записи.</p>
+      <div class="livejson" id="hist"></div>
+    </div>
+    <div class="panel">
+      <div class="ph">Шина событий · WebSocket <span>Python-ядро → HUD</span></div>
+      <p class="note">Голосовое ядро (Python) и интерфейс (браузер) — разные программы. Они общаются короткими JSON-событиями, а интерфейс по ним перерисовывает реактор, чат и виджеты.</p>
+      <div class="bus" id="bus"></div>
+    </div>
+  </div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="panel"><div class="ph">Как он «читает» статью <span>пайплайн</span></div><div class="mer" data-mer="flowchart TD
+  U[Ссылка от пользователя] --> F[fetch HTML]
+  F --> R[Readability: вырезать меню и рекламу]
+  R --> M[Markdown ~6 000 слов]
+  M --> C{Длинная?}
+  C -- нет --> L[LLM: TL;DR + тезисы + цитаты]
+  C -- да --> S[Нарезать на чанки] --> P[Пересказ каждого] --> L
+  L --> J[JSON-блок type=article]
+  J --> H[HUD рисует карточку]
+  L --> V[TTS зачитывает TL;DR]"></div></div>
+    <div class="panel"><div class="ph">Как он «смотрит» видео <span>пайплайн</span></div><div class="mer" data-mer="flowchart TD
+  U[YouTube-ссылка] --> D[yt-dlp]
+  D --> A[Аудиодорожка] --> W[Whisper: транскрипт с таймкодами]
+  D --> K[Кадры раз в 10 сек] --> X[Отсев похожих кадров]
+  X --> VM[Vision-модель: что на кадре]
+  W --> L[LLM: главы, конспект, ключевые моменты]
+  VM --> L
+  L --> J[JSON type=video]
+  J --> H[Плеер с главами в HUD]"></div></div>
+  </div>
+</section>
+
+<footer>Макет интерфейса · демо-ответы сгенерированы локально в браузере, без настоящей нейросети · 🎙 работает в Chrome/Safari через Web Speech API</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="js/01-core.js"></script>
+
+<script src="js/02-rich-answers.js"></script>
+<link rel="stylesheet" href="css/dash.css">
+<div id="aircur" hidden></div><div id="flash"></div>
+<script src="js/03-dashboards-gestures-builder.js"></script>
+
+<script src="js/04-second-brain.js"></script>
+
+<script src="js/05-lab-1.js"></script>
+<script src="js/06-lab-2.js"></script>
+<script src="js/07-lab-3.js"></script>
+<script src="js/08-llm-brain.js"></script>
+<script src="js/09-gestures-2.js"></script>
+<script src="js/10-camera-ideas.js"></script>
+<script src="js/11-holo-hud.js"></script>
+<script src="js/12-shell.js"></script>
+<script src="js/13-thoughts.js"></script>
+<script src="js/14-holotable.js"></script>
+<script src="js/15-simulator.js"></script>
+<script src="js/16-rewind.js"></script>
+<script src="js/17-roadmap.js"></script>
+<script src="js/18-office.js"></script>
+<script src="js/19-integrations.js"></script>
+<script src="js/20-remote-pwa-xr.js"></script>
+</body>
+</html>

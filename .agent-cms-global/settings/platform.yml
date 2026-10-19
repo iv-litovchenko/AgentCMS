@@ -8,10 +8,6 @@ awn_settings:
   ui-density: comfortable
   ui-show-breadcrumbs: true
   ui-default-sidebar-width: 280
-  always-context-platform-readme: true
-  always-context-global-response-style: true
-  always-context-global-rules: true
-  always-context-global-markdown-showcase: false
   always-context-md-files: AGENTS.md
   always-context-ws-folder: awn-topics/0-shared/0-context/awn-storage/
   mcp-mode: standard

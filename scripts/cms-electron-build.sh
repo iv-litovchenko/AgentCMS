@@ -16,6 +16,14 @@ ensure_node_gyp_python || {
   exit 1
 }
 
+for entry in server.js voice-server.js commander-server.js; do
+  if ! node --check "$ROOT/$entry" >/dev/null 2>&1; then
+    echo "Синтаксическая ошибка в $entry — сборка desktop отменена."
+    node --check "$ROOT/$entry" || true
+    exit 1
+  fi
+done
+
 MODE="${1:-pack}"
 case "$MODE" in
   pack)

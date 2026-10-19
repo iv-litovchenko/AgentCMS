@@ -19,8 +19,18 @@ import {
   deleteContent,
   listContentItems,
   listSectionCapableSlotKeys,
+  mergeContent,
+  splitContent,
+  readContentBinary,
+  writeContentBinary,
+  writeContentBinaryFromUrl,
+  getContentBinaryUrl,
+  getWorkspaceUrlPagePreview,
   withMdRefFallback
 } from "./content-core.js";
+import { jsonText } from "./client.js";
+import { formatReadFileToolResult } from "./workspace-fs-tools.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 import {
   buildContentSlotSchema,
   withContentAddress,
@@ -113,6 +123,63 @@ export function registerContentTools({ reg, client, pagePath }) {
       })
       .strict(),
     (args) => listContentItems(client, args)
+  );
+
+  reg(
+    "get_content_binary_url",
+    "Absolute HTTPS URL to view binary content (image opens directly in browser). Same placement as read_content_binary. " +
+      "Optional thumb + max for images. Does not return file bytes.",
+    address({
+      thumb: z.boolean().optional().describe("Request thumbnail for images (default true)"),
+      max: z.number().int().min(64).max(2000).optional().describe("Thumbnail max px (default server 480)")
+    }),
+    (args) => getContentBinaryUrl(client, args)
+  );
+
+  reg(
+    "get_workspace_url_page_preview",
+    "Preview card for an internal Agent CMS .md page: title, excerpt, preview image URL, openUrl (CHPU). " +
+      "Use path (workspace-relative .md) or placement with .md ref (topic/channel/…).",
+    address({
+      path: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Workspace .md path; alternative to placement.ref"),
+      view: z.string().optional().describe("Optional CHPU view for openUrl (edit, nav, …)"),
+      forceView: z.boolean().optional()
+    }),
+    (args) => getWorkspaceUrlPagePreview(client, args)
+  );
+
+  reg(
+    "read_content_binary",
+    "Read a binary file by placement (same address as read_content). Always base64; images also return MCP image content. " +
+      "Not for .md — use read_content. Partial read: maxBytes, offsetBytes.",
+    address({
+      maxBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(1_500_000)
+        .optional()
+        .describe("Max bytes to return as base64 (default server limit)"),
+      offsetBytes: z.number().int().min(0).optional().describe("Byte offset for partial binary read")
+    }),
+    (args) => readContentBinary(client, args),
+    { formatResult: (data) => formatReadFileToolResult(data, jsonText) }
+  );
+
+  reg(
+    "write_content_binary",
+    "Write/upload a binary file by placement. data (base64) required; mimeType optional. " +
+      "Same paths as write_content data=… — prefer this tool for agents. Not for .md text.",
+    address({
+      data: z.string().min(1).describe("Base64-encoded file bytes"),
+      mimeType: z.string().optional(),
+      createSubdir: z.boolean().optional().describe("Create subdirs in ref (default true)")
+    }),
+    (args) => writeContentBinary(client, args)
   );
 
   reg(
@@ -236,18 +303,28 @@ export function registerContentTools({ reg, client, pagePath }) {
     (args) => createContent(client, args)
   );
 
-  reg(
-    "import_content_from_url",
-    "Download a file from http(s) URL into an external slot.",
-    address({
-      url: z.string().url(),
-      fileName: z.string().min(1).optional(),
-      mimeType: z.string().optional(),
-      parent: z.string().optional(),
-      createSubdir: z.boolean().optional()
-    }),
-    (args) => importContentFromUrl(client, args)
-  );
+  const writeContentBinaryFromUrlSchema = address({
+    url: z.string().url(),
+    fileName: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Target file name or ref path if placement.ref omitted, e.g. pasted/photo.png"),
+    mimeType: z.string().optional(),
+    parent: z.string().optional().describe("Subfolder under slot (legacy alias for ref prefix)"),
+    createSubdir: z.boolean().optional()
+  });
+  const writeContentBinaryFromUrlHandler = (args) => writeContentBinaryFromUrl(client, args);
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "write_content_binary_from_url",
+    legacy: "import_content_from_url",
+    description:
+      "Download http(s) URL into a binary file by placement (same slots as write_content_binary). " +
+      "Requires placement.ref or fileName; not for .md text.",
+    schema: writeContentBinaryFromUrlSchema,
+    handler: writeContentBinaryFromUrlHandler
+  });
 
   reg(
     "rename_content",
@@ -279,6 +356,31 @@ export function registerContentTools({ reg, client, pagePath }) {
       confirm: z.boolean().optional()
     }),
     (args) => deleteContent(client, args)
+  );
+
+  reg(
+    "split_content",
+    "Split one .md note into several files by top-level H1 lines (# title — single # only). " +
+      "Each part gets title «Base (n)» from source title or file name; preamble before first H1 → «Base (0)» when includePreamble. " +
+      "New refs: same folder, {stem}-0.md, {stem}-1.md, … Copies frontmatter; updates title and id per part. deleteSource defaults true.",
+    address({
+      includePreamble: z.boolean().optional().describe("Create part (0) for body before first H1 (default true)"),
+      deleteSource: z.boolean().optional().describe("Delete source file after split (default true)")
+    }),
+    (args) => withMdRefFallback(args, (a) => splitContent(client, a))
+  );
+
+  reg(
+    "merge_content",
+    "Merge several .md notes into one (same placement slot). Bodies joined with --- between parts. " +
+      "Keeps target file frontmatter; optional union of tags (mergeTags, default true). targetRef must be in refs (default first). deleteSources optional.",
+    address({
+      refs: z.array(z.string().min(1)).min(2).describe("Markdown refs in merge order, e.g. [\"a.md\", \"b.md\"]"),
+      targetRef: z.string().min(1).optional().describe("Which ref receives merged body (default: first in refs)"),
+      mergeTags: z.boolean().optional().describe("Union tags from all sources (default true)"),
+      deleteSources: z.boolean().optional().describe("Delete non-target refs after merge (default false)")
+    }),
+    (args) => mergeContent(client, args)
   );
 }
 

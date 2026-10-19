@@ -159,6 +159,18 @@ function getProjectRoot() {
   return REPO_ROOT;
 }
 
+function getControlUiIndexPath() {
+  const bundled = path.join(__dirname, "ui", "index.html");
+  try {
+    const root = getProjectRoot();
+    const devUi = path.join(root, "desktop", "agent-control", "ui", "index.html");
+    if (fs.existsSync(devUi)) return devUi;
+  } catch {
+    // use bundled UI
+  }
+  return bundled;
+}
+
 function loadActionsModule() {
   const root = getProjectRoot();
   const devPath = path.join(root, "desktop", "agent-control", "actions.js");
@@ -312,12 +324,14 @@ async function probeServerStatus() {
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
 
-  const [cmsPid, voicePid] = await Promise.all([
+  const [cmsPid, voicePid, commanderPid] = await Promise.all([
     getPortPid(ports.editorHttps),
-    getPortPid(ports.voiceHttps)
+    getPortPid(ports.voiceHttps),
+    getPortPid(ports.commanderHttp)
   ]);
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
+  const commander = Boolean(commanderPid);
   const running = cms || voice;
   const autoStart = await probeLaunchAgentStatus();
   let mode = "off";
@@ -331,7 +345,9 @@ async function probeServerStatus() {
 
   let uptimeSec = null;
   if (running) {
-    const pidCandidates = [cmsPid, voicePid, supervisorAlive ? supervisorPid : null].filter(Boolean);
+    const pidCandidates = [cmsPid, voicePid, commanderPid, supervisorAlive ? supervisorPid : null].filter(
+      Boolean
+    );
     for (const pid of pidCandidates) {
       const elapsed = await getProcessUptimeSec(pid);
       if (elapsed != null) {
@@ -353,6 +369,7 @@ async function probeServerStatus() {
     running,
     cms,
     voice,
+    commander,
     supervisorAlive,
     supervisorPid,
     mode,
@@ -373,7 +390,9 @@ async function probeServerStatus() {
               : "остановлен",
     urls: {
       cms: cms ? `https://localhost:${ports.editorHttps}` : null,
-      voice: voice ? `https://localhost:${ports.voiceHttps}` : null
+      voice: voice ? `https://localhost:${ports.voiceHttps}` : null,
+      commanderHttp: commander ? `http://localhost:${ports.commanderHttp}/` : null,
+      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null
     }
   };
 }
@@ -408,7 +427,13 @@ async function forceStopServerPorts() {
   const { execFileSync } = require("child_process");
   const { getServerPortsPayload } = loadActionsModule();
   const ports = getServerPortsPayload();
-  const portList = [ports.voiceHttps, ports.voiceHttp, ports.editorHttps, ports.editorHttp];
+  const portList = [
+    ports.commanderHttp,
+    ports.voiceHttps,
+    ports.voiceHttp,
+    ports.editorHttps,
+    ports.editorHttp
+  ];
   const pids = new Set();
 
   for (const port of portList) {
@@ -850,7 +875,11 @@ async function createWindow() {
   });
 
   mainWindow.once("ready-to-show", () => mainWindow?.show());
-  await mainWindow.loadFile(path.join(__dirname, "ui", "index.html"));
+  const uiIndex = getControlUiIndexPath();
+  await mainWindow.loadFile(uiIndex);
+  if (app.isPackaged && uiIndex.includes(`${path.sep}desktop${path.sep}agent-control${path.sep}ui${path.sep}`)) {
+    sendLog(`UI из репозитория (не из .app): ${uiIndex}\n`);
+  }
 
   mainWindow.on("closed", () => {
     stopAllActiveTasks();

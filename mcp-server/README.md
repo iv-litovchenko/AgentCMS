@@ -56,14 +56,14 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | **Контент (`placement`)** | Открыть/сохранить **один** файл в слоте или по пути workspace | `read_content`, `write_content`, `list_content`, `list_slots`, `create_content`, … |
 | **Индексы и поиск** | Оглавление, hub-каталог, найти по workspace, пересобрать кэш | `read_*_index_toc`, `refresh_*_index_toc`, `read_workspace_map`, `search_workspace_*`, `rebuild_workspace_*`, … (legacy: `get_topic_map`, `get_content_map`) |
 
-Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `workspaces/0-md/GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
+Нет `placement.kind: index` — индексы остаются **отдельными** именованными tools (см. `GLOBAL-SKILL-1-BASE.md`, раздел 14). Search и rebuild в `read_content` не добавлять без отдельного продуктового решения.
 
 ### Канон (PAGE · SLOT · CONTENT)
 
 | Группа | Tools |
 |--------|-------|
 | Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_ui_focus`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
-| Platform | `get_platform_info`, `get_platform_health` (нужен `workspaceId`), `list_platform_docs`, `read_platform_doc`, `write_platform_doc` (только `.md` в корне репо), `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
+| Platform | `get_platform_info`, `get_platform_health` (нужен `workspaceId`), `list_platform_docs`, `read_platform_doc`, `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
 | Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_folder`; `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
 | Тема (manifest) | `read/write_topic_*`, `read/write_topic_property`, `read/write_topic_config`, `topic_exists`, `get_topic_meta`, `read/write_topic_env`, `create_topic`, `delete_topic`, `rename_topic`, `move_topic` |
 | Слот | `list_slots` |
@@ -75,16 +75,16 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 | Fact bank | `create_workspace_fact`, `update_workspace_fact`, `list_workspace_facts`, `search_workspace_facts` → `awn-databases/contents/facts` |
 | Glossary | `create_glossary_term`, `update_glossary_term`, `list_glossary_terms`, `search_glossary_terms` → `awn-databases/contents/glossary` |
 | Reference | `create_reference_entry`, `update_reference_entry`, `list_reference_entries`, `search_reference_entries` → `awn-databases/contents/reference` |
-| FS | `list_root_files`, `read_root_file`, `write_root_file` (aliases: `list_system_files`, `read_system_file`, `write_system_file`), `read_file`, `write_file`, `patch_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
+| FS | `list_root_files`, `read_root_file`, `write_root_file` (aliases: `list_system_files`, `read_system_file`, `write_system_file`), `patch_file`, `list_folder`, `batch_invoke`; legacy (`MCP_LEGACY_TOOLS=1`): `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
 | Медиа в облако | `list_media_cloud_providers`, `get_media_cloud_file_status`, `sync_media_cloud_file`, `repair_media_cloud_links`; заглушки: `upload_media_cloud_to_provider_zzz`, `get_remote_url_zzz` |
 
-Бинарники и media — **`upload_file`** (base64) или **`upload_file_from_url`** по полному workspace path; в слот темы — **`import_content_from_url`**.  
+Бинарники в слот — **`write_content_binary`** / **`write_content_binary_from_url`** (`placement` + ref); legacy path upload — только **`MCP_LEGACY_TOOLS=1`** (`upload_file`, …). Alias: **`import_content_from_url`** → **`write_content_binary_from_url`**.  
 Локальная выгрузка в **`awn-media-cloud/_blobs/`** (симлинк на месте файла) — **`sync_media_cloud_file`**; удалённый API-провайдер — пока только заглушки `*_zzz`.
 
 ## Документация
 
-- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; полный welcome — скилл `workspaces/0-md/GLOBAL-SKILL-0-MCP-WELCOME.md` (установить в клиенте). Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
+- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; welcome — скилл `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный; без него — `read_platform_doc`. Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
 - HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск

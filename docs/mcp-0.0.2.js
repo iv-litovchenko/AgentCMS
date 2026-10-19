@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 87 tools",
+  versionLabel: "Per-chat agentId · 90 tools (87 canonical + 3 legacy aliases)",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -11,7 +11,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool). Живой список tools — mcp-server/ после перезапуска.",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
-    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → get_session_documentation при необходимости → все tools с тем же agentId.",
+    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId. Доки: list_platform_docs / read_platform_doc.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): read_content / write_content / list_content; kind topic|channel|media|database|repository|root (legacy page на входе); legacy path+slot без placement → topic.",
     "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
@@ -63,7 +63,7 @@ module.exports = {
         },
         {
           name: "get_session_context",
-          description: "После list_workspaces: topicRegistry, alwaysContext для выбранного agentId.",
+          description: "После list_workspaces: wsMap (карта manifest.md) + alwaysContext (файлы всегда в контексте) для выбранного agentId.",
           parameters: "agentId",
           http: "GET /api/agent/session-context?agent="
         },
@@ -75,26 +75,23 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
-          name: "get_session_documentation",
-          description: "README, GLOBAL-DOC-MARKDOWN (platform toggles). Not in session-context.",
-          parameters: "docs? (filter file names)",
-          http: "GET /api/agent/session-documentation?docs="
-        },
-        {
-          name: "list_workspace_always_context",
-          description: "Workspace always-context (same block as session): runtime-load-always, RULES, RESPONSE-STYLE, ws/.",
+          name: "get_workspace_always_context_registry",
+          legacyName: "list_workspace_always_context",
+          description: "Реестр always-context (items с content): load-always, system md, ws-folder.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
         {
-          name: "list_workspace_cron",
-          description: "Индекс awn-runtime-cron (+ schedule).",
+          name: "get_workspace_cron_registry",
+          legacyName: "list_workspace_cron",
+          description: "Реестр awn-runtime-cron (+ schedule), без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/cron-registry"
         },
         {
-          name: "list_workspace_heartbeat",
-          description: "Индекс awn-runtime-heartbeat.",
+          name: "get_workspace_heartbeat_registry",
+          legacyName: "list_workspace_heartbeat",
+          description: "Реестр awn-runtime-heartbeat, без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
         },

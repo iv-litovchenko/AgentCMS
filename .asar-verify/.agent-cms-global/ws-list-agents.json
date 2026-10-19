@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "0-ws-core",
+      "path": "workspaces/0-ws-core",
+      "environment": "local"
+    },
+    {
+      "id": "0-ws-test",
+      "path": "workspaces/0-ws-test",
+      "environment": "local"
+    },
+    {
+      "id": "agent-focus",
+      "path": "/Users/macbook/Desktop/agent-focus",
+      "environment": "local",
+      "orchestrator": true
+    },
+    {
+      "id": "agent-medcenter",
+      "path": "/Users/macbook/Desktop/agent-medcenter",
+      "environment": "local",
+      "default": true
+    },
+    {
+      "id": "downloads",
+      "path": "/Users/macbook/Downloads",
+      "environment": "local"
+    },
+    {
+      "id": "moikomp",
+      "path": "/Users/macbook/Desktop/moikomp",
+      "environment": "local"
+    },
+    {
+      "id": "school-vs",
+      "path": "workspaces/school-vs",
+      "environment": "local"
+    },
+    {
+      "id": "test3",
+      "path": "workspaces/test3",
+      "environment": "local"
+    },
+    {
+      "id": "000",
+      "path": "workspaces/000",
+      "environment": "local"
+    },
+    {
+      "id": "test-claude",
+      "path": "workspaces/test-claude",
+      "environment": "local"
+    },
+    {
+      "id": "test-2",
+      "path": "workspaces/test-2",
+      "environment": "local"
+    }
+  ]
+}

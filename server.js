@@ -21,6 +21,7 @@ const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./lib/me
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
+const { startCommanderServer, stopCommanderServer } = require("./desktop/agent-commander/server");
 const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
@@ -48,6 +49,7 @@ const {
   WORKSPACE_WSMAP_LEGACY_FILE,
   walkWorkspaceManifestFiles,
   collectAllWorkspaceManifestRels,
+  collectWorkspaceRootEntries,
   buildWsmapMarkdown
 } = require("./lib/workspace/wsmap-service");
 const {
@@ -416,6 +418,14 @@ const { isSchemaModFileName } = require("./lib/config/schema-mod-paths");
 const { rewriteAgentMarkdownLinks } = require("./lib/tools/markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./lib/tools/broken-links-scanner");
 const {
+  listShortLinks,
+  getShortLinkByCode,
+  findShortLinkByTargetPath,
+  createShortLink,
+  deleteShortLink,
+  readTargetDisplayMeta
+} = require("./lib/services/workspace-short-links-service");
+const {
   getMergedCatalogsPayload,
   getCatalogLookupMaps,
   loadSchemasCatalogPreset,
@@ -504,6 +514,12 @@ const {
   removeFileFromFileHub,
   clearFileHubQueue
 } = require("./lib/api/file-hub-queue-api");
+const {
+  readContextBuffer,
+  appendContextBuffer,
+  removeContextBufferItem,
+  clearContextBuffer
+} = require("./lib/api/context-buffer-api");
 const { readPomodoroState, writePomodoroState } = require("./lib/api/pomodoro-rest-api");
 const NodeConfigBundle = require("./lib/config/node-config-bundle");
 const {
@@ -520,7 +536,6 @@ const {
   isPlatformIndexEnabled,
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
-  isPlatformAlwaysContextEnabled,
   getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder,
   getMediaCloudProviders,
@@ -573,9 +588,16 @@ const {
   buildPlatformHealthFromMonitor,
   readRepoRootDiskSummary
 } = require("./lib/platform/platform-mcp-service");
+const {
+  mapPublicUrlPathToDisk,
+  rewritePublicRequestPath,
+  getEditorIndexDiskPath,
+  resolvePublicDiskPath
+} = require("./lib/config/public-static-layout");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(
   __dirname,
   "public",
+  "editor",
   "js",
   "core",
   "slug-translit.js"
@@ -588,7 +610,7 @@ const {
   displayNameFromMaskPath,
   maskUsesId,
   extractAwnMaskFileValue
-} = require(path.join(__dirname, "public", "js", "editor", "external-file-mask.js"));
+} = require(path.join(__dirname, "public", "editor", "js", "editor", "external-file-mask.js"));
 
 const execFileAsync = promisify(execFile);
 
@@ -597,6 +619,7 @@ let projectRoot = __dirname;
 let httpServer = null;
 let httpsServer = null;
 let voiceServerInfo = null;
+let commanderServerInfo = null;
 
 function getAppRoot() {
   return appRoot;
@@ -765,43 +788,6 @@ const GLOBAL_RULES_FILE = "GLOBAL-SKILL-3-RULES.md";
 const GLOBAL_DOC_MARKDOWN_FILE = "GLOBAL-SKILL-4-MARKDOWN.md";
 const PLATFORM_README_FILE = "README.md";
 const PLATFORM_LANDING_DIAGRAM_FILE = "README.diagram.md";
-
-const SESSION_ALWAYS_PLATFORM_FILES = [
-  {
-    file: GLOBAL_RESPONSE_STYLE_FILE,
-    settingKey: "always-context-global-response-style",
-    description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)",
-    root: "global-md"
-  },
-  {
-    file: GLOBAL_RULES_FILE,
-    settingKey: "always-context-global-rules",
-    description: "Глобальные правила для всех хранилищ",
-    root: "global-md"
-  }
-];
-
-/** Platform docs loaded on demand via get_session_documentation (not in session-context). */
-const SESSION_DOCUMENTATION_PLATFORM_FILES = [
-  {
-    file: PLATFORM_README_FILE,
-    settingKey: "always-context-platform-readme",
-    description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
-    root: "project"
-  },
-  {
-    file: GLOBAL_DOC_MARKDOWN_FILE,
-    settingKey: "always-context-global-markdown-showcase",
-    description: "Справочник поддерживаемой markdown-разметки в preview (markdown-it)",
-    root: "global-md"
-  }
-];
-
-/** @deprecated use SESSION_ALWAYS_PLATFORM_FILES + SESSION_DOCUMENTATION_PLATFORM_FILES */
-const PLATFORM_ALWAYS_CONTEXT_FILES = [
-  ...SESSION_DOCUMENTATION_PLATFORM_FILES,
-  ...SESSION_ALWAYS_PLATFORM_FILES
-];
 
 const ALWAYS_CONTEXT_WS_EXTENSIONS = new Set([".md", ".yml", ".yaml", ".txt"]);
 
@@ -1238,8 +1224,6 @@ function sendJson(res, statusCode, payload, extraHeaders = null) {
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
 const {
-  GLOBAL_PLATFORM_MD_REL,
-  getGlobalPlatformMdDirAbs,
   resolveGlobalPlatformMdAbs,
   globalPlatformMdDisplayPath
 } = require("./lib/paths/global-platform-md");
@@ -7920,7 +7904,7 @@ function buildStorageSectionReadmeContent(title, awnType = "awn.content.category
 
 function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
   if (slotKey) {
-    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/js/core/topic-schema-slot-specs.js");
+    const { resolveTopicSchemaTargetIdForAwnType } = require("./public/editor/js/core/topic-schema-slot-specs.js");
     const resolved = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
     if (resolved) return resolved;
   }
@@ -7992,7 +7976,7 @@ async function buildSlotContentFileContentForManifest(
   const {
     resolveSlotContentKindTypeName,
     resolveTopicSchemaTargetIdForAwnType
-  } = require("./public/js/core/topic-schema-slot-specs.js");
+  } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const safeTitle = String(title || "Запись").trim() || "Запись";
   const awnType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const schemaTarget = resolveTopicSchemaTargetIdForAwnType(slotKey, awnType);
@@ -8110,7 +8094,7 @@ function countFrontmatterKeys(frontmatter) {
 }
 
 function shouldEnrichTypedSlotMarkdown(frontmatter, contentKind = "record", slotKey = "") {
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const rawType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
   if (!rawType) return true;
@@ -8130,7 +8114,7 @@ async function enrichTypedSlotMarkdownContent(
     return String(content ?? "");
   }
 
-  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/js/core/topic-schema-slot-specs.js");
+  const { resolveSlotContentKindTypeName, normalizeAwnContentTypeName } = require("./public/editor/js/core/topic-schema-slot-specs.js");
   const expectedType = resolveSlotContentKindTypeName(slotKey, contentKind);
   const { frontmatter: userFrontmatter, body: userBody } = splitNodeFrontmatter(String(content || ""));
   const diskFrontmatter = String(options.diskFrontmatter || "").trim();
@@ -12000,7 +11984,7 @@ async function buildAgentTopicRegistry() {
   return {
     version: 1,
     model: "topic-registry",
-    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или list_workspace_always_context.",
+    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_topic_body или get_workspace_always_context_registry.",
     topics,
     topicCount: topics.length
   };
@@ -12064,47 +12048,6 @@ async function collectAlwaysContextWsFolderItems(agentRoot, folderRel) {
   return results;
 }
 
-async function loadSessionPlatformDocItems(platformSettings, entries, { entityKind = "platform-doc" } = {}) {
-  const items = [];
-  for (const entry of entries) {
-    if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
-      continue;
-    }
-    try {
-      const platformRoot = getAppRoot();
-      const docRoot =
-        entry.root === "project"
-          ? platformRoot
-          : entry.root === "global-md"
-            ? getGlobalPlatformMdDirAbs(platformRoot)
-            : getPlatformAgentRootAbsolute(platformRoot);
-      const docAbsolute = path.join(docRoot, entry.file);
-      if (!(await fileExists(docAbsolute))) continue;
-      const content = await fs.readFile(docAbsolute, "utf-8");
-      items.push({
-        entityKind,
-        manifestPath: null,
-        slot: null,
-        ref: entry.file,
-        label: entry.file,
-        displayPath:
-          entry.root === "project"
-            ? entry.file
-            : entry.root === "global-md"
-              ? globalPlatformMdDisplayPath(entry.file)
-              : `workspaces/0-ws-core/${entry.file}`,
-        description: entry.description,
-        runtimeLoadAlways: entityKind === "platform-always",
-        exists: true,
-        content
-      });
-    } catch {
-      // skip unreadable platform doc
-    }
-  }
-  return items;
-}
-
 async function buildAgentAlwaysContextRegistry() {
   let platformSettings = {};
   try {
@@ -12156,13 +12099,6 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
-  // Platform rules + response style (session-context); MCP map / README → get_session_documentation.
-  items.push(
-    ...(await loadSessionPlatformDocItems(platformSettings, SESSION_ALWAYS_PLATFORM_FILES, {
-      entityKind: "platform-always"
-    }))
-  );
-
   const wsFolder = getPlatformAlwaysContextWsFolder(platformSettings);
   if (wsFolder && agentRoot) {
     const wsItems = await collectAlwaysContextWsFolderItems(agentRoot, wsFolder);
@@ -12173,63 +12109,11 @@ async function buildAgentAlwaysContextRegistry() {
     version: 1,
     model: "always-context",
     hint:
-      "Workspace always-context: awn-runtime-load-always + workspace system .md + GLOBAL-RULES + GLOBAL-RESPONSE-STYLE + ws/. " +
-      "Platform docs (README, GLOBAL-DOC-MARKDOWN): get_session_documentation.",
+      "Workspace always-context: awn-runtime-load-always + workspace system .md (AGENTS.md, …) + ws-folder. " +
+      "GLOBAL-SKILL-* — скиллы клиента или read_platform_doc (не в session-context).",
     items,
     itemCount: items.length
   };
-}
-
-async function buildAgentSessionDocumentationRegistry(options = {}) {
-  let platformSettings = {};
-  try {
-    platformSettings = await getPlatformSettings(getProjectRoot());
-  } catch {
-    platformSettings = {};
-  }
-
-  const requested = parseSessionDocumentationDocFilter(options.docs || options.doc || options.files);
-  let entries = SESSION_DOCUMENTATION_PLATFORM_FILES;
-  if (requested.size) {
-    entries = entries.filter((entry) => requested.has(normalizeSessionDocumentationDocId(entry.file)));
-  }
-
-  const items = await loadSessionPlatformDocItems(platformSettings, entries, {
-    entityKind: "session-documentation"
-  });
-
-  return {
-    version: 1,
-    model: "session-documentation",
-    hint:
-      "Platform documentation on demand (not in get_session_context). Settings: always-context-platform-readme, always-context-global-markdown-showcase.",
-    items,
-    itemCount: items.length,
-    availableDocs: SESSION_DOCUMENTATION_PLATFORM_FILES.map((e) => e.file)
-  };
-}
-
-function normalizeSessionDocumentationDocId(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .toLowerCase();
-}
-
-function parseSessionDocumentationDocFilter(raw) {
-  const set = new Set();
-  const list = Array.isArray(raw)
-    ? raw
-    : String(raw || "")
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
-  for (const item of list) {
-    const id = normalizeSessionDocumentationDocId(item);
-    if (id) set.add(id);
-  }
-  return set;
 }
 
 async function buildAgentCronRegistry() {
@@ -13503,10 +13387,17 @@ async function buildWorkspaceManifestWsmapEntries() {
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
-async function buildWorkspaceWsmapMarkdown() {
-  const entries = await buildWorkspaceManifestWsmapEntries();
+async function buildWorkspaceWsmapMarkdown(precomputed = null) {
+  const agentRoot = getAgentRoot();
+  const [entries, rootEntries] = precomputed
+    ? [precomputed.entries, precomputed.rootEntries]
+    : await Promise.all([
+        buildWorkspaceManifestWsmapEntries(),
+        agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
+      ]);
   return buildWsmapMarkdown({
     entries,
+    rootEntries,
     formatEntriesTable: (rows) =>
       formatContentIndexEntriesMarkdown(rows, {
         emptyHint: "_В workspace не найдено manifest-узлов._",
@@ -13519,14 +13410,20 @@ async function buildAgentWorkspaceWsmap() {
   const indexPath = getWorkspaceWsmapRelPath();
   const indexExists = await workspaceRelFileExists(indexPath);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
-  const entries = await buildWorkspaceManifestWsmapEntries();
+  const agentRoot = getAgentRoot();
+  const [entries, rootEntries] = await Promise.all([
+    buildWorkspaceManifestWsmapEntries(),
+    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([])
+  ]);
   const entryCount = entries.length;
+  const rootEntryCount = rootEntries.length;
 
   return {
     version: 1,
     model: "workspace-wsmap",
     hint:
-      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …). " +
+      "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …) " +
+      "и список файлов/папок в корне вне hub-каталогов awn-*. " +
       "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
     whenToUse: {
       read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
@@ -13540,7 +13437,9 @@ async function buildAgentWorkspaceWsmap() {
     },
     entries,
     entryCount,
-    sourceCount: entryCount
+    sourceCount: entryCount,
+    rootEntries,
+    rootEntryCount
   };
 }
 
@@ -13583,11 +13482,13 @@ async function writeAgentWorkspaceWsmap(options = {}) {
       created: !payload.indexFile.exists,
       overwritten: Boolean(payload.indexFile.exists),
       entryCount: payload.entryCount,
-      sourceCount: payload.entryCount
+      sourceCount: payload.entryCount,
+      rootEntryCount: payload.rootEntryCount
     },
     indexFile: { path: indexPath, exists: true, source: "file" },
     entryCount: payload.entryCount,
-    sourceCount: payload.entryCount
+    sourceCount: payload.entryCount,
+    rootEntryCount: payload.rootEntryCount
   };
 }
 
@@ -14271,9 +14172,9 @@ async function resolveContentIndexEntryImportance(manifestRelPath, entry) {
 }
 
 const CONTENT_INDEX_SLOT_LABELS = {
-  memory: "Память (многофайловая)",
-  main: "Память (многофайловая)",
-  external: "Память (многофайловая)",
+  memory: "Память-страницы (многофайловая)",
+  main: "Память-страницы (многофайловая)",
+  external: "Память-страницы (многофайловая)",
   assets: "Активы",
   "task-queue": "Очередь задач",
   "agent-task-queue": "Очередь задач",
@@ -15036,9 +14937,8 @@ const SESSION_CONTEXT_API_MAP = {
   dependenciesWrite:
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
-  alwaysContext: "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: list_workspace_always_context",
-  sessionDocumentation:
-    "GET /api/agent/session-documentation?docs= — README, GLOBAL-DOC-MARKDOWN; MCP: get_session_documentation",
+  alwaysContext:
+    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: get_workspace_always_context_registry",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -15132,6 +15032,14 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFileHubRemove:
     "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
+  workspaceContextBuffer:
+    "GET /api/workspace/context-buffer — read_context_buffer MCP (.agent-cms/state/context-buffer.json)",
+  workspaceContextBufferAdd:
+    "POST /api/workspace/context-buffer/add — append_context_buffer MCP { type?, ref|path, title?, icon?, meta? }",
+  workspaceContextBufferRemove:
+    "POST /api/workspace/context-buffer/remove — remove_context_buffer_item MCP { id?, ref|path? }",
+  workspaceContextBufferClear:
+    "POST /api/workspace/context-buffer/clear — clear_context_buffer MCP",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
@@ -15166,21 +15074,6 @@ const SESSION_CONTEXT_API_MAP = {
     "DELETE /api/storage/sidecar?sourcePath=|path=&slot=&file= — delete_sidecar MCP"
 };
 
-const SESSION_PATH_HINTS = {
-  topicManifest:
-    "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-topics/finansydohody/manifest.md",
-  externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
-  internalSlot:
-    "Internal-слот: read_content / write_content part=body без ref (main-single, todo-single, roadmap-single, main-single-csv)",
-  agentKit:
-    "Служебные темы: awn-topics/0-agent-kit/0-agent/manifest.md, awn-topics/0-agent-kit/0-user/manifest.md",
-  storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
-  storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
-  adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
-  adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-topics/Материалы",
-  adoptFolderScan: "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
-};
-
 async function readWorkspaceManifestContent(relPath) {
   const canonical = String(await resolveCanonicalManifestRelPath(relPath)).replace(/\\/g, "/");
   const absolute = normalizeWorkspacePath(canonical);
@@ -15193,108 +15086,37 @@ async function readWorkspaceManifestContent(relPath) {
   }
 }
 
-async function readAgentSystemContext(agentRoot) {
-  const { getCmsConfigRel } = require("./lib/platform/platform-sources");
-  const cmsConfigRel = getCmsConfigRel(agentRoot);
-  const systemRoot = path.join(agentRoot, cmsConfigRel);
-  const readText = async (rel) => {
-    const abs = path.join(systemRoot, rel);
-    try {
-      const content = await fs.readFile(abs, "utf-8");
-      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: true, content };
-    } catch {
-      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
-    }
-  };
-  let typeSummary = null;
-  if (fsSync.existsSync(systemRoot)) {
-    try {
-      const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot);
-      typeSummary = {
-        sources: payload.sources || [],
-        typeCount: Array.isArray(payload.types) ? payload.types.length : 0,
-        domains: Object.keys(payload.domains || {}),
-        agentSystemRoot: payload.agentSystemRoot || null
-      };
-    } catch {
-      typeSummary = null;
-    }
-  }
-
-  return {
-    exists: fsSync.existsSync(systemRoot),
-    root: cmsConfigRel,
-    typeSummary,
-    docs: {
-      registry: await readText("registry.yml")
-    },
-    hint: `CMS-модель: ${GLOBAL_PLATFORM_MD_REL}/GLOBAL-SKILL-1-BASE.md + awn-system/types/slots/_base.yml (slot-categories)`
-  };
-}
-
+/**
+ * Стартовый пакет сессии (минимальный): карта workspace (WS-MAP, генерируется на лету, на диск не пишется)
+ * + файлы always-context (полный текст). Всё остальное — отдельными tools по запросу.
+ */
 async function buildAgentSessionContext() {
   const agentId = getActiveAgentId();
   const agentRoot = getAgentRoot();
-  const kitFolder = getAgentKitFolder() || "awn-topics/0-agent-kit";
   const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
 
-  const serviceDocs = [];
-  for (const slot of ["agent", "user", "agent.voice.tts", "agent.voice.stt"]) {
-    const manifestPath = `${kitFolder}/${slot}/manifest.md`;
-    const file = await readWorkspaceManifestContent(manifestPath);
-    serviceDocs.push({
-      slotKey: slot,
-      manifestPath: file.path,
-      exists: file.exists,
-      content: file.content
-    });
-  }
-
-  const [topicRegistry, alwaysContext, dataStoresSummary] = await Promise.all([
-    buildAgentTopicRegistry(),
-    buildAgentAlwaysContextRegistry(),
-    buildAgentDataStoresSummary()
+  const [wsMapEntries, rootEntries, alwaysContext] = await Promise.all([
+    buildWorkspaceManifestWsmapEntries(),
+    agentRoot ? collectWorkspaceRootEntries(agentRoot) : Promise.resolve([]),
+    buildAgentAlwaysContextRegistry()
   ]);
-
-  let menuSummary = null;
-  try {
-    const menu = await buildAgentMenu(agentRoot);
-    menuSummary = {
-      topicCount: (menu.items || []).length,
-      hasServiceTree: Boolean(menu.serviceTree),
-      hasContainerTree: Boolean(menu.containerTree),
-      hasSharedTree: Boolean(menu.sharedTree)
-    };
-  } catch {
-    menuSummary = null;
-  }
-
-  const awnSystem = await readAgentSystemContext(agentRoot);
-  const workspaceSettings = await readWorkspaceAgentSettings();
+  const wsMapMarkdown = await buildWorkspaceWsmapMarkdown({ entries: wsMapEntries, rootEntries });
 
   return {
-    version: "0.0.4",
+    version: "0.0.5",
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
     workspaceId: agentId,
-    agentId,
     agentRootRel,
-    kitFolder,
-    pathHints: SESSION_PATH_HINTS,
-    menuSummary,
-    awnSystem,
-    platformSettings: workspaceSettings.platform,
-    workspaceSettings: workspaceSettings.workspace,
-    serviceDocs,
-    topicRegistry,
-    topicCount: topicRegistry.topicCount,
-    dataStoresSummary,
-    dataStoreCount: dataStoresSummary.dataStoreCount,
-    dataRecordCount: dataStoresSummary.recordCount,
+    wsMap: {
+      markdown: wsMapMarkdown,
+      entryCount: wsMapEntries.length,
+      rootEntryCount: rootEntries.length
+    },
     alwaysContext,
-    alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry + dataStoresSummary + alwaysContext (workspace + RULES + RESPONSE-STYLE). " +
-      "Доки платформы: get_session_documentation. Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+      "wsMap — карта всех manifest.md (вместо list_topics/list_databases); alwaysContext — файлы, которые всегда в контексте. " +
+      "Записи темы: read_content_index_toc. Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. " +
+      "Cron/heartbeat: get_workspace_cron_registry / get_workspace_heartbeat_registry."
   };
 }
 
@@ -16677,6 +16499,9 @@ async function enrichFocusItems(items) {
 
       let agentPreviewUrl = null;
       let nodePreviewUrl = null;
+      let name = item.name;
+      let awnType = item.awnType;
+      let awnProps = item.awnProps;
       try {
         const agentPreview = await getAgentPreviewMeta(agent);
         agentPreviewUrl = agentPreview.previewUrl || null;
@@ -16689,14 +16514,28 @@ async function enrichFocusItems(items) {
           await runWithAgent(agent.id, async () => {
             const nodePreview = await getNodePreviewMeta(item.nodePath);
             nodePreviewUrl = nodePreview.previewUrl || null;
+            try {
+              const { frontmatter } = await readNodeFrontmatterContent(item.nodePath);
+              if (frontmatter) {
+                const entry = buildNavFlagEntry(item.nodePath, frontmatter);
+                name = entry.name;
+                awnType = entry.awnType;
+                awnProps = entry.awnProps;
+              }
+            } catch {
+              // keep registry name/props
+            }
           });
         } catch {
-          // no node preview
+          // no node preview / frontmatter
         }
       }
 
       return {
         ...item,
+        name,
+        awnType,
+        awnProps,
         agentPreviewUrl,
         nodePreviewUrl
       };
@@ -16920,6 +16759,172 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
   }
 
   return null;
+}
+
+async function resolvePublicShortLinkCoverAbsolute(targetPath) {
+  const targetRel = String(targetPath || "").trim();
+  if (!targetRel) return null;
+
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(targetRel);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+  if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+    const sidecar = await findNodePreviewImageAbsolute(nodeAbsolute);
+    if (sidecar) return sidecar;
+  }
+
+  const previewMeta = await getNodePreviewMeta(targetRel);
+  const previewUrl = String(previewMeta?.previewUrl || "");
+  if (previewUrl.startsWith("/api/media/file")) {
+    try {
+      const params = new URL(previewUrl, "http://localhost").searchParams;
+      const relPath = params.get("path");
+      const relFile = params.get("file");
+      const contextPath = params.get("contextPath");
+      if (relPath && relFile) {
+        const storageContext = await resolveApiStorageContext(contextPath || relPath);
+        const normalizedRelFile = normalizeRelativeFilePath(relFile);
+        if (storageContext && normalizedRelFile) {
+          let fileAbsolute = null;
+          const manifestRel = String(relPath || contextPath || "").replace(/\\/g, "/");
+          const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRel, params.get("folder"));
+          const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(
+            storageContext.absolute,
+            libraryFolder
+          );
+          if (libraryFolderAbsolute) {
+            const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+            if (
+              isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+              (await fileExists(directAbsolute))
+            ) {
+              fileAbsolute = directAbsolute;
+            }
+          }
+          if (!fileAbsolute) {
+            fileAbsolute = await resolveUploadedMediaFileAbsolute(
+              storageContext.absolute,
+              normalizedRelFile
+            );
+          }
+          if (fileAbsolute) return fileAbsolute;
+        }
+      }
+    } catch {
+      // try awn-preview fallback below
+    }
+  }
+
+  if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(targetRel);
+      const previewRaw = String(getYamlScalar(frontmatter, "awn-preview") || "").trim();
+      if (previewRaw && !/^https?:/i.test(previewRaw)) {
+        const viaPreview = await resolveUploadedMediaFileAbsolute(nodeAbsolute, previewRaw);
+        if (viaPreview) return viaPreview;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+async function enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link) {
+  const meta = await readTargetDisplayMeta(agentRoot, link.targetPath);
+  const coverAbsolute = await resolvePublicShortLinkCoverAbsolute(link.targetPath);
+  const coverQuery = `agentId=${encodeURIComponent(agent.id)}&code=${encodeURIComponent(link.code)}`;
+  let previewImageUrl = null;
+
+  if (coverAbsolute) {
+    previewImageUrl = `${baseUrl}/api/public/short-link/cover?${coverQuery}`;
+  } else {
+    const previewMeta = await getNodePreviewMeta(link.targetPath);
+    const rawPreviewUrl = String(previewMeta?.previewUrl || "").trim();
+    if (/^https?:\/\//i.test(rawPreviewUrl)) {
+      previewImageUrl = rawPreviewUrl;
+    } else if (previewMeta?.hasPreview && rawPreviewUrl.startsWith("/api/media/file")) {
+      previewImageUrl = `${baseUrl}/api/public/short-link/cover?${coverQuery}`;
+    }
+  }
+
+  let previewEmoji = null;
+  let targetAwnId = null;
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(link.targetPath);
+    targetAwnId = parseAwnId(getYamlScalar(frontmatter, "awn-id"));
+    const previewRaw = String(getYamlScalar(frontmatter, "awn-preview") || "").trim();
+    const isEmojiLike =
+      previewRaw &&
+      !previewImageUrl &&
+      !/[\\/]/.test(previewRaw) &&
+      !/^https?:/i.test(previewRaw) &&
+      [...previewRaw].length <= 4;
+    if (isEmojiLike) previewEmoji = previewRaw;
+  } catch {
+    // ignore
+  }
+
+  if (!previewImageUrl && !previewEmoji && link.fullUrl) {
+    try {
+      const og = await Promise.race([
+        getDocumentExtractService().getLinkPreview({ url: link.fullUrl }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3500))
+      ]);
+      if (og?.imageUrl) previewImageUrl = String(og.imageUrl).trim();
+    } catch {
+      // ignore og timeout/errors
+    }
+  }
+
+  const enrichedAgent = enrichAgentEntry(agent);
+  let workspaceTitle = String(agent.name || agent.id || "").trim();
+  let workspaceEmoji = null;
+  try {
+    const rootManifest = readWorkspaceManifestSync(agentRoot);
+    if (rootManifest?.name) workspaceTitle = String(rootManifest.name).trim();
+    const previewRaw = String(rootManifest?.preview || "").trim();
+    if (
+      previewRaw &&
+      !/[\\/]/.test(previewRaw) &&
+      !/^https?:/i.test(previewRaw) &&
+      [...previewRaw].length <= 4
+    ) {
+      workspaceEmoji = previewRaw;
+    }
+  } catch {
+    // ignore manifest read errors
+  }
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent("manifest.md");
+    const emojiRaw = String(getYamlScalar(frontmatter, "awn-emoji") || "").trim();
+    if (emojiRaw && [...emojiRaw].length <= 4) workspaceEmoji = emojiRaw;
+  } catch {
+    // ignore
+  }
+
+  let workspacePreviewUrl = null;
+  try {
+    const agentPreview = await getAgentPreviewMeta(agent);
+    workspacePreviewUrl = agentPreview.previewUrl || null;
+  } catch {
+    // ignore
+  }
+
+  return {
+    ...link,
+    title: meta.title,
+    description: meta.description,
+    workspaceName: workspaceTitle,
+    workspaceId: agent.id,
+    workspacePath: enrichedAgent.path || agent.id,
+    workspacePreviewUrl,
+    workspaceEmoji,
+    tagline: "Передаем важное",
+    targetAwnId: targetAwnId != null ? targetAwnId : null,
+    previewImageUrl: previewImageUrl || null,
+    previewEmoji: previewEmoji || null
+  };
 }
 
 async function getNodePreviewMeta(nodeRelativePath) {
@@ -18708,7 +18713,7 @@ async function isPlatformMaintenanceActive() {
 }
 
 async function serveMaintenanceHtml(res) {
-  const maintenanceHtmlPath = path.join(getPublicDir(), "maintenance.html");
+  const maintenanceHtmlPath = path.join(getPublicDir(), resolvePublicDiskPath("maintenance.html"));
   const content = await fs.readFile(maintenanceHtmlPath);
   res.writeHead(503, {
     "Content-Type": "text/html; charset=utf-8",
@@ -18720,12 +18725,19 @@ async function serveMaintenanceHtml(res) {
 
 function isMaintenanceStaticBypassPath(safePath) {
   if (!safePath) return false;
-  if (safePath === "maintenance.html") return true;
-  if (safePath === "404.html") return true;
-  if (safePath === "js/core/platform-status.js") return true;
-  if (safePath === "js/core/project-version.js") return true;
-  if (safePath === "styles.css") return true;
-  if (safePath === "favicon.svg" || safePath === "favicon.png" || safePath === "apple-touch-icon.png") {
+  if (safePath === "maintenance.html" || safePath === "_resources/maintenance.html") return true;
+  if (safePath === "404.html" || safePath === "_resources/404.html") return true;
+  if (safePath === "editor/js/core/platform-status.js") return true;
+  if (safePath === "editor/js/core/project-version.js") return true;
+  if (safePath === "editor/styles.css") return true;
+  if (
+    safePath === "favicon.svg" ||
+    safePath === "favicon.png" ||
+    safePath === "apple-touch-icon.png" ||
+    safePath === "_resources/favicon.svg" ||
+    safePath === "_resources/favicon.png" ||
+    safePath === "_resources/apple-touch-icon.png"
+  ) {
     return true;
   }
   return false;
@@ -18751,7 +18763,7 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
 }
 
 async function serveIndexHtml(res, reqHost = "") {
-  const indexPath = path.join(getPublicDir(), "index.html");
+  const indexPath = path.join(getPublicDir(), getEditorIndexDiskPath());
   let content = await fs.readFile(indexPath, "utf8");
   let voiceBase = voicePublicBaseUrl();
   const clientHost = String(reqHost || "").split(":")[0].trim();
@@ -18831,14 +18843,28 @@ function resolveShellStaticPath(reqPath) {
   return reqPath;
 }
 
+const EDITOR_HASHED_BUNDLE_RE = /^main\.[a-f0-9]{8}\.built\.js(\.map)?$/i;
+
+function resolvePublicStaticCacheControl(diskPath) {
+  const leaf = path.basename(String(diskPath || ""));
+  if (EDITOR_HASHED_BUNDLE_RE.test(leaf)) {
+    return "public, max-age=31536000, immutable";
+  }
+  if (leaf === "editor-build-manifest.json") {
+    return "no-cache";
+  }
+  return "no-cache, no-store, must-revalidate";
+}
+
 async function serveStatic(reqPath, res, req) {
-  let normalizedPath = resolveShellStaticPath(reqPath);
+  let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
   }
   const targetPath = normalizedPath === "/" ? "/index.html" : normalizedPath;
   const safePath = path.normalize(targetPath).replace(/^(\.\.[\/\\])+/, "").replace(/^[/\\]+/, "");
-  const filePath = path.join(getPublicDir(), safePath);
+  const diskPath = mapPublicUrlPathToDisk(safePath);
+  const filePath = path.join(getPublicDir(), diskPath);
 
   if (!filePath.startsWith(getPublicDir())) {
     res.writeHead(403);
@@ -18851,14 +18877,19 @@ async function serveStatic(reqPath, res, req) {
     return;
   }
 
-  if (safePath === "maintenance.html" || reqPath === "/maintenance" || reqPath === "/maintenance/") {
+  if (
+    safePath === "maintenance.html" ||
+    safePath === "_resources/maintenance.html" ||
+    reqPath === "/maintenance" ||
+    reqPath === "/maintenance/"
+  ) {
     if (!(await isPlatformMaintenanceActive())) {
       res.writeHead(302, { Location: "/" });
       res.end();
       return;
     }
     try {
-      const content = await fs.readFile(path.join(getPublicDir(), "maintenance.html"));
+      const content = await fs.readFile(path.join(getPublicDir(), resolvePublicDiskPath("maintenance.html")));
       res.writeHead(503, {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
@@ -18873,12 +18904,12 @@ async function serveStatic(reqPath, res, req) {
     }
   }
 
-  if (safePath === "index.html") {
+  if (safePath === "index.html" || diskPath === getEditorIndexDiskPath()) {
     await serveIndexHtml(res, String(req?.headers?.host || "").trim());
     return;
   }
 
-  if (safePath === "js/core/project-version.js") {
+  if (safePath === "editor/js/core/project-version.js") {
     const { writeProjectVersionJsResponse } = require("./lib/version/serve-project-version");
     await writeProjectVersionJsResponse(res);
     return;
@@ -18888,12 +18919,16 @@ async function serveStatic(reqPath, res, req) {
     const content = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
-    res.writeHead(200, {
+    const cacheControl = resolvePublicStaticCacheControl(diskPath);
+    const headers = {
       "Content-Type": contentType,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-      Expires: "0"
-    });
+      "Cache-Control": cacheControl
+    };
+    if (cacheControl.includes("no-store")) {
+      headers.Pragma = "no-cache";
+      headers.Expires = "0";
+    }
+    res.writeHead(200, headers);
     res.end(content);
   } catch {
     const ext = path.extname(safePath).toLowerCase();
@@ -18914,7 +18949,7 @@ async function serveStatic(reqPath, res, req) {
       }
     }
     try {
-      const notFoundHtmlPath = path.join(getPublicDir(), "404.html");
+      const notFoundHtmlPath = path.join(getPublicDir(), resolvePublicDiskPath("404.html"));
       const content = await fs.readFile(notFoundHtmlPath);
       res.writeHead(404, {
         "Content-Type": "text/html; charset=utf-8",
@@ -22400,6 +22435,88 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/short-links") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const links = await listShortLinks(agentRoot, agentId, baseUrl);
+      return sendJson(res, 200, { links, count: links.length });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list short links",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/short-links/resolve") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const code = String(url.searchParams.get("code") || "").trim();
+      const targetPath = String(url.searchParams.get("path") || url.searchParams.get("targetPath") || "").trim();
+      let link = null;
+      if (code) {
+        link = await getShortLinkByCode(agentRoot, agentId, baseUrl, code);
+      } else if (targetPath) {
+        link = await findShortLinkByTargetPath(agentRoot, agentId, baseUrl, targetPath);
+      } else {
+        return sendJson(res, 400, { error: "code or path is required" });
+      }
+      if (!link) return sendJson(res, 404, { error: "Short link not found" });
+      return sendJson(res, 200, { link });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve short link",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/short-links") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const result = await createShortLink(agentRoot, agentId, baseUrl, payload);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const status = Number(error.status) || 500;
+      return sendJson(res, status, {
+        error: status === 500 ? "Failed to create short link" : String(error.message || error),
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  const shortLinkDeleteMatch = url.pathname.match(/^\/api\/agent\/short-links\/([a-z0-9]{6,32})$/i);
+  if (req.method === "DELETE" && shortLinkDeleteMatch) {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteShortLink(agentRoot, shortLinkDeleteMatch[1]);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const status = Number(error.status) || 500;
+      return sendJson(res, status, {
+        error: status === 500 ? "Failed to delete short link" : String(error.message || error),
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-stats") {
     try {
       const stats = await buildAgentWorkspaceStats();
@@ -23802,21 +23919,6 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/session-documentation") {
-    try {
-      const docsParam = url.searchParams.get("docs") || url.searchParams.get("doc") || "";
-      const payload = await buildAgentSessionDocumentationRegistry({
-        docs: docsParam || undefined
-      });
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read session documentation",
-        details: String(error.message || error)
-      });
-    }
-  }
-
   if (req.method === "GET" && url.pathname === "/api/agent/cron-registry") {
     try {
       return sendJson(res, 200, await buildAgentCronRegistry());
@@ -24156,6 +24258,70 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to clear file hub queue",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/context-buffer") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readContextBuffer(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/add") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await appendContextBuffer(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 400, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to append context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/remove") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const written = await removeContextBufferItem(agentRoot, body);
+      if (written.error) {
+        return sendJson(res, written.status || 404, { error: written.error });
+      }
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to remove context buffer item",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/clear") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const written = await clearContextBuffer(agentRoot);
+      return sendJson(res, 200, written);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to clear context buffer",
         details: String(error.message || error)
       });
     }
@@ -32208,6 +32374,53 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (
+    req.method === "GET" &&
+    (url.pathname === "/api/public/short-link" || url.pathname === "/api/public/short-link/cover")
+  ) {
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
+    const code = String(url.searchParams.get("code") || "").trim().toLowerCase();
+    const agent = agentId ? resolveAgent(agentId) : null;
+    if (!agent || !code) {
+      return sendJson(res, 400, { error: "agentId and code are required" });
+    }
+    return runWithAgent(agent.id, async () => {
+      try {
+        const agentRoot = getAgentRoot();
+        const baseUrl =
+          getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+          resolveInternalCmsApiUrl();
+        const link = await getShortLinkByCode(agentRoot, agent.id, baseUrl, code);
+        if (!link) return sendJson(res, 404, { error: "Short link not found" });
+
+        if (url.pathname === "/api/public/short-link/cover") {
+          const imageAbsolute = await resolvePublicShortLinkCoverAbsolute(link.targetPath);
+          if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
+          const thumb = wantsThumbVariant(url.searchParams);
+          const sent = await sendImageFileResponse(res, imageAbsolute, {
+            thumb,
+            thumbMax: clampThumbMax(url.searchParams.get("max") || 1200),
+            cacheControl: "public, max-age=300"
+          });
+          if (!sent) return sendJson(res, 404, { error: "Preview image not found" });
+          return;
+        }
+
+        const payload = await enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link);
+        return sendJson(res, 200, payload);
+      } catch (error) {
+        return sendJson(res, 500, {
+          error: "Failed to load short link",
+          details: String(error.message || error)
+        });
+      }
+    });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agents/focus") {
     const agentId = resolveWorkspaceIdFromArgs({
       agent: url.searchParams.get("agent"),
@@ -32949,6 +33162,119 @@ function shellMobileRedirectTarget(pathname) {
   return `/shell${normalized}`;
 }
 
+function escapeShortLinkMetaAttr(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function absolutizeShortLinkPublicUrl(baseUrl, rawUrl) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const base = String(baseUrl || "").replace(/\/+$/, "");
+  if (!base) return raw;
+  return raw.startsWith("/") ? `${base}${raw}` : `${base}/${raw}`;
+}
+
+function buildShortLinkHeadMeta(payload, { baseUrl, canonicalUrl }) {
+  const workspaceName = String(payload.workspaceName || payload.workspaceId || "").trim();
+  const pageTitle = String(payload.title || payload.code || "Страница").trim();
+  const title = workspaceName ? `${pageTitle} — ${workspaceName}` : `${pageTitle} — Agent CMS`;
+  const pageDesc = String(payload.description || "").trim();
+  const description =
+    [pageDesc, workspaceName ? `Workspace: ${workspaceName}` : "", "Передаем важное"]
+      .filter(Boolean)
+      .join(" · ") || "Передаем важное — Agent CMS";
+  let ogImage =
+    absolutizeShortLinkPublicUrl(baseUrl, payload.previewImageUrl) ||
+    absolutizeShortLinkPublicUrl(baseUrl, payload.workspacePreviewUrl);
+  if (!ogImage && baseUrl) {
+    ogImage = `${baseUrl.replace(/\/+$/, "")}/_resources/favicon.svg`;
+  }
+  const canonical = String(canonicalUrl || payload.previewUrl || "").trim();
+  const siteName = workspaceName || "Agent CMS";
+
+  const t = escapeShortLinkMetaAttr(title);
+  const d = escapeShortLinkMetaAttr(description);
+  const img = escapeShortLinkMetaAttr(ogImage);
+  const url = escapeShortLinkMetaAttr(canonical);
+  const site = escapeShortLinkMetaAttr(siteName);
+
+  return `
+    <title>${t}</title>
+    <meta name="description" content="${d}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="${site}" />
+    <meta property="og:title" content="${t}" />
+    <meta property="og:description" content="${d}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content="${img}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${t}" />
+    <meta name="twitter:description" content="${d}" />
+    <meta name="twitter:image" content="${img}" />
+    <link rel="canonical" href="${url}" />
+  `.trim();
+}
+
+function injectShortLinkHtmlMeta(html, metaBlock) {
+  const block = String(metaBlock || "").trim();
+  if (!block) return html;
+  const replaced = html.replace(
+    /<title>[\s\S]*?<\/title>\s*<meta name="description"[^>]*>/i,
+    block
+  );
+  if (replaced !== html) return replaced;
+  return html.replace("</head>", `${block}\n  </head>`);
+}
+
+async function serveShortLinkHtml(req, res, url) {
+  const match = url.pathname.match(/^\/link\/([^/]+)\/([^/]+)\/?$/i);
+  const diskPath = path.join(getPublicDir(), "short-link", "index.html");
+  let html = await fs.readFile(diskPath, "utf-8");
+  const baseUrl =
+    getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+    resolveInternalCmsApiUrl()?.replace(/\/+$/, "") ||
+    "";
+  const canonicalUrl = baseUrl
+    ? `${baseUrl}${url.pathname.replace(/\/+$/, "") || url.pathname}`
+    : url.pathname;
+
+  if (match) {
+    const agentId = decodeURIComponent(match[1]);
+    const code = decodeURIComponent(match[2]).toLowerCase();
+    const agent = resolveAgent(agentId);
+    if (agent) {
+      try {
+        const payload = await runWithAgent(agent.id, async () => {
+          const agentRoot = getAgentRoot();
+          const link = await getShortLinkByCode(agentRoot, agent.id, baseUrl, code);
+          if (!link) return null;
+          return enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link);
+        });
+        if (payload) {
+          html = injectShortLinkHtmlMeta(
+            html,
+            buildShortLinkHeadMeta(payload, { baseUrl, canonicalUrl })
+          );
+        }
+      } catch {
+        // keep static fallback meta
+      }
+    }
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-cache"
+  });
+  res.end(html);
+}
+
 function createRequestHandler() {
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
@@ -32963,6 +33289,14 @@ function createRequestHandler() {
       res.writeHead(301, { Location: location });
       res.end();
       return;
+    }
+
+    if (/^\/link\/[^/]+\/[^/]+\/?$/i.test(url.pathname)) {
+      try {
+        return await serveShortLinkHtml(req, res, url);
+      } catch {
+        return serveStatic("/short-link/index.html", res, req);
+      }
     }
 
     const voiceRedirect = shellToVoiceRedirect(url.pathname);
@@ -33096,6 +33430,7 @@ async function startServer(options = {}) {
   const lanIp = getLanIPv4(options.root || __dirname);
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
+  const commanderAutostart = process.env.COMMANDER_AUTOSTART !== "0";
 
   function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
     return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });
@@ -33112,6 +33447,20 @@ async function startServer(options = {}) {
     return voiceServerInfo;
   }
 
+  async function maybeStartCommanderServer() {
+    if (!commanderAutostart) return null;
+    commanderServerInfo = await startCommanderServer({
+      root: options.root || __dirname,
+      host: process.env.COMMANDER_HOST || host || "127.0.0.1"
+    });
+    return commanderServerInfo;
+  }
+
+  function commanderHttpsViaEditorUrl(httpsBase) {
+    const base = String(httpsBase || "").trim().replace(/\/+$/, "");
+    return base ? `${base}/commander/` : null;
+  }
+
   if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {
     const tls = readTlsCredentials();
     httpsServer = https.createServer(tls, handler);
@@ -33120,7 +33469,9 @@ async function startServer(options = {}) {
     const url = `https://${hostname}:${boundTlsPort}`;
     const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort: null, boundTlsPort });
     const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+    const commanderInfo = await maybeStartCommanderServer();
     const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
+    const editorHttps = lanIp ? `https://${lanIp}:${boundTlsPort}` : url;
     return {
       port: boundTlsPort,
       tlsPort: boundTlsPort,
@@ -33130,10 +33481,12 @@ async function startServer(options = {}) {
       lanIp,
       tls: true,
       httpUrl: null,
-      httpsUrl: lanIp ? `https://${lanIp}:${boundTlsPort}` : url,
+      httpsUrl: editorHttps,
       voiceUrl,
       voiceHttpUrl: voiceInfo?.httpUrl || null,
       voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+      commanderHttpUrl: commanderInfo?.url || null,
+      commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttps),
       mobileUrl: voiceUrl || (lanIp ? `https://${lanIp}:${boundTlsPort}/` : `${url}/`),
       stop: stopServer
     };
@@ -33170,7 +33523,9 @@ async function startServer(options = {}) {
 
   const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
   const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+  const commanderInfo = await maybeStartCommanderServer();
   const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
+  const editorHttpsResolved = lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl;
 
   return {
     port: boundPort,
@@ -33181,10 +33536,12 @@ async function startServer(options = {}) {
     lanIp,
     tls: Boolean(httpsUrl),
     httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
-    httpsUrl: lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl,
+    httpsUrl: editorHttpsResolved,
     voiceUrl,
     voiceHttpUrl: voiceInfo?.httpUrl || null,
     voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+    commanderHttpUrl: commanderInfo?.url || null,
+    commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttpsResolved),
     mobileUrl:
       voiceUrl ||
       (httpsUrl
@@ -33200,7 +33557,9 @@ async function startServer(options = {}) {
 
 async function stopServer() {
   await stopVoiceServer().catch(() => null);
+  await stopCommanderServer().catch(() => null);
   voiceServerInfo = null;
+  commanderServerInfo = null;
   try {
     require("./agent-shell/runtime-cli-session").shutdownCliSessionPool();
   } catch {
@@ -33272,6 +33631,8 @@ if (require.main === module) {
       }
       if (info.voiceHttpsUrl) console.log(`Agent CMS Voice HTTPS at ${info.voiceHttpsUrl}`);
       else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
+      if (info.commanderHttpUrl) console.log(`Agent CMS Commander HTTP  at ${info.commanderHttpUrl}`);
+      if (info.commanderHttpsUrl) console.log(`Agent CMS Commander HTTPS at ${info.commanderHttpsUrl}`);
       console.log(`Voice UI:         ${info.mobileUrl}`);
       console.log("");
       if (info.voiceHttpsUrl || info.httpsUrl) {
@@ -33291,5 +33652,6 @@ module.exports = {
   startServer,
   stopServer,
   getAppRoot,
-  getProjectRoot
+  getProjectRoot,
+  writeAgentWorkspaceWsmap
 };

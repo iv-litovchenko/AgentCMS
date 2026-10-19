@@ -1,4 +1,4 @@
-/** Серверная конфигурация runtime — держите поля в sync с public/shell/shell-runtimes.js */
+/** Серверная конфигурация runtime — держите поля в sync с public/shell/js/shell-runtimes.js */
 
 const RUNTIME_TRANSPORT = {
   qwenpaw: "qwenpaw",

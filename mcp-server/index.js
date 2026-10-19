@@ -33,6 +33,7 @@ import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
+import { registerContextBufferTools } from "./lib/context-buffer-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
@@ -43,6 +44,7 @@ import { registerPlatformTools } from "./lib/platform-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
 import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
+import { registerShortLinksTools } from "./lib/short-links-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
@@ -136,32 +138,13 @@ function createServer() {
 
   registerWorkspaceTools(reg, client);
 
-  // ── Старт / контекст (5) ───────────────────────────────────────────────────
+  // ── Старт / контекст (4) ───────────────────────────────────────────────────
 
   reg(
     "get_session_context",
-    "START HERE: topicRegistry, alwaysContext (workspace + RULES + RESPONSE-STYLE), service manifests. Docs: get_session_documentation. Runtime: list_workspace_cron / list_workspace_heartbeat.",
+    "START HERE (light): wsMap (fresh generated WS-MAP markdown: all manifest.md nodes + root entries — replaces list topics/databases calls) + alwaysContext (full text of always-loaded files: runtime-load-always, system md, ws-folder). Nothing else. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
     z.object({}),
     () => client.get("/api/agent/session-context")
-  );
-
-  reg(
-    "get_session_documentation",
-    "Platform docs on demand: README.md, GLOBAL-SKILL-4-MARKDOWN.md (respects platform always-context toggles). Not included in get_session_context.",
-    z.object({
-      docs: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe(
-          "Optional filter: file names or comma-separated, e.g. README.md. Omit for all enabled docs."
-        )
-    }),
-    ({ docs }) =>
-      client.get("/api/agent/session-documentation", {
-        ...(docs != null
-          ? { docs: Array.isArray(docs) ? docs.join(",") : String(docs) }
-          : {})
-      })
   );
 
   const getUiFocusHandler = () => client.get("/api/agent/active-context");
@@ -179,30 +162,51 @@ function createServer() {
   });
 
   reg(
-    "list_workspace_always_context",
-    "Same always-context block as in get_session_context: runtime-load-always, workspace system md, GLOBAL-RULES, GLOBAL-RESPONSE-STYLE, ws/. Not GLOBAL-SKILL-0/README.",
-    z.object({}),
-    () => client.get("/api/agent/always-context")
+    "get_ui_open_location",
+    "Where the user is in Agent CMS browser UI: route URL + focus (page/slot/content). Same data as get_ui_focus. REST: GET /api/agent/active-context.",
+    getUiFocusSchema,
+    getUiFocusHandler
   );
 
+  const getWorkspaceAlwaysContextRegistryHandler = () => client.get("/api/agent/always-context");
+  const getWorkspaceAlwaysContextRegistrySchema = z.object({});
+  const getWorkspaceAlwaysContextRegistryDescription =
+    "Always-context registry (same alwaysContext block as get_session_context): items include full content for runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*. Full session: get_session_context.";
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_always_context_registry",
+    legacy: "list_workspace_always_context",
+    description: getWorkspaceAlwaysContextRegistryDescription,
+    schema: getWorkspaceAlwaysContextRegistrySchema,
+    handler: getWorkspaceAlwaysContextRegistryHandler
+  });
   reg(
-    "list_workspace_cron",
-    "Cron index: topics and records with awn-runtime-cron (+ schedule).",
-    z.object({}),
-    () => client.get("/api/agent/cron-registry")
+    "refresh_workspace_always_context",
+    "Deprecated alias for get_workspace_always_context_registry.",
+    getWorkspaceAlwaysContextRegistrySchema,
+    getWorkspaceAlwaysContextRegistryHandler
   );
 
-  reg(
-    "list_workspace_heartbeat",
-    "Heartbeat index: topics and records with awn-runtime-heartbeat.",
-    z.object({}),
-    () => client.get("/api/agent/heartbeat-registry")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_cron_registry",
+    legacy: "list_workspace_cron",
+    description: "Registry of topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/cron-registry")
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_workspace_heartbeat_registry",
+    legacy: "list_workspace_heartbeat",
+    description: "Registry of topics/records with awn-runtime-heartbeat. Index only, not file bodies.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/heartbeat-registry")
+  });
 
   registerSettingsTools(reg, client);
   registerPlatformTools(reg, client);
   registerDependenciesTools(reg, client);
   registerGitModuleTools(reg, client);
+  registerShortLinksTools(reg, client);
 
   // ── Навигация (3) ──────────────────────────────────────────────────────────
 
@@ -404,6 +408,7 @@ function createServer() {
 
   registerWorkspacePadTools(reg, client);
   registerFileHubQueueTools(reg, client);
+  registerContextBufferTools(reg, client);
   registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
