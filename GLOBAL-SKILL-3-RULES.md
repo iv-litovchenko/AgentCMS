@@ -46,7 +46,7 @@ description: Правила, запреты и антипаттерны аген
 | `read_dialogs` / `append_dialog` / `read_discussion` / `append_discussion` | `discussion_read` / `discussion_append` |
 | `list_inbox` / `triage_inbox_item` | `inbox_items_list` / `inbox_item_triage` |
 | `tool_*` (web, exec, ping, extract), `search_web*`, `exec_*`, `run_script` | `utility_*` (те же суффиксы) |
-| `batch_invoke` / `tool_batch_invoke` | `request_batch_invoke` |
+| `batch_invoke` / `tool_batch_invoke` / `request_batch_invoke` | `batch_tools_invoke` |
 | `notify_user` | `user_notification_send` |
 | `list_workspace_notifications` / `workspace_notifications_list` | `user_notifications_list` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |

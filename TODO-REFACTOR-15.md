@@ -304,7 +304,7 @@ user-agent-cms
 │   └── 🟢 user_notification_send             ← notify_user
 │
 └── ⚡ Специальные · 1
-    └── 🟢 request_batch_invoke              ← tool_batch_invoke ← batch_invoke
+    └── 🟢 batch_tools_invoke              ← request_batch_invoke ← tool_batch_invoke ← batch_invoke
 ```
 
 Stub в MCP (не в счётчике): `module_file_hub_inbound_*_zzz`.

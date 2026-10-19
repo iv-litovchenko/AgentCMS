@@ -76,7 +76,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Fact bank | `fact_create`, `facts_list`, … (legacy `workspace_fact_*`, `create_workspace_fact`, …) → `0-contents/0-facts` |
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |
 | Reference | `reference_entry_create`, `reference_entries_list`, … (legacy `create_reference_entry`, …) → `0-contents/0-reference` |
-| FS | `request_batch_invoke` (legacy `tool_batch_invoke`, `batch_invoke`); legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
+| FS | `batch_tools_invoke` (legacy `request_batch_invoke`, `tool_batch_invoke`, `batch_invoke`); legacy (`MCP_LEGACY_TOOLS=1`): `list_folder`, `patch_file`, `list_root_files`, `read_root_file`, `write_root_file` (aliases `list/read/write_system_*`), `read_file`, `write_file`, `upload_file`, `upload_file_from_url` |
 | Утилиты (`utility_*`) | `utility_mcp_ping`, `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `utility_document_text_extract`, `utility_script_run`, `utility_command_exec`, `utility_shell_exec` (legacy `tool_*`, `search_web*`, `exec_*`, …) |
 | Медиа-облако | `module_media_cloud_providers_list`, `module_media_cloud_status`, `module_media_cloud_sync`, `module_media_cloud_links_repair`; stub: `module_media_cloud_upload`, `module_media_cloud_url` (legacy: `list_media_cloud_*`, `sync_media_cloud_file`, `*_zzz`) |
 

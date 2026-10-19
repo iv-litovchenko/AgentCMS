@@ -598,7 +598,7 @@ module.exports = {
           parameters: "placement, mode?, …",
           http: "POST /api/workspace/fs/write|patch"
         },
-        { name: "request_batch_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
+        { name: "batch_tools_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
         { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → list_content path=\".\"", parameters: "—", http: "GET /api/system-files" },
         { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → read_content kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
         { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → write_content kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },

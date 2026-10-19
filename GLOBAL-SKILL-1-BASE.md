@@ -323,7 +323,7 @@ Workspace — папка с md-файлами. Хабы:
 | Команда | `utility_command_exec` (массив args) / `utility_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
 
-**`request_batch_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item. Legacy: `tool_batch_invoke`, `batch_invoke`.
+**`batch_tools_invoke`** — N вызовов **одного** tool (`tool` + `items[]`, без `workspaceId` в items): read / list / search до 20, write / create / delete до 10. Возможен частичный успех — проверяй каждый item. Legacy: `request_batch_invoke`, `tool_batch_invoke`, `batch_invoke`.
 
 ---
 
