@@ -11,7 +11,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool). Живой список tools — mcp-server/ после перезапуска.",
     "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
     "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
-    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId. Доки: list_platform_docs / read_platform_doc.",
+    "Новый чат: workspaces_list → agentId → session_context_get({ agentId }) → все tools с тем же agentId. Доки: platform_docs_list / platform_doc_read.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): content_read / content_write / contents_list (legacy read_content, …); kind topic|channel|media|database|repository|root.",
     "Индексы и поиск — НЕ placement: nav_*, search_*, index_*. Legacy: rebuild_workspace_*, search_workspace_*, read_workspace_map, get_topic_map (deprecated).",
@@ -49,7 +49,7 @@ module.exports = {
       title: "Старт / контекст",
       tools: [
         {
-          name: "list_workspaces",
+          name: "workspaces_list",
           description:
             "START NEW CHAT: все workspace (agent / vault / хранилище). Синоним tool: list_vaults.",
           parameters: "—",
@@ -62,8 +62,8 @@ module.exports = {
           http: "GET /api/agents"
         },
         {
-          name: "get_session_context",
-          description: "После list_workspaces: wsMap (карта manifest.md) + alwaysContext (файлы всегда в контексте) для выбранного agentId.",
+          name: "session_context_get",
+          description: "После workspaces_list: wsMap (карта manifest.md) + alwaysContext (файлы всегда в контексте) для выбранного agentId.",
           parameters: "agentId",
           http: "GET /api/agent/session-context?agent="
         },
@@ -115,20 +115,20 @@ module.exports = {
       title: "Настройки (глобальные / локальные / пользовательские)",
       tools: [
         {
-          name: "list_settings",
+          name: "settings_list",
           description:
             "Все настройки: platform (глобальные settings.global.yml), workspace (локальные settings.yml), user (.agent-cms/user-settings.yml).",
           parameters: "scope? (all|platform|workspace|user)",
           http: "GET /api/agent/settings/list?scope="
         },
         {
-          name: "read_setting",
+          name: "setting_read",
           description: "Одна настройка: scope + key (meta: readonly, runtimeEffect).",
           parameters: "scope (platform|workspace|user), key",
           http: "GET /api/agent/settings/read?scope=&key="
         },
         {
-          name: "write_setting",
+          name: "setting_write",
           description:
             "Запись одной настройки. readonly (sys-*, awn-id-*) — ошибка. Блок при mcp-mode=readonly.",
           parameters: "scope, key, value",
@@ -153,13 +153,13 @@ module.exports = {
           http: "GET /api/agent/content-map"
         },
         {
-          name: "read_content_index_toc",
+          name: "nav_index_toc_contents_read",
           description: "Оглавление index.md: path, type, title, description (без body/properties). Быстрый обзор темы/слота.",
           parameters: "path, slot?",
           http: "GET /api/agent/content-index"
         },
         {
-          name: "refresh_content_index_toc",
+          name: "nav_index_toc_contents_refresh",
           description: "Обновить index.md на диске (таблица path/type/title/description). overwrite=false — не перезаписывать.",
           parameters: "path, slot?, overwrite?",
           http: "POST /api/agent/content-index"
@@ -171,13 +171,13 @@ module.exports = {
           http: "GET /api/agent/topics"
         },
         {
-          name: "read_topic_index_toc",
+          name: "nav_index_toc_topics_read",
           description: "Оглавление awn-topics/index.md: path, type, title, description (темы и области).",
           parameters: "—",
           http: "GET /api/agent/workspace-page-index"
         },
         {
-          name: "refresh_topic_index_toc",
+          name: "nav_index_toc_topics_refresh",
           description: "Обновить awn-topics/index.md (таблица path/type/title/description).",
           parameters: "overwrite?",
           http: "POST /api/agent/workspace-page-index"
@@ -207,37 +207,37 @@ module.exports = {
           http: "GET /api/agent/repository"
         },
         {
-          name: "read_repository_index_toc",
+          name: "nav_index_toc_repositories_read",
           description: "Прочитать awn-repositories/index.md (каталог репозиториев).",
           parameters: "—",
           http: "GET /api/workspace/fs/read (awn-repositories/index.md)"
         },
         {
-          name: "refresh_repository_index_toc",
+          name: "nav_index_toc_repositories_refresh",
           description: "Пересобрать awn-repositories/index.md из manifest-ов.",
           parameters: "overwrite?",
           http: "POST /api/agent/repository-index"
         },
         {
-          name: "read_media_library_index_toc",
+          name: "nav_index_toc_media_libraries_read",
           description: "Прочитать awn-media/index.md.",
           parameters: "—",
           http: "GET /api/agent/media-library-index"
         },
         {
-          name: "refresh_media_library_index_toc",
+          name: "nav_index_toc_media_libraries_refresh",
           description: "Обновить awn-media/index.md.",
           parameters: "overwrite?",
           http: "POST /api/agent/media-library-index"
         },
         {
-          name: "read_channels_index_toc",
+          name: "nav_index_toc_channels_read",
           description: "Прочитать awn-channels/index.md.",
           parameters: "—",
           http: "GET /api/agent/channels-index"
         },
         {
-          name: "refresh_channels_index_toc",
+          name: "nav_index_toc_channels_refresh",
           description: "Обновить awn-channels/index.md.",
           parameters: "overwrite?",
           http: "POST /api/agent/channels-index"
@@ -249,7 +249,7 @@ module.exports = {
           http: "POST /api/agent/repositories"
         },
         {
-          name: "search_workspace_content",
+          name: "index_2_fulltext_search_query",
           description: "Полнотекстовый поиск workspace (paths, frontmatter, body). scope=all по умолчанию.",
           parameters: "query, scope?, fileType?, match?, limit?",
           http: "GET /api/search"
@@ -287,7 +287,7 @@ module.exports = {
         { name: "topic_property_write", description: "Set one manifest property.", parameters: "path, key, value", http: "POST /api/file/properties" },
         {
           name: "topic_schema_read",
-          description: "schema.yml layers (mode=layers default). База типа: get_type.",
+          description: "schema.yml layers (mode=layers default). База типа: platform_type_get.",
           parameters: "path, mode?, target?",
           http: "GET /api/file/page-schema"
         },
@@ -319,7 +319,7 @@ module.exports = {
       title: "Слот",
       tools: [
         {
-          name: "list_slots",
+          name: "contents_slots_list",
           description: "Слоты контейнера (topic / channel / media / database / repository): driver, path, allowedContent.",
           parameters: "placement.kind + path или path=manifest",
           http: "GET /api/page/slots"
@@ -374,13 +374,13 @@ module.exports = {
       title: "Типы",
       tools: [
         {
-          name: "list_types",
+          name: "platform_types_list",
           description: "Индекс типов: domain?, kind?, filter? (create-page|slot-content|data-containers|data-elements).",
           parameters: "domain?, kind?, filter?",
           http: "GET /api/agent-system/types"
         },
         {
-          name: "get_type",
+          name: "platform_type_get",
           description: "Merged schema по id или catalog path.",
           parameters: "id?, path?",
           http: "GET /api/agent-system/type"
@@ -394,13 +394,13 @@ module.exports = {
         { name: "databases_list", description: "Список stores (group/collection/single).", parameters: "—", http: "GET /api/awn-databases" },
         { name: "database_get", description: "Один store: schema, records, tree.", parameters: "store", http: "GET /api/awn-databases?store=" },
         {
-          name: "read_databases_index_toc",
+          name: "nav_index_toc_databases_read",
           description: "Оглавление (awn-databases/index.md).",
           parameters: "—",
           http: "GET /api/agent/awn-databases-index"
         },
         {
-          name: "refresh_databases_index_toc",
+          name: "nav_index_toc_databases_refresh",
           description: "Обновить index.md из databases_list.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-databases-index"
@@ -467,13 +467,13 @@ module.exports = {
       title: "Журнал workspace (.agent-cms/journal)",
       tools: [
         {
-          name: "append_journal_entry",
+          name: "journal_entry_append",
           description: "Добавить событие в журнал (файл на ISO-неделю).",
           parameters: "body, type?, author?, path?, topic?, notify?, at?",
           http: "POST /api/agent/workspace-journal/append"
         },
         {
-          name: "list_journal_entries",
+          name: "journal_entries_list",
           description: "Список записей журнала (фильтр topic).",
           parameters: "topic?, limit?",
           http: "GET /api/agent/workspace-journal/list"
@@ -581,29 +581,29 @@ module.exports = {
       title: "FS (канон через content)",
       tools: [
         {
-          name: "list_content",
+          name: "contents_list",
           description: "Каталог: placement.kind=root + path (folder или \".\"). depth=1|2|all.",
           parameters: "placement, depth?, includeBody?",
           http: "GET /api/workspace/fs/list"
         },
         {
-          name: "read_content",
+          name: "content_read",
           description: "Файл по placement.kind=root + path.",
           parameters: "placement, part?, format=base64?",
           http: "GET /api/workspace/fs/read"
         },
         {
-          name: "write_content",
+          name: "content_write",
           description: "Запись/patch placement.kind=root.",
           parameters: "placement, mode?, …",
           http: "POST /api/workspace/fs/write|patch"
         },
         { name: "batch_tools_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
-        { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → list_content path=\".\"", parameters: "—", http: "GET /api/system-files" },
-        { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → read_content kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
-        { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → write_content kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },
-        { name: "list_folder", description: "MCP_LEGACY_TOOLS=1 → list_content kind=root.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" },
-        { name: "patch_file", description: "MCP_LEGACY_TOOLS=1 → write_content mode=patch.", parameters: "path, old_string, new_string", http: "POST /api/workspace/fs/patch" },
+        { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → contents_list path=\".\"", parameters: "—", http: "GET /api/system-files" },
+        { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → content_read kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
+        { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → content_write kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },
+        { name: "list_folder", description: "MCP_LEGACY_TOOLS=1 → contents_list kind=root.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" },
+        { name: "patch_file", description: "MCP_LEGACY_TOOLS=1 → content_write mode=patch.", parameters: "path, old_string, new_string", http: "POST /api/workspace/fs/patch" },
         { name: "read_file", description: "MCP_LEGACY_TOOLS=1.", parameters: "path", http: "GET /api/workspace/fs/read" },
         { name: "write_file", description: "MCP_LEGACY_TOOLS=1.", parameters: "path, content", http: "POST /api/workspace/fs/write" },
         { name: "upload_file", description: "MCP_LEGACY_TOOLS=1. Prefer write_content_binary.", parameters: "path, data", http: "POST /api/workspace/fs/upload" },

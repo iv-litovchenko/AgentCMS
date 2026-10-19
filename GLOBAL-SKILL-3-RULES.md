@@ -15,8 +15,8 @@ description: Правила, запреты и антипаттерны аген
 ## Работа с Agent CMS
 
 - **Только по моему запросу.** Не стартуй сам: не вызывай tools и не читай хранилище, пока я не попросил.
-- **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `run_script` / `exec_command` / `exec_shell`.
-- **Пути и типы не угадывай.** Бери из `nav_index_toc_*_read`, `nav_map_workspace_read`, `contents_list`, `record_path_resolve`, `session_context_get_user_open_url_location_in_ui`, `get_type`.
+- **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `utility_script_run` / `utility_command_exec` / `utility_shell_exec`.
+- **Пути и типы не угадывай.** Бери из `nav_index_toc_*_read`, `nav_map_workspace_read`, `contents_list`, `record_path_resolve`, `session_context_get_user_open_url_location_in_ui`, `platform_type_get`.
 - **Удаление и выполнение** (риск — см. п. 3). Если в настройках платформы включены `confirm-delete` / `confirm-exec`, передавай `confirm: true` только после моего явного согласия.
 - **Связи.** Перед удалением или переносом записи проверь `workspace_dependencies_read`.
 - **Git.** Коммит, push, pull — только по моей просьбе.
@@ -30,8 +30,8 @@ description: Правила, запреты и антипаттерны аген
 ## Антипаттерны
 
 1. Файлы в корень темы не клади — только в слот (кроме гибкого слота).
-2. Бинарники не создавай через `create_content` — только `write_content_binary` или `write_content_binary_from_url`.
-3. Комментарии, дискуссии, факты, термины и справочник — только через их tools, не через `write_content`.
+2. Бинарники не создавай через `content_create` — только `content_binary_write` или `content_binary_write_from_url`.
+3. Комментарии, дискуссии, факты, термины и справочник — только через их tools, не через `content_write`.
 4. Не путай слоты `media` и `assets`: картинки в тексте, превью и вложения записей — в `assets`.
 5. Табличный реестр с общей схемой — в базу, не в `main/`; заметку без общей схемы — не в базу.
 6. Не создавай `temp/` в темах — временные файлы только в `awn-temp/`.
@@ -53,7 +53,7 @@ description: Правила, запреты и антипаттерны аген
 | `content_binary_url_get` / `get_content_binary_url` | `get_record_binary_url_from_path` |
 | `search_content` / `search_semantic` / `search_hybrid` / `search_links` / `search_batch` | `index_2_fulltext_search_query` / `index_3_semantic_search_query` / `index_3_hybrid_search_query` / `index_5_link_search_query` / `index_search_query_batch` |
 | `ask_workspace` / `search_and_get_context` / `query_context_get` | `query_workspace_ask` |
-| `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run` … `record_index_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
+| `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run_zzz` … `record_index_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
 | `get_workspace_index_status` / `get_workspace_index_monitor` | `index_status_get` / `index_monitor_get` |
 | `index_entity_*` (query, catalog, rebuild, …) | `index_6_entity_*` |
 | `notify_user` | `user_notification_send` |
@@ -61,7 +61,7 @@ description: Правила, запреты и антипаттерны аген
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |
 | `list_vaults` / `list_workspaces` | `workspaces_list` |
 | `get_topic_map` | `topics_list` + `nav_index_toc_topics_read` + `contents_list` (`kind: root`) |
-| `get_content_map` | `read_content_index_toc` + `content_read` (`part=properties`) |
+| `get_content_map` | `nav_index_toc_contents_read` + `content_read` (`part=properties`) |
 | `read_content`, `write_content`, `list_content`, … | `content_read`, `content_write`, `contents_list`, … |
 | `read_content_body`, … | `content_read` / `content_write` с `part` |
 | `list_channel_items`, `upload_channel_file`, … | `contents_list` / `content_write` с `kind: channel` / `media` |
@@ -71,7 +71,7 @@ description: Правила, запреты и антипаттерны аген
 
 ## Контекст переполняется
 
-1. Зафиксируй итоги в `NOTE.md`, нужной записи или `append_discussion`.
+1. Зафиксируй итоги в `NOTE.md`, нужной записи или `discussion_append`.
 2. Предложи мне перезагрузить контекст и кратко резюмируй сделанное.
 3. Не выдумывай правила и пути, которых уже не видишь, — перечитай `session_context_get` или нужный файл.
 
