@@ -44,6 +44,7 @@ batch_invoke:
     - comment_reaction_toggle
     - toggle_comment_reaction
     - triage_inbox_item
+    - indexes_rebuild
     - index_rebuild
     - index_semantic_rebuild
     - index_storage_rebuild

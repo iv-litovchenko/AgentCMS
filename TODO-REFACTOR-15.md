@@ -181,7 +181,7 @@ user-agent-cms
 │   ├── 🟢 index_status_get                 ← get_workspace_index_status
 │   ├── 🟢 index_monitor_get                ← get_workspace_index_monitor
 │   ├── 🟢 index_storage_query              ← query_workspace_storage
-│   ├── 🟢 index_rebuild                    ← rebuild_workspace_indexes
+│   ├── 🟢 indexes_rebuild                  ← index_rebuild ← rebuild_workspace_indexes
 │   ├── 🟢 index_ocr_run                    ← run_workspace_ocr_index
 │   ├── 🟢 index_fulltext_rebuild           ← rebuild_workspace_fulltext_index
 │   ├── 🟢 index_semantic_rebuild           ← rebuild_workspace_semantic_index

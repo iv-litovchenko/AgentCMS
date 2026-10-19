@@ -531,13 +531,19 @@ function registerSearchWorkspaceTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "index_rebuild",
-    legacy: "rebuild_workspace_indexes",
+    canonical: "indexes_rebuild",
+    legacy: "index_rebuild",
     description:
-      "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
+      "Rebuild all workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter → WS-MAP.md (manifest registry). Same as UI pipeline button.",
     schema: indexRebuildSchema,
     handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   });
+  reg(
+    "rebuild_workspace_indexes",
+    "Deprecated alias for indexes_rebuild.",
+    indexRebuildSchema,
+    (payload) => client.post("/api/workspace-index/pipeline", payload || {})
+  );
 
   const indexFileSyncSchema = z.object({
     path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
@@ -547,7 +553,7 @@ function registerSearchWorkspaceTools(reg, client) {
     canonical: "index_file_sync",
     legacy: "sync_workspace_index_file",
     description:
-      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of index_rebuild.",
+      "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of indexes_rebuild.",
     schema: indexFileSyncSchema,
     handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   });

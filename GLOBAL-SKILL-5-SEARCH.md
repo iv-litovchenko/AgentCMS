@@ -28,7 +28,7 @@ description: Как искать и ориентироваться в Agent CMS 
 
 ## Индексы
 
-После правки одного файла — `index_file_sync`; полный `index_rebuild` — только после массовых изменений. По слоям: `index_fulltext_rebuild` / `index_semantic_rebuild` / `index_storage_rebuild` / `index_link_rebuild` / `index_entity_rebuild`. Состояние — `index_status_get` / `index_monitor_get`.
+После правки одного файла — `index_file_sync`; полный pipeline — `indexes_rebuild` (только после массовых изменений). По слоям: `index_fulltext_rebuild` / `index_semantic_rebuild` / `index_storage_rebuild` / `index_link_rebuild` / `index_entity_rebuild`; OCR отдельно — `index_ocr_run`. Состояние — `index_status_get` / `index_monitor_get`.
 
 **Реестр сущностей** (применяется после `index_entity_rebuild`): `merge_workspace_entity_alias`, `reject_workspace_entity`, `seed_workspace_entity`, `upsert_workspace_entity_type`, `get_` / `put_workspace_entity_registry` (весь файл — для крупных правок), `explain_workspace_entity_search` (отладка).
 
