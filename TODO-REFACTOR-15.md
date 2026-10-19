@@ -51,11 +51,10 @@ user-agent-cms
 │   ├── 🟢 workspace_activity_list            ← list_recent_activity
 │   └── 🟢 workspace_notifications_list     ← list_workspace_notifications
 │
-├── 🎬 Session · session_* · workspaceId · 20
+├── 🎬 Session · session_* · workspaceId · 18
 │   ├── 🟢 session_context_get                ← get_session_context
 │   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
 │   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
-│   ├── 🔴 session_ui_focus_get               ← get_ui_focus ← get_user_active_context_now
 │   ├── 🟢 session_list_always_context        ← session_always_registry_list ← get_workspace_always_context_registry
 │   ├── 🟢 session_list_cron                  ← session_cron_registry_list ← get_workspace_cron_registry
 │   ├── 🟢 session_list_heartbeat             ← session_heartbeat_registry_list ← get_workspace_heartbeat_registry
@@ -63,7 +62,6 @@ user-agent-cms
 │   ├── 🟢 session_list_on_main               ← session_nav_main_list ← session_nav_main_get
 │   ├── 🟡 session_registry_queries_list      ← list_workspace_registry_queries
 │   ├── 🟡 session_registry_query_run         ← run_workspace_registry_query
-│   ├── 🔴 get_ui_open_location               (legacy session_ui_focus_get)
 │   ├── session_note_* (2)
 │   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
 │   │   └── 🟢 session_note_write             ← workspace_note_write ← write_workspace_note
@@ -126,14 +124,13 @@ user-agent-cms
 │   ├── 🟢 topic_rename                   ← rename_topic
 │   └── 🟢 topic_move                     ← move_topic
 │
-├── 📄 Контент · 17
+├── 📄 Контент · 16
 │   ├── 🟢 contents_list                 ← list_content
 │   ├── 🟢 content_read                  ← read_content
 │   ├── 🟢 content_write                 ← write_content
 │   ├── 🟢 content_binary_read           ← read_content_binary
 │   ├── 🟢 content_binary_write          ← write_content_binary
 │   ├── 🟢 content_binary_write_from_url ← write_content_binary_from_url ← import_content_from_url
-│   ├── 🟡 content_binary_url_get        ← get_content_binary_url
 │   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get              ← get_content_meta
 │   ├── 🟢 content_property_read         ← read_content_property
@@ -189,8 +186,8 @@ user-agent-cms
 │   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
 │   ├── 🟢 search_batch                     ← search_workspace_batch (denied in batch_invoke)
 │   ├── 🟢 search_links                     ← search_workspace_links
-│   ├── search_and_get_context
-│   ├── ask_workspace
+│   ├── 🔴 search_and_get_context
+│   ├── 🔴 ask_workspace
 │   ├── 🟡 index_status_get                 ← get_workspace_index_status
 │   ├── 🟡 index_monitor_get                ← get_workspace_index_monitor
 │   ├── 🟡 index_storage_query              ← query_workspace_storage
@@ -285,14 +282,17 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 7
+├── 🔴 TBD · канон / группа не зафиксированы · 10
 │   ├── 🔴 batch_invoke
 │   ├── 🔴 find_by_id
 │   ├── 🔴 resolve_workspace_id             ← дубль find_by_id (→ legacy)
 │   ├── 🔴 assign_workspace_id              ← TBD assign_record_awn_id
 │   ├── 🔴 resolve_workspace_path
 │   ├── 🔴 notify_user
-│   └── 🔴 record_slug_generate             ← generate_workspace_slug
+│   ├── 🔴 record_slug_generate             ← generate_workspace_slug
+│   ├── 🔴 session_ui_focus_get             ← get_ui_focus ← get_user_active_context_now
+│   ├── 🔴 get_ui_open_location             ← legacy session_ui_focus_get (тот же API)
+│   └── 🔴 content_binary_url_get           ← get_content_binary_url
 │
 └── 📓 Journal · 2
     ├── 🟢 journal_entry_append              ← append_journal_entry

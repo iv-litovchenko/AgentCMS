@@ -115,6 +115,7 @@ batch_invoke:
     - annotation_sidecar_read
     - sidecar_path_resolve
     - sidecar_read
+    - session_context_buffer_read
     - session_buffer_read
     - context_buffer_read
     - annotation_comments_list
