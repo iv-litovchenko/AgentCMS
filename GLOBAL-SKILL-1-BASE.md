@@ -16,11 +16,11 @@ description: Работа с Agent CMS через MCP — общим храни�
 Работа начинается по запросу человека, сам ничего не запускай.
 
 1. `workspaces_list` → выбери id → `session_context_get({ workspaceId })`. Во всех вызовах — тот же `workspaceId` (селектор в UI на MCP не влияет).
-2. Человек говорит «вот это» без пути → `get_ui_focus` (готовые `path` / `slot` / `ref`).
+2. Человек говорит «вот это» без пути → `session_ui_focus_get` (готовые `path` / `slot` / `ref`).
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
-4. Кто ты и кто человек — `agent_identity_get` / `user_identity_get`.
+4. Кто ты и кто человек — `session_agent_get` / `session_user_get`.
 
-**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
+**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `session_always_registry_get`, `nav_index_toc_topics_read`, `nav_index_toc_contents_read`.
 
 ---
 
@@ -233,9 +233,9 @@ Workspace — папка с md-файлами. Хабы:
 | Справочная статья | `reference_entry_create` |
 | Событие | `journal_entry_append` |
 | Обсуждение темы | `append_discussion` |
-| Комментарий к manifest или записи | `comment_append` |
+| Аннотация-комментарий к manifest или записи | `annotation_comment_append` |
 | Входящее | `content_create({ slot: "inbox", status: "new" })` |
-| Заметка на сессию / договорённость | `workspace_note_write` (`NOTE.md`) / `workspace_todo_write` (`TODO.md`) |
+| Заметка на сессию / договорённость | `session_note_write` (`NOTE.md`) / `session_todo_write` (`TODO.md`) |
 | Инструкции агента | `AGENTS.md` / `SKILL.md` через `content_write` (`kind: root`, `path: AGENTS.md`) |
 | Уведомление в 🔔 | `notify_user` или журнал с `notify: true` |
 | Однотипные табличные данные | база (раздел 6) |
@@ -248,14 +248,14 @@ Workspace — папка с md-файлами. Хабы:
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
 - **Дискуссия:** `read_discussion` / `append_discussion`.
-- **Комментарии:** `comments_list`, `comment_append`, `comment_read`, `comment_update`, `comment_delete`, `comment_reaction_toggle`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
-- **`NOTE.md` / `TODO.md`** в корне: `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.
+- **Аннотации · comment** (`awn.annotation.comment`, слот `comments/`): `annotation_comments_list`, `annotation_comment_append`, `annotation_comment_read`, `annotation_comment_update`, `annotation_comment_delete`, `annotation_comment_reaction_toggle`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
+- **`NOTE.md` / `TODO.md`** в корне: `session_note_read` / `session_note_write`, `session_todo_read` / `session_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.
 
 ---
 
 ## 11. Крон, heartbeat, always-context
 
-**Старт чата:** `session_context_get` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `workspace_always_context_registry_get`.
+**Старт чата:** `session_context_get` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `session_always_registry_get`.
 
 Состав `alwaysContext` (все три источника суммируются):
 
@@ -269,7 +269,7 @@ Workspace — папка с md-файлами. Хабы:
 
 | Поле | Значение | Реестр |
 |------|----------|--------|
-| `awn-runtime-load-always: true` | Всегда в контексте | `workspace_always_context_registry_get` |
+| `awn-runtime-load-always: true` | Всегда в контексте | `session_always_registry_get` |
 | `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `workspace_cron_registry_get` |
 | `awn-runtime-heartbeat: true` | Периодическая проверка | `get_workspace_heartbeat_registry` |
 | `awn-runtime-reminder: true` | В «Напоминания» | — |
@@ -283,11 +283,11 @@ Workspace — папка с md-файлами. Хабы:
 
 ---
 
-## 13. Sidecar
+## 13. Аннотации · sidecar
 
 Метаданные к файлу: `photo.png` → `photo.sidecar.md`. Сам не создаётся.
 
-`sidecar_path_resolve`, `sidecar_read`, `sidecar_create` (409, если есть), `sidecar_write`, `sidecar_delete` (legacy `resolve_sidecar_path`, …). Текст из картинок и PDF — `index_ocr_run`.
+**Sidecar** (`awn.annotation.sidecar`, `*.sidecar.md`): `annotation_sidecar_path_resolve`, `annotation_sidecar_read`, `annotation_sidecar_create` (409, если есть), `annotation_sidecar_write`, `annotation_sidecar_delete`. Текст из картинок и PDF — `index_ocr_run`.
 
 ---
 

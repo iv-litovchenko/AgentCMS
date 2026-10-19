@@ -45,7 +45,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 > Работай с хранилищем MedCenter. Сначала workspaces_list, потом session_context_get с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
 
-Затем при необходимости: `get_ui_focus` → `read_*` / `write_*` по задаче.
+Затем при необходимости: `session_ui_focus_get` → `read_*` / `write_*` по задаче.
 
 **Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `tool_web_*`, `get_external_url_page_preview` (legacy `get_link_preview`).
 
@@ -62,7 +62,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
+| Старт | `workspaces_list`, `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_*`, `workspace_storage_info_get` — см. `session-tools.js`; остальное **с `workspaceId`** |
 | Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
 | Навигация и поиск | `nav_*`, `find_by_id`, `resolve_workspace_path`, `get_workspace_open_url_from_path`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
@@ -71,7 +71,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
-| Workspace pads | `workspace_note_read` / `workspace_note_write`, `workspace_todo_read` / `workspace_todo_write` (legacy `read_workspace_*`) |
+| Session pads | `session_note_*`, `session_todo_*` (legacy `workspace_note_*`, `read_workspace_*`) — `workspace-pad-tools.js`, регистрация в `session-tools.js` |
 | Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
 | Fact bank | `fact_create`, `facts_list`, … (legacy `workspace_fact_*`, `create_workspace_fact`, …) → `0-contents/0-facts` |
 | Glossary | `glossary_term_create`, `glossary_terms_list`, … (legacy `create_glossary_term`, …) → `0-contents/0-glossary` |

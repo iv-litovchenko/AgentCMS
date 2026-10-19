@@ -19,7 +19,7 @@ description: Как искать и ориентироваться в Agent CMS 
 | Ответ по архиву с контекстом | `ask_workspace` / `search_and_get_context` |
 | Люди, даты, суммы, теги | `index_entity_query`, `index_entity_catalog_list` (MVP) |
 | Выборка по frontmatter | `index_storage_query({ dql })` |
-| Готовые выборки | `list_workspace_registry_queries` → `run_workspace_registry_query({ id })` |
+| Готовые выборки | `session_registry_queries_list` → `session_registry_query_run({ id })`; nav: `session_nav_focus_get` / `session_nav_main_get` |
 | Лента и аудит | `list_workspace_feed`, `list_recent_activity`, `audit_workspace_memory` |
 
 Хиты поиска содержат `startLine` / `endLine` → `read_content` с `kind: root`, `startLine`, `limitLines`. Лёгкая мета без тела — `read_content` с `part=meta`.

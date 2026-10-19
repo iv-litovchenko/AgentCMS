@@ -71,7 +71,7 @@ entries:
     view: todo-list
     implementation: stub
     ui-surfaces: [picker]
-    mcp: [workspace_todo_read, workspace_todo_write]
+    mcp: [session_todo_read, session_todo_write]
   - module-id: module-catalog
     label: Каталог модулей и инструментов
     view: module-catalog

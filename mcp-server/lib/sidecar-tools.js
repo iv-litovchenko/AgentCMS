@@ -36,73 +36,89 @@ function sidecarQuery({ sourcePath, path, slot, file }) {
 
 export function registerSidecarTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "sidecar_path_resolve",
-    legacy: "resolve_sidecar_path",
+    canonical: "annotation_sidecar_path_resolve",
+    legacy: "sidecar_path_resolve",
     description:
-      "Resolve sidecar path for a workspace file. Naming: photo.png → photo.sidecar.md (same folder). Use sourcePath for any location, or path+slot+file.",
+      "Resolve sidecar path for a workspace file (awn.annotation.sidecar). Naming: photo.png → photo.sidecar.md (same folder). Use sourcePath for any location, or path+slot+file.",
     schema: sidecarAddress,
     handler: (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
   });
+  reg(
+    "resolve_sidecar_path",
+    "Deprecated alias for annotation_sidecar_path_resolve.",
+    sidecarAddress,
+    (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
+  );
 
+  const readHandler = (args) => client.get("/api/storage/sidecar", sidecarQuery(args));
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "sidecar_read",
-    legacy: "read_sidecar",
+    canonical: "annotation_sidecar_read",
+    legacy: "sidecar_read",
     description: "Read sidecar metadata for a source file. Returns exists:false when sidecar was never created.",
     schema: sidecarAddress,
-    handler: (args) => client.get("/api/storage/sidecar", sidecarQuery(args))
+    handler: readHandler
   });
+  reg("read_sidecar", "Deprecated alias for annotation_sidecar_read.", sidecarAddress, readHandler);
 
+  const createSchema = sidecarAddress.extend({
+    title: z.string().optional().describe("awn-name, default from source file name"),
+    body: z.string().optional().describe("Initial description body"),
+    properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
+  });
+  const createHandler = ({ sourcePath, path, slot, file, title, body, properties }) =>
+    client.post("/api/storage/sidecar", {
+      mode: "create",
+      sourcePath,
+      path,
+      slot,
+      file,
+      title,
+      body,
+      properties
+    });
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "sidecar_create",
-    legacy: "create_sidecar",
+    canonical: "annotation_sidecar_create",
+    legacy: "sidecar_create",
     description:
       "Explicitly create a sidecar (awn.annotation.sidecar) for an existing file. Fails with 409 if sidecar already exists. Not created automatically on upload.",
-    schema: sidecarAddress.extend({
-      title: z.string().optional().describe("awn-name, default from source file name"),
-      body: z.string().optional().describe("Initial description body"),
-      properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
-    }),
-    handler: ({ sourcePath, path, slot, file, title, body, properties }) =>
-      client.post("/api/storage/sidecar", {
-        mode: "create",
-        sourcePath,
-        path,
-        slot,
-        file,
-        title,
-        body,
-        properties
-      })
+    schema: createSchema,
+    handler: createHandler
   });
+  reg("create_sidecar", "Deprecated alias for annotation_sidecar_create.", createSchema, createHandler);
 
+  const writeSchema = sidecarAddress.extend({
+    content: z.string().optional().describe("Full markdown (frontmatter + body)"),
+    body: z.string().optional().describe("Body only; keeps/patches frontmatter"),
+    properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
+  });
+  const writeHandler = ({ sourcePath, path, slot, file, content, body, properties }) =>
+    client.post("/api/storage/sidecar", {
+      sourcePath,
+      path,
+      slot,
+      file,
+      content,
+      body,
+      properties
+    });
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "sidecar_write",
-    legacy: "write_sidecar",
+    canonical: "annotation_sidecar_write",
+    legacy: "sidecar_write",
     description:
-      "Update an existing sidecar. Sidecar must exist — use sidecar_create first. Pass full content or body/properties patch.",
-    schema: sidecarAddress.extend({
-      content: z.string().optional().describe("Full markdown (frontmatter + body)"),
-      body: z.string().optional().describe("Body only; keeps/patches frontmatter"),
-      properties: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
-    }),
-    handler: ({ sourcePath, path, slot, file, content, body, properties }) =>
-      client.post("/api/storage/sidecar", {
-        sourcePath,
-        path,
-        slot,
-        file,
-        content,
-        body,
-        properties
-      })
+      "Update an existing sidecar. Sidecar must exist — use annotation_sidecar_create first. Pass full content or body/properties patch.",
+    schema: writeSchema,
+    handler: writeHandler
   });
+  reg("write_sidecar", "Deprecated alias for annotation_sidecar_write.", writeSchema, writeHandler);
 
+  const deleteHandler = (args) => client.delete("/api/storage/sidecar", sidecarQuery(args));
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "sidecar_delete",
-    legacy: "delete_sidecar",
+    canonical: "annotation_sidecar_delete",
+    legacy: "sidecar_delete",
     description:
       "Delete sidecar for a source file. Does not delete the source file. 404 if sidecar was never created. Address: sourcePath or path+slot+file.",
     schema: sidecarAddress,
-    handler: (args) => client.delete("/api/storage/sidecar", sidecarQuery(args))
+    handler: deleteHandler
   });
+  reg("delete_sidecar", "Deprecated alias for annotation_sidecar_delete.", sidecarAddress, deleteHandler);
 }

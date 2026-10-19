@@ -6593,7 +6593,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
         layer === "discussion" || layer === "thread"
         ? "append_discussion"
         : layer === "comments"
-          ? "comment_append"
+          ? "annotation_comment_append"
           : null;
     return {
       error: `Folder awn-storage/${layer}/ is not writable via filesystem tools${hint ? `; use ${hint}` : ""}`,
@@ -15025,8 +15025,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
-  workspaceNote: "GET/POST /api/workspace/note — workspace_note_read / workspace_note_write (shared NOTE.md)",
-  workspaceTodo: "GET/POST /api/workspace/todo — workspace_todo_read / workspace_todo_write (shared TODO.md)",
+  workspaceNote: "GET/POST /api/workspace/note — session_note_read / session_note_write (shared NOTE.md)",
+  workspaceTodo: "GET/POST /api/workspace/todo — session_todo_read / session_todo_write (shared TODO.md)",
   workspaceFileHubQueue:
     "GET /api/workspace/file-hub/queue — module_file_hub_outbound_list MCP (.agent-cms/state/file-hub-queue.json)",
   workspaceFileHubAdd:
@@ -15035,13 +15035,13 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
-    "GET /api/workspace/context-buffer — context_buffer_read MCP (.agent-cms/state/context-buffer.json)",
+    "GET /api/workspace/context-buffer — session_buffer_read MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
-    "POST /api/workspace/context-buffer/add — context_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
+    "POST /api/workspace/context-buffer/add — session_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
   workspaceContextBufferRemove:
-    "POST /api/workspace/context-buffer/remove — context_buffer_item_remove MCP { id?, ref|path? }",
+    "POST /api/workspace/context-buffer/remove — session_buffer_item_remove MCP { id?, ref|path? }",
   workspaceContextBufferClear:
-    "POST /api/workspace/context-buffer/clear — context_buffer_clear MCP",
+    "POST /api/workspace/context-buffer/clear — session_buffer_clear MCP",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:

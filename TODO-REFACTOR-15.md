@@ -18,17 +18,19 @@
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа и настройки · 8
+├── ⚙️ Платформа · platform_* · 5
 │   ├── 🟢 platform_info_get                  ← get_platform_info
 │   ├── 🟢 platform_health_get                ← get_platform_health
 │   ├── 🟢 platform_docs_list                 ← list_platform_docs
 │   ├── 🟢 platform_doc_read                  ← read_platform_doc
-│   ├── 🟢 platform_config_list               ← list_platform_config
+│   └── 🟢 platform_config_list               ← list_platform_config
+│
+├── 🎛 Settings · settings_* · setting_* · 3
 │   ├── 🟢 settings_list                      ← list_settings
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 28
+├── 🚀 Старт и workspace · 18
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -45,18 +47,33 @@ user-agent-cms
 │   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
-│   ├── 🔴 session_context_get                ← get_session_context (имя/граница light vs heavy — TBD)
-│   ├── 🔴 get_ui_focus                       ← get_user_active_context_now (канон ui_* — TBD)
-│   ├── 🔴 get_ui_open_location               (дубль get_ui_focus → legacy-only — TBD)
-│   ├── 🔴 workspace_always_context_registry_get ← get_workspace_always_context_registry (TBD)
-│   ├── 🔴 workspace_cron_registry_get        ← get_workspace_cron_registry (TBD)
-│   ├── 🔴 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry (TBD)
 │   ├── 🔴 workspace_storage_info_get         ← get_workspace_storage_info (TBD)
-│   ├── 🔴 agent_identity_get                 ← get_agent_identity (TBD)
-│   ├── 🔴 user_identity_get                  ← get_user_identity (TBD)
-│   ├── 🔴 record_slug_generate               ← generate_workspace_slug (TBD)
-│   ├── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
-│   └── 🔴 notify_user                        (TBD)
+│   └── 🔴 workspace_activity_list            ← list_recent_activity (TBD)
+│
+├── 🎬 Session · session_* · workspaceId · 20
+│   ├── 🟢 session_context_get                ← get_session_context
+│   ├── 🟡 session_agent_get                  ← agent_identity_get ← get_agent_identity
+│   ├── 🟡 session_user_get                   ← user_identity_get ← get_user_identity
+│   ├── 🟡 session_ui_focus_get               ← get_ui_focus ← get_user_active_context_now
+│   ├── 🟡 session_always_registry_get        ← workspace_always_context_registry_get
+│   ├── 🟡 session_cron_registry_get          ← workspace_cron_registry_get
+│   ├── 🟡 session_heartbeat_registry_get     ← workspace_heartbeat_registry_get
+│   ├── 🟡 session_registry_queries_list      ← list_workspace_registry_queries
+│   ├── 🟡 session_registry_query_run         ← run_workspace_registry_query
+│   ├── 🟡 session_nav_focus_get              ← preset nav-focus / awn-focus
+│   ├── 🟡 session_nav_main_get               ← preset nav-main / awn-main
+│   ├── 🟡 get_ui_open_location               (legacy session_ui_focus_get)
+│   ├── session_note_* (2)
+│   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
+│   │   └── 🟢 session_note_write             ← workspace_note_write ← write_workspace_note
+│   ├── session_todo_* (2)
+│   │   ├── 🟢 session_todo_read              ← workspace_todo_read ← read_workspace_todo
+│   │   └── 🟢 session_todo_write             ← workspace_todo_write ← write_workspace_todo
+│   └── session_buffer_* (4)
+│       ├── 🟢 session_buffer_read            ← context_buffer_read ← read_context_buffer
+│       ├── 🟢 session_buffer_append          ← context_buffer_append ← append_context_buffer
+│       ├── 🟢 session_buffer_item_remove     ← context_buffer_item_remove ← remove_context_buffer_item
+│       └── 🟢 session_buffer_clear           ← context_buffer_clear ← clear_context_buffer
 │
 ├── 🧭 Навигация · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
@@ -74,14 +91,10 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_media_libraries_read ← media_libraries_index_toc_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
 │
-├── 🗺 id, URL, типы · 11
+├── 🗺 id, URL, типы · 7
 │   ├── 🟡 list_types
 │   ├── 🟡 get_type
 │   ├── 🟡 list_slots
-│   ├── find_by_id
-│   ├── resolve_workspace_id
-│   ├── assign_workspace_id
-│   ├── resolve_workspace_path
 │   ├── get_workspace_open_url_from_path   (канон URL; legacy get_topic_url)
 │   ├── get_workspace_url_page_preview
 │   ├── get_external_url_page_preview
@@ -112,7 +125,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename                   ← rename_topic
 │   └── 🟢 topic_move                     ← move_topic
 │
-├── 📄 Контент · 18
+├── 📄 Контент · 17
 │   ├── 🟢 contents_list                 ← list_content
 │   ├── 🟢 content_read                  ← read_content
 │   ├── 🟢 content_write                 ← write_content
@@ -129,8 +142,7 @@ user-agent-cms
 │   ├── 🟢 content_rename                ← rename_content
 │   ├── 🟢 content_move                  ← move_content
 │   ├── 🟢 content_split                 ← split_content
-│   ├── 🟢 content_merge                 ← merge_content
-│   └── 🟡 batch_invoke                      (имя без изменений)
+│   └── 🟢 content_merge                 ← merge_content
 │
 ├── 🗃 Базы · 12
 │   ├── 🟢 databases_list               ← list_databases
@@ -170,7 +182,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete            ← delete_repository
 │   └── 🟢 repository_rename            ← rename_repository
 │
-├── 🔍 Поиск и индексы · 32
+├── 🔍 Поиск и индексы · 29
 │   ├── 🟢 search_content                   ← search_workspace_content
 │   ├── 🟢 search_semantic                  ← search_workspace_semantic
 │   ├── 🟢 search_hybrid                    ← search_workspace_hybrid
@@ -192,8 +204,6 @@ user-agent-cms
 │   ├── 🟡 index_entity_catalog_list        ← entity_catalog_list ← list_workspace_entity_catalog
 │   ├── 🟡 index_entity_search_explain      ← entity_search_explain ← explain_workspace_entity_search
 │   ├── 🟡 index_file_sync                  ← sync_workspace_index_file
-│   ├── list_workspace_registry_queries
-│   ├── run_workspace_registry_query
 │   ├── 🟢 entity_registry_get              ← get_workspace_entity_registry
 │   ├── 🟢 entity_registry_put              ← put_workspace_entity_registry
 │   ├── 🟢 entity_type_upsert               ← upsert_workspace_entity_type
@@ -201,8 +211,7 @@ user-agent-cms
 │   ├── 🟢 entity_reject                    ← reject_workspace_entity
 │   ├── 🟢 entity_seed                      ← seed_workspace_entity
 │   ├── audit_workspace_memory
-│   ├── list_workspace_feed
-│   └── 🔴 workspace_notifications_list     ← list_workspace_notifications (имя/группа — TBD)
+│   └── list_workspace_feed
 │
 ├── 🧠 Facts · glossary · reference · 13
 │   ├── 🧠 fact_* · workspaceId · 4
@@ -219,35 +228,20 @@ user-agent-cms
 │   ├── 🟢 reference_entries_list         ← list_reference_entries
 │   └── 🟢 reference_entries_search       ← search_reference_entries
 │
-├── 💬 Inbox · discussion · comments · 10
-│   ├── list_inbox
-│   ├── triage_inbox_item
-│   ├── read_discussion
-│   ├── append_discussion
-│   ├── 🟢 comments_list                   ← list_comments
-│   ├── 🟢 comment_append                  ← append_comment
-│   ├── 🟢 comment_read                    ← read_comment
-│   ├── 🟢 comment_update                  ← update_comment
-│   ├── 🟢 comment_delete                  ← delete_comment
-│   └── 🟢 comment_reaction_toggle         ← toggle_comment_reaction
-│
-├── 📎 Sidecar · pads · buffer · 13
-│   ├── sidecar (5)
-│   │   ├── 🟢 sidecar_path_resolve         ← resolve_sidecar_path
-│   │   ├── 🟢 sidecar_read                 ← read_sidecar
-│   │   ├── 🟢 sidecar_create               ← create_sidecar
-│   │   ├── 🟢 sidecar_write                ← write_sidecar
-│   │   └── 🟢 sidecar_delete               ← delete_sidecar
-│   ├── pads (4)
-│   │   ├── 🟢 workspace_note_read          ← read_workspace_note
-│   │   ├── 🟢 workspace_note_write         ← write_workspace_note
-│   │   ├── 🟢 workspace_todo_read          ← read_workspace_todo
-│   │   └── 🟢 workspace_todo_write         ← write_workspace_todo
-│   └── context_buffer (4)
-│       ├── 🟢 context_buffer_read            ← read_context_buffer
-│       ├── 🟢 context_buffer_append          ← append_context_buffer
-│       ├── 🟢 context_buffer_item_remove     ← remove_context_buffer_item
-│       └── 🟢 context_buffer_clear           ← clear_context_buffer
+├── 📝 Annotations · annotation_* · domain annotations · 11
+│   ├── annotation_comment · awn.annotation.comment · slot comments/ (6)
+│   │   ├── 🟢 annotation_comments_list         ← comments_list ← list_comments
+│   │   ├── 🟢 annotation_comment_append        ← comment_append ← append_comment
+│   │   ├── 🟢 annotation_comment_read          ← comment_read ← read_comment
+│   │   ├── 🟢 annotation_comment_update        ← comment_update ← update_comment
+│   │   ├── 🟢 annotation_comment_delete        ← comment_delete ← delete_comment
+│   │   └── 🟢 annotation_comment_reaction_toggle ← comment_reaction_toggle ← toggle_comment_reaction
+│   └── annotation_sidecar · awn.annotation.sidecar · *.sidecar.md (5)
+│       ├── 🟢 annotation_sidecar_path_resolve  ← sidecar_path_resolve ← resolve_sidecar_path
+│       ├── 🟢 annotation_sidecar_read          ← sidecar_read ← read_sidecar
+│       ├── 🟢 annotation_sidecar_create        ← sidecar_create ← create_sidecar
+│       ├── 🟢 annotation_sidecar_write         ← sidecar_write ← write_sidecar
+│       └── 🟢 annotation_sidecar_delete        ← sidecar_delete ← delete_sidecar
 │
 ├── 🧰 Модули · 23 (🟢 канон `module_*`, без волны переименования)
 │   ├── 🟢 module_git_status
@@ -283,10 +277,26 @@ user-agent-cms
 │   ├── 🟢 tool_script_run                 ← run_script
 │   ├── 🟢 tool_command_exec               ← exec_command
 │   └── 🟢 tool_shell_exec                 ← exec_shell
-└── 📓 Journal · 3
+│
+├── 💬 Inbox · discussion · 4
+│   ├── 🔴 list_inbox
+│   ├── 🔴 triage_inbox_item
+│   ├── 🔴 read_discussion
+│   └── 🔴 append_discussion
+│
+├── 🔴 TBD · канон / группа не зафиксированы · 8
+│   ├── 🔴 batch_invoke
+│   ├── 🔴 find_by_id
+│   ├── 🔴 resolve_workspace_id             ← дубль find_by_id (→ legacy)
+│   ├── 🔴 assign_workspace_id              ← TBD assign_record_awn_id
+│   ├── 🔴 resolve_workspace_path
+│   ├── 🔴 notify_user
+│   ├── 🔴 record_slug_generate             ← generate_workspace_slug
+│   └── 🔴 workspace_notifications_list     ← list_workspace_notifications
+│
+└── 📓 Journal · 2
     ├── 🟢 journal_entry_append              ← append_journal_entry
-    ├── 🟢 journal_entries_list              ← list_journal_entries
-    └── 🔴 workspace_notifications_list      ← list_workspace_notifications (имя/группа — TBD)
+    └── 🟢 journal_entries_list              ← list_journal_entries
 ```
 
 Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_inbound_*_zzz`.
@@ -317,17 +327,10 @@ UI
 ├── get_ui_focus — фокус CMS: page / slot / content + hints
 └── get_ui_open_location — тот же API, акцент на URL → убрать из канона, оставить get_ui_focus
 
-Переименовать
-├── 🔴 record_slug_generate ← generate_workspace_slug (slug для topic/content/store/… — TBD)
-└── assign_workspace_id → assign_record_awn_id (awn-id в frontmatter записи)
-
-id
-├── find_by_id — awn-id → path (канон)
-├── resolve_workspace_id — дубль find_by_id → legacy
-└── assign_workspace_id — выдать следующий awn-id файлу
+id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве канона
 
 Прочее
-├── list_recent_activity — лента событий workspace (since / limit)
+├── list_recent_activity — лента событий workspace (since / limit); 🔴 в «Старт и workspace»
 └── get_topic_url — legacy; канон get_workspace_open_url_from_path (любой path, CHPU + view)
 ```
 
@@ -342,11 +345,14 @@ id
 - [x] **Модули:** имена `module_*` — без переименования (git, short link, media cloud, file hub)
 - [x] **Facts · glossary · reference:** канон в MCP + legacy — `facts-tools.js`, `glossary-tools.js`, `reference-tools.js`
 - [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
-- [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`; `batch_invoke` без переименования)
-- [x] **Sidecar · context_buffer:** `sidecar_*`, `context_buffer_*` — `sidecar-tools.js`, `context-buffer-tools.js`
+- [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`)
+- [ ] **🔴 TBD:** `batch_invoke`, id/path/slug, `notify_user`, inbox/discussion, `workspace_notifications_list` — имена и группы
+- [x] **Annotations:** `annotation_comment_*`, `annotation_sidecar_*` — `comment-tools.js`, `sidecar-tools.js`, `annotation-tools.js`
+- [x] **Session · pads · buffer:** `session_note_*`, `session_todo_*`, `session_buffer_*` — `workspace-pad-tools.js`, `context-buffer-tools.js` (регистрация в `session-tools.js`)
 - [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
-- [x] **Платформа и настройки:** канон в MCP + legacy — `platform-tools.js`, `settings-tools.js` (регистрация **до** workspace); `dependencies_*` — `dependencies-tools.js`, в дереве и `index.js` **в блоке хранилища** (нужен `workspaceId`)
-- [x] **Comments:** канон в MCP + legacy — `mcp-server/lib/comment-tools.js`
+- [x] **Платформа:** `platform_*` — `platform-tools.js` (регистрация **до** workspace)
+- [x] **Settings:** `settings_list`, `setting_*` — `settings-tools.js` (регистрация **до** workspace)
+- [x] **Workspace deps:** `workspace_dependencies_*` — `dependencies-tools.js`, в дереве **Старт и workspace** (нужен `workspaceId`)
 - [x] **Journal:** канон в MCP + legacy — `mcp-server/lib/journal-tools.js`
 - [x] **tool_*:** web + extract + exec — `web-search-tools.js` (`tool_web_*`), `tool-tools.js` (legacy `search_web*`, `read_web_page`, `run_script`, `exec_*`, `extract_document_text`)
 - [x] **Навигация `nav_*`:** `nav-tools.js` — `nav_map_workspace_*`, `nav_index_toc_{hub}_*`; legacy `*_index_toc_*`, `read_*_index_toc`, `read_workspace_map`

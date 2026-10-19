@@ -64,22 +64,6 @@ export function registerAgentUtilsTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "agent_identity_get",
-    legacy: "get_agent_identity",
-    description: "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/identity/agent")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "user_identity_get",
-    legacy: "get_user_identity",
-    description: "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/identity/user")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspace_activity_list",
     legacy: "list_recent_activity",
     description: "Recent workspace activity feed (MCP + UI changes, notifications).",
