@@ -91,7 +91,7 @@ user-agent-cms
 │   ├── 🟢 topics_list                    ← list_topics
 │   ├── 🟢 topic_get                      ← get_topic
 │   ├── 🟢 topic_meta_get                 ← get_topic_meta
-│   ├── 🟡 topic_exists
+│   ├── 🟢 topic_exists
 │   ├── 🟢 topic_slots_template_get       ← get_topic_slots_template
 │   ├── 🟢 topic_slots_template_set       ← set_topic_slots_template
 │   ├── 🟢 topic_body_read                ← read_topic_body
@@ -120,7 +120,7 @@ user-agent-cms
 │   ├── 🟢 content_binary_write          ← write_content_binary
 │   ├── 🟡 content_binary_write_from_url ← write_content_binary_from_url (+ import_content_from_url)
 │   ├── 🟡 content_binary_url_get        ← get_content_binary_url
-│   ├── 🟡 content_exists
+│   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get              ← get_content_meta
 │   ├── 🟢 content_property_read         ← read_content_property
 │   ├── 🟢 content_property_write        ← write_content_property
@@ -178,28 +178,28 @@ user-agent-cms
 │   ├── 🟢 search_links                     ← search_workspace_links
 │   ├── search_and_get_context
 │   ├── ask_workspace
-│   ├── 🟢 index_status_get                 ← get_workspace_index_status
-│   ├── 🟢 index_monitor_get                ← get_workspace_index_monitor
-│   ├── 🟢 index_storage_query              ← query_workspace_storage
-│   ├── 🟢 indexes_rebuild                  ← index_rebuild ← rebuild_workspace_indexes
-│   ├── 🟢 index_ocr_run                    ← run_workspace_ocr_index
-│   ├── 🟢 index_fulltext_rebuild           ← rebuild_workspace_fulltext_index
-│   ├── 🟢 index_semantic_rebuild           ← rebuild_workspace_semantic_index
-│   ├── 🟢 index_storage_rebuild            ← rebuild_workspace_storage_index
-│   ├── 🟢 index_link_rebuild               ← rebuild_workspace_link_index
-│   ├── 🟢 index_entity_rebuild             ← rebuild_workspace_entity_index
-│   ├── 🟢 index_file_sync                  ← sync_workspace_index_file
+│   ├── 🟡 index_status_get                 ← get_workspace_index_status
+│   ├── 🟡 index_monitor_get                ← get_workspace_index_monitor
+│   ├── 🟡 index_storage_query              ← query_workspace_storage
+│   ├── 🟡 indexes_rebuild                  ← index_rebuild ← rebuild_workspace_indexes
+│   ├── 🟡 index_ocr_run                    ← run_workspace_ocr_index
+│   ├── 🟡 index_fulltext_rebuild           ← rebuild_workspace_fulltext_index
+│   ├── 🟡 index_semantic_rebuild           ← rebuild_workspace_semantic_index
+│   ├── 🟡 index_storage_rebuild            ← rebuild_workspace_storage_index
+│   ├── 🟡 index_link_rebuild               ← rebuild_workspace_link_index
+│   ├── 🟡 index_entity_rebuild             ← rebuild_workspace_entity_index
+│   ├── 🟡 index_file_sync                  ← sync_workspace_index_file
 │   ├── list_workspace_registry_queries
 │   ├── run_workspace_registry_query
-│   ├── query_workspace_entities
-│   ├── explain_workspace_entity_search
-│   ├── get_workspace_entity_registry
-│   ├── put_workspace_entity_registry
-│   ├── upsert_workspace_entity_type
-│   ├── list_workspace_entity_catalog
-│   ├── merge_workspace_entity_alias
-│   ├── reject_workspace_entity
-│   ├── seed_workspace_entity
+│   ├── 🟢 entity_query                     ← query_workspace_entities
+│   ├── 🟢 entity_catalog_list              ← list_workspace_entity_catalog
+│   ├── 🟢 entity_search_explain            ← explain_workspace_entity_search
+│   ├── 🟢 entity_registry_get              ← get_workspace_entity_registry
+│   ├── 🟢 entity_registry_put              ← put_workspace_entity_registry
+│   ├── 🟢 entity_type_upsert               ← upsert_workspace_entity_type
+│   ├── 🟢 entity_alias_merge               ← merge_workspace_entity_alias
+│   ├── 🟢 entity_reject                    ← reject_workspace_entity
+│   ├── 🟢 entity_seed                      ← seed_workspace_entity
 │   ├── audit_workspace_memory
 │   ├── list_workspace_feed
 │   └── 🔴 workspace_notifications_list     ← list_workspace_notifications (имя/группа — TBD)

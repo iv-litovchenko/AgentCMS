@@ -339,64 +339,75 @@ function registerSearchWorkspaceTools(reg, client) {
     handler: () => client.post("/api/entity-index/reindex", {})
   });
 
-  reg(
-    "query_workspace_entities",
-    "Facet search over extracted entities: list entities (default), mentions by entityId, or entities in a file path.",
-    z.object({
-      mode: z
-        .enum(["entities", "mentions", "by_entity", "by_path", "path"])
-        .optional()
-        .describe("entities = list/filter; mentions/by_entity = all mentions of entityId; by_path/path = entities in one file"),
-      q: z.string().optional().describe("Filter entity labels (substring)"),
-      type: z.string().optional().describe("Entity type: person, project, date, url, tag, topic, money, email, org"),
-      entityId: z.string().optional().describe("Required for mentions mode"),
-      path: z.string().optional().describe("Required for by_path mode"),
-      pathPrefix: z.string().optional().describe("Limit to subtree"),
-      limit: z.number().int().min(1).max(200).optional()
-    }),
-    (payload) => client.post("/api/entity-index/query", payload || {})
-  );
+  const entityQuerySchema = z.object({
+    mode: z
+      .enum(["entities", "mentions", "by_entity", "by_path", "path"])
+      .optional()
+      .describe("entities = list/filter; mentions/by_entity = all mentions of entityId; by_path/path = entities in one file"),
+    q: z.string().optional().describe("Filter entity labels (substring)"),
+    type: z.string().optional().describe("Entity type: person, project, date, url, tag, topic, money, email, org"),
+    entityId: z.string().optional().describe("Required for mentions mode"),
+    path: z.string().optional().describe("Required for by_path mode"),
+    pathPrefix: z.string().optional().describe("Limit to subtree"),
+    limit: z.number().int().min(1).max(200).optional()
+  });
 
-  reg(
-    "merge_workspace_entity_alias",
-    "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next entity reindex).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_query",
+    legacy: "query_workspace_entities",
+    description:
+      "Facet search over extracted entities: list entities (default), mentions by entityId, or entities in a file path.",
+    schema: entityQuerySchema,
+    handler: (payload) => client.post("/api/entity-index/query", payload || {})
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_alias_merge",
+    legacy: "merge_workspace_entity_alias",
+    description:
+      "Add alias → canonical entity label in .agent-cms/settings/entity-registry.yml (applied on next index_entity_rebuild).",
+    schema: z.object({
       match: z.string().min(1).describe("Alias text as written in notes, e.g. Вася"),
       label: z.string().min(1).describe("Canonical label, e.g. Василий Петров"),
       type: z.string().optional().describe("Entity type (default person)")
     }),
-    (payload) => client.post("/api/entity-index/alias", payload)
-  );
+    handler: (payload) => client.post("/api/entity-index/alias", payload)
+  });
 
-  reg(
-    "reject_workspace_entity",
-    "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next entity reindex.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_reject",
+    legacy: "reject_workspace_entity",
+    description:
+      "Hide a label from the entity registry (.agent-cms/settings/entity-registry.yml reject list). Applied on next index_entity_rebuild.",
+    schema: z.object({
       label: z.string().min(1).describe("Entity label to hide, e.g. spam wikilink title"),
       type: z
         .string()
         .optional()
         .describe("Entity type scope, or * for all types (default *)")
     }),
-    (payload) => client.post("/api/entity-index/reject", payload)
-  );
+    handler: (payload) => client.post("/api/entity-index/reject", payload)
+  });
 
-  reg(
-    "seed_workspace_entity",
-    "Add a manual entity seed in entity-registry.yml (0 mentions until notes link it). Reindex to materialize in SQLite.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_seed",
+    legacy: "seed_workspace_entity",
+    description:
+      "Add a manual entity seed in entity-registry.yml (0 mentions until notes link it). Reindex to materialize in SQLite.",
+    schema: z.object({
       label: z.string().min(1).describe("Display name, e.g. ACME Corp"),
       type: z.string().optional().describe("Registry type id: person, food, project, topic, …")
     }),
-    (payload) => client.post("/api/entity-index/seed", payload)
-  );
+    handler: (payload) => client.post("/api/entity-index/seed", payload)
+  });
 
-  reg(
-    "get_workspace_entity_registry",
-    "Read entity-registry.yml rules: types (with tag maps), seeds, aliases, reject.",
-    z.object({}),
-    () => client.get("/api/entity-index/registry")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_registry_get",
+    legacy: "get_workspace_entity_registry",
+    description: "Read entity-registry.yml rules: types (with tag maps), seeds, aliases, reject.",
+    schema: emptyIndexSchema,
+    handler: () => client.get("/api/entity-index/registry")
+  });
 
   const entityRegistryBodySchema = z.object({
     version: z.number().int().optional(),
@@ -427,19 +438,25 @@ function registerSearchWorkspaceTools(reg, client) {
       .optional()
   });
 
-  reg(
-    "put_workspace_entity_registry",
-    "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer merge_workspace_entity_alias / seed / reject for small edits.",
-    z.object({
-      registry: entityRegistryBodySchema.describe("Full registry document (version 2)")
-    }),
-    (payload) => client.put("/api/entity-index/registry", payload)
-  );
+  const entityRegistryPutSchema = z.object({
+    registry: entityRegistryBodySchema.describe("Full registry document (version 2)")
+  });
 
-  reg(
-    "upsert_workspace_entity_type",
-    "Add or update one entity type in entity-registry.yml (label, hashtag → type mapping). Reindex to apply tag rules.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_registry_put",
+    legacy: "put_workspace_entity_registry",
+    description:
+      "Replace entity-registry.yml (types, seeds, aliases, reject). Prefer entity_alias_merge / entity_seed / entity_reject for small edits.",
+    schema: entityRegistryPutSchema,
+    handler: (payload) => client.put("/api/entity-index/registry", payload)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_type_upsert",
+    legacy: "upsert_workspace_entity_type",
+    description:
+      "Add or update one entity type in entity-registry.yml (label, hashtag → type mapping). Reindex to apply tag rules.",
+    schema: z.object({
       id: z.string().min(1).describe("Type id slug, e.g. food"),
       label: z.string().min(1).describe("UI label, e.g. Еда"),
       tags: z
@@ -451,20 +468,22 @@ function registerSearchWorkspaceTools(reg, client) {
         .optional()
         .describe("Optional builtin extractor map: person, project, topic, …")
     }),
-    (payload) => client.post("/api/entity-index/type", payload)
-  );
+    handler: (payload) => client.post("/api/entity-index/type", payload)
+  });
 
-  reg(
-    "list_workspace_entity_catalog",
-    "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_catalog_list",
+    legacy: "list_workspace_entity_catalog",
+    description:
+      "Paginated entity list from SQLite (+ registry seeds), same as UI ~show-entities / editor object list.",
+    schema: z.object({
       limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
       offset: z.number().int().min(0).optional().describe("Pagination offset"),
       type: z.string().optional().describe("Filter by type id"),
       q: z.string().optional().describe("Substring on label"),
       pathPrefix: z.string().optional().describe("Only entities mentioned under this folder")
     }),
-    ({ limit, offset, type, q, pathPrefix }) =>
+    handler: ({ limit, offset, type, q, pathPrefix }) =>
       client.get("/api/entity-index/catalog", {
         limit,
         offset,
@@ -472,12 +491,14 @@ function registerSearchWorkspaceTools(reg, client) {
         q,
         pathPrefix
       })
-  );
+  });
 
-  reg(
-    "explain_workspace_entity_search",
-    "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "entity_search_explain",
+    legacy: "explain_workspace_entity_search",
+    description:
+      "Debug hybrid/entity filter: which entities matched and which file paths would constrain search (entityIds or entityWhere).",
+    schema: z.object({
       entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
       entityId: z.string().optional().describe("Single entity id (shorthand)"),
       entityWhere: z
@@ -490,8 +511,8 @@ function registerSearchWorkspaceTools(reg, client) {
       pathPrefix: z.string().optional().describe("Limit paths to subtree"),
       previewLimit: z.number().int().min(1).max(200).optional().describe("Max paths in preview (default 40)")
     }),
-    (payload) => client.post("/api/entity-index/explain", payload || {})
-  );
+    handler: (payload) => client.post("/api/entity-index/explain", payload || {})
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "search_links",
