@@ -138,3 +138,52 @@ docker compose up -d --build
 
 - **Electron и порты:** сейчас только `PORT` / `VOICE_PORT` при запуске (`PORT=3100 npm run cms:desktop`); `.env` и `AGENT_CMS_EDITOR_*` Electron не читает; `tryNextPort` может сдвинуть порт. Нужно ли унифицировать с `agent-cms-ports.js` и UI/настройкой в desktop?
 - **Несколько CMS / MCP в Claude:** локальный инстанс и «как сервер» на одном Mac — два коннектора, разные URL. Практика: **один чат = один коннектор**; второй CMS — второй чат или выключить лишний MCP в настройках чата. **`agentId`** (workspace) — внутри выбранного CMS; не различает два URL, только хранилища одного инстанса. Документировать в UI/README?
+
+---
+
+## Идея: один MCP-коннектор на local + server
+
+Руками никто URL менять не будет. Поэтому в конфиге MCP вообще не должно быть адресов: локальный CMS MCP находит сам, а серверы добавляются кнопкой в UI.
+
+**1. Конфиг в Claude Desktop — одинаковый у всех, без `env`:**
+
+```json
+{
+  "mcpServers": {
+    "agent-cms": {
+      "command": "node",
+      "args": ["/Users/macbook/Desktop/YamlCMS/mcp-server/index.js"]
+    }
+  }
+}
+```
+
+Локальный CMS MCP найдёт по `.agent-cms-global/server-runtime.json`. Этот файл уже пишет `lib/runtime/server-runtime-tracker.js`, в нём лежит реальный порт, даже если `tryNextPort` сдвинул его на 3001.
+
+**2. Удалённые серверы — через UI CMS («Подключить сервер»: URL + токен).** Сохраняются в файл, руками его не трогают (файл и формат — предложение, сейчас такого нет):
+
+```json
+// .agent-cms-global/instances.json
+{
+  "instances": [
+    { "id": "local",  "auto": true },
+    { "id": "server", "url": "https://cms.example.com", "token": "…" }
+  ]
+}
+```
+
+**3. Что видит агент:**
+
+```
+list_workspaces →
+  local:medcenter
+  local:0-ws-test
+  server:medcenter
+  server:finance
+```
+
+Дальше всё как сейчас: `get_session_context({ agentId: "server:medcenter" })`. Если префикса нет, запрос идёт в `local`.
+
+Итог: один коннектор, конфиг без адресов, серверы добавляются в UI, а выбор инстанса — через `agentId`.
+
+**Ограничение:** облачный коннектор по URL (экран с `https://`) всё равно будет отдельным, со своим `https://cms.example.com/mcp`. До твоего `localhost` Anthropic не достучится. Один коннектор на всё получается только в Desktop/stdio-режиме.
