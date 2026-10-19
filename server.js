@@ -15037,11 +15037,11 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceContextBuffer:
     "GET /api/workspace/context-buffer — session_context_buffer_read MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
-    "POST /api/workspace/context-buffer/add — session_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
+    "POST /api/workspace/context-buffer/add — session_context_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
   workspaceContextBufferRemove:
-    "POST /api/workspace/context-buffer/remove — session_buffer_item_remove MCP { id?, ref|path? }",
+    "POST /api/workspace/context-buffer/remove — session_context_buffer_remove MCP { id?, ref|path? }",
   workspaceContextBufferClear:
-    "POST /api/workspace/context-buffer/clear — session_buffer_clear MCP",
+    "POST /api/workspace/context-buffer/clear — session_context_buffer_clear MCP",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:

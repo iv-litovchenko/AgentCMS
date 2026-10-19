@@ -351,7 +351,7 @@ id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве к�
 - [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`)
 - [ ] **🔴 TBD:** `batch_invoke`, id/path/slug, `notify_user`, inbox/discussion — имена и группы
 - [x] **Annotations:** `annotation_comment_*`, `annotation_sidecar_*` — `comment-tools.js`, `sidecar-tools.js`, `annotation-tools.js`
-- [x] **Session · pads · buffer:** `session_note_*`, `session_todo_*`, `session_buffer_*` — `workspace-pad-tools.js`, `context-buffer-tools.js` (регистрация в `session-tools.js`)
+- [x] **Session · pads · buffer:** `session_note_*`, `session_todo_*`, `session_context_buffer_*` — `workspace-pad-tools.js`, `context-buffer-tools.js` (регистрация в `session-tools.js`)
 - [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
 - [x] **Платформа:** `platform_*` — `platform-tools.js` (регистрация **до** workspace)
 - [x] **Settings:** `settings_list`, `setting_*` — `settings-tools.js` (регистрация **до** workspace)
