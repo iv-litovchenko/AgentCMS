@@ -52,7 +52,7 @@ export function registerWebSearchTools(reg, client) {
 
   reg(
     "read_web_page",
-    "Fetch a public web page and return readable plain text (HTML → text). For binaries use import_content_from_url. Private/local URLs are blocked.",
+    "Fetch a public web page and return readable plain text (HTML → text). For binaries use write_content_binary_from_url. Private/local URLs are blocked.",
     z.object({
       url: pageUrl,
       maxChars: z

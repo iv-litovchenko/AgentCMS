@@ -25,6 +25,13 @@ const {
   listSectionCapableSlotKeys
 } = require("../../lib/config/storage-slot-routing.js");
 
+export function absolutizeCmsUrl(client, urlPath) {
+  const raw = String(urlPath || "").trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return new URL(raw.startsWith("/") ? raw : `/${raw}`, `${client.baseUrl}/`).href;
+}
+
 function slotToFolder(slot) {
   return slotKeyToStorageFolder(slot);
 }
@@ -681,7 +688,7 @@ export async function importContentFromUrl(client, args) {
   const { manifestPath, slot } = address;
   const { fileName, mimeType, parent, createSubdir } = args;
   if (isInternalBundleSlot(slot)) {
-    throw new Error(`Cannot import_content_from_url to internal slot "${slot}". Use write_content for text slots.`);
+    throw new Error(`Cannot write_content_binary_from_url to internal slot "${slot}". Use write_content for text slots.`);
   }
   return client.post("/api/media/file/import", {
     path: manifestPath,
@@ -695,6 +702,104 @@ export async function importContentFromUrl(client, args) {
     subdir: parent || "",
     createSubdir: Boolean(createSubdir)
   });
+}
+
+export async function getContentBinaryUrl(client, args) {
+  const address = resolveArgs(args);
+  assertBinaryContentAddress(address, "get_content_binary_url");
+  const workspaceFilePath = address.workspaceFilePath;
+  if (!workspaceFilePath) {
+    throw new Error("get_content_binary_url: could not resolve workspace path from placement");
+  }
+  const payload = await readFileHandler(client, {
+    path: workspaceFilePath,
+    format: "base64",
+    maxBytes: 4096,
+    offsetBytes: 0
+  });
+  if (payload?.format !== "base64") {
+    throw new Error("get_content_binary_url: not a binary file (use get_workspace_url_page_preview for .md pages)");
+  }
+  let previewPath = payload.previewUrl;
+  if (previewPath && args.thumb !== false && String(previewPath).includes("/api/workspace/folder/file")) {
+    const parsed = new URL(previewPath, `${client.baseUrl}/`);
+    parsed.searchParams.set("thumb", "1");
+    if (args.max != null) parsed.searchParams.set("max", String(args.max));
+    previewPath = `${parsed.pathname}?${parsed.searchParams.toString()}`;
+  }
+  return {
+    placement: address.placement,
+    path: workspaceFilePath,
+    url: absolutizeCmsUrl(client, previewPath),
+    previewPath,
+    mimeType: payload.mimeType,
+    size: payload.size,
+    name: payload.name
+  };
+}
+
+function resolveWorkspaceMarkdownPath(args) {
+  const direct = String(args.path || "").trim();
+  if (direct) {
+    if (!direct.toLowerCase().endsWith(".md")) {
+      throw new Error("get_workspace_url_page_preview: path must be a .md file");
+    }
+    return direct.replace(/\\/g, "/");
+  }
+  const address = resolveArgs(args);
+  const workspaceFilePath = address.workspaceFilePath;
+  if (!workspaceFilePath) {
+    throw new Error("get_workspace_url_page_preview: provide path or placement with .md ref");
+  }
+  if (!workspaceFilePath.toLowerCase().endsWith(".md")) {
+    throw new Error("get_workspace_url_page_preview: only .md pages (manifest, slot notes, records)");
+  }
+  return workspaceFilePath;
+}
+
+export async function getWorkspaceUrlPagePreview(client, args) {
+  const wsPath = resolveWorkspaceMarkdownPath(args);
+  const payload = await client.get("/api/workspace/folder/page", { file: wsPath });
+  const page = payload?.page || {};
+  const openPayload = await client.get("/api/agent/page-url", {
+    path: wsPath,
+    view: args.view || undefined,
+    forceView: args.forceView ? true : undefined
+  });
+  let placement;
+  if (!args.path) {
+    placement = resolveArgs(args).placement;
+  }
+  return {
+    path: wsPath,
+    ...(placement ? { placement } : {}),
+    title: page.title ?? null,
+    excerpt: page.excerpt ?? "",
+    previewUrl: absolutizeCmsUrl(client, page.previewUrl),
+    previewPath: page.previewUrl ?? null,
+    openUrl: openPayload.url ?? null,
+    pathname: openPayload.pathname ?? null,
+    status: page.status ?? null,
+    tags: page.tags ?? null,
+    updatedAt: page.updatedAt ?? null,
+    isManifest: page.isManifest ?? false
+  };
+}
+
+export async function writeContentBinaryFromUrl(client, args) {
+  const address = resolveArgs(args);
+  if (address.kind === "root") {
+    throw new Error(
+      "write_content_binary_from_url: use placement (kind + path + slot + ref), not placement.kind=root"
+    );
+  }
+  const ref = String(address.ref || args.fileName || "").trim();
+  if (!ref) {
+    throw new Error("write_content_binary_from_url: placement.ref or fileName is required (e.g. assets/pasted/photo.png)");
+  }
+  assertBinaryContentAddress({ ...address, ref }, "write_content_binary_from_url");
+  if (!args.url) throw new Error("url is required");
+  return importContentFromUrl(client, { ...args, fileName: args.fileName || ref });
 }
 
 export async function renameContent(client, args) {

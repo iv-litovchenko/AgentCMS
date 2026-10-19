@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const pageUrl = z.string().url().describe("Public http(s) URL");
 const workspacePath = z
@@ -99,15 +100,17 @@ export function registerAgentUtilsTools(reg, client) {
     ({ since, limit }) => client.get("/api/agent/activity", { since, limit })
   );
 
-  reg(
-    "get_link_preview",
-    "OpenGraph / meta preview for a public HTML URL: title, description, image.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_external_url_page_preview",
+    legacy: "get_link_preview",
+    description:
+      "Preview card for a public external http(s) page (OpenGraph): title, description, image — not Agent CMS content.",
+    schema: z.object({
       url: pageUrl
     }),
-    ({ url }) => client.get("/api/web/preview", { url }),
-    { agentScope: false }
-  );
+    handler: ({ url }) => client.get("/api/web/preview", { url }),
+    options: { agentScope: false }
+  });
 
   reg(
     "extract_document_text",

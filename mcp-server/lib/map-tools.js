@@ -750,9 +750,11 @@ export function registerMapTools(reg, client, pagePath) {
     });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_topic_url",
+    canonical: "get_workspace_open_url_from_path",
+    legacy: "get_topic_url",
     description:
-      "Build a browser URL to open a topic or file in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
+      "Agent CMS open URL (CHPU) from workspace path: manifest.md, slot .md, folder, system file. " +
+      "view: edit, todo, nav, list, preview, … Returns url + pathname.",
     schema: getTopicUrlSchema,
     handler: getTopicUrlHandler
   });

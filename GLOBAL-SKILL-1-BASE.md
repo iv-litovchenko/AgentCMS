@@ -100,7 +100,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `read_content` / `write_content` / `list_content` (+ `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `import_content_from_url`, `*_content_property`). Неизвестные параметры (в т.ч. в `placement`) → `Unrecognized key(s)`.
+Один объект — `read_content` / `write_content` / `list_content` (+ `create_content`, `content_exists`, `rename_content`, `move_content`, `delete_content`, `read_content_binary`, `write_content_binary`, `write_content_binary_from_url`, `merge_content`, `split_content`, `*_content_property`). Неизвестные параметры (в т.ч. в `placement`) → `Unrecognized key(s)`.
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
@@ -127,7 +127,7 @@ Workspace — папка с md-файлами. Хабы:
 
 `expectedHash` — `hash` из последнего чтения/записи; файл изменился → `conflict`. Frontmatter через body не меняется — только `part=properties`.
 
-- Новый `.md` — `create_content`. Бинарник — `write_content` + `data` или `import_content_from_url`.
+- Новый `.md` — `create_content`. Бинарник — `write_content_binary` или `write_content_binary_from_url` (не `.md`).
 - Показать картинку из заметки: ссылку `awn-storage/assets/pasted/x.png` достроить до `awn-topics/<тема>/awn-storage/…` (путь — из `resolve_workspace_path`), затем `read_content` с `kind: root`, `format: "base64"`.
 
 ---
@@ -187,7 +187,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Файлы и картинки уровня хранилища. Слоты: `files`, `assets`. `placement: { kind: "media", path: "<slug>", slot, ref }`.
 
-- Tools: `list_media_libraries`, `get_media_library`, `register_` / `update_` / `rename_` / `delete_media_library`; картинка из сети — `import_content_from_url`.
+- Tools: `list_media_libraries`, `get_media_library`, `register_` / `update_` / `rename_` / `delete_media_library`; картинка из сети — `write_content_binary_from_url`.
 - **Медиа-облако:** `sync_media_cloud_file` (`path` — manifest темы, `file` — **полный** путь от корня), `get_media_cloud_file_status`, `repair_media_cloud_links`, `list_media_cloud_providers`. Пока только локально (`awn-media-cloud/`), в Google и Яндекс не грузит.
 
 ---
@@ -260,7 +260,8 @@ Workspace — папка с md-файлами. Хабы:
 |-----|-----|
 | Любой файл по пути | `read_content` / `write_content` с `kind: root`; обход — `list_folder` |
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `list_root_files` → `read_root_file` / `write_root_file` (с историей); только имя в корне |
-| Загрузка по полному пути | `upload_file` (base64) / `upload_file_from_url` |
+| Бинарь в слот | `write_content_binary` (base64) / `write_content_binary_from_url` |
+| Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `extract_document_text` |
 | Веб | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
 | Скрипт | `run_script` (`.py` / `.js` / `.sh`) |

@@ -6,7 +6,7 @@
 
 **Связано:** часть 4 (`*_content_*`, placement), часть 6 (G6 **`topic`**), **`GLOBAL-SKILL-0-MCP-WELCOME.md`**, **`GLOBAL-SKILL-1-BASE.md`**.
 
-**Сейчас в проде:** **`read_content` / `write_content`**, **`read_content_binary` / `write_content_binary`**, **`merge_content` / `split_content`**, **`list_content` / `create_content`**, **`import_content_from_url`**, **`extract_document_text`**. **Дальше:** **`get_content_url`**, text aliases, docs.
+**Сейчас в проде:** текст **`read/write_content`**, бинарь **`read/write_content_binary`**, URL **`write_content_binary_from_url`**, **`merge/split_content`**, **`list/create_content`**, **`extract_document_text`**. **URL / превью:** **`get_external_url_page_preview`**, **`get_workspace_url_page_preview`**, **`get_content_binary_url`**, **`get_workspace_open_url_from_path`** (+ legacy aliases). **Дальше:** text aliases, docs.
 
 ---
 
@@ -32,9 +32,11 @@
 ├── ❌ upload_asset           … обёртка write_content бинарь + publicUrl
 ├── ❌ read_asset             … read_content base64 + publicUrl
 ├── ❌ list_assets            … list_content slot=assets|files
-├── ❌ import_asset_from_url  … import_content_from_url + publicUrl
-├── ✅ read_content_binary · write_content_binary   … base64 (не .md)
-└── 🔶 write_content (data) · read_content format=base64   … legacy, те же API
+├── ❌ import_asset_from_url  … write_content_binary_from_url + publicUrl
+├── ✅ read_content_binary · write_content_binary · write_content_binary_from_url
+│   └── 🔶 import_content_from_url (alias)
+├── 🚩 upload_file · upload_file_from_url   … только MCP_LEGACY_TOOLS=1
+└── 🔶 write_content (data) · read_content format=base64   … legacy
 
 📄 Документы
 ├── 🔶 extract_document_text  … уже есть
@@ -70,7 +72,7 @@
 
 | Статус | Шаг |
 | ------ | --- |
-| ✅ | **`read_content_binary` / `write_content_binary`** — base64, не `.md`; картинки → MCP image |
+| ✅ | **`read/write_content_binary`**, **`write_content_binary_from_url`**; `upload_file*` → legacy |
 | ✅ | **`merge_content` / `split_content`** — split по `# H1`, title `(n)` |
 | 🔶 | Текст/списки/импорт — **`read/write/create/list_content`**, **`import_content_from_url`** (без aliases) |
 | 🔶 | Документы — **`extract_document_text`** |
