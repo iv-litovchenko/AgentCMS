@@ -1,15 +1,16 @@
 ---
 name: agent-cms-modules
-description: Модули платформы Agent CMS — сейчас git-модуль (status, diff, commit партиями, push, pull, remote, init) для самого хранилища; сюда же будут добавляться другие модули. Применяй, когда человек просит закоммитить, отправить, забрать или посмотреть изменения хранилища, а также при упоминании module_git_*.
+description: Модули платформы Agent CMS — git-модуль (status, diff, commit, push, pull, remote, init), короткие ссылки (create/get/delete/list), другие module_* по мере появления. Применяй по просьбе человека: git-операции, публичные короткие URL, module_git_* / create_short_link и т.д.
 ---
 
 # Agent CMS — модули
 
-Модули — дополнительные возможности платформы со своими tools `module_*`. Базовая работа с хранилищем — скилл `agent-cms`. Вызывай модуль только по просьбе человека.
+Модули — дополнительные возможности платформы. Базовая работа с хранилищем — скилл `agent-cms`. Вызывай модуль только по просьбе человека.
 
 | Модуль | Tools | Статус |
 |--------|-------|--------|
 | Git | `module_git_*` | есть |
+| Короткие ссылки | `create_short_link`, `get_short_link`, `delete_short_link`, `list_short_links` | есть |
 
 Новые модули добавляй в эту таблицу и отдельным разделом ниже.
 
@@ -35,3 +36,18 @@ Git **самого хранилища** (клоны в `awn-repositories/` — �
 3. Id партий: `records`, `records-history`, `images`, `sources`, `documents`, `media`, `design-2d`, `design-3d`, `design-bim`, `archives`, `other`, `configs`, `out-of-batch`.
 
 Старый режим: `batched: false` + `message` — один коммит по фильтру расширений.
+
+## Короткие ссылки
+
+Публичный короткий URL на страницу workspace **без свойства на целевом файле** — только реестр `awn-short-links/{code}.md` (`awn-type: awn.annotation.short-link`: `awn-code`, `awn-target-path`, `awn-view`, `awn-created-at`).
+
+| Задача | Tool / UI |
+|--------|-----------|
+| Создать (идемпотентно) | `create_short_link({ path, view?, code?, replace? })` или «Поделиться» в меню «Ссылки» |
+| Найти по коду или пути | `get_short_link({ code })` / `get_short_link({ path })` |
+| Список | `list_short_links()` или модуль редактора «Короткие ссылки» |
+| Удалить | `delete_short_link({ code })` |
+
+**URL:** `/link/{workspaceId}/{code}` — лендинг с превью workspace и страницы, кнопка «Просмотр» → полный CHPU-URL. API: `GET /api/public/short-link?agentId=&code=`, обложка `…/cover`.
+
+**Ограничение:** при перемещении/удалении целевого файла запись в реестре остаётся — ссылка может устареть (`targetExists: false` в UI/API).

@@ -33159,6 +33159,119 @@ function shellMobileRedirectTarget(pathname) {
   return `/shell${normalized}`;
 }
 
+function escapeShortLinkMetaAttr(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function absolutizeShortLinkPublicUrl(baseUrl, rawUrl) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const base = String(baseUrl || "").replace(/\/+$/, "");
+  if (!base) return raw;
+  return raw.startsWith("/") ? `${base}${raw}` : `${base}/${raw}`;
+}
+
+function buildShortLinkHeadMeta(payload, { baseUrl, canonicalUrl }) {
+  const workspaceName = String(payload.workspaceName || payload.workspaceId || "").trim();
+  const pageTitle = String(payload.title || payload.code || "Страница").trim();
+  const title = workspaceName ? `${pageTitle} — ${workspaceName}` : `${pageTitle} — Agent CMS`;
+  const pageDesc = String(payload.description || "").trim();
+  const description =
+    [pageDesc, workspaceName ? `Workspace: ${workspaceName}` : "", "Передаем важное"]
+      .filter(Boolean)
+      .join(" · ") || "Передаем важное — Agent CMS";
+  let ogImage =
+    absolutizeShortLinkPublicUrl(baseUrl, payload.previewImageUrl) ||
+    absolutizeShortLinkPublicUrl(baseUrl, payload.workspacePreviewUrl);
+  if (!ogImage && baseUrl) {
+    ogImage = `${baseUrl.replace(/\/+$/, "")}/_resources/favicon.svg`;
+  }
+  const canonical = String(canonicalUrl || payload.previewUrl || "").trim();
+  const siteName = workspaceName || "Agent CMS";
+
+  const t = escapeShortLinkMetaAttr(title);
+  const d = escapeShortLinkMetaAttr(description);
+  const img = escapeShortLinkMetaAttr(ogImage);
+  const url = escapeShortLinkMetaAttr(canonical);
+  const site = escapeShortLinkMetaAttr(siteName);
+
+  return `
+    <title>${t}</title>
+    <meta name="description" content="${d}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="${site}" />
+    <meta property="og:title" content="${t}" />
+    <meta property="og:description" content="${d}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content="${img}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${t}" />
+    <meta name="twitter:description" content="${d}" />
+    <meta name="twitter:image" content="${img}" />
+    <link rel="canonical" href="${url}" />
+  `.trim();
+}
+
+function injectShortLinkHtmlMeta(html, metaBlock) {
+  const block = String(metaBlock || "").trim();
+  if (!block) return html;
+  const replaced = html.replace(
+    /<title>[\s\S]*?<\/title>\s*<meta name="description"[^>]*>/i,
+    block
+  );
+  if (replaced !== html) return replaced;
+  return html.replace("</head>", `${block}\n  </head>`);
+}
+
+async function serveShortLinkHtml(req, res, url) {
+  const match = url.pathname.match(/^\/link\/([^/]+)\/([^/]+)\/?$/i);
+  const diskPath = path.join(getPublicDir(), "short-link", "index.html");
+  let html = await fs.readFile(diskPath, "utf-8");
+  const baseUrl =
+    getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+    resolveInternalCmsApiUrl()?.replace(/\/+$/, "") ||
+    "";
+  const canonicalUrl = baseUrl
+    ? `${baseUrl}${url.pathname.replace(/\/+$/, "") || url.pathname}`
+    : url.pathname;
+
+  if (match) {
+    const agentId = decodeURIComponent(match[1]);
+    const code = decodeURIComponent(match[2]).toLowerCase();
+    const agent = resolveAgent(agentId);
+    if (agent) {
+      try {
+        const payload = await runWithAgent(agent.id, async () => {
+          const agentRoot = getAgentRoot();
+          const link = await getShortLinkByCode(agentRoot, agent.id, baseUrl, code);
+          if (!link) return null;
+          return enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link);
+        });
+        if (payload) {
+          html = injectShortLinkHtmlMeta(
+            html,
+            buildShortLinkHeadMeta(payload, { baseUrl, canonicalUrl })
+          );
+        }
+      } catch {
+        // keep static fallback meta
+      }
+    }
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-cache"
+  });
+  res.end(html);
+}
+
 function createRequestHandler() {
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
@@ -33176,7 +33289,11 @@ function createRequestHandler() {
     }
 
     if (/^\/link\/[^/]+\/[^/]+\/?$/i.test(url.pathname)) {
-      return serveStatic("/short-link/index.html", res, req);
+      try {
+        return await serveShortLinkHtml(req, res, url);
+      } catch {
+        return serveStatic("/short-link/index.html", res, req);
+      }
     }
 
     const voiceRedirect = shellToVoiceRedirect(url.pathname);

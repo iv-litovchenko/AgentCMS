@@ -193,15 +193,57 @@
       }
     }
 
-    if (data.previewImageUrl) {
-      let ogImage = document.querySelector('meta[property="og:image"]');
-      if (!ogImage) {
-        ogImage = document.createElement("meta");
-        ogImage.setAttribute("property", "og:image");
-        document.head.appendChild(ogImage);
-      }
-      ogImage.setAttribute("content", data.previewImageUrl);
+    applyShareMeta(data);
+  }
+
+  function upsertMeta(selector, attrs) {
+    let node = document.querySelector(selector);
+    if (!node) {
+      node = document.createElement("meta");
+      document.head.appendChild(node);
     }
+    for (const [key, value] of Object.entries(attrs)) {
+      node.setAttribute(key, value);
+    }
+    return node;
+  }
+
+  function applyShareMeta(data) {
+    const workspaceName = String(data.workspaceName || data.workspaceId || "").trim();
+    const pageTitle = String(data.title || data.code || "Страница").trim();
+    const title = workspaceName ? `${pageTitle} — ${workspaceName}` : `${pageTitle} — Agent CMS`;
+    const pageDesc = String(data.description || "").trim();
+    const description =
+      [pageDesc, workspaceName ? `Workspace: ${workspaceName}` : "", "Передаем важное"]
+        .filter(Boolean)
+        .join(" · ") || "Передаем важное — Agent CMS";
+    const ogImage =
+      String(data.previewImageUrl || data.workspacePreviewUrl || "").trim() ||
+      `${location.origin}/_resources/favicon.svg`;
+    const canonical = String(data.previewUrl || location.href).trim();
+
+    document.title = title;
+    upsertMeta('meta[name="description"]', { name: "description", content: description });
+    upsertMeta('meta[property="og:type"]', { property: "og:type", content: "website" });
+    upsertMeta('meta[property="og:site_name"]', {
+      property: "og:site_name",
+      content: workspaceName || "Agent CMS"
+    });
+    upsertMeta('meta[property="og:title"]', { property: "og:title", content: title });
+    upsertMeta('meta[property="og:description"]', { property: "og:description", content: description });
+    upsertMeta('meta[property="og:url"]', { property: "og:url", content: canonical });
+    upsertMeta('meta[property="og:image"]', { property: "og:image", content: ogImage });
+    upsertMeta('meta[name="twitter:card"]', { name: "twitter:card", content: "summary_large_image" });
+    upsertMeta('meta[name="twitter:title"]', { name: "twitter:title", content: title });
+    upsertMeta('meta[name="twitter:description"]', { name: "twitter:description", content: description });
+    upsertMeta('meta[name="twitter:image"]', { name: "twitter:image", content: ogImage });
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement("link");
+      canonicalLink.setAttribute("rel", "canonical");
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute("href", canonical);
   }
 
   async function loadPreview() {
