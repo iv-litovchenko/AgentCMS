@@ -324,14 +324,16 @@ async function probeServerStatus() {
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
 
-  const [cmsPid, voicePid, commanderPid] = await Promise.all([
+  const [cmsPid, voicePid, commanderPid, mcpHttpPid] = await Promise.all([
     getPortPid(ports.editorHttps),
     getPortPid(ports.voiceHttps),
-    getPortPid(ports.commanderHttp)
+    getPortPid(ports.commanderHttp),
+    getPortPid(ports.mcpHttp)
   ]);
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
   const commander = Boolean(commanderPid);
+  const mcpHttp = Boolean(mcpHttpPid);
   const running = cms || voice;
   const autoStart = await probeLaunchAgentStatus();
   let mode = "off";
@@ -370,6 +372,7 @@ async function probeServerStatus() {
     cms,
     voice,
     commander,
+    mcpHttp,
     supervisorAlive,
     supervisorPid,
     mode,
@@ -432,7 +435,8 @@ async function forceStopServerPorts() {
     ports.voiceHttps,
     ports.voiceHttp,
     ports.editorHttps,
-    ports.editorHttp
+    ports.editorHttp,
+    ports.mcpHttp
   ];
   const pids = new Set();
 

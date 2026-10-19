@@ -27,6 +27,13 @@ function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
 
 const SERVER_POLL_MS = 8000;
 
+const SERVICE_MONITOR_DEFS = [
+  { id: "editor", title: "Agent CMS Editor", accent: "cms", portKey: "editorHttps", portLabel: "HTTPS" },
+  { id: "voice", title: "Agent CMS Voice", accent: "voice", portKey: "voiceHttps", portLabel: "HTTPS" },
+  { id: "commander", title: "Agent CMS Commander", accent: "commander", portKey: "commanderHttp", portLabel: "HTTP" },
+  { id: "mcp", title: "Agent CMS MCP", accent: "mcp", portKey: "mcpHttp", portLabel: "HTTP" }
+];
+
 /** Отображаемое имя Voice в Control (логика/порты без изменений). */
 const VOICE_UI_LABEL = "Voice-Chat";
 
@@ -339,6 +346,94 @@ function getDiskStatState() {
     diskTotal: disk?.totalLabel || "—",
     diskFree: disk?.freeLabel || "—"
   };
+}
+
+function getServiceMonitorRowState(def, server, ports) {
+  const port = ports[def.portKey];
+  const portText = port != null ? `:${port}` : "—";
+
+  if (def.id === "mcp") {
+    const httpUp = Boolean(server?.mcpHttp);
+    if (server?.cms && mcpOk === null) {
+      return { state: "pending", label: "Проверка…", detail: `${portText} · API на Editor` };
+    }
+    if (mcpOk === true || httpUp) {
+      const parts = [];
+      if (mcpOk === true) parts.push("API /api/agent/mcp-ping");
+      if (httpUp) parts.push(`${portText} слушает`);
+      return { state: "on", label: "Доступен", detail: parts.join(" · ") || portText };
+    }
+    if (server?.cms && mcpOk === false) {
+      return { state: "off", label: "Не отвечает", detail: `${portText} · ping MCP на Editor` };
+    }
+    if (httpUp) {
+      return { state: "on", label: "Порт занят", detail: portText };
+    }
+    return { state: "off", label: "Недоступен", detail: `${portText} · запустите сервер (шаг 2)` };
+  }
+
+  const flag = def.id === "editor" ? "cms" : def.id === "voice" ? "voice" : "commander";
+  const listening = Boolean(server?.[flag]);
+  if (listening) {
+    return { state: "on", label: "Порт занят", detail: `${portText} ${def.portLabel}` };
+  }
+  return { state: "off", label: "Свободен", detail: `${portText} ${def.portLabel}` };
+}
+
+function renderServiceMonitorRow(def, server, ports) {
+  const { state, label, detail } = getServiceMonitorRowState(def, server, ports);
+  return `
+    <article class="services-monitor-row" data-accent="${def.accent}" data-state="${state}" role="listitem">
+      <div class="services-monitor-main">
+        <span class="product-badge" data-accent="${def.accent}">${def.id === "voice" ? "Voice" : def.id === "editor" ? "Editor" : def.id === "commander" ? "Commander" : "MCP"}</span>
+        <div class="services-monitor-copy">
+          <strong class="services-monitor-title">${def.title}</strong>
+          <span class="services-monitor-detail">${detail}</span>
+        </div>
+      </div>
+      <span class="status-chip status-chip--inline services-monitor-chip" data-state="${state}">
+        <span class="status-led" aria-hidden="true"></span>
+        <span class="status-value">${label}</span>
+      </span>
+    </article>
+  `;
+}
+
+function renderServicesMonitor() {
+  const root = document.getElementById("services-monitor");
+  if (!root) return;
+
+  const server = lastServer || bootstrap?.server;
+  const ports = getPorts();
+  root.innerHTML = SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRow(def, server, ports)).join("");
+}
+
+async function refreshServicesMonitorManual() {
+  const button = document.getElementById("refresh-services-monitor");
+  const prev = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "…";
+  }
+  try {
+    const data = await window.agentControl.refreshStatus();
+    await handleServerStatusUpdate(data.server, { skipNotify: true });
+    renderServicesMonitor();
+  } catch (error) {
+    appendLog(`Ошибка мониторинга: ${error.message}\n`, "stderr");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = prev || "Обновить";
+    }
+  }
+}
+
+function bindServicesMonitorActions() {
+  const button = document.getElementById("refresh-services-monitor");
+  if (!button || button.dataset.bound) return;
+  button.dataset.bound = "1";
+  button.addEventListener("click", () => void refreshServicesMonitorManual());
 }
 
 function renderSetupChecklist() {
@@ -677,6 +772,7 @@ async function handleServerStatusUpdate(server, options = {}) {
 
   syncServerUi(server);
   renderSetupChecklist();
+  renderServicesMonitor();
 }
 
 async function pollServerStatus() {
@@ -828,7 +924,8 @@ function getPorts() {
       editorHttp: 3000,
       voiceHttps: 3488,
       voiceHttp: 3088,
-      commanderHttp: 3188
+      commanderHttp: 3188,
+      mcpHttp: 3490
     }
   );
 }
@@ -1738,6 +1835,8 @@ async function init() {
   startServerPoll();
   bindEnvExpandToggle();
   bindSetupChecklistActions();
+  bindServicesMonitorActions();
+  renderServicesMonitor();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {
@@ -1778,6 +1877,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();
     await renderLayout();
+    renderServicesMonitor();
     renderAppFooter();
   } catch (error) {
     appendLog(`Ошибка обновления: ${error.message}\n`, "stderr");
