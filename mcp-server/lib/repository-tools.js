@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registerTocTool } from "./register-toc-tool.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
   .string()
@@ -7,21 +8,25 @@ const workspaceRelPath = z
   .describe("Workspace-relative repository path, e.g. awn-repositories/my-fork/manifest.md");
 
 export function registerRepositoryTools(reg, client) {
-  reg(
-    "list_repositories",
-    "Catalog of workspace source repos under awn-repositories/: registered manifest cards + unregistered folders (no manifest yet). Code subtree is not search-indexed.",
-    z.object({}),
-    () => client.get("/api/agent/repositories")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repositories_list",
+    legacy: "list_repositories",
+    description:
+      "Catalog of workspace source repos under awn-repositories/: registered manifest cards + unregistered folders (no manifest yet). Code subtree is not search-indexed.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/repositories")
+  });
 
-  reg(
-    "get_repository",
-    "One repository card: manifest frontmatter + body from awn-repositories/{slug}/manifest.md (slug = repo folder or group/repo).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repository_get",
+    legacy: "get_repository",
+    description:
+      "One repository card: manifest frontmatter + body from awn-repositories/{slug}/manifest.md (slug = repo folder or group/repo).",
+    schema: z.object({
       path: workspaceRelPath
     }),
-    ({ path }) => client.get("/api/agent/repository", { path })
-  );
+    handler: ({ path }) => client.get("/api/agent/repository", { path })
+  });
 
   registerTocTool(reg, {
     canonical: "read_repository_index_toc",
@@ -48,10 +53,12 @@ export function registerRepositoryTools(reg, client) {
       })
   });
 
-  reg(
-    "register_repository",
-    "Create awn-repositories/{slug}/manifest.md — new folder or adopt existing clone (adopted: true when folder already exists).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repository_register",
+    legacy: "register_repository",
+    description:
+      "Create awn-repositories/{slug}/manifest.md — new folder or adopt existing clone (adopted: true when folder already exists).",
+    schema: z.object({
       slug: z
         .string()
         .min(1)
@@ -63,13 +70,14 @@ export function registerRepositoryTools(reg, client) {
       origin: z.string().url().optional().describe("Git remote URL if known"),
       body: z.string().optional().describe("Markdown body below frontmatter")
     }),
-    (payload) => client.post("/api/agent/repositories", payload)
-  );
+    handler: (payload) => client.post("/api/agent/repositories", payload)
+  });
 
-  reg(
-    "update_repository",
-    "Update manifest frontmatter for an existing awn-repositories/{slug}/manifest.md card.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repository_update",
+    legacy: "update_repository",
+    description: "Update manifest frontmatter for an existing awn-repositories/{slug}/manifest.md card.",
+    schema: z.object({
       path: workspaceRelPath,
       name: z.string().optional(),
       description: z.string().optional(),
@@ -78,26 +86,29 @@ export function registerRepositoryTools(reg, client) {
       status: z.enum(["active", "study", "archived", "vendored"]).optional(),
       body: z.string().optional()
     }),
-    (payload) => client.put("/api/agent/repositories", payload)
-  );
+    handler: (payload) => client.put("/api/agent/repositories", payload)
+  });
 
-  reg(
-    "delete_repository",
-    "Soft-delete repository hub folder (awn-repositories/{slug}/) to workspace recycle bin.",
-    z.object({ path: workspaceRelPath }),
-    ({ path }) => client.delete("/api/agent/repository", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repository_delete",
+    legacy: "delete_repository",
+    description: "Soft-delete repository hub folder (awn-repositories/{slug}/) to workspace recycle bin.",
+    schema: z.object({ path: workspaceRelPath }),
+    handler: ({ path }) => client.delete("/api/agent/repository", { path })
+  });
 
-  reg(
-    "rename_repository",
-    "Rename/move repository folder under awn-repositories/ (slug or group/repo). Updates groups.yml assignment when present.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "repository_rename",
+    legacy: "rename_repository",
+    description:
+      "Rename/move repository folder under awn-repositories/ (slug or group/repo). Updates groups.yml assignment when present.",
+    schema: z.object({
       path: workspaceRelPath,
       slug: z
         .string()
         .min(1)
         .describe("New path under awn-repositories/, e.g. my-fork or clients/acme-site")
     }),
-    ({ path, slug }) => client.post("/api/agent/repositories/rename", { path, slug })
-  );
+    handler: ({ path, slug }) => client.post("/api/agent/repositories/rename", { path, slug })
+  });
 }

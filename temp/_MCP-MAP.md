@@ -157,6 +157,6 @@ agent-cms MCP
 - [mcp-server/lib/mcp-instructions.js](../mcp-server/lib/mcp-instructions.js) — server instructions (inline)  
 - [mcp-server/README.md](../mcp-server/README.md) — установка и env  
 - [TODO-REFACTOR-4.md](../TODO-REFACTOR-4.md) — модель placement (историческая карта)  
-- [TODO-REFACTOR-11.md](../TODO-REFACTOR-11.md) — что в `get_session_context`
+- [TODO-REFACTOR-11-DONE.md](./TODO-REFACTOR-11-DONE.md) — что в `get_session_context`
 
 **Пересборка карты:** из корня репо — парсинг `reg(` / `canonical:` / `registerFactTool` в `mcp-server/**/*.js` (245 имён на 2026-10-17).

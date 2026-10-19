@@ -24388,6 +24388,26 @@ function upsertAwnFlagInPropsYaml(content, flagKey, enabled) {
   return stringifyPropsYaml(entries);
 }
 
+function upsertAwnSlotsTemplateInPropsYaml(content, template) {
+  const normalizedTemplate = normalizeTopicSlotsTemplate(template);
+  let entries = parsePropsYaml(content || "");
+  entries = entries.filter((entry) => {
+    const key = normalizePropsKey(entry.key);
+    return key !== AWN_TOPIC_SLOTS_FLEXIBLE_KEY && key !== AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY;
+  });
+  const index = entries.findIndex(
+    (entry) => normalizePropsKey(entry.key) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
+  );
+  const nextEntry = {
+    key: AWN_TOPIC_SLOTS_TEMPLATE_KEY,
+    kind: "string",
+    value: normalizedTemplate
+  };
+  if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
+  else entries.push(nextEntry);
+  return stringifyPropsYaml(entries);
+}
+
 function upsertAwnFocusInPropsYaml(content, enabled) {
   return upsertAwnFlagInPropsYaml(content, "awn-focus", enabled);
 }
@@ -24420,7 +24440,8 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
 
   const apiPath = getResolvedNodePath(nodePathRaw);
   const canToggle =
-    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY ||
+    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
       ? canShowNodeOverviewSharedSlotToggle(nodePathRaw)
       : canShowNodeOverviewPinActions(nodePathRaw);
   if (!apiPath || !canToggle) {
@@ -24548,58 +24569,114 @@ function isContentRecordOverviewEntry(contextOrKind) {
   );
 }
 
-async function setTopicSharedSlotState(nodePath, enabled, options = {}) {
-  const label = getLabelFromPath(nodePath) || nodePath;
-  const changed = await saveNodeNavFlagState(nodePath, AWN_TOPIC_SLOTS_FLEXIBLE_KEY, enabled, {
-    ...options,
-    confirmRemove: !enabled,
-    removeTitle: "Выключить",
-    removeMessage: `Выключить «Гибкий слот» для «${label}»? Снова появятся типовые слоты awn-storage (main, inbox, media…).`,
-    unavailableMessage: "«Гибкий слот» доступен только для manifest темы",
-    successOn: `«Гибкий слот» включён для «${label}»`,
-    successOff: `«Гибкий слот» выключен для «${label}»`,
-    errorMessage: "Не удалось изменить «Гибкий слот»"
-  });
-  if (!changed) return false;
-
-  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
-  invalidateTopicSlotsDisabledCache(manifestPath);
-  if (manifestPath) topicSlotsDisabledCache.set(manifestPath, enabled);
-
-  if (
-    activeContentMode === NODE_NAVIGATION_MODE ||
-    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
-    activeContentMode === NODE_OVERVIEW_MODE
-  ) {
-    try {
-      await refreshNavigationHubAfterSlotMutation();
-    } catch {
-      // ignore refresh errors
-    }
-    if (activeContentMode === NODE_NAVIGATION_MODE) {
-      await renderNodeNavigation();
-    } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-      await renderEntryOverview();
-    } else if (activeContentMode === NODE_OVERVIEW_MODE) {
-      await renderNodeOverview();
-    }
+function buildTopicSlotsTemplateConfirmMessage(label, toTemplate) {
+  const toLabel = TOPIC_SLOTS_TEMPLATE_LABELS[toTemplate] || toTemplate;
+  const parts = [`Переключить шаблон слотов для «${label}» на «${toLabel}»?`];
+  if (toTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
+    parts.push(TOPIC_SHARED_SLOT_SUBTITLE);
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
+    parts.push("Типовые папки awn-storage (main, inbox, media…) снова будут в навигации.");
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo…).");
   }
-
-  const toggledManifest = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
-  if (
-    activeContentMode === "topic-schema" &&
-    toggledManifest &&
-    toggledManifest === getTopicSchemaManifestPath(activePath)
-  ) {
-    renderTopicSchemaEditor();
-  }
-
-  return true;
+  return parts.join("\n\n");
 }
 
-async function toggleTopicSharedSlot(nodePath, propEntries = null) {
-  const active = isTopicSharedSlotActiveForNode(nodePath, propEntries);
-  return setTopicSharedSlotState(nodePath, !active);
+async function setTopicSlotsTemplate(nodePath, template, options = {}) {
+  const normalizedTemplate = normalizeTopicSlotsTemplate(template);
+  const label = getLabelFromPath(nodePath) || nodePath;
+  const nodePathRaw = String(nodePath || "").trim();
+  const apiPath = getResolvedNodePath(nodePathRaw);
+  if (!apiPath || !canShowNodeOverviewSharedSlotToggle(nodePathRaw)) {
+    showToast("Шаблон слотов доступен только для manifest темы", "error");
+    return false;
+  }
+
+  const currentTemplate = Array.isArray(options.propEntries) && options.propEntries.length
+    ? getTopicSlotsTemplateFromEntries(options.propEntries)
+    : getTopicSlotsTemplateForManifestPath(apiPath);
+  if (currentTemplate === normalizedTemplate) return true;
+
+  if (options.confirm !== false) {
+    const confirmed = await askConfirm(buildTopicSlotsTemplateConfirmMessage(label, normalizedTemplate), {
+      okLabel: "Применить",
+      cancelLabel: "Отмена",
+      title: "Шаблон слотов",
+      variant: "warning",
+      icon: "📁"
+    });
+    if (!confirmed) return false;
+  }
+
+  try {
+    const getResponse = await fetch(
+      buildApiUrl("/api/file/properties", { path: apiPath }, options.agentId || activeWorkspaceId)
+    );
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const stampedContent = upsertAwnSlotsTemplateInPropsYaml(current.content || "", normalizedTemplate);
+    const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, options.agentId || activeWorkspaceId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, content: stampedContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+    }
+
+    const manifestPath = resolveManifestPathForNodeApi(apiPath);
+    invalidateTopicSlotsDisabledCache(manifestPath);
+    if (manifestPath) topicSlotsTemplateCache.set(manifestPath, normalizedTemplate);
+
+    await refreshAllFocusPanels();
+    const activeApi = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+    const savedApi = normalizeMenuNodePath(apiPath || "");
+    if (activeApi && savedApi && activeApi === savedApi) {
+      await loadPropertiesForActivePath().catch(() => null);
+    }
+    updateNodeOverviewHeroActionStates();
+
+    if (
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
+      activeContentMode === NODE_OVERVIEW_MODE
+    ) {
+      try {
+        await refreshNavigationHubAfterSlotMutation();
+      } catch {
+        // ignore refresh errors
+      }
+      if (activeContentMode === NODE_NAVIGATION_MODE) {
+        await renderNodeNavigation();
+      } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+        await renderEntryOverview();
+      } else if (activeContentMode === NODE_OVERVIEW_MODE) {
+        await renderNodeOverview();
+      }
+    }
+
+    const toggledManifest = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+    if (
+      activeContentMode === "topic-schema" &&
+      toggledManifest &&
+      toggledManifest === getTopicSchemaManifestPath(activePath)
+    ) {
+      renderTopicSchemaEditor();
+    }
+
+    showToast(
+      `Шаблон слотов: ${TOPIC_SLOTS_TEMPLATE_LABELS[normalizedTemplate] || normalizedTemplate} («${label}»)`,
+      "success"
+    );
+    return true;
+  } catch (error) {
+    showToast(error?.message || "Не удалось сохранить шаблон слотов", "error");
+    return false;
+  }
 }
 
 async function removeNodeFromFocus(focusItem) {
@@ -27140,12 +27217,28 @@ function usesNavigationHubInlineSubsections(nodePath = getResolvedNodePath(activ
 
 const AWN_TOPIC_SLOTS_FLEXIBLE_KEY = "awn-slots-flexible";
 const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
+const AWN_TOPIC_SLOTS_TEMPLATE_KEY = "awn-slots-template";
+const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
+const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_NONE = "none";
+const TOPIC_SLOTS_TEMPLATE_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+const TOPIC_SLOTS_TEMPLATE_SELECT_ORDER = [
+  TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+  TOPIC_SLOTS_TEMPLATE_STANDARD,
+  TOPIC_SLOTS_TEMPLATE_NONE
+];
 
-const topicSlotsDisabledCache = new Map();
+const topicSlotsTemplateCache = new Map();
+/** @deprecated use topicSlotsTemplateCache; kept for boolean flexible reads */
+const topicSlotsDisabledCache = topicSlotsTemplateCache;
 const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
 const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
-  "Структура содержимого задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
+  "Весь awn-storage/ темы, включая main/, inbox/, media/ и любые свои папки; скрыты только assets/, history/ и comments/.";
 const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
 const TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS = new Set([
   "main-single",
@@ -27158,8 +27251,56 @@ function isTopicFlexibleSingleFileSlotKey(slotKey) {
   return TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS.has(String(slotKey || "").trim());
 }
 
+function normalizeTopicSlotsTemplate(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function getTopicSlotsTemplateFromEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  const templateEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_TEMPLATE_KEY
+  );
+  if (templateEntry) {
+    return normalizeTopicSlotsTemplate(getPropsEntryDisplayValue(templateEntry));
+  }
+  if (isTopicSlotsFlexibleLegacyFromEntries(entries)) {
+    return TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsFlexibleLegacyFromEntries(entries) {
+  const flexibleEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+  );
+  if (flexibleEntry) {
+    if (flexibleEntry.kind === "bool") return Boolean(flexibleEntry.value);
+    const raw = String(flexibleEntry.value ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+  }
+  const legacyEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
+  );
+  if (!legacyEntry) return false;
+  if (legacyEntry.kind === "bool") return Boolean(legacyEntry.value);
+  const raw = String(legacyEntry.value ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+}
+
+function isTopicSlotsFlexibleFromEntries(entries) {
+  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+function isTopicSlotsNoneFromEntries(entries) {
+  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_NONE;
+}
+
 function filterTopicFlexibleSingleFileSlotSpecs(specs, topicPath = getResolvedNodePath(activePath)) {
-  if (!isTopicSharedSlotActive(topicPath)) return specs;
+  if (!isTopicSlotsLiteTemplateActive(topicPath)) return specs;
   return (specs || []).filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
 }
 
@@ -27208,48 +27349,50 @@ function shouldUseFlexibleSlotAssetUrls(nodePath = activePath) {
   return isTopicSharedSlotActive(nodePath);
 }
 
-function isTopicSlotsFlexibleFromEntries(entries) {
-  if (!Array.isArray(entries) || !entries.length) return false;
-  const flexibleEntry = entries.find(
-    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
-  );
-  if (flexibleEntry) {
-    if (flexibleEntry.kind === "bool") return Boolean(flexibleEntry.value);
-    const raw = String(flexibleEntry.value ?? "").trim().toLowerCase();
-    return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
-  }
-  const legacyEntry = entries.find(
-    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
-  );
-  if (!legacyEntry) return false;
-  if (legacyEntry.kind === "bool") return Boolean(legacyEntry.value);
-  const raw = String(legacyEntry.value ?? "").trim().toLowerCase();
-  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
-}
-
 function isTopicSlotsDisabledFromEntries(entries) {
   return isTopicSlotsFlexibleFromEntries(entries);
+}
+
+function getTopicSlotsTemplateForManifestPath(manifestPath) {
+  const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  if (topicSlotsTemplateCache.has(normalized)) {
+    return topicSlotsTemplateCache.get(normalized);
+  }
+  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
+  if (activeManifestPath === normalized) {
+    const entries = resolveNodeOverviewPropsEntries();
+    if (entries?.length) return getTopicSlotsTemplateFromEntries(entries);
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsLiteTemplateActive(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return false;
+  const template = getTopicSlotsTemplateForManifestPath(manifestPath);
+  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
 function invalidateTopicSlotsDisabledCache(manifestPath = "") {
   const normalized = String(manifestPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) {
-    topicSlotsDisabledCache.clear();
+    topicSlotsTemplateCache.clear();
     return;
   }
-  topicSlotsDisabledCache.delete(normalized);
+  topicSlotsTemplateCache.delete(normalized);
 }
 
 function isTopicSharedSlotActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
-  if (topicSlotsDisabledCache.has(manifestPath)) return topicSlotsDisabledCache.get(manifestPath);
-  const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
-  if (activeManifestPath === manifestPath) {
-    const entries = resolveNodeOverviewPropsEntries();
-    if (entries?.length) return isTopicSlotsDisabledFromEntries(entries);
-  }
-  return false;
+  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+function isTopicSlotsNoneActive(nodePath = activePath) {
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (!manifestPath) return false;
+  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
 /** В режиме awn-slots-flexible типовые слоты (media, inbox…) не используются — только external / awn-storage/. */
@@ -27302,40 +27445,50 @@ function buildExternalMemoryFileRef(contextRelPath, relativePath) {
   );
 }
 
-async function readTopicSlotsDisabledForPath(nodePath) {
+async function readTopicSlotsTemplateForPath(nodePath) {
   const manifestPath = resolveManifestPathForNodeApi(nodePath || getResolvedNodePath(activePath));
-  if (!manifestPath) return false;
+  if (!manifestPath) return TOPIC_SLOTS_TEMPLATE_STANDARD;
 
   const activeManifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(activePath));
   if (activeManifestPath === manifestPath) {
     const entries = resolveNodeOverviewPropsEntries();
     if (entries?.length) {
-      const disabled = isTopicSlotsDisabledFromEntries(entries);
-      topicSlotsDisabledCache.set(manifestPath, disabled);
-      return disabled;
+      const template = getTopicSlotsTemplateFromEntries(entries);
+      topicSlotsTemplateCache.set(manifestPath, template);
+      return template;
     }
   }
 
-  if (topicSlotsDisabledCache.has(manifestPath)) {
-    return topicSlotsDisabledCache.get(manifestPath);
+  if (topicSlotsTemplateCache.has(manifestPath)) {
+    return topicSlotsTemplateCache.get(manifestPath);
   }
 
   try {
     const response = await fetch(buildApiUrl("/api/file/properties", { path: manifestPath }));
-    if (!response.ok) return false;
+    if (!response.ok) return TOPIC_SLOTS_TEMPLATE_STANDARD;
     const data = await response.json();
-    const disabled = isTopicSlotsDisabledFromEntries(parsePropsYaml(data.content || ""));
-    topicSlotsDisabledCache.set(manifestPath, disabled);
-    return disabled;
+    const template = getTopicSlotsTemplateFromEntries(parsePropsYaml(data.content || ""));
+    topicSlotsTemplateCache.set(manifestPath, template);
+    return template;
   } catch {
-    return false;
+    return TOPIC_SLOTS_TEMPLATE_STANDARD;
   }
+}
+
+async function readTopicSlotsDisabledForPath(nodePath) {
+  return (await readTopicSlotsTemplateForPath(nodePath)) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
 async function shouldHideTopicStorageSlots(nodePath, entries = null) {
   if (isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath)) return false;
-  if (entries?.length && isTopicSlotsDisabledFromEntries(entries)) return true;
-  return readTopicSlotsDisabledForPath(nodePath);
+  if (entries?.length) {
+    const template = getTopicSlotsTemplateFromEntries(entries);
+    if (template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE) {
+      return true;
+    }
+  }
+  const template = await readTopicSlotsTemplateForPath(nodePath);
+  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
 }
 
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
@@ -29298,28 +29451,39 @@ function createMenuTreePreviewNode(source) {
 
   const previewUrl = String(source.previewUrl || "").trim();
   const nodePath = String(source.path || source.relativePath || "").trim();
-  if (previewUrl && !isBrokenImageSrc(previewUrl, nodePath)) {
+  const previewRaw = getPropsEntryValueByKey(source?.props, "awn-preview") || source?.previewPath || "";
+  const fromProps = previewRaw ? buildPreviewUiFromPath(previewRaw, nodePath) : null;
+  const previewUi =
+    (fromProps?.imageUrl && !fromProps.broken ? fromProps : null) ||
+    (previewUrl && !isBrokenImageSrc(previewUrl, nodePath)
+      ? { imageUrl: finalizeAwnPreviewImageUrl(previewUrl, nodePath), previewPath: "" }
+      : null);
+  if (previewUi?.imageUrl && !previewUi.broken) {
     const appended = appendNavigationItemPreviewThumb(
       wrap,
       source,
-      { imageUrl: previewUrl },
+      previewUi,
       {
         className: "menu-tree-preview-img",
         cacheBust: false,
         loading: "lazy",
-        timeoutMs: resolvePreviewLoadTimeoutMs(previewUrl)
+        timeoutMs: resolvePreviewLoadTimeoutMs(previewUi.imageUrl)
       }
     );
     if (appended) return wrap;
   }
 
-  wrap.appendChild(
-    createBrokenImagePlaceholder({
-      className: "menu-tree-preview-img",
-      label: "Превью не найдено"
-    })
-  );
-  return wrap;
+  if (source?.hasPreview) {
+    wrap.appendChild(
+      createBrokenImagePlaceholder({
+        className: "menu-tree-preview-img",
+        label: "Превью не найдено"
+      })
+    );
+    return wrap;
+  }
+
+  return null;
 }
 
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
@@ -36390,10 +36554,8 @@ function getGraphNodeRadius(node, degrees, showPreviews = false) {
 
 function resolveGraphPreviewUrl(node) {
   if (!node?.previewUrl) return "";
-  return appendMediaThumbToApiUrl(
-    appendCacheBuster(appendAgentToApiUrl(node.previewUrl)),
-    MEDIA_THUMB_MAX_GRID
-  );
+  const nodePath = node.nodePath || node.filePath || "";
+  return finalizeAwnPreviewImageUrl(node.previewUrl, nodePath);
 }
 
 function sanitizeGraphDomId(value) {
@@ -38296,6 +38458,39 @@ function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_DEFAULT) {
     const joiner = raw.includes("?") ? "&" : "?";
     return `${raw}${joiner}thumb=1&max=${encodeURIComponent(String(max))}`;
   }
+}
+
+function stripMediaThumbFromApiUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return raw;
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    parsed.searchParams.delete("thumb");
+    parsed.searchParams.delete("max");
+    const relative = `${parsed.pathname}${parsed.search}`;
+    return raw.startsWith("http") ? parsed.toString() : relative;
+  } catch {
+    return raw
+      .replace(/([?&])thumb=1&?/gi, "$1")
+      .replace(/([?&])max=[^&]*&?/gi, "$1")
+      .replace(/[?&]$/, "");
+  }
+}
+
+/** Оригинал файла для свойства awn-preview (без thumb=1). */
+function finalizeAwnPreviewImageUrl(url, nodePath = activePath) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
+  let resolved = raw;
+  if (!resolved.startsWith("/api/") && !isLoadableImageDisplayUrl(resolved)) {
+    resolved = resolveMarkdownAssetSrc(resolved, nodePath);
+  }
+  if (!isLoadableImageDisplayUrl(resolved)) return "";
+  const withAgent = resolved.startsWith("/api/")
+    ? appendCacheBuster(appendAgentToApiUrl(resolved))
+    : appendCacheBuster(resolved);
+  return stripMediaThumbFromApiUrl(withAgent);
 }
 
 function encodeMarkdownPathSegment(segment) {
@@ -42566,7 +42761,10 @@ function resolveExternalItemPreviewUi(item, nodePath = activePath) {
   const contextPath = getExternalItemContextPath(item, nodePath);
   if (previewPath) return buildPreviewUiFromPath(previewPath, contextPath);
   if (item?.hasPreview && item?.previewUrl) {
-    return { imageUrl: item.previewUrl, previewPath: "" };
+    return {
+      imageUrl: finalizeAwnPreviewImageUrl(item.previewUrl, contextPath),
+      previewPath: ""
+    };
   }
   return null;
 }
@@ -42599,10 +42797,7 @@ function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
   const rawUrl = String(preview.imageUrl || "").trim();
   if (!rawUrl) return false;
 
-  const imageUrl =
-    /^https?:\/\//i.test(rawUrl) || rawUrl.startsWith("/api/")
-      ? appendCacheBuster(appendAgentToApiUrl(rawUrl))
-      : appendCacheBuster(rawUrl);
+  const imageUrl = finalizeAwnPreviewImageUrl(rawUrl, activePath);
 
   const img = document.createElement("img");
   img.className = className;
@@ -42615,6 +42810,11 @@ function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
       createBrokenImagePlaceholder({ label: "Превью не найдено", className })
     );
   };
+
+  if (!imageUrl) {
+    handlePreviewFail();
+    return true;
+  }
 
   const lifecycle = bindPreviewImageLifecycle(img, {
     loadingClassTarget: parent,
@@ -47987,6 +48187,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-cron-schedule",
   "awn-runtime-reminder",
   "awn-runtime-commands",
+  "awn-slots-template",
   "awn-slots-flexible"
 ];
 
@@ -48182,9 +48383,13 @@ const PROPS_FIELD_META = {
     label: "На главной",
     hint: "Показывать в карусели на главной странице"
   },
+  "awn-slots-template": {
+    label: "Шаблон слотов",
+    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; none — только однофайловые слоты"
+  },
   "awn-slots-flexible": {
-    label: "Гибкий слот (Flexible)",
-    hint: "Общий гибкий слот: произвольная структура многофайловой памяти в awn-storage/"
+    label: "Гибкий слот (устар.)",
+    hint: "Заменено на awn-slots-template: flexible"
   },
   "awn-status": {
     label: "Статус",
@@ -59972,6 +60177,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-materials": "materials",
   "awn-focus": "nav",
   "awn-main": "nav",
+  "awn-slots-template": "nav",
   "awn-slots-flexible": "nav",
   "awn-category": "taxonomy",
   "awn-owner": "taxonomy",
@@ -60628,6 +60834,7 @@ function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
 const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-focus": "boolean",
   "awn-main": "boolean",
+  "awn-slots-template": "choice-one",
   "awn-slots-flexible": "boolean",
   "awn-runtime-cron": "runtime-schedule-type",
   "awn-runtime-reminder": "boolean",
@@ -64106,20 +64313,10 @@ function resolveAwnPreviewDisplayUrl(previewPath, nodePath = activePath) {
 function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
   if (preview?.broken) return "";
   if (preview?.imageUrl) {
-    const raw = String(preview.imageUrl).trim();
-    if (!raw) return "";
-    if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
-    if (!isLoadableImageDisplayUrl(raw)) return "";
-    return appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(raw)),
-      MEDIA_THUMB_MAX_PREVIEW
-    );
+    return finalizeAwnPreviewImageUrl(preview.imageUrl, nodePath);
   }
   const previewPath = String(preview?.previewPath || "").trim();
-  return appendMediaThumbToApiUrl(
-    resolveAwnPreviewDisplayUrl(previewPath, nodePath),
-    MEDIA_THUMB_MAX_PREVIEW
-  );
+  return finalizeAwnPreviewImageUrl(resolveAwnPreviewDisplayUrl(previewPath, nodePath), nodePath);
 }
 
 function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
@@ -64128,7 +64325,7 @@ function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
   if (isBrokenImageSrc(trimmed, nodePath)) {
     return { broken: true, previewPath: trimmed };
   }
-  const imageUrl = resolveAwnPreviewDisplayUrl(trimmed, nodePath);
+  const imageUrl = finalizeAwnPreviewImageUrl(resolveAwnPreviewDisplayUrl(trimmed, nodePath), nodePath);
   if (!imageUrl) return { broken: true, previewPath: trimmed };
   return { imageUrl, previewPath: trimmed };
 }
@@ -64230,12 +64427,27 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
   const populationId = `${Date.now()}-${Math.random()}`;
   thumbWrap.dataset.previewPopulationId = populationId;
   thumbWrap.replaceChildren();
+  delete thumbWrap.dataset.previewThumbRetried;
   thumbWrap.classList.remove("is-preview-loading");
   thumbWrap.dataset.overviewTitle = title;
   thumbWrap.dataset.hasPreview = imageUrl ? "1" : "0";
 
   const handlePreviewFail = () => {
     if (thumbWrap.dataset.previewPopulationId !== populationId) return;
+    const thumbFallback =
+      imageUrl && thumbWrap.dataset.previewThumbRetried !== "1"
+        ? appendMediaThumbToApiUrl(imageUrl, MEDIA_THUMB_MAX_SMALL)
+        : "";
+    if (thumbFallback && thumbFallback !== imageUrl) {
+      thumbWrap.dataset.previewThumbRetried = "1";
+      populatePreviewThumbWrap(
+        thumbWrap,
+        { imageUrl: thumbFallback, previewPath: preview?.previewPath || "" },
+        title,
+        nodePath
+      );
+      return;
+    }
     populatePreviewThumbWrap(
       thumbWrap,
       { broken: true, previewPath: preview?.previewPath || "" },
@@ -68334,7 +68546,7 @@ function createOverviewMainIcon() {
 
 function createOverviewSharedSlotIcon() {
   return createOverviewActionIcon(
-    '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.18"/><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.1"/><ellipse cx="8" cy="8" rx="3" ry="7" fill="none" stroke="currentColor" stroke-width="0.9"/><line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="0.9"/></svg>'
+    '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="6.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="10.5" width="12" height="3" rx="0.75" fill="currentColor" opacity="0.16"/><rect x="2" y="2.5" width="12" height="3" rx="0.75"/><rect x="2" y="6.5" width="12" height="3" rx="0.75"/><rect x="2" y="10.5" width="8" height="3" rx="0.75"/></svg>'
   );
 }
 
@@ -68430,11 +68642,21 @@ function syncNodeOverviewMainButton(btn, nodePath, propEntries = null) {
 }
 
 function syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries = null) {
-  const on = isTopicSharedSlotActiveForNode(nodePath, propEntries);
-  btn.classList.toggle("is-active", on);
-  btn.title = on ? "Гибкий слот: включён" : "Гибкий слот: выключен";
+  const template = Array.isArray(propEntries) && propEntries.length
+    ? getTopicSlotsTemplateFromEntries(propEntries)
+    : getTopicSlotsTemplateForManifestPath(
+        resolveManifestPathForNodeApi(getResolvedNodePath(nodePath) || nodePath)
+      );
+  const select = btn.matches("select")
+    ? btn
+    : btn.querySelector(".node-overview-slots-template-select");
+  if (select) {
+    select.value = template;
+  }
+  const label = TOPIC_SLOTS_TEMPLATE_LABELS[template] || template;
+  btn.title = `Шаблон слотов: ${label}`;
   btn.setAttribute("aria-label", btn.title);
-  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("is-active", template !== TOPIC_SLOTS_TEMPLATE_STANDARD);
 }
 
 function normalizeHeroActionNodePath(nodePath) {
@@ -68537,18 +68759,32 @@ function createNodeOverviewMainButton(nodePath, propEntries = null) {
 
 function createNodeOverviewSharedSlotButton(nodePath, propEntries = null) {
   const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "node-overview-action-btn node-overview-shared-slot-btn";
-  btn.dataset.path = resolvedPath;
-  btn.append(createOverviewSharedSlotIcon(), document.createTextNode("Гибкий слот"));
-  syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries);
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
+  const wrap = document.createElement("label");
+  wrap.className = "node-overview-action-btn node-overview-shared-slot-btn node-overview-slots-template-wrap";
+  wrap.dataset.path = resolvedPath;
+
+  const select = document.createElement("select");
+  select.className = "node-overview-slots-template-select";
+  select.setAttribute("aria-label", "Шаблон слотов");
+  for (const value of TOPIC_SLOTS_TEMPLATE_SELECT_ORDER) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = TOPIC_SLOTS_TEMPLATE_LABELS[value] || value;
+    select.appendChild(option);
+  }
+  wrap.append(createOverviewSharedSlotIcon(), select);
+  syncNodeOverviewSharedSlotButton(wrap, nodePath, propEntries);
+  select.addEventListener("change", (event) => {
     event.stopPropagation();
-    void toggleTopicSharedSlot(nodePath, propEntries);
+    void (async () => {
+      const applied = await setTopicSlotsTemplate(nodePath, select.value, { propEntries });
+      if (!applied) {
+        syncNodeOverviewSharedSlotButton(wrap, nodePath, propEntries);
+      }
+    })();
   });
-  return btn;
+  select.addEventListener("click", (event) => event.stopPropagation());
+  return wrap;
 }
 
 function createNodeOverviewHeroActions(nodePath, options = {}) {
@@ -71444,7 +71680,7 @@ async function fetchNodeOverviewPreview(nodePath = activePath, entries = null) {
     const data = await response.json();
     if (!data?.exists || !data?.imageUrl) return null;
     return {
-      imageUrl: appendAgentToApiUrl(data.imageUrl),
+      imageUrl: finalizeAwnPreviewImageUrl(data.imageUrl, previewContextPath),
       previewPath: String(data.file || "").trim()
     };
   } catch {
@@ -71659,6 +71895,7 @@ function buildNodeSettingsSlotStatuses({
 function buildNodeMemorySlotStatuses({
   isArea = false,
   slotsDisabled = false,
+  slotsTemplate = TOPIC_SLOTS_TEMPLATE_STANDARD,
   internalData = null,
   externalData = null,
   tabularData = null,
@@ -71693,6 +71930,14 @@ function buildNodeMemorySlotStatuses({
   const hasTabular = tabularRows > 0;
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
+
+  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+    return [
+      hasInternal ? { id: "internal", label: "Однофайловая", filled: true, modeId: "internal" } : null,
+      hasTabular ? { id: "tabular", label: "Табличная", filled: true, modeId: "tabular" } : null,
+      hasTodo ? { id: "todo", label: "TODO", filled: true, modeId: "todo" } : null
+    ].filter(Boolean);
+  }
 
   if (slotsDisabled) {
     const liteSpecs = [
@@ -75810,6 +76055,7 @@ function appendNavigationItemPreviewThumb(
       ? appendAgentToApiUrl(rawUrl)
       : rawUrl;
   if (cacheBust) imageUrl = appendCacheBuster(imageUrl);
+  imageUrl = stripMediaThumbFromApiUrl(imageUrl);
 
   const img = document.createElement("img");
   img.className = className;
@@ -81473,6 +81719,24 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
   return btn;
 }
 
+function createWorkspaceCounterSlotPinButton(slot) {
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const slotLabel = slot?.label || resolveDataStorageSlotDisplayLabel(slot?.id || spec?.key || "");
+  const pinBtn = document.createElement("button");
+  pinBtn.type = "button";
+  pinBtn.className =
+    "menu-pin-branch-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn node-navigation-workspace-counter-pin-btn";
+  pinBtn.textContent = "📍";
+  pinBtn.setAttribute("aria-label", "Закрепить слот на странице темы");
+  pinBtn.title = slotLabel ? `Закрепить «${slotLabel}» на странице просмотра темы` : "Закрепить на странице просмотра темы";
+  pinBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.alert("Закрепить на странице просмотра темы");
+  });
+  return pinBtn;
+}
+
 function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, onClick } = {}) {
   const card = document.createElement("div");
   card.className = "node-navigation-workspace-counter-card";
@@ -81481,7 +81745,7 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
   }
 
   const mainBtn = renderEntryOverviewWorkspaceCounterButton(slot, { isActive, onClick });
-  card.append(mainBtn);
+  card.append(mainBtn, createWorkspaceCounterSlotPinButton(slot));
   return card;
 }
 
@@ -83055,7 +83319,8 @@ function createEntryOverviewThumbWrap(context, preview, title, entries) {
     return null;
   }
 
-  const thumbMount = createOverviewThumbWrap(preview, title, context.relPath, {
+  const thumbContextPath = getPreviewResolutionContextPath(context.relPath);
+  const thumbMount = createOverviewThumbWrap(preview, title, thumbContextPath, {
     readOnly: true,
     entryOverviewContext: context,
     propEntries: entries
@@ -84556,8 +84821,9 @@ async function renderEntryOverview() {
   if (activeEntryOverviewContext && activeEntryOverviewContext.title !== title) {
     activeEntryOverviewContext = { ...activeEntryOverviewContext, title };
   }
+  const previewContextPath = getPreviewResolutionContextPath(context.relPath);
   const previewPath = getPropsEntryValueByKey(entries, "awn-preview");
-  let preview = previewPath ? buildPreviewUiFromPath(previewPath, context.relPath) : null;
+  let preview = previewPath ? buildPreviewUiFromPath(previewPath, previewContextPath) : null;
   if (!preview?.imageUrl && context.entryKind !== "awn.media.asset") {
     preview = (await fetchNodeOverviewPreview(context.relPath, entries)) || preview;
   }
@@ -84713,14 +84979,14 @@ async function renderEntryOverview() {
     hub.appendChild(hubMain);
     if (useSplitLayout) {
       await appendNodeNavigationSplitRail(hub, topicPath, {
-          ...memoryBundle,
-          entryOverviewNavigationIndex: navigationIndex,
-          entryOverviewMemoryKind: context.memoryKind
-        }, {
-          isStale,
-          documentMarkdown,
-          documentHeroTitle: title
-        });
+        ...memoryBundle,
+        entryOverviewNavigationIndex: navigationIndex,
+        entryOverviewMemoryKind: context.memoryKind
+      }, {
+        isStale,
+        documentMarkdown,
+        documentHeroTitle: title
+      });
     } else {
       syncNodeOverviewNavigationSplitClass(false);
     }
@@ -95258,6 +95524,7 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
 function buildNodeNavigationMemoryPanelsWrap({
   isInlineNavHub = false,
   slotsDisabled = false,
+  slotsTemplate = TOPIC_SLOTS_TEMPLATE_STANDARD,
   nodePath,
   externalData,
   internalData,
@@ -95268,14 +95535,15 @@ function buildNodeNavigationMemoryPanelsWrap({
 }) {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
 
   if (!isInlineNavHub) {
     const panels = [
-      renderNavigationExternalPart(externalData, { slotsDisabled }),
+      slotsNone ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
       renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
-      slotsDisabled ? null : renderNavigationMediaPart(mediaData),
-      slotsDisabled || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      slotsDisabled || slotsNone ? null : renderNavigationMediaPart(mediaData),
+      slotsDisabled || slotsNone || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -95292,7 +95560,9 @@ function buildNodeNavigationMemoryPanelsWrap({
 
 async function fetchNodeNavigationMemoryBundle(nodePath) {
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
-  const slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  const slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
+  const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -95308,14 +95578,28 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
-          fetchExternalFilesForNavigation(nodePath),
+          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          slotsDisabled || slotsNone
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          slotsDisabled || slotsNone
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  return { isArea: isInlineNavHub, slotsDisabled, internalData, externalData, tabularData, mediaData, assetsData, todoData };
+  return {
+    isArea: isInlineNavHub,
+    slotsDisabled,
+    slotsTemplate,
+    internalData,
+    externalData,
+    tabularData,
+    mediaData,
+    assetsData,
+    todoData
+  };
 }
 
 async function appendNodeNavigationSplitRail(
@@ -95325,7 +95609,9 @@ async function appendNodeNavigationSplitRail(
   { isStale = () => false, documentMarkdown = null } = {}
 ) {
   if (usesNavigationHubInlineSubsections(nodePath)) return false;
-  if (await shouldHideTopicStorageSlots(nodePath)) {
+  const slotsTemplate =
+    prefetched.slotsTemplate ?? (await readTopicSlotsTemplateForPath(nodePath));
+  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
     const childEntries = getNavigationSubsectionEntries();
     const flatNavigationIndexes =
       prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
@@ -95431,10 +95717,14 @@ async function renderNodeNavigation() {
   const childEntries = getNavigationSubsectionEntries();
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const entries = resolveNodeOverviewPropsEntries();
-  let slotsDisabled = isTopicSlotsDisabledFromEntries(entries);
-  if (!slotsDisabled && !entries?.length) {
-    slotsDisabled = await readTopicSlotsDisabledForPath(nodePath);
+  let slotsTemplate = entries?.length
+    ? getTopicSlotsTemplateFromEntries(entries)
+    : TOPIC_SLOTS_TEMPLATE_STANDARD;
+  if (!entries?.length) {
+    slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   }
+  const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
@@ -95471,13 +95761,13 @@ async function renderNodeNavigation() {
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
-          fetchExternalFilesForNavigation(nodePath),
+          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          slotsDisabled ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          slotsDisabled
+          slotsDisabled || slotsNone ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          slotsDisabled || slotsNone
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
@@ -95497,6 +95787,7 @@ async function renderNodeNavigation() {
     todoData,
     mediaData,
     assetsData,
+    slotsTemplate,
     outsideSlotsReport: outsideSlotsReport || null
   });
   if (isStale()) return;
@@ -95505,6 +95796,7 @@ async function renderNodeNavigation() {
     nodePath,
     isArea: isInlineNavHub,
     slotsDisabled,
+    slotsTemplate,
     descriptionRaw: modeContentCache.description || "",
     internalData,
     externalData,
@@ -95615,6 +95907,7 @@ async function renderNodeNavigation() {
       slugIssue: getNodeManifestSlugIssue(nodePath),
       recordPath: getOverviewNodeApiPath(nodePath),
       pageManifestPath: getOverviewNodeApiPath(nodePath),
+      thumbContextPath: manifestApiPath || nodePath,
       onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
       showUnread: showHeroUnread,
       entryOverviewNav: topicSiblingNav,
@@ -95647,6 +95940,7 @@ async function renderNodeNavigation() {
   const panelsWrap = buildNodeNavigationMemoryPanelsWrap({
     isInlineNavHub,
     slotsDisabled,
+    slotsTemplate,
     nodePath,
     externalData,
     internalData,
@@ -95668,7 +95962,7 @@ async function renderNodeNavigation() {
       externalData,
       mediaData
     });
-    if (slotsDisabled) {
+    if (slotsDisabled || slotsNone) {
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
       if (!topicSlotCounters.length) {
@@ -111877,7 +112171,7 @@ async function renderAgentShortLinksView() {
       const empty = document.createElement("div");
       empty.className = "agent-tool-empty-card";
       empty.innerHTML =
-        '<p class="agent-tool-empty-title">Коротких ссылок пока нет</p><p class="agent-tool-empty-text">Создайте через «Поделиться» в меню ссылок на странице или MCP <code>create_short_link</code>.</p>';
+        '<p class="agent-tool-empty-title">Коротких ссылок пока нет</p><p class="agent-tool-empty-text">Создайте через «Поделиться» в меню ссылок на странице или MCP <code>module_short_link_create</code>.</p>';
       shell.appendChild(empty);
     } else {
       const list = document.createElement("ul");
@@ -112090,7 +112384,7 @@ const WORKSPACE_MODULES_CATALOG = [
     status: "active"
   },
   { id: "module-large-files", label: "Крупные файлы", view: "large-files", mcp: "—", status: "active" },
-  { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "create_short_link, get_short_link, delete_short_link, list_short_links", status: "active" },
+  { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "module_short_link_create, module_short_link_get, module_short_link_delete, module_short_link_list", status: "active" },
   { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_workspace_links", status: "active" },
   { id: "module-run-scripts", label: "Запуск скриптов", view: "run-scripts", mcp: "run_script", status: "stub" },
   {
@@ -118599,14 +118893,6 @@ function createMenuAwnChannelRow(channel) {
 
   if (slug) {
     if (isPendingCreate) {
-      const keyBtn = document.createElement("button");
-      keyBtn.type = "button";
-      keyBtn.className = "menu-awn-databases-store-badge menu-awn-channels-key-btn";
-      keyBtn.textContent = slug;
-      keyBtn.title = `Создать awn-channels/${slug}/ (manifest + awn-storage/files|assets)`;
-      keyBtn.setAttribute("aria-label", `Создать канал ${slug}`);
-      keyBtn.addEventListener("click", openCreateModal);
-      metaNode.appendChild(keyBtn);
       row.setAttribute("role", "button");
       row.tabIndex = 0;
       row.addEventListener("click", openCreateModal);
@@ -118616,11 +118902,6 @@ function createMenuAwnChannelRow(channel) {
     } else {
       row.setAttribute("role", "button");
       row.tabIndex = 0;
-      const slugBadge = document.createElement("span");
-      slugBadge.className = "menu-awn-databases-store-badge menu-awn-channels-slug-badge";
-      slugBadge.textContent = slug;
-      slugBadge.title = `ключ: ${slug} · ${folderPath}/awn-storage/files/`;
-      metaNode.appendChild(slugBadge);
       const openChannel = (event) => {
         event?.preventDefault?.();
         event?.stopPropagation();
@@ -118641,7 +118922,7 @@ function createMenuAwnChannelRow(channel) {
     createMenuAwnChannelKindNode({ slug, icon: channel.icon || "📡" }),
     ...(idBadge ? [idBadge] : []),
     nameNode,
-    metaNode
+    ...(metaNode.childNodes.length ? [metaNode] : [])
   );
   return row;
 }
@@ -128926,18 +129207,6 @@ function createMenuRepositoryRowBody(entry) {
   const metaNode = document.createElement("span");
   metaNode.className = "menu-repository-meta";
 
-  if (slug) {
-    const folderPath = String(entry.folderPath || `awn-repositories/${slug}`)
-      .replace(/\\/g, "/")
-      .replace(/^\/+/, "")
-      .trim();
-    const slugBadge = document.createElement("span");
-    slugBadge.className = "menu-repository-slug menu-repository-slug-badge";
-    slugBadge.textContent = slug;
-    slugBadge.title = folderPath ? `ключ: ${slug} · ${folderPath}/` : `ключ: ${slug}`;
-    metaNode.appendChild(slugBadge);
-  }
-
   if (entry.entryCount != null && Number(entry.entryCount) >= 0) {
     const count = Number(entry.entryCount);
     const filesBadge = document.createElement("span");
@@ -129729,9 +129998,6 @@ function createMenuMediaLibraryRow(library) {
   const metaNode = document.createElement("span");
   metaNode.className = "menu-awn-databases-store-meta";
 
-  const folderPath = library.folderPath || `awn-media/${slug}`;
-  const keyTitle = `Создать awn-media/${slug}/ (manifest + awn-storage/files|assets)`;
-
   const provisionAndOpenLibrary = async () => {
     let entry = library;
     if (!isRegistered) {
@@ -129762,36 +130028,31 @@ function createMenuMediaLibraryRow(library) {
     await openMediaLibraryWorkspaceEntry(coerced, { skipRouteSync: true });
   };
 
+  const openCreateModal = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    openMediaLibraryCreateModal({
+      slug,
+      name: displayName,
+      description: library.description && !library.stub ? library.description : "",
+      preset: isPreset,
+      lockSlug: isPreset
+    });
+  };
+
   if (slug) {
     if (isPendingCreate) {
       row.title = `Заготовка «${displayName}» — создайте по ключу «${slug}»`;
-      const keyBtn = document.createElement("button");
-      keyBtn.type = "button";
-      keyBtn.className = "menu-awn-databases-store-badge menu-media-library-key-btn";
-      keyBtn.textContent = slug;
-      keyBtn.title = keyTitle;
-      keyBtn.setAttribute("aria-label", `Создать медиатеку ${slug}`);
-      keyBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openMediaLibraryCreateModal({
-          slug,
-          name: displayName,
-          description: library.description && !library.stub ? library.description : "",
-          preset: isPreset,
-          lockSlug: isPreset
-        });
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      row.addEventListener("click", openCreateModal);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") openCreateModal(event);
       });
-      metaNode.appendChild(keyBtn);
     } else {
       row.setAttribute("role", "button");
       row.tabIndex = 0;
       row.title = library.description || library.manifestPath || displayName;
-      const slugBadge = document.createElement("span");
-      slugBadge.className = "menu-awn-databases-store-badge menu-media-library-slug-badge";
-      slugBadge.textContent = slug;
-      slugBadge.title = `ключ: ${slug} · ${folderPath}/awn-storage/files/`;
-      metaNode.appendChild(slugBadge);
     }
   }
 
@@ -129799,7 +130060,7 @@ function createMenuMediaLibraryRow(library) {
     createMenuMediaLibraryKindNode(),
     ...(idBadge ? [idBadge] : []),
     nameNode,
-    metaNode
+    ...(metaNode.childNodes.length ? [metaNode] : [])
   );
 
   if (!isPendingCreate) {

@@ -868,16 +868,27 @@ export async function moveContent(client, args) {
 }
 
 export async function listContentItems(client, args) {
-  if (args.placement?.kind === "root") {
-    const rawPath = String(args.placement.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const rootList =
+    args.placement?.kind === "root" || (!args.placement && args.path != null && !args.slot);
+  if (rootList) {
+    const rawPath = String(args.placement.path ?? args.path ?? ".")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim();
     const slash = rawPath.lastIndexOf("/");
-    const folder = slash === -1 ? "" : rawPath.slice(0, slash);
+    const folder =
+      !rawPath || rawPath === "." ? "." : slash === -1 ? rawPath : rawPath.slice(0, slash);
     const depth = args.depth != null ? String(args.depth) : "1";
-    const data = await client.get("/api/workspace/fs/list", { path: folder, depth });
+    const data = await client.get("/api/workspace/fs/list", {
+      path: folder,
+      depth,
+      ...(args.includeBody ? { includeBody: "true" } : {}),
+      ...(args.maxBodyChars != null ? { maxBodyChars: String(args.maxBodyChars) } : {})
+    });
     return {
-      placement: { kind: "root", path: folder || "." },
+      placement: { kind: "root", path: folder },
       ...data,
-      hint: "Directory listing; open files with placement.kind=root and path=<file>."
+      hint: "Directory listing; open files with read_content placement { kind: root, path: <file> }."
     };
   }
   const slot = String(args.slot || args.placement?.slot || "inbox").trim();

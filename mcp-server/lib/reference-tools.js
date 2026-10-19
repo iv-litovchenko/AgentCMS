@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const entryTags = z
   .union([z.array(z.string()), z.string()])
@@ -34,41 +35,46 @@ const searchEntriesSchema = z.object({
 });
 
 export function registerReferenceTools(reg, client) {
-  reg(
-    "create_reference_entry",
-    "Create a reference entry in awn-databases/0-contents/0-reference (md-lite, hierarchical sections).",
-    createEntrySchema,
-    (payload) => client.post("/api/agent/workspace-reference/create", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "reference_entry_create",
+    legacy: "create_reference_entry",
+    description:
+      "Create a reference entry in awn-databases/0-contents/0-reference (md-lite, hierarchical sections).",
+    schema: createEntrySchema,
+    handler: (payload) => client.post("/api/agent/workspace-reference/create", payload)
+  });
 
-  reg(
-    "update_reference_entry",
-    "Update reference entry by record id or path in contents/reference.",
-    updateEntrySchema,
-    (payload) => client.post("/api/agent/workspace-reference/update", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "reference_entry_update",
+    legacy: "update_reference_entry",
+    description: "Update reference entry by record id or path in contents/reference.",
+    schema: updateEntrySchema,
+    handler: (payload) => client.post("/api/agent/workspace-reference/update", payload)
+  });
 
-  reg(
-    "list_reference_entries",
-    "List reference entries from contents/reference (alphabetical). Optional prefix and tags.",
-    listEntriesSchema,
-    ({ prefix, tags, limit }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "reference_entries_list",
+    legacy: "list_reference_entries",
+    description: "List reference entries from contents/reference (alphabetical). Optional prefix and tags.",
+    schema: listEntriesSchema,
+    handler: ({ prefix, tags, limit }) =>
       client.get("/api/agent/workspace-reference/list", {
         ...(prefix ? { prefix } : {}),
         ...(tags ? { tags: Array.isArray(tags) ? tags.join(",") : tags } : {}),
         ...(limit ? { limit } : {})
       })
-  );
+  });
 
-  reg(
-    "search_reference_entries",
-    "Semantic + fulltext search over contents/reference only.",
-    searchEntriesSchema,
-    ({ query, limit, includeSnippets }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "reference_entries_search",
+    legacy: "search_reference_entries",
+    description: "Semantic + fulltext search over contents/reference only.",
+    schema: searchEntriesSchema,
+    handler: ({ query, limit, includeSnippets }) =>
       client.get("/api/agent/workspace-reference/search", {
         q: query,
         ...(limit ? { limit } : {}),
         ...(includeSnippets === false ? { includeSnippets: "false" } : {})
       })
-  );
+  });
 }

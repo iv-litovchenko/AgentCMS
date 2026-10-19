@@ -6542,7 +6542,7 @@ const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".cfg",
   ".conf"
 ]);
-const WORKSPACE_FS_WRITE_MAX_BYTES = 512_000;
+const WORKSPACE_FS_WRITE_MAX_BYTES = 1024 * 1024;
 const WORKSPACE_FS_UPLOAD_MAX_BYTES = 45 * 1024 * 1024;
 function normalizeWorkspaceFsRelPath(raw) {
   return String(raw || "")
@@ -12746,7 +12746,7 @@ async function buildAgentPageMap(options = {}) {
       "Legacy page-map (MCP get_topic_map deprecated). Prefer read_topic_index_toc + list_folder. " +
       "Manifest-узлы + папки без manifest (kind:folder). Темы: read/write_topic_*; папки: list_folder; усыновить → create_topic.",
     whenToUse: {
-      list_topics: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
+      topics_list: "Список manifest-узлов дерева (flat или parentPath); без INDEX.md и без body.",
       read_topic_index_toc: `Канон: обзор страниц workspace (${AWN_TOPICS_INDEX_REL}, без обхода папок без manifest).`,
       list_folder: "Папки без manifest.md и произвольные пути.",
       get_topic_map: "Deprecated. Тот же endpoint, что раньше; мигрируй на list_topics + read_topic_index_toc + list_folder."
@@ -12853,7 +12853,7 @@ async function buildAgentTopicsList(options = {}) {
       "Секции hub (0-agent-kit, 0-shared) — pinned вверху flat-списка и в INDEX. " +
       "parentPath → прямые дочерние (scope=children) или поддерево (scope=subtree). Полный INDEX → read_topic_index_toc; папки без manifest → list_folder.",
     whenToUse: {
-      list_topics: "Обход дерева по parent или плоский список manifest-узлов.",
+      topics_list: "Обход дерева по parent или плоский список manifest-узлов.",
       read_topic_index_toc: `Таблица ${AWN_TOPICS_INDEX_REL} (комментарии, конфигурации, stats).`,
       list_folder: "Папки без manifest.md (не входят в list_topics по умолчанию)."
     },
@@ -13681,7 +13681,7 @@ async function buildAgentDataStoresSummary() {
       recordCount: 0,
       entries: [],
       summaryLine: "0 инфоблоков",
-      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / list_databases."
+      hint: "Краткий каталог awn-databases. Полный → read_databases_index_toc / databases_list."
     };
   }
 
@@ -13698,7 +13698,7 @@ async function buildAgentDataStoresSummary() {
     model: "data-stores-summary",
     hint:
       "Краткий каталог инфоблоков awn-databases (path, kind, title, recordCount). " +
-      "Полный оглавление → read_databases_index_toc; детали store → get_database / list_databases.",
+      "Полный оглавление → read_databases_index_toc; детали store → database_get / databases_list.",
     storeCount: entries.length,
     dataStoreCount: dataStores.length,
     groupCount: groups.length,
@@ -14924,14 +14924,14 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_topic_url",
-  repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: list_repositories",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_workspace_open_url_from_path",
+  repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
-    "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
+    "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
   repositoryIndex:
     "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index_toc",
   repositoryRegister:
-    "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
+    "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: repository_register",
   dependencies:
     "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: read_dependencies",
   dependenciesWrite:
@@ -14952,7 +14952,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageMap:
     "GET /api/agent/page-map?includeSlots= — legacy page-map (MCP get_topic_map deprecated); канон: list_topics / read_topic_index_toc + list_folder",
   listTopics:
-    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP list_topics (дерево тем, без INDEX.md)",
+    "GET /api/agent/topics?parentPath=&scope=children|subtree&includeFolders= — MCP topics_list (дерево тем, без INDEX.md)",
   contentMap:
     "GET /api/agent/content-map?path=<manifest.md>&slot= — legacy content-map (MCP get_content_map deprecated)",
   contentIndex:
@@ -14980,7 +14980,9 @@ const SESSION_CONTEXT_API_MAP = {
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
-  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP get_topic; PUT /api/agent/topic — update_topic",
+  topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP topic_get; PUT /api/agent/topic — topic_update",
+  topicSlotsTemplate:
+    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|none)",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -14991,21 +14993,21 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — create_workspace_fact MCP",
-  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — update_workspace_fact MCP",
-  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — list_workspace_facts MCP",
-  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — search_workspace_facts MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — workspace_fact_create MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — workspace_fact_update MCP",
+  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — workspace_facts_list MCP",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — workspace_facts_search MCP",
   workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
   workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
   workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",
-  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — create_glossary_term MCP",
-  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — update_glossary_term MCP",
-  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — list_glossary_terms MCP",
-  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — search_glossary_terms MCP",
-  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — create_reference_entry MCP",
-  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — update_reference_entry MCP",
-  workspaceReferenceList: "GET /api/agent/workspace-reference/list — list_reference_entries MCP",
-  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — search_reference_entries MCP",
+  workspaceGlossaryCreate: "POST /api/agent/workspace-glossary/create — glossary_term_create MCP",
+  workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — glossary_term_update MCP",
+  workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — glossary_terms_list MCP",
+  workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — glossary_terms_search MCP",
+  workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — reference_entry_create MCP",
+  workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — reference_entry_update MCP",
+  workspaceReferenceList: "GET /api/agent/workspace-reference/list — reference_entries_list MCP",
+  workspaceReferenceSearch: "GET /api/agent/workspace-reference/search?q= — reference_entries_search MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -15026,12 +15028,12 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
   workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   workspaceFileHubQueue:
-    "GET /api/workspace/file-hub/queue — read_file_hub_queue MCP (.agent-cms/state/file-hub-queue.json)",
+    "GET /api/workspace/file-hub/queue — module_file_hub_outbound_list MCP (.agent-cms/state/file-hub-queue.json)",
   workspaceFileHubAdd:
-    "POST /api/workspace/file-hub/add — add_file_to_file_hub MCP { path, name?, topic?, place?, size? }",
+    "POST /api/workspace/file-hub/add — module_file_hub_outbound_enqueue MCP { path, name?, topic?, place?, size? }",
   workspaceFileHubRemove:
-    "POST /api/workspace/file-hub/remove — remove_file_from_file_hub MCP { id?, path? }",
-  workspaceFileHubClear: "POST /api/workspace/file-hub/clear — clear_file_hub_queue MCP",
+    "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
+  workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
     "GET /api/workspace/context-buffer — read_context_buffer MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
@@ -15706,27 +15708,172 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
   return getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
 }
 
-function readTopicSlotsFlexibleFromFrontmatter(frontmatter) {
+const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
+const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_NONE = "none";
+
+function normalizeTopicSlotsTemplate(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function readTopicSlotsTemplateFromFrontmatter(frontmatter) {
+  const templateRaw = getYamlScalar(frontmatter, "awn-slots-template");
+  if (templateRaw !== undefined && templateRaw !== null && String(templateRaw).trim() !== "") {
+    return normalizeTopicSlotsTemplate(templateRaw);
+  }
   const flexibleRaw = getYamlScalar(frontmatter, "awn-slots-flexible");
   if (flexibleRaw !== undefined && flexibleRaw !== null && String(flexibleRaw).trim() !== "") {
-    return getYamlBoolean(frontmatter, "awn-slots-flexible");
+    return getYamlBoolean(frontmatter, "awn-slots-flexible")
+      ? TOPIC_SLOTS_TEMPLATE_FLEXIBLE
+      : TOPIC_SLOTS_TEMPLATE_STANDARD;
   }
-  return getYamlBoolean(frontmatter, "awn-slots-disabled");
+  if (getYamlBoolean(frontmatter, "awn-slots-disabled")) {
+    return TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+  }
+  return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function readTopicSlotsFlexibleFromFrontmatter(frontmatter) {
+  return readTopicSlotsTemplateFromFrontmatter(frontmatter) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
+}
+
+async function readTopicSlotsTemplate(manifestRelPath) {
+  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(normalized);
+    return readTopicSlotsTemplateFromFrontmatter(frontmatter);
+  } catch {
+    return TOPIC_SLOTS_TEMPLATE_STANDARD;
+  }
 }
 
 async function readTopicSlotsFlexible(manifestRelPath) {
-  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized) return false;
-  try {
-    const { frontmatter } = await readNodeFrontmatterContent(normalized);
-    return readTopicSlotsFlexibleFromFrontmatter(frontmatter);
-  } catch {
-    return false;
-  }
+  return (await readTopicSlotsTemplate(manifestRelPath)) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
 async function readTopicSlotsDisabled(manifestRelPath) {
   return readTopicSlotsFlexible(manifestRelPath);
+}
+
+const TOPIC_SLOTS_TEMPLATE_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+
+function isAllowedTopicSlotsTemplateValue(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  return (
+    value === TOPIC_SLOTS_TEMPLATE_STANDARD ||
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  );
+}
+
+function upsertTopicSlotsTemplateInFrontmatter(frontmatter, template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  let next = removeYamlScalarLine(frontmatter, "awn-slots-flexible");
+  next = removeYamlScalarLine(next, "awn-slots-disabled");
+  return upsertYamlScalarLine(next, "awn-slots-template", normalized);
+}
+
+function buildAgentTopicSlotsTemplatePayload(manifestRel, template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return {
+    version: 1,
+    model: "awn-topic-slots-template",
+    path: manifestRel,
+    template: normalized,
+    label: TOPIC_SLOTS_TEMPLATE_LABELS[normalized] || normalized,
+    slotsFlexible: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+    slotsDisabled: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+    hint:
+      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; none — single-file slots only."
+  };
+}
+
+async function getAgentTopicSlotsTemplate(inputPath) {
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (slots template applies to topic/area hub manifests only)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const absolute = normalizeWorkspacePath(manifestRel);
+  if (!absolute || !isManifestMdAbsolute(absolute)) {
+    return { error: "Path must be manifest.md", status: 400, path: manifestRel };
+  }
+  try {
+    await fs.access(absolute);
+  } catch {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+  const template = await readTopicSlotsTemplate(manifestRel);
+  return buildAgentTopicSlotsTemplatePayload(manifestRel, template);
+}
+
+async function setAgentTopicSlotsTemplate(inputPath, template) {
+  if (!isAllowedTopicSlotsTemplateValue(template)) {
+    return {
+      error: "Invalid template",
+      status: 400,
+      allowed: [TOPIC_SLOTS_TEMPLATE_STANDARD, TOPIC_SLOTS_TEMPLATE_FLEXIBLE, TOPIC_SLOTS_TEMPLATE_NONE]
+    };
+  }
+  const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
+  if (!manifestRel) {
+    return { error: "Invalid path", status: 400 };
+  }
+  if (!isTopicTreeManifestRel(manifestRel)) {
+    return {
+      error: "Path is not a topic-tree manifest (slots template applies to topic/area hub manifests only)",
+      status: 400,
+      path: manifestRel
+    };
+  }
+  const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(manifestRel);
+  if (!nodeAbsolute) {
+    return { error: "Topic not found", status: 404, path: manifestRel };
+  }
+
+  const normalized = normalizeTopicSlotsTemplate(template);
+  const current = await readTopicSlotsTemplate(manifestRel);
+  if (current === normalized) {
+    return { ...buildAgentTopicSlotsTemplatePayload(manifestRel, normalized), updated: false };
+  }
+
+  const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
+  const parts = splitNodeFrontmatter(raw);
+  let nextFrontmatter = upsertTopicSlotsTemplateInFrontmatter(parts.frontmatter, normalized);
+  nextFrontmatter = applyAwnTimestampsToFrontmatter(nextFrontmatter, { diskFrontmatter: parts.frontmatter });
+  const nextContent = joinNodeFrontmatter(nextFrontmatter, parts.body);
+  await writeWorkspaceTextFileWithHistory(manifestRel, manifestRel, nextContent);
+  await invalidateNodeReadStateForManifest(manifestRel);
+  await recordWorkspaceActivityAsync({
+    action: "update",
+    path: manifestRel,
+    manifestPath: manifestRel,
+    label: path.posix.basename(manifestRel) || manifestRel,
+    fileKind: inferWorkspaceActivityFileKind(manifestRel)
+  });
+
+  return {
+    ...buildAgentTopicSlotsTemplatePayload(manifestRel, normalized),
+    updated: true,
+    previousTemplate: current
+  };
 }
 
 const SHARED_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
@@ -15908,10 +16055,22 @@ async function buildPageOutsideSlotsReport(manifestRelPath) {
   };
 }
 
+const FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
+  [STORAGE_SUBFOLDER_ASSETS, STORAGE_SUBFOLDER_HISTORY, STORAGE_SUBFOLDER_COMMENTS].map((name) =>
+    String(name || "").trim().toLowerCase()
+  )
+);
+
+function isFlexibleSlotStorageSkipDirName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  return Boolean(lower && FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES.has(lower));
+}
+
 function shouldSkipSharedSlotStorageDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return true;
-  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(lower)) return true;
+  // Гибкий слот: весь awn-storage/, кроме assets/, history/, comments/.
+  if (isFlexibleSlotStorageSkipDirName(lower)) return true;
   return shouldSkipDirectoryListing(name);
 }
 
@@ -15936,11 +16095,11 @@ function resolveSharedSlotStorageEntryRelPath(manifestRelPath, relPath) {
 
 function isSharedSlotExcludedRelPath(relPath) {
   const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/$/, "");
-  if (!rel) return true;
+  if (!rel) return false;
   const lower = rel.toLowerCase();
-  const rootSegment = lower.split("/")[0];
-  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(rootSegment)) return true;
-  if (!rel.includes("/") && SHARED_SLOT_ROOT_SKIP_FILES.has(lower)) return true;
+  for (const skipDir of FLEXIBLE_SLOT_STORAGE_SKIP_DIR_NAMES) {
+    if (lower === skipDir || lower.startsWith(`${skipDir}/`)) return true;
+  }
   return false;
 }
 
@@ -22856,6 +23015,41 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to update topic",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/topic-slots-template") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const result = await getAgentTopicSlotsTemplate(relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read topic slots template",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/topic-slots-template") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload?.path || "").trim();
+      const template = payload?.template;
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (template === undefined || template === null || String(template).trim() === "") {
+        return sendJson(res, 400, { error: "Missing template" });
+      }
+      const result = await setAgentTopicSlotsTemplate(relPath, template);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to set topic slots template",
         details: String(error.message || error)
       });
     }

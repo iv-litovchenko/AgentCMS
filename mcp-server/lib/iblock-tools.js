@@ -7,23 +7,29 @@ const storePath = z
   .min(1)
   .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
-/** Canonical list_databases / get_database … plus deprecated database_frame_* alias. */
-function registerDatabaseTool(reg, { canonical, legacyFrameName, description, schema, handler }) {
-  const legacy = legacyFrameName ? `database_frame_${legacyFrameName}` : null;
+/** Canonical database_* / databases_* plus verb-first and database_frame_* legacy aliases. */
+function registerDatabaseTool(reg, { canonical, verbLegacy, legacyFrameName, description, schema, handler }) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical,
-    legacy: legacy && legacy !== canonical ? legacy : null,
+    legacy: verbLegacy && verbLegacy !== canonical ? verbLegacy : null,
     description,
     schema,
     handler
   });
+  if (legacyFrameName) {
+    const frameName = `database_frame_${legacyFrameName}`;
+    if (frameName !== canonical && frameName !== verbLegacy) {
+      reg(frameName, `Deprecated alias for ${canonical}.`, schema, handler);
+    }
+  }
 }
 
 export function registerDatabaseTools(reg, client) {
-  // ── Database hub (list_databases / get_database …; legacy database_frame_*) ─
+  // ── Database hub (databases_list / database_get …; legacy list_databases, database_frame_*) ─
 
   registerDatabaseTool(reg, {
-    canonical: "list_databases",
+    canonical: "databases_list",
+    verbLegacy: "list_databases",
     legacyFrameName: "list",
     description:
       "List database stores in awn-databases (group/collection/single — not records in data/).",
@@ -32,10 +38,11 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "get_database",
+    canonical: "database_get",
+    verbLegacy: "get_database",
     legacyFrameName: "get",
     description:
-      "One database store: schema, records tree (MD or CSV). whole-file-csv → read_content/write_content (kind: database, slot: data, ref: main.csv).",
+      "One database store: schema, records tree (MD or CSV). whole-file-csv → content_read/content_write (kind: database, slot: data, ref: main.csv).",
     schema: z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
     }),
@@ -70,18 +77,19 @@ export function registerDatabaseTools(reg, client) {
       recordHierarchy: payload.recordHierarchy ?? payload.hierarchy
     });
   const registerDatabaseDescription =
-    "Register database store hub (like register_channel): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present.";
+    "Register database store hub (like channel_register): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present.";
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "register_database",
-    legacy: "create_database",
+    canonical: "database_register",
+    legacy: "register_database",
     description: registerDatabaseDescription,
     schema: registerDatabaseSchema,
     handler: registerDatabaseHandler
   });
+  reg("create_database", "Deprecated alias for database_register.", registerDatabaseSchema, registerDatabaseHandler);
   reg(
     "database_frame_create",
-    "Deprecated alias for register_database.",
+    "Deprecated alias for database_register.",
     registerDatabaseSchema,
     registerDatabaseHandler
   );
@@ -97,12 +105,14 @@ export function registerDatabaseTools(reg, client) {
       message: "Provide name, description, and/or body"
     });
 
-  reg(
-    "update_database",
-    "Update database manifest.md: awn-name, awn-description, and/or body (like update_channel). Schema → write_database_schema; arbitrary YAML → write_database_properties.",
-    updateDatabaseSchema,
-    (payload) => client.put("/api/awn-databases/stores", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "database_update",
+    legacy: "update_database",
+    description:
+      "Update database manifest.md: awn-name, awn-description, and/or body (like channel_update). Schema → database_schema_write; arbitrary YAML → database_properties_write.",
+    schema: updateDatabaseSchema,
+    handler: (payload) => client.put("/api/awn-databases/stores", payload)
+  });
 
   const readDatabasesIndexTocSchema = z.object({});
   const readDatabasesIndexTocHandler = () => client.get("/api/agent/awn-databases-index");
@@ -124,7 +134,7 @@ export function registerDatabaseTools(reg, client) {
       .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
   });
   const refreshDatabasesIndexTocDescription =
-    "Refresh awn-databases/index.md from list_databases. overwrite=false skips if file exists.";
+    "Refresh awn-databases/index.md from databases_list. overwrite=false skips if file exists.";
   const refreshDatabasesIndexTocHandler = ({ overwrite }) =>
     client.post("/api/agent/awn-databases-index", {
       ...(overwrite === false ? { overwrite: false } : {})
@@ -139,7 +149,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "read_database_schema",
+    canonical: "database_schema_read",
+    verbLegacy: "read_database_schema",
     legacyFrameName: "read_schema",
     description:
       "Read custom field overrides from store schema.yml (instance layer only). Base: get_type(record|record-lite|record-csv). User fields without awn- prefix.",
@@ -167,7 +178,8 @@ export function registerDatabaseTools(reg, client) {
       ...(tabs ? { tabs } : {})
     });
   registerDatabaseTool(reg, {
-    canonical: "write_database_schema",
+    canonical: "database_schema_write",
+    verbLegacy: "write_database_schema",
     legacyFrameName: "write_schema",
     description: writeSchemaDescription,
     schema: writeSchemaSchema,
@@ -175,7 +187,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "read_database_properties",
+    canonical: "database_properties_read",
+    verbLegacy: "read_database_properties",
     legacyFrameName: "read_properties",
     description: "Read full YAML frontmatter of database manifest.md.",
     schema: z.object({ store: storePath }),
@@ -183,7 +196,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "write_database_properties",
+    canonical: "database_properties_write",
+    verbLegacy: "write_database_properties",
     legacyFrameName: "write_properties",
     description:
       "Patch YAML frontmatter of database manifest.md. Send only keys to change — existing keys on disk are preserved.",
@@ -195,7 +209,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "read_database_property",
+    canonical: "database_property_read",
+    verbLegacy: "read_database_property",
     legacyFrameName: "read_property",
     description: "Read one property from database manifest.md (e.g. awn-name, awn-description).",
     schema: z.object({
@@ -206,7 +221,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "write_database_property",
+    canonical: "database_property_write",
+    verbLegacy: "write_database_property",
     legacyFrameName: "write_property",
     description: "Set one property on database manifest.md. Other keys preserved.",
     schema: z.object({
@@ -218,7 +234,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "delete_database",
+    canonical: "database_delete",
+    verbLegacy: "delete_database",
     legacyFrameName: "delete",
     description: "Delete database store folder (group must be empty).",
     schema: z.object({
@@ -228,7 +245,8 @@ export function registerDatabaseTools(reg, client) {
   });
 
   registerDatabaseTool(reg, {
-    canonical: "rename_database",
+    canonical: "database_rename",
+    verbLegacy: "rename_database",
     legacyFrameName: "rename",
     description: "Rename/move database store folder under awn-databases/.",
     schema: z.object({

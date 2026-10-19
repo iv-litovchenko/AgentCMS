@@ -1,9 +1,11 @@
 ---
+awn-slots-disabled: false
 awn-status: open
 awn-emoji: ""
 awn-sort: 0
 awn-main: true
 awn-focus: true
+awn-slots-template: none
 awn-runtime-load-always: false
 awn-runtime-heartbeat: false
 awn-runtime-cron: false
@@ -17,19 +19,18 @@ awn-owner: ""
 awn-attachments: []
 awn-category: ""
 awn-color: "#000000"
-awn-description: Описание
+awn-description: "Описание"
 awn-mindmap-color: blue
 awn-mindmap-direction: down
 awn-mindmap-enabled: true
 awn-mindmap-size: large
 awn-mindmap-type: milestone
 awn-name: PHP
-awn-preview: awn-storage/assets/preview/20260624202540.png
+awn-preview: "awn-storage/assets/preview/20260624202540.png"
 awn-priority: ""
-awn-slots-disabled: false
 awn-web-url: ""
-awn-update: 2026-09-27T18:24:36.565Z
-awn-version: 25
+awn-update: 2026-10-19T09:08:13.536Z
+awn-version: 34
 ---
 
 

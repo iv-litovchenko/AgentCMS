@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 /** folder|area|awn.hub.topic.area → folder; file|topic|awn.hub.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
@@ -43,12 +44,37 @@ export function normalizeCreatePageArgs(input = {}) {
 }
 
 export function registerPageTools({ reg, client, pagePath }) {
-  reg(
-    "get_topic",
-    "One topic/area/ws hub card: manifest properties + body (like get_channel). Fine-grained: read_topic_schema, read_topic_config, list_slots + *_content_*.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/agent/topic", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_get",
+    legacy: "get_topic",
+    description:
+      "One topic/area/ws hub card: manifest properties + body (like channel_get). Fine-grained: topic_schema_read, topic_config_read, list_slots + *_content_*.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/agent/topic", { path })
+  });
+
+  const topicSlotsTemplateSchema = z.enum(["standard", "flexible", "none"]);
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_slots_template_get",
+    legacy: "get_topic_slots_template",
+    description:
+      "Read awn-slots-template for a topic/area manifest (standard | flexible | none). Legacy awn-slots-flexible is normalized. Response includes slotsFlexible for compat.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/agent/topic-slots-template", { path })
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_slots_template_set",
+    legacy: "set_topic_slots_template",
+    description:
+      "Set awn-slots-template on manifest.md. Removes legacy awn-slots-flexible / awn-slots-disabled. standard = typed slots; flexible = whole awn-storage/ except assets/, history/, comments/; none = single-file slots only.",
+    schema: z.object({
+      path: pagePath,
+      template: topicSlotsTemplateSchema
+    }),
+    handler: ({ path, template }) => client.put("/api/agent/topic-slots-template", { path, template })
+  });
 
   const updateTopicSchema = z
     .object({
@@ -61,69 +87,80 @@ export function registerPageTools({ reg, client, pagePath }) {
       message: "Provide name, description, and/or body"
     });
 
-  reg(
-    "update_topic",
-    "Update topic manifest: awn-name, awn-description, and/or body (like update_channel). YAML patch → write_topic_properties; schema → write_topic_schema.",
-    updateTopicSchema,
-    (payload) => client.put("/api/agent/topic", payload)
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_update",
+    legacy: "update_topic",
+    description:
+      "Update topic manifest: awn-name, awn-description, and/or body (like channel_update). YAML patch → topic_properties_write; schema → topic_schema_write.",
+    schema: updateTopicSchema,
+    handler: (payload) => client.put("/api/agent/topic", payload)
+  });
 
-  reg(
-    "read_topic_body",
-    "Read topic manifest.md body (markdown below frontmatter).",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/file", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_body_read",
+    legacy: "read_topic_body",
+    description: "Read topic manifest.md body (markdown below frontmatter).",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/file", { path })
+  });
 
-  reg(
-    "write_topic_body",
-    "Save topic manifest.md body. Frontmatter on disk is preserved.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/content", { path, content })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_body_write",
+    legacy: "write_topic_body",
+    description: "Save topic manifest.md body. Frontmatter on disk is preserved.",
+    schema: z.object({ path: pagePath, content: z.string() }),
+    handler: ({ path, content }) => client.post("/api/file/content", { path, content })
+  });
 
-  reg(
-    "read_topic_properties",
-    "Read full YAML frontmatter from topic manifest.md.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/file/properties", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_properties_read",
+    legacy: "read_topic_properties",
+    description: "Read full YAML frontmatter from topic manifest.md.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/file/properties", { path })
+  });
 
-  reg(
-    "write_topic_properties",
-    "Patch YAML frontmatter on manifest.md. Send only keys to change — existing keys on disk are preserved (awn-create/update/version auto-stamped by server).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_properties_write",
+    legacy: "write_topic_properties",
+    description:
+      "Patch YAML frontmatter on manifest.md. Send only keys to change — existing keys on disk are preserved (awn-create/update/version auto-stamped by server).",
+    schema: z.object({
       path: pagePath,
       content: z.string().describe("YAML patch, e.g. awn-status: closed")
     }),
-    ({ path, content }) => client.post("/api/file/properties", { path, content })
-  );
+    handler: ({ path, content }) => client.post("/api/file/properties", { path, content })
+  });
 
-  reg(
-    "read_topic_property",
-    "Read one frontmatter property from manifest.md (e.g. awn-name, awn-status).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_property_read",
+    legacy: "read_topic_property",
+    description: "Read one frontmatter property from manifest.md (e.g. awn-name, awn-status).",
+    schema: z.object({
       path: pagePath,
       key: z.string().min(1).describe("Property key, e.g. awn-name")
     }),
-    ({ path, key }) => client.get("/api/file/properties", { path, key })
-  );
+    handler: ({ path, key }) => client.get("/api/file/properties", { path, key })
+  });
 
-  reg(
-    "write_topic_property",
-    "Set one frontmatter property on manifest.md. Other keys preserved; awn-update/version auto-stamped.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_property_write",
+    legacy: "write_topic_property",
+    description: "Set one frontmatter property on manifest.md. Other keys preserved; awn-update/version auto-stamped.",
+    schema: z.object({
       path: pagePath,
       key: z.string().min(1),
       value: z.string().describe("New value (empty string allowed)")
     }),
-    ({ path, key, value }) => client.post("/api/file/properties", { path, key, value })
-  );
+    handler: ({ path, key, value }) => client.post("/api/file/properties", { path, key, value })
+  });
 
-  reg(
-    "read_topic_schema",
-    "Read schema.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_schema_read",
+    legacy: "read_topic_schema",
+    description:
+      "Read schema.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
+    schema: z.object({
       path: pagePath,
       target: z
         .string()
@@ -134,34 +171,39 @@ export function registerPageTools({ reg, client, pagePath }) {
         .optional()
         .describe("layers (default) = schema layers only; full = legacy dump with baseTypes/merged")
     }),
-    ({ path, target, mode }) =>
+    handler: ({ path, target, mode }) =>
       client.get("/api/file/page-schema", {
         path,
         mode: mode || "layers",
         ...(target ? { target } : {})
       })
-  );
+  });
 
-  reg(
-    "write_topic_schema",
-    "Save schema.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_schema_write",
+    legacy: "write_topic_schema",
+    description:
+      "Save schema.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
+    schema: z.object({ path: pagePath, content: z.string() }),
+    handler: ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
+  });
 
-  reg(
-    "read_topic_config",
-    "Read topic config.yml (awn_settings, awn_ui). Field definitions live in schema.yml — use read_topic_schema.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/file/page-config", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_config_read",
+    legacy: "read_topic_config",
+    description:
+      "Read topic config.yml (awn_settings, awn_ui). Field definitions live in schema.yml — use topic_schema_read.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/file/page-config", { path })
+  });
 
-  reg(
-    "write_topic_config",
-    "Save topic config.yml (awn_settings, awn_ui). Empty content deletes the file. Never put awn_schema here.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/page-config", { path, content })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_config_write",
+    legacy: "write_topic_config",
+    description: "Save topic config.yml (awn_settings, awn_ui). Empty content deletes the file. Never put awn_schema here.",
+    schema: z.object({ path: pagePath, content: z.string() }),
+    handler: ({ path, content }) => client.post("/api/file/page-config", { path, content })
+  });
 
   reg(
     "topic_exists",
@@ -170,26 +212,29 @@ export function registerPageTools({ reg, client, pagePath }) {
     ({ path }) => client.get("/api/page/exists", { path })
   );
 
-  reg(
-    "get_topic_meta",
-    "Lightweight topic metadata: manifest stat, folder stat, props hint — no body.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/page/meta", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_meta_get",
+    legacy: "get_topic_meta",
+    description: "Lightweight topic metadata: manifest stat, folder stat, props hint — no body.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/page/meta", { path })
+  });
 
-  reg(
-    "read_topic_env",
-    "Read topic .env (secrets, API keys). Path = manifest.md of the topic.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/page/env", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_env_read",
+    legacy: "read_topic_env",
+    description: "Read topic .env (secrets, API keys). Path = manifest.md of the topic.",
+    schema: z.object({ path: pagePath }),
+    handler: ({ path }) => client.get("/api/page/env", { path })
+  });
 
-  reg(
-    "write_topic_env",
-    "Write topic .env file.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/page/env", { path, content })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_env_write",
+    legacy: "write_topic_env",
+    description: "Write topic .env file.",
+    schema: z.object({ path: pagePath, content: z.string() }),
+    handler: ({ path, content }) => client.post("/api/page/env", { path, content })
+  });
 
   const createTopicSchema = z
     .object({
@@ -221,22 +266,26 @@ export function registerPageTools({ reg, client, pagePath }) {
     });
   };
 
-  reg(
-    "create_topic",
-    "Create area or topic. type: area → folder+manifest (awn.hub.topic.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
-    createTopicSchema,
-    createTopicHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_create",
+    legacy: "create_topic",
+    description:
+      "Create area or topic. type: area → folder+manifest (awn.hub.topic.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
+    schema: createTopicSchema,
+    handler: createTopicHandler
+  });
 
-  reg(
-    "delete_topic",
-    "Delete area, topic, or part folder. When platform confirm-delete is enabled, pass confirm=true.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_delete",
+    legacy: "delete_topic",
+    description:
+      "Delete area, topic, or part folder. When platform confirm-delete is enabled, pass confirm=true.",
+    schema: z.object({
       path: pagePath,
       confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
     }),
-    ({ path }) => client.delete("/api/file", { path })
-  );
+    handler: ({ path }) => client.delete("/api/file", { path })
+  });
 
   const renameTopicSchema = z
     .object({
@@ -249,26 +298,28 @@ export function registerPageTools({ reg, client, pagePath }) {
       message: "displayName or title is required"
     });
 
-  reg(
-    "rename_topic",
-    "Rename topic or area. displayName → awn-name; slug → folder/filename on disk.",
-    renameTopicSchema,
-    ({ path, displayName, slug, title }) =>
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_rename",
+    legacy: "rename_topic",
+    description: "Rename topic or area. displayName → awn-name; slug → folder/filename on disk.",
+    schema: renameTopicSchema,
+    handler: ({ path, displayName, slug, title }) =>
       client.post("/api/file/title", {
         path,
         displayName: displayName || undefined,
         slug: slug || undefined,
         title: title || displayName
       })
-  );
+  });
 
-  reg(
-    "move_topic",
-    "Move area/topic to another parent folder.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "topic_move",
+    legacy: "move_topic",
+    description: "Move area/topic to another parent folder.",
+    schema: z.object({
       path: pagePath,
       parentPath: z.string().describe("Target parent folder path, e.g. awn-topics/kollektsii or .")
     }),
-    ({ path, parentPath }) => client.post("/api/page/move", { path, parentPath })
-  );
+    handler: ({ path, parentPath }) => client.post("/api/page/move", { path, parentPath })
+  });
 }

@@ -32,13 +32,20 @@ fields:
     group: nav
     sort: 2
 
-  awn-slots-flexible:
-    type: awn.field.boolean
-    title: "{A2!} Гибкий слот (Flexible)"
+  awn-slots-template:
+    type: awn.field.choice.one
+    title: "{A2!} Шаблон слотов"
     description: >
-      Общий гибкий слот: многофайловая память — произвольная структура
-      в awn-storage/ (без main, inbox, media…)
-    default: false
+      standard — типовые слоты awn-storage; flexible — весь awn-storage/ (кроме assets/, history/, comments/);
+      none — только однофайловые слоты (main.md, todo, карты…)
+    default: standard
     placement: aside-body
     group: nav
     sort: 3
+    enum:
+      - key: flexible
+        name: Гибкий слот
+      - key: standard
+        name: Стандартные слоты
+      - key: none
+        name: Без слотов

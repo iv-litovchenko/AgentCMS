@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { z } from "zod";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
 import { registerTocTool } from "./register-toc-tool.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
 
@@ -45,63 +46,73 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
   const regRead =
     options.registerBinaryReadFile ||
     ((name, description, schema, fn) => reg(name, description, schema, fn));
-  reg(
-    "list_media_libraries",
-    "Catalog of workspace media libraries under awn-media/: manifest cards + unregistered folders.",
-    z.object({}),
-    () => client.get("/api/agent/media-libraries")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_libraries_list",
+    legacy: "list_media_libraries",
+    description:
+      "Catalog of workspace media libraries under awn-media/: manifest cards + unregistered folders.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/media-libraries")
+  });
 
-  reg(
-    "get_media_library",
-    "One media library card: manifest frontmatter + body from awn-media/{slug}/manifest.md.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_library_get",
+    legacy: "get_media_library",
+    description:
+      "One media library card: manifest frontmatter + body from awn-media/{slug}/manifest.md.",
+    schema: z.object({
       path: workspaceRelPath
     }),
-    ({ path }) => client.get("/api/agent/media-library", { path })
-  );
+    handler: ({ path }) => client.get("/api/agent/media-library", { path })
+  });
 
-  reg(
-    "register_media_library",
-    "Create awn-media/{slug}/manifest.md and awn-storage/files|assets/ (adopt if folder exists).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_library_register",
+    legacy: "register_media_library",
+    description:
+      "Create awn-media/{slug}/manifest.md and awn-storage/files|assets/ (adopt if folder exists).",
+    schema: z.object({
       slug: z.string().min(1).describe("Folder name under awn-media/, e.g. shared-assets"),
       name: z.string().optional(),
       description: z.string().optional(),
       body: z.string().optional().describe("Markdown body below frontmatter")
     }),
-    (payload) => client.post("/api/agent/media-libraries", payload)
-  );
+    handler: (payload) => client.post("/api/agent/media-libraries", payload)
+  });
 
-  reg(
-    "update_media_library",
-    "Update manifest frontmatter for awn-media/{slug}/manifest.md.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_library_update",
+    legacy: "update_media_library",
+    description: "Update manifest frontmatter for awn-media/{slug}/manifest.md.",
+    schema: z.object({
       path: workspaceRelPath,
       name: z.string().optional(),
       description: z.string().optional(),
       status: z.enum(["active", "archive"]).optional(),
       body: z.string().optional()
     }),
-    (payload) => client.put("/api/agent/media-libraries", payload)
-  );
+    handler: (payload) => client.put("/api/agent/media-libraries", payload)
+  });
 
-  reg(
-    "delete_media_library",
-    "Soft-delete media library hub folder to workspace recycle bin. Built-in presets (documents, slider, …) are protected.",
-    z.object({ path: workspaceRelPath }),
-    ({ path }) => client.delete("/api/agent/media-library", { path })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_library_delete",
+    legacy: "delete_media_library",
+    description:
+      "Soft-delete media library hub folder to workspace recycle bin. Built-in presets (documents, slider, …) are protected.",
+    schema: z.object({ path: workspaceRelPath }),
+    handler: ({ path }) => client.delete("/api/agent/media-library", { path })
+  });
 
-  reg(
-    "rename_media_library",
-    "Rename media library folder under awn-media/ (new slug). Built-in presets are protected.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "media_library_rename",
+    legacy: "rename_media_library",
+    description: "Rename media library folder under awn-media/ (new slug). Built-in presets are protected.",
+    schema: z.object({
       path: workspaceRelPath,
       slug: z.string().min(1).describe("New folder name under awn-media/, e.g. shared-assets")
     }),
-    ({ path, slug }) => client.post("/api/agent/media-libraries/rename", { path, slug })
-  );
+    handler: ({ path, slug }) => client.post("/api/agent/media-libraries/rename", { path, slug })
+  });
 
   const mediaLibraryIndexTocSchema = z.object({
     overwrite: z
