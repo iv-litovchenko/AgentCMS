@@ -18529,7 +18529,7 @@ const WORKSPACE_TOOL_MODULE_META = {
   },
   [`awn-databases/${AWN_CONTENTS_FACTS_STORE}`]: {
     title: "Банк фактов",
-    lead: "Коллекция 0-contents/0-facts — create / search_workspace_facts."
+    lead: "Коллекция 0-contents/0-facts — fact_create / facts_search."
   },
   [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач",
@@ -112364,7 +112364,7 @@ const WORKSPACE_MODULES_CATALOG = [
     id: "module-journal",
     label: "Журнал",
     view: "journal",
-    mcp: "append_journal_entry, list_journal_entries, list_workspace_notifications",
+    mcp: "journal_entry_append, journal_entries_list, user_notifications_list",
     status: "active"
   },
   {
@@ -112385,13 +112385,13 @@ const WORKSPACE_MODULES_CATALOG = [
   },
   { id: "module-large-files", label: "Крупные файлы", view: "large-files", mcp: "—", status: "active" },
   { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "module_short_link_create, module_short_link_get, module_short_link_delete, module_short_link_list", status: "active" },
-  { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_workspace_links", status: "active" },
+  { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_links", status: "active" },
   { id: "module-run-scripts", label: "Запуск скриптов", view: "run-scripts", mcp: "run_script", status: "stub" },
   {
     id: "module-todo-list",
     label: "Список задач",
     view: "todo-list",
-    mcp: "read_workspace_todo, write_workspace_todo",
+    mcp: "workspace_todo_read, workspace_todo_write",
     status: "stub"
   },
   { id: "module-catalog", label: "Каталог модулей и инструментов", view: "module-catalog", mcp: "list_tools", status: "stub" }

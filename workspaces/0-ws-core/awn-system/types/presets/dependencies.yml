@@ -9,7 +9,7 @@ hint-title: "Внешние зависимости workspace"
 hint-text: >
   Корневой <code>dependencies.csv</code>: плагины, MCP, runtime, env-ключи.
   Схема колонок — в настройках проекта → «Зависимости».
-  MCP: <code>read_dependencies</code> / <code>write_dependencies</code>.
+  MCP: <code>workspace_dependencies_read</code> / <code>workspace_dependencies_write</code>.
 sort: 2
 body: |
   host,kind,name,description,path,version,status,required,notes

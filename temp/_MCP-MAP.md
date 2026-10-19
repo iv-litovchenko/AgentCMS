@@ -6,7 +6,7 @@
 
 **Старт:** `list_workspaces` → `get_session_context({ workspaceId })` → дальше тот же **`workspaceId`** (legacy: `agentId`; не persona `0-agent`).
 
-**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, registry workspace (`create_workspace`, …), `get_workspace_storage_info` (см. описание tool).
+**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `record_generate_slug`, registry workspace (`create_workspace`, …), `workspace_summary_get` (см. описание tool).
 
 **Контент:** `read_content` / `write_content` / `list_content` + **`placement.kind`:** `topic` | `channel` | `media` | `database` | `repository` | `root` (legacy `page` → `topic`). Hub-индексы и поиск — отдельные tools (не `placement`).
 
@@ -21,7 +21,7 @@ agent-cms MCP
 │   ├── list_workspaces · list_vaults
 │   ├── get_session_context
 │   ├── get_session_documentation
-│   ├── get_ui_focus (legacy get_user_active_context_now)
+│   ├── session_context_get_user_open_url_location_in_ui
 │   ├── list_workspace_always_context
 │   ├── list_workspace_cron · list_workspace_heartbeat
 │   └── test_mcp_connection
@@ -45,15 +45,15 @@ agent-cms MCP
 │   ├── read_topic_index_toc · refresh_topic_index_toc
 │   ├── read_content_index_toc · refresh_content_index_toc
 │   ├── read_workspace_map · refresh_workspace_map
-│   ├── resolve_workspace_path · get_topic_url
-│   ├── find_by_id · resolve_workspace_id · assign_workspace_id
+│   ├── get_topic_url
+│   ├── record_find_by_id · record_id_exists · record_id_assign · record_generate_slug · record_slug_exists · record_path_resolve
 │   └── deprecated: get_topic_map · get_content_map
 │
 ├── 🔍 Поиск · DQL · индексы
 │   ├── search_workspace_content · semantic · hybrid · batch
 │   ├── search_workspace_links
 │   ├── query_workspace_storage
-│   ├── list_workspace_registry_queries · run_workspace_registry_query
+│   ├── registry_queries_list · registry_query_run
 │   ├── get_workspace_index_status · get_workspace_index_monitor
 │   ├── rebuild_workspace_fulltext · semantic · storage · link · entity
 │   ├── run_workspace_ocr_index · rebuild_workspace_indexes · sync_workspace_index_file
@@ -62,13 +62,13 @@ agent-cms MCP
 │       list_workspace_entity_catalog · explain_workspace_entity_search
 │
 ├── 🧠 Память · Q&A · лента
-│   ├── audit_workspace_memory · list_workspace_feed
+│   ├── workspace_memory_audit · workspace_feed_list
 │   ├── ask_workspace · search_and_get_context
 │   ├── create/update_workspace_fact · list/search_workspace_facts
 │   ├── create/update_glossary_term · list/search_glossary_terms
 │   ├── create/update_reference_entry · list/search_reference_entries
 │   ├── list_journal_entries · append_journal_entry
-│   └── list_workspace_notifications · notify_user
+│   └── workspace_notifications_list · notify_user
 │
 ├── 📄 Тема (manifest · hub topic)
 │   ├── topic_exists · get_topic_meta
@@ -128,8 +128,8 @@ agent-cms MCP
 │   └── run_script · exec_command · exec_shell
 │
 ├── 🛠️ Утилиты · identity
-│   ├── generate_workspace_slug · get_workspace_storage_info · list_recent_activity
-│   └── get_agent_identity · get_user_identity
+│   ├── workspace_summary_get · workspace_activity_list · workspace_notifications_list
+│   └── session_agent_profile_get · session_user_profile_get
 │
 ├── 📤 File hub · 📓 pads
 │   ├── read_file_hub_queue · add/remove_file_from_file_hub · clear_file_hub_queue

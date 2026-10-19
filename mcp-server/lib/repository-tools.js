@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
@@ -26,31 +25,6 @@ export function registerRepositoryTools(reg, client) {
       path: workspaceRelPath
     }),
     handler: ({ path }) => client.get("/api/agent/repository", { path })
-  });
-
-  registerTocTool(reg, {
-    canonical: "read_repository_index_toc",
-    description: "Read awn-repositories/index.md (catalog table of source repos).",
-    schema: z.object({}),
-    handler: () => client.get("/api/workspace/fs/read", { path: "awn-repositories/index.md" })
-  });
-
-  const refreshRepositoryIndexSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-
-  registerTocTool(reg, {
-    canonical: "refresh_repository_index_toc",
-    description:
-      "Rebuild awn-repositories/index.md table from repository manifests (overwrite=false skips if exists).",
-    schema: refreshRepositoryIndexSchema,
-    handler: ({ overwrite }) =>
-      client.post("/api/agent/repository-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
   });
 
   registerCanonicalWithLegacyAlias(reg, {

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const storePath = z
@@ -112,40 +111,6 @@ export function registerDatabaseTools(reg, client) {
       "Update database manifest.md: awn-name, awn-description, and/or body (like channel_update). Schema → database_schema_write; arbitrary YAML → database_properties_write.",
     schema: updateDatabaseSchema,
     handler: (payload) => client.put("/api/awn-databases/stores", payload)
-  });
-
-  const readDatabasesIndexTocSchema = z.object({});
-  const readDatabasesIndexTocHandler = () => client.get("/api/agent/awn-databases-index");
-  const readDatabasesIndexTocDescription =
-    "Quick TOC for all database stores: kind, group, path, title, description, recordCount (awn-databases/index.md).";
-
-  registerTocTool(reg, {
-    canonical: "read_databases_index_toc",
-    legacy: "read_database_frame_index_toc",
-    description: readDatabasesIndexTocDescription,
-    schema: readDatabasesIndexTocSchema,
-    handler: readDatabasesIndexTocHandler
-  });
-
-  const refreshDatabasesIndexTocSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-  const refreshDatabasesIndexTocDescription =
-    "Refresh awn-databases/index.md from databases_list. overwrite=false skips if file exists.";
-  const refreshDatabasesIndexTocHandler = ({ overwrite }) =>
-    client.post("/api/agent/awn-databases-index", {
-      ...(overwrite === false ? { overwrite: false } : {})
-    });
-
-  registerTocTool(reg, {
-    canonical: "refresh_databases_index_toc",
-    legacy: "refresh_database_frame_index_toc",
-    description: refreshDatabasesIndexTocDescription,
-    schema: refreshDatabasesIndexTocSchema,
-    handler: refreshDatabasesIndexTocHandler
   });
 
   registerDatabaseTool(reg, {

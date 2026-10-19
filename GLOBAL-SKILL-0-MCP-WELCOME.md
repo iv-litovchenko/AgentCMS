@@ -14,7 +14,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 Когда попросил:
 
 1. Только MCP tools сервера **agent-cms** — не `curl`, не прямое чтение файлов на диске.
-2. `list_workspaces` → `get_session_context({ workspaceId })`.
+2. `workspaces_list` → `session_context_get({ workspaceId })`.
 3. Во **всех** дальнейших вызовах — тот же `workspaceId`.
 4. Пути и типы не угадывай — из ответов tools.
 
@@ -38,7 +38,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 | Search | `GLOBAL-SKILL-5-SEARCH.md` | поиск, индексы, DQL |
 | Modules | `GLOBAL-SKILL-6-MODULES.md` | git и другие модули |
 
-Через MCP можно прочитать текст скилла: `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы; список — `list_platform_docs`).
+Через MCP можно прочитать текст скилла: `platform_doc_read({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы; список — `platform_docs_list`).
 
 ## Больше информации
 

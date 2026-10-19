@@ -70,7 +70,7 @@ export function registerContentTools({ reg, client, pagePath }) {
   const readContentDescription =
     "Read content by placement.kind: topic | channel | media | database | repository | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
     "ref — file in slot with extension (folder/note.md); without extension read retries with .md (refResolved). Unknown params are rejected. " +
-    `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_workspace_* startLine. ` +
+    `part=body reads a line window: default first ${READ_WINDOW_DEFAULT_LINES} body lines; startLine/limitLines are file lines incl. frontmatter — same numbers as search_* startLine. ` +
     "Response: startLine, endLine, totalLines, bodyStartLine (.md), hasMore, nextStartLine, hash; window grows to keep ``` code blocks whole (codeFence). " +
     "full=true — whole body (required before content_write replace). Slot main-single-csv / internal slots: whole content. root binary: format=base64 (images → MCP image content for chat clients).";
 
@@ -136,9 +136,31 @@ export function registerContentTools({ reg, client, pagePath }) {
     handler: (args) => listContentItems(client, args)
   });
 
+  const pagePreviewSchema = address({
+    path: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Workspace .md path; alternative to placement.ref"),
+    view: z.string().optional().describe("Optional CHPU view for openUrl (edit, nav, …)"),
+    forceView: z.boolean().optional()
+  });
+  const pagePreviewHandler = (args) => getWorkspaceUrlPagePreview(client, args);
+
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "content_binary_url_get",
-    legacy: "get_content_binary_url",
+    canonical: "get_workspace_page_preview_from_path",
+    legacy: "get_workspace_url_page_preview",
+    description:
+      "Preview card for an internal Agent CMS .md page: title, excerpt, preview image URL, openUrl (CHPU). " +
+      "Use path (workspace-relative .md) or placement with .md ref (topic/channel/…).",
+    schema: pagePreviewSchema,
+    handler: pagePreviewHandler
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "get_record_binary_url_from_path",
+    legacy: "content_binary_url_get",
+    extraLegacy: ["get_content_binary_url"],
     description:
       "Absolute HTTPS URL to view binary content (image opens directly in browser). Same placement as content_binary_read. " +
       "Optional thumb + max for images. Does not return file bytes.",
@@ -148,22 +170,6 @@ export function registerContentTools({ reg, client, pagePath }) {
     }),
     handler: (args) => getContentBinaryUrl(client, args)
   });
-
-  reg(
-    "get_workspace_url_page_preview",
-    "Preview card for an internal Agent CMS .md page: title, excerpt, preview image URL, openUrl (CHPU). " +
-      "Use path (workspace-relative .md) or placement with .md ref (topic/channel/…).",
-    address({
-      path: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Workspace .md path; alternative to placement.ref"),
-      view: z.string().optional().describe("Optional CHPU view for openUrl (edit, nav, …)"),
-      forceView: z.boolean().optional()
-    }),
-    (args) => getWorkspaceUrlPagePreview(client, args)
-  );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_binary_read",
@@ -203,7 +209,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Write content by placement (same as content_read). part=body|properties|schema. " +
     "part=body mode: replace (default, whole body; frontmatter kept) | append | prepend | patch (oldString→newString, unique unless replaceAll) | " +
     "replace_lines (startLine..endLine → content; content=\"\" deletes) | insert (afterLine or beforeLine + content). " +
-    "Line numbers = content_read / search_workspace_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
+    "Line numbers = content_read / search_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
     "expectedHash = hash from content_read: mismatch → conflict error; required for replace_lines/insert. " +
     "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
     "Binary: data (base64); root uses placement.path as file path.";
@@ -423,6 +429,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     }),
     handler: (args) => mergeContent(client, args)
   });
+
 }
 
 export { placementSchema };

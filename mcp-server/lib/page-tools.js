@@ -322,4 +322,5 @@ export function registerPageTools({ reg, client, pagePath }) {
     }),
     handler: ({ path, parentPath }) => client.post("/api/page/move", { path, parentPath })
   });
+
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const repoRootFileName = z
   .string()
@@ -6,33 +7,40 @@ const repoRootFileName = z
   .describe("File name in the repository root only, e.g. README.md or TODO.md (no slashes)");
 
 export function registerPlatformTools(reg, client) {
-  reg(
-    "get_platform_info",
-    "Platform snapshot: versions, repo root, active workspace, network (ports, localhost/LAN URLs, TLS, MCP base URL hint), key platform settings.",
-    z.object({}),
-    () => client.get("/api/platform/info", {}, { agentScope: false }),
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_info_get",
+    legacy: "get_platform_info",
+    description:
+      "Platform snapshot: versions, repo root, active workspace, network (ports, localhost/LAN URLs, TLS, MCP base URL hint), key platform settings.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/info", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 
-  reg(
-    "get_platform_health",
-    "Platform/workspace health: search index layers summary for the active workspace (workspaceId), optional disk free space at repo root.",
-    z.object({}),
-    () => client.get("/api/platform/health", {}, { agentScope: true })
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_health_get",
+    legacy: "get_platform_health",
+    description:
+      "Platform/workspace health: search index layers summary for the active workspace (workspaceId), optional disk free space at repo root.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/health", {}, { agentScope: true }),
+    options: { agentScope: true }
+  });
 
-  reg(
-    "list_platform_docs",
-    "List .md files in the repository root (not subfolders). Use read_platform_doc for content.",
-    z.object({}),
-    () => client.get("/api/platform/docs", {}, { agentScope: false }),
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_docs_list",
+    legacy: "list_platform_docs",
+    description: "List .md files in the repository root (not subfolders). Use platform_doc_read for content.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/docs", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 
-  reg(
-    "read_platform_doc",
-    "Read a .md file from the repository root by file name.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_doc_read",
+    legacy: "read_platform_doc",
+    description: "Read a .md file from the repository root by file name.",
+    schema: z.object({
       path: repoRootFileName,
       maxBytes: z
         .number()
@@ -42,20 +50,22 @@ export function registerPlatformTools(reg, client) {
         .optional()
         .describe("Max bytes to read (default 2000000)")
     }),
-    ({ path, maxBytes }) =>
+    handler: ({ path, maxBytes }) =>
       client.get(
         "/api/platform/docs/read",
         { path, ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}) },
         { agentScope: false }
       ),
-    { agentScope: false }
-  );
+    options: { agentScope: false }
+  });
 
-  reg(
-    "list_platform_config",
-    "Catalog of platform configuration locations: workspace registry, platform.yml, awn-system registry, prototype data/ paths. Values: list_settings.",
-    z.object({}),
-    () => client.get("/api/platform/config", {}, { agentScope: false }),
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_config_list",
+    legacy: "list_platform_config",
+    description:
+      "Catalog of platform configuration locations: workspace registry, platform.yml, awn-system registry, prototype data/ paths. Values: settings_list.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/config", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 }

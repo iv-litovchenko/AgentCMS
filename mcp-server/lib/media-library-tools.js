@@ -1,7 +1,6 @@
 import { createRequire } from "node:module";
 import { z } from "zod";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
-import { registerTocTool } from "./register-toc-tool.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 import { readFileHandler } from "./workspace-fs-tools.js";
 import { readContentBody, writeContentBinary, listContentItems } from "./content-core.js";
@@ -112,35 +111,6 @@ export function registerMediaLibraryTools(reg, client, options = {}) {
       slug: z.string().min(1).describe("New folder name under awn-media/, e.g. shared-assets")
     }),
     handler: ({ path, slug }) => client.post("/api/agent/media-libraries/rename", { path, slug })
-  });
-
-  const mediaLibraryIndexTocSchema = z.object({
-    overwrite: z
-      .boolean()
-      .optional()
-      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
-  });
-
-  const readMediaLibraryIndexDescription = "Read awn-media/index.md (catalog table of media libraries).";
-
-  registerTocTool(reg, {
-    canonical: "read_media_library_index_toc",
-    description: readMediaLibraryIndexDescription,
-    schema: z.object({}),
-    handler: () => client.get("/api/workspace/fs/read", { path: "awn-media/index.md" })
-  });
-
-  const refreshMediaLibraryIndexDescription =
-    "Rebuild awn-media/index.md from registered library manifests.";
-
-  registerTocTool(reg, {
-    canonical: "refresh_media_library_index_toc",
-    description: refreshMediaLibraryIndexDescription,
-    schema: mediaLibraryIndexTocSchema,
-    handler: ({ overwrite } = {}) =>
-      client.post("/api/agent/media-library-index", {
-        ...(overwrite === false ? { overwrite: false } : {})
-      })
   });
 
   if (!isLegacyMcpToolsEnabled()) return;

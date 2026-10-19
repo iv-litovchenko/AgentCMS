@@ -2,93 +2,36 @@ import { z } from "zod";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const pageUrl = z.string().url().describe("Public http(s) URL");
-const workspacePath = z
-  .string()
-  .min(1)
-  .describe("Workspace-relative file path, e.g. awn-topics/tema/awn-storage/media/doc.pdf");
 
 export function registerAgentUtilsTools(reg, client) {
+  const workspaceSummarySchema = z.object({});
+  const workspaceSummaryHandler = () =>
+    client.get("/api/agent/storage-summary", {}, { agentScope: false });
+  const workspaceSummaryDescription =
+    "Workspace summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like index_status_get), lastIndexedAt + summaryLine.";
+  const workspaceSummaryOptions = { agentScope: false };
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_summary_get",
+    legacy: "get_workspace_storage_info",
+    description: workspaceSummaryDescription,
+    schema: workspaceSummarySchema,
+    handler: workspaceSummaryHandler,
+    options: workspaceSummaryOptions
+  });
   reg(
-    "test_mcp_connection",
-    "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
-    z.object({}),
-    () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
-    { agentScope: false }
+    "workspace_storage_info_get",
+    "Deprecated alias for workspace_summary_get.",
+    workspaceSummarySchema,
+    workspaceSummaryHandler,
+    workspaceSummaryOptions
   );
 
-  reg(
-    "generate_workspace_slug",
-    "Derive disk slug from title/text (same rules as create_topic/create_content). preset: topic|page|content|store|database|repository|catalog|filename (page = legacy alias for topic). Pass slug to sanitize only.",
-    z
-      .object({
-        text: z.string().optional().describe("Display name or arbitrary text"),
-        title: z.string().optional(),
-        displayName: z.string().optional(),
-        name: z.string().optional(),
-        slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
-        preset: z
-          .enum(["topic", "page", "content", "store", "database", "repository", "catalog", "filename"])
-          .optional()
-          .describe("Default topic (page = legacy)"),
-        stripExtension: z
-          .boolean()
-          .optional()
-          .describe("For preset=filename: strip any file extension before slugify")
-      })
-      .refine(
-        (value) =>
-          Boolean(
-            String(value.text || "").trim() ||
-              String(value.title || "").trim() ||
-              String(value.displayName || "").trim() ||
-              String(value.name || "").trim() ||
-              String(value.slug || "").trim()
-          ),
-        { message: "Provide text, title, displayName, name, or slug" }
-      ),
-    (payload) => {
-      const text =
-        payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
-      return client.get(
-        "/api/workspace-slug/generate",
-        {
-          text,
-          slug: payload.slug,
-          preset: payload.preset,
-          stripExtension: payload.stripExtension
-        },
-        { agentScope: false }
-      );
-    },
-    { agentScope: false }
-  );
-
-  reg(
-    "get_workspace_storage_info",
-    "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
-    z.object({}),
-    () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
-    { agentScope: false }
-  );
-
-  reg(
-    "get_agent_identity",
-    "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
-    z.object({}),
-    () => client.get("/api/agent/identity/agent")
-  );
-
-  reg(
-    "get_user_identity",
-    "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
-    z.object({}),
-    () => client.get("/api/agent/identity/user")
-  );
-
-  reg(
-    "list_recent_activity",
-    "Recent workspace activity feed (MCP + UI changes, notifications).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_activity_list",
+    legacy: "list_recent_activity",
+    description: "Recent workspace activity feed (MCP + UI changes, notifications).",
+    schema: z.object({
       since: z
         .number()
         .int()
@@ -97,12 +40,13 @@ export function registerAgentUtilsTools(reg, client) {
         .describe("Return events with id greater than since"),
       limit: z.number().int().min(1).max(100).optional().describe("Max events, default 50")
     }),
-    ({ since, limit }) => client.get("/api/agent/activity", { since, limit })
-  );
+    handler: ({ since, limit }) => client.get("/api/agent/activity", { since, limit })
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_external_url_page_preview",
-    legacy: "get_link_preview",
+    canonical: "get_external_page_preview_from_url",
+    legacy: "get_external_url_page_preview",
+    extraLegacy: ["get_link_preview"],
     description:
       "Preview card for a public external http(s) page (OpenGraph): title, description, image — not Agent CMS content.",
     schema: z.object({
@@ -111,17 +55,4 @@ export function registerAgentUtilsTools(reg, client) {
     handler: ({ url }) => client.get("/api/web/preview", { url }),
     options: { agentScope: false }
   });
-
-  reg(
-    "extract_document_text",
-    "Extract plain text from pdf, docx, xlsx, html, txt, md, json — from URL or workspace path.",
-    z.object({
-      url: pageUrl.optional(),
-      path: workspacePath.optional(),
-      maxChars: z.number().int().min(500).max(200000).optional(),
-      maxBytes: z.number().int().min(10000).max(10000000).optional()
-    }),
-    ({ url, path, maxChars, maxBytes }) =>
-      client.get("/api/web/extract", { url, path, maxChars, maxBytes })
-  );
 }

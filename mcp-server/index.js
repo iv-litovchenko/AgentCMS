@@ -26,15 +26,13 @@ import { registerMediaLibraryTools } from "./lib/media-library-tools.js";
 import { registerChannelTools } from "./lib/channel-tools.js";
 import { registerWorkspaceTools } from "./lib/workspace-tools.js";
 import { registerDatabaseTools } from "./lib/iblock-tools.js";
-import { registerExecTools } from "./lib/exec-tools.js";
-import { registerWebSearchTools } from "./lib/web-search-tools.js";
+import { registerToolTools } from "./lib/tool-tools.js";
+import { registerToolWebTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
+import { registerRecordTools } from "./lib/record-tools.js";
 import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
-import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
-import { registerContextBufferTools } from "./lib/context-buffer-tools.js";
-import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
 import { registerReferenceTools } from "./lib/reference-tools.js";
@@ -45,6 +43,11 @@ import { registerDependenciesTools } from "./lib/dependencies-tools.js";
 import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
 import { registerShortLinksTools } from "./lib/short-links-tools.js";
+import { registerAnnotationTools } from "./lib/annotation-tools.js";
+import { registerIntakeTools } from "./lib/intake-tools.js";
+import { registerNotificationTools } from "./lib/notification-tools.js";
+import { registerNavTools } from "./lib/nav-tools.js";
+import { registerSessionTools } from "./lib/session-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
@@ -116,101 +119,48 @@ function createServer() {
     );
   };
 
+  // ── Platform · settings (before workspace pick) ───────────────────────────
+
+  registerSettingsTools(reg, client);
+  registerPlatformTools(reg, client);
+
   // ── Workspaces (no agentId) ─────────────────────────────────────────────────
 
   const listWorkspacesHandler = () => client.get("/api/agents", {}, { agentScope: false });
+  const listWorkspacesSchema = z.object({});
+  const listWorkspacesDescription =
+    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before session_context_get.";
 
-  reg(
-    "list_workspaces",
-    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before get_session_context.",
-    z.object({}),
-    listWorkspacesHandler,
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspaces_list",
+    legacy: "list_workspaces",
+    description: listWorkspacesDescription,
+    schema: listWorkspacesSchema,
+    handler: listWorkspacesHandler,
+    options: { agentScope: false }
+  });
 
   reg(
     "list_vaults",
-    "Alias for list_workspaces — same registry of agents / vaults / хранилища.",
-    z.object({}),
+    "Deprecated alias for workspaces_list — same registry of agents / vaults / хранилища.",
+    listWorkspacesSchema,
     listWorkspacesHandler,
     { agentScope: false }
   );
 
   registerWorkspaceTools(reg, client);
-
-  // ── Старт / контекст (4) ───────────────────────────────────────────────────
-
-  reg(
-    "get_session_context",
-    "START HERE (light): wsMap (fresh generated WS-MAP markdown: all manifest.md nodes + root entries — replaces list topics/databases calls) + alwaysContext (full text of always-loaded files: runtime-load-always, system md, ws-folder). Nothing else. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
-    z.object({}),
-    () => client.get("/api/agent/session-context")
-  );
-
-  const getUiFocusHandler = () => client.get("/api/agent/active-context");
-  const getUiFocusSchema = z.object({});
-  const getUiFocusDescription =
-    "Human focus in Agent CMS browser UI (not Cursor): focus.entity (page|slot|content|system|browse|home|none), " +
-    "mcp hints (path/slot/ref). Call when the user did not name a path. Response may include stale if UI was not synced (~5 min). " +
-    "REST: GET /api/agent/active-context.";
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_ui_focus",
-    legacy: "get_user_active_context_now",
-    description: getUiFocusDescription,
-    schema: getUiFocusSchema,
-    handler: getUiFocusHandler
-  });
-
-  reg(
-    "get_ui_open_location",
-    "Where the user is in Agent CMS browser UI: route URL + focus (page/slot/content). Same data as get_ui_focus. REST: GET /api/agent/active-context.",
-    getUiFocusSchema,
-    getUiFocusHandler
-  );
-
-  const getWorkspaceAlwaysContextRegistryHandler = () => client.get("/api/agent/always-context");
-  const getWorkspaceAlwaysContextRegistrySchema = z.object({});
-  const getWorkspaceAlwaysContextRegistryDescription =
-    "Always-context registry (same alwaysContext block as get_session_context): items include full content for runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*. Full session: get_session_context.";
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_always_context_registry",
-    legacy: "list_workspace_always_context",
-    description: getWorkspaceAlwaysContextRegistryDescription,
-    schema: getWorkspaceAlwaysContextRegistrySchema,
-    handler: getWorkspaceAlwaysContextRegistryHandler
-  });
-  reg(
-    "refresh_workspace_always_context",
-    "Deprecated alias for get_workspace_always_context_registry.",
-    getWorkspaceAlwaysContextRegistrySchema,
-    getWorkspaceAlwaysContextRegistryHandler
-  );
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_cron_registry",
-    legacy: "list_workspace_cron",
-    description: "Registry of topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/cron-registry")
-  });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_heartbeat_registry",
-    legacy: "list_workspace_heartbeat",
-    description: "Registry of topics/records with awn-runtime-heartbeat. Index only, not file bodies.",
-    schema: z.object({}),
-    handler: () => client.get("/api/agent/heartbeat-registry")
-  });
-
-  registerSettingsTools(reg, client);
-  registerPlatformTools(reg, client);
   registerDependenciesTools(reg, client);
+
+  registerSessionTools(reg, client);
+
   registerGitModuleTools(reg, client);
   registerShortLinksTools(reg, client);
 
-  // ── Навигация (3) ──────────────────────────────────────────────────────────
+  // ── Навигация (nav_* · WS-MAP + hub index.md) ─────────────────────────────
 
+  registerNavTools(reg, client, pagePath);
   registerMapTools(reg, client, pagePath);
+  registerRecordTools(reg, client);
 
   registerSearchWorkspaceTools(reg, client);
 
@@ -242,194 +192,25 @@ function createServer() {
   // ── Page / Slot / Content / Types ──────────────────────────────────────────
 
   registerPageTools({ reg, client, pagePath });
+  registerTypeListTools({ reg, client });
   registerSlotTools({ reg, client, pagePath });
   registerContentTools({ reg, client, pagePath });
-  registerTypeListTools({ reg, client });
 
-  // ── Intake (4) ─────────────────────────────────────────────────────────────
+  registerIntakeTools({ reg, client, pagePath });
 
-  reg("list_inbox", "List inbox items with triage metadata.", z.object({ path: pagePath }), ({ path }) =>
-    client.get("/api/inbox", { path })
-  );
-
-  reg(
-    "triage_inbox_item",
-    "Triage inbox: to-content, mark-done, set-status.",
-    z.object({
-      path: pagePath,
-      file: z.string().min(1),
-      action: z.enum(["to-content", "mark-done", "set-status"]),
-      status: z.enum(["new", "in-progress", "done"]).optional()
-    }),
-    ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
-  );
-
-  reg(
-    "read_discussion",
-    "Read topic discussion (slot discussion / folder discussion/).",
-    z.object({
-      path: pagePath,
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
-  );
-
-  reg(
-    "append_discussion",
-    "Append message to topic discussion.",
-    z.object({
-      path: pagePath,
-      body: z.string().min(1),
-      role: z.enum(["user", "agent"]).optional(),
-      author: z.string().optional(),
-      linkedFiles: z.string().optional(),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
-      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
-  );
-
-  reg(
-    "read_dialogs",
-    "Deprecated alias for read_discussion.",
-    z.object({
-      path: pagePath,
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
-  );
-
-  reg(
-    "append_dialog",
-    "Deprecated alias for append_discussion.",
-    z.object({
-      path: pagePath,
-      body: z.string().min(1),
-      role: z.enum(["user", "agent"]).optional(),
-      author: z.string().optional(),
-      linkedFiles: z.string().optional(),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
-      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
-  );
-
-  reg(
-    "list_comments",
-    "List discuss comments for manifest or a file in a slot (UI comments panel). Storage: awn-storage/comments/{target}/.",
-    z.object({
-      path: pagePath,
-      mode: z.string().optional().describe("description (default) | external | media | …"),
-      file: z.string().optional().describe("Record path in slot when commenting on content, e.g. memory/razdel/zapis.md"),
-      name: z.string().optional()
-    }),
-    ({ path, mode, file, name }) => client.get("/api/file/comments", { path, mode, file, name })
-  );
-
-  reg(
-    "append_comment",
-    "Append discuss comment to manifest or file in slot. Do not use create_content or write_file in comments/.",
-    z.object({
-      path: pagePath,
-      body: z.string().min(1),
-      author: z.string().optional().describe("Display author, default guest"),
-      replyTo: z.string().optional().describe("Parent comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, body, author, replyTo, mode, file, name }) =>
-      client.post("/api/file/comments", { path, body, author, replyTo, mode, file, name })
-  );
-
-  reg(
-    "toggle_comment_reaction",
-    "Toggle reaction on a discuss comment (default reaction: up).",
-    z.object({
-      path: pagePath,
-      commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-      reaction: z.string().optional().describe("Default up"),
-      author: z.string().optional(),
-      mode: z.string().optional(),
-      file: z.string().optional(),
-      name: z.string().optional()
-    }),
-    ({ path, commentId, reaction, author, mode, file, name }) =>
-      client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
-  );
-
-  const commentTargetFields = {
-    path: pagePath,
-    commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
-    mode: z.string().optional(),
-    file: z.string().optional(),
-    name: z.string().optional()
-  };
-
-  reg(
-    "read_comment",
-    "Read one discuss comment by commentId (awn-id in frontmatter when assigned).",
-    z.object(commentTargetFields),
-    ({ path, commentId, mode, file, name }) =>
-      client.get("/api/file/comment", { path, commentId, mode, file, name })
-  );
-
-  reg(
-    "update_comment",
-    "Update discuss comment body. Preserves author, replyTo, reactions; updates awn-update.",
-    z.object({
-      ...commentTargetFields,
-      body: z.string().min(1)
-    }),
-    ({ path, commentId, body, mode, file, name }) =>
-      client.patch("/api/file/comment", { path, commentId, body, mode, file, name })
-  );
-
-  reg(
-    "delete_comment",
-    "Delete discuss comment file. When platform confirm-delete is enabled, pass confirm=true.",
-    z.object({
-      ...commentTargetFields,
-      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
-    }),
-    ({ path, commentId, mode, file, name }) =>
-      client.delete("/api/file/comment", { path, commentId, mode, file, name })
-  );
+  registerAnnotationTools(reg, client, { pagePath });
 
   // ── Workspace pads + FS + system ───────────────────────────────────────────
 
-  registerWorkspacePadTools(reg, client);
   registerFileHubQueueTools(reg, client);
-  registerContextBufferTools(reg, client);
   registerWorkspaceFsTools(reg, client);
-  registerExecTools(reg, client, pagePath);
-  registerWebSearchTools(reg, client);
+  registerToolWebTools(reg, client);
+  registerToolTools(reg, client, pagePath);
   registerAgentUtilsTools(reg, client);
   registerMediaCloudTools(reg, client, { pagePath });
-  registerSidecarTools(reg, client);
   registerWorkspaceRootTools(reg, client, { jsonText });
 
-  // ── Уведомление (1) ────────────────────────────────────────────────────────
-
-  reg(
-    "notify_user",
-    "Push notification to CMS bell.",
-    z.object({
-      title: z.string().min(1),
-      message: z.string().optional(),
-      path: pagePath.optional()
-    }),
-    ({ title, message, path }) =>
-      client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
-  );
+  registerNotificationTools({ reg, client, pagePath });
 
   registerBatchInvokeTools({ reg, client, toolRegistry });
 

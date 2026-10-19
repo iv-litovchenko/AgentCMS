@@ -3,7 +3,7 @@
 **Сделано:** `get_session_context` / `GET /api/agent/session-context` сведён к лёгкому пакету: карта workspace + always-context файлы. Platform toggles описаны в `GLOBAL-SKILL-1-BASE.md` §11.
 
 **MCP:** `list_workspaces` → `get_session_context({ agentId })` — старт чата.  
-**Не путать:** persona **0-agent** / `get_agent_identity` — это тема в workspace, не id хранилища.
+**Не путать:** persona **0-agent** / `session_agent_profile_get` — это тема в workspace, не id хранилища.
 
 ---
 
@@ -45,8 +45,8 @@ get_session_context
 вне get_session_context
 │
 ├── list_platform_docs · read_platform_doc — README, GLOBAL-SKILL-*.md
-├── get_workspace_cron_registry · get_workspace_heartbeat_registry
-├── get_workspace_storage_info — stats, git, index status
+├── session_list_cron · session_list_heartbeat
+├── workspace_summary_get — stats, git, index status
 ├── read_topic_index_toc · read_content_index_toc · read_workspace_map
 └── read_topic_body / read_content — содержимое по запросу
 ```

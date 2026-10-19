@@ -14,13 +14,13 @@ module.exports = {
     "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId. Доки: list_platform_docs / read_platform_doc.",
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): content_read / content_write / contents_list (legacy read_content, …); kind topic|channel|media|database|repository|root.",
-    "Индексы и поиск — НЕ placement: read/refresh_*_index_toc, read_workspace_map, search_workspace_*, rebuild_workspace_*. Legacy: get_topic_map, get_content_map (deprecated).",
+    "Индексы и поиск — НЕ placement: nav_*, search_*, index_*. Legacy: rebuild_workspace_*, search_workspace_*, read_workspace_map, get_topic_map (deprecated).",
     "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
     "awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: content_binary_write / content_binary_write_from_url; legacy upload_file при MCP_LEGACY_TOOLS=1.",
     "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",
-    "notify_user — колокольчик CMS (не Shell).",
-    "contents/facts: workspace_fact_create, workspace_facts_list, … (legacy create_workspace_fact, …).",
+    "user_notification_send — колокольчик CMS (не Shell). Legacy: notify_user.",
+    "contents/facts: fact_create, facts_list, … (legacy workspace_fact_*, create_workspace_fact, …).",
     "contents/glossary: glossary_term_create, glossary_terms_list, … (legacy create_glossary_term, …).",
     "contents/reference: reference_entry_create, reference_entries_list, … (legacy create_reference_entry, …)."
   ],
@@ -68,43 +68,43 @@ module.exports = {
           http: "GET /api/agent/session-context?agent="
         },
         {
-          name: "get_ui_focus",
+          name: "session_context_get_user_open_url_location_in_ui",
           legacyName: "get_user_active_context_now",
           description: "Что открыто в UI: focus.entity, готовые path/slot/ref для read/write_*.",
           parameters: "—",
           http: "GET /api/agent/active-context"
         },
         {
-          name: "get_workspace_always_context_registry",
-          legacyName: "list_workspace_always_context",
+          name: "session_list_always_context",
+          legacyName: "get_workspace_always_context_registry",
           description: "Реестр always-context (items с content): load-always, system md, ws-folder.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
         {
-          name: "get_workspace_cron_registry",
-          legacyName: "list_workspace_cron",
+          name: "session_list_cron",
+          legacyName: "get_workspace_cron_registry",
           description: "Реестр awn-runtime-cron (+ schedule), без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/cron-registry"
         },
         {
-          name: "get_workspace_heartbeat_registry",
-          legacyName: "list_workspace_heartbeat",
+          name: "session_list_heartbeat",
+          legacyName: "get_workspace_heartbeat_registry",
           description: "Реестр awn-runtime-heartbeat, без тел файлов.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
         },
         {
-          name: "test_mcp_connection",
+          name: "utility_mcp_ping",
           description: "Ping CMS: ok, agentId, serverTime, versions. Проверка связи MCP → Agent CMS.",
           parameters: "—",
           http: "GET /api/agent/mcp-ping"
         },
         {
-          name: "get_workspace_storage_info",
+          name: "workspace_summary_get",
           description:
-            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (только .git workspace агента), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt.",
+            "Сводка workspace: темы/файлы/размер/входящие, catalog (инфоблоки, репозитории, настройки), git (только .git workspace агента), alwaysContextCount, cron/heartbeat, workspaceIndexStatus, lastIndexedAt. Legacy: get_workspace_storage_info.",
           parameters: "—",
           http: "GET /api/agent/storage-summary"
         }
@@ -183,14 +183,14 @@ module.exports = {
           http: "POST /api/agent/workspace-page-index"
         },
         {
-          name: "resolve_workspace_path",
+          name: "record_path_resolve",
           description: "Произвольный path → цепочка manifest (topic/area/ws), slot/ref, mcp hints.",
           parameters: "path",
           http: "GET /api/agent/resolve-path"
         },
         {
-          name: "get_topic_url",
-          description: "Web-адрес темы/файла Agent CMS для открытия в браузере (CHPU). path — manifest, файл, слот; view — edit/todo/nav/…",
+          name: "get_record_url_from_path",
+          description: "Web-адрес темы/файла Agent CMS для открытия в браузере (CHPU). Legacy: get_topic_url.",
           parameters: "path?, view?, forceView?",
           http: "GET /api/agent/page-url"
         },
@@ -360,7 +360,7 @@ module.exports = {
         { name: "content_binary_read", description: "Binary base64.", parameters: "placement, maxBytes?", http: "—" },
         { name: "content_binary_write", description: "Upload binary base64.", parameters: "placement, data", http: "—" },
         { name: "content_binary_write_from_url", description: "Download URL → slot file.", parameters: "placement, url, fileName?", http: "POST /api/media/file/import" },
-        { name: "content_binary_url_get", description: "HTTPS view URL for binary.", parameters: "placement", http: "—" },
+        { name: "get_record_binary_url_from_path", description: "HTTPS view URL for binary.", parameters: "placement", http: "—" },
         { name: "content_create", description: "Запись/категория; inbox: slot=inbox.", parameters: "placement, awnType?, body?, …", http: "POST /api/storage/file/create" },
         { name: "content_rename", description: "Переименовать.", parameters: "placement, displayName?", http: "—" },
         { name: "content_move", description: "Переместить.", parameters: "placement, targetPath?, …", http: "—" },
@@ -441,21 +441,21 @@ module.exports = {
       id: "intake",
       title: "Inbox и дискуссия",
       tools: [
-        { name: "list_inbox", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
+        { name: "inbox_items_list", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
         {
-          name: "triage_inbox_item",
+          name: "inbox_item_triage",
           description: "Triage: to-content, mark-done, set-status.",
           parameters: "path, file, action, status?",
           http: "POST /api/inbox/triage"
         },
         {
-          name: "read_discussion",
+          name: "discussion_read",
           description: "Дискуссия темы (slot discussion).",
           parameters: "path, mode?, file?, name?",
           http: "GET /api/discussion"
         },
         {
-          name: "append_discussion",
+          name: "discussion_append",
           description: "Сообщение в дискуссию темы.",
           parameters: "path, body, role?, …",
           http: "POST /api/discussion"
@@ -479,7 +479,7 @@ module.exports = {
           http: "GET /api/agent/workspace-journal/list"
         },
         {
-          name: "list_workspace_notifications",
+          name: "user_notifications_list",
           description: "Лента колокольчика 🔔 — те же записи журнала в формате уведомлений.",
           parameters: "since?, limit?, notifyOnly?",
           http: "GET /api/agent/workspace-notifications"
@@ -491,25 +491,25 @@ module.exports = {
       title: "Банк фактов (contents/facts)",
       tools: [
         {
-          name: "workspace_fact_create",
+          name: "fact_create",
           description: "Создать факт в awn-databases/contents/facts/.",
           parameters: "body, kind?, source?, tags?, name?, sourceRef?, supersedes?",
           http: "POST /api/agent/workspace-facts/create"
         },
         {
-          name: "workspace_fact_update",
+          name: "fact_update",
           description: "Обновить факт по record id/path.",
           parameters: "record, body?, kind?, source?, tags?, name?, sourceRef?, supersedes?",
           http: "POST /api/agent/workspace-facts/update"
         },
         {
-          name: "workspace_facts_list",
+          name: "facts_list",
           description: "Список фактов (новые первые), без semantic.",
           parameters: "kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/list"
         },
         {
-          name: "workspace_facts_search",
+          name: "facts_search",
           description: "Поиск по contents/facts (semantic + fulltext).",
           parameters: "query, kind?, tags?, limit?",
           http: "GET /api/agent/workspace-facts/search"
@@ -598,7 +598,7 @@ module.exports = {
           parameters: "placement, mode?, …",
           http: "POST /api/workspace/fs/write|patch"
         },
-        { name: "batch_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
+        { name: "batch_tools_invoke", description: "Пакет одного tool.", parameters: "tool, items[]", http: "—" },
         { name: "list_root_files", description: "MCP_LEGACY_TOOLS=1 → list_content path=\".\"", parameters: "—", http: "GET /api/system-files" },
         { name: "read_root_file", description: "MCP_LEGACY_TOOLS=1 → read_content kind=root.", parameters: "name", http: "GET /api/workspace/fs/read" },
         { name: "write_root_file", description: "MCP_LEGACY_TOOLS=1 → write_content kind=root.", parameters: "name, content", http: "POST /api/workspace/fs/write" },
@@ -615,20 +615,20 @@ module.exports = {
       title: "Выполнение команд",
       tools: [
         {
-          name: "run_script",
-          description: "Запуск файла из workspace (.py, .js, .sh).",
+          name: "utility_script_run",
+          description: "Запуск файла из workspace (.py, .js, .sh). Legacy: run_script.",
           parameters: "script, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env?",
           http: "POST /api/exec/run-script"
         },
         {
-          name: "exec_command",
-          description: "Команда + args без shell (git, npm, …).",
+          name: "utility_command_exec",
+          description: "Команда + args без shell (git, npm, …). Legacy: exec_command.",
           parameters: "command, args?, cwd?, topicPath?, timeoutMs?, env?",
           http: "POST /api/exec/command"
         },
         {
-          name: "exec_shell",
-          description: "Произвольная shell-строка (pipes, &&).",
+          name: "utility_shell_exec",
+          description: "Произвольная shell-строка (pipes, &&). Legacy: exec_shell.",
           parameters: "command, cwd?, topicPath?, timeoutMs?, env?",
           http: "POST /api/exec/shell"
         }
@@ -678,11 +678,17 @@ module.exports = {
     },
     {
       id: "notifications",
-      title: "Уведомление",
+      title: "Уведомления",
       tools: [
         {
-          name: "notify_user",
-          description: "Уведомление в колокольчик CMS.",
+          name: "user_notifications_list",
+          description: "Лента колокольчика (since / limit). Legacy: list_workspace_notifications, workspace_notifications_list.",
+          parameters: "since?, limit?",
+          http: "GET /api/agent/workspace-notifications"
+        },
+        {
+          name: "user_notification_send",
+          description: "Push в колокольчик CMS.",
           parameters: "title, message?, path?",
           http: "POST /api/agent/activity/notify"
         }

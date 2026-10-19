@@ -13,8 +13,8 @@ export const workspaceIdField = z
   .string()
   .min(1)
   .describe(
-    `Workspace id from list_workspaces (e.g. 0-ws-test). Required on every workspace-scoped tool. ` +
-      `Start: list_workspaces → get_session_context({ workspaceId }) → same id on all later tools.`
+    `Workspace id from workspaces_list (e.g. 0-ws-test). Required on every workspace-scoped tool. ` +
+      `Start: workspaces_list → session_context_get({ workspaceId }) → same id on all later tools.`
   );
 
 /** @deprecated use workspaceId — accepted on all workspace-scoped tools (REFACTOR-10). */
@@ -68,7 +68,7 @@ export function resolveWorkspaceId(args = {}, fallbackAgent = "") {
   if (fallback) return normalizeLegacyWorkspaceId(fallback);
 
   throw new Error(
-    "workspaceId is required (legacy alias: agentId). Call list_workspaces, pick an id, " +
+    "workspaceId is required (legacy alias: agentId). Call workspaces_list, pick an id, " +
       "then pass workspaceId on every workspace-scoped MCP tool."
   );
 }

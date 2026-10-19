@@ -6593,7 +6593,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
         layer === "discussion" || layer === "thread"
         ? "append_discussion"
         : layer === "comments"
-          ? "append_comment"
+          ? "annotation_comment_append"
           : null;
     return {
       error: `Folder awn-storage/${layer}/ is not writable via filesystem tools${hint ? `; use ${hint}` : ""}`,
@@ -13424,10 +13424,10 @@ async function buildAgentWorkspaceWsmap() {
     hint:
       "Лёгкий реестр всех manifest.md в workspace (обход диска: темы, awn-databases, awn-media, awn-channels, …) " +
       "и список файлов/папок в корне вне hub-каталогов awn-*. " +
-      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: read_workspace_map / refresh_workspace_map.",
+      "Просмотр без записи — GET; сохранить — POST /api/agent/workspace-wsmap. MCP: nav_map_workspace_read / nav_map_workspace_refresh.",
     whenToUse: {
-      read_workspace_map: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
-      refresh_workspace_map: "Пересобрать и сохранить WS-MAP.md в корне workspace."
+      nav_map_workspace_read: "Список manifest-узлов и метаданные WS-MAP без записи на диск.",
+      nav_map_workspace_refresh: "Пересобрать и сохранить WS-MAP.md в корне workspace."
     },
     path: manifestPath,
     indexFile: {
@@ -14884,9 +14884,9 @@ const SESSION_CONTEXT_API_MAP = {
   // Dev/HTTP catalog — not included in get_session_context (agents use MCP tools only).
   // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
-  mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
+  mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
   storageSummary:
-    "GET /api/agent/storage-summary — get_workspace_storage_info MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
+    "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
@@ -14907,10 +14907,10 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
-  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: find_by_id / resolve_workspace_id)",
-  workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_find_by_id)",
+  workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (MCP: record_id_assign; body: path, force?)",
   workspaceSlugGenerate:
-    "GET|POST /api/workspace-slug/generate — generate_workspace_slug MCP (text, preset?, slug?, stripExtension?)",
+    "GET|POST /api/workspace-slug/generate — record_generate_slug MCP (text, preset?, slug?, stripExtension?)",
   workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
   workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
@@ -14922,9 +14922,9 @@ const SESSION_CONTEXT_API_MAP = {
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline:
     "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id → WS-MAP (manifest-реестр)",
-  resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
+  resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — record_path_resolve MCP: manifest-цепочка вверх, slot/ref, mcp hints",
   pageUrl:
-    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_workspace_open_url_from_path",
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_record_url_from_path",
   repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: repositories_list",
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: repository_get",
@@ -14933,12 +14933,12 @@ const SESSION_CONTEXT_API_MAP = {
   repositoryRegister:
     "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: repository_register",
   dependencies:
-    "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: read_dependencies",
+    "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: workspace_dependencies_read",
   dependenciesWrite:
-    "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
+    "POST /api/agent/dependencies — обновить dependencies.csv; MCP: workspace_dependencies_write",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext:
-    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: get_workspace_always_context_registry",
+    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: session_list_always_context",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -14990,13 +14990,13 @@ const SESSION_CONTEXT_API_MAP = {
   discussion: "GET /api/discussion?path=<manifest.md> (legacy: /api/dialogs, /api/thread)",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
-  workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
-  workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
+  workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — workspace_feed_list MCP",
+  workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — workspace_memory_audit MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
-  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — workspace_fact_create MCP",
-  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — workspace_fact_update MCP",
-  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — workspace_facts_list MCP",
-  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — workspace_facts_search MCP",
+  workspaceFactsCreate: "POST /api/agent/workspace-facts/create — fact_create MCP",
+  workspaceFactsUpdate: "POST /api/agent/workspace-facts/update — fact_update MCP",
+  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — facts_list MCP",
+  workspaceFactsSearch: "GET /api/agent/workspace-facts/search?q=&kind=&tags=&limit= — facts_search MCP",
   workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — deprecated alias create",
   workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q= — deprecated alias search",
   workspaceFactsStats: "GET /api/agent/workspace-facts/stats — fact bank stats",
@@ -15025,8 +15025,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
-  workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
-  workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
+  workspaceNote: "GET/POST /api/workspace/note — session_note_read / session_note_write (shared NOTE.md)",
+  workspaceTodo: "GET/POST /api/workspace/todo — session_todo_read / session_todo_write (shared TODO.md)",
   workspaceFileHubQueue:
     "GET /api/workspace/file-hub/queue — module_file_hub_outbound_list MCP (.agent-cms/state/file-hub-queue.json)",
   workspaceFileHubAdd:
@@ -15035,37 +15035,37 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
-    "GET /api/workspace/context-buffer — read_context_buffer MCP (.agent-cms/state/context-buffer.json)",
+    "GET /api/workspace/context-buffer — session_context_buffer_read MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
-    "POST /api/workspace/context-buffer/add — append_context_buffer MCP { type?, ref|path, title?, icon?, meta? }",
+    "POST /api/workspace/context-buffer/add — session_context_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
   workspaceContextBufferRemove:
-    "POST /api/workspace/context-buffer/remove — remove_context_buffer_item MCP { id?, ref|path? }",
+    "POST /api/workspace/context-buffer/remove — session_context_buffer_remove MCP { id?, ref|path? }",
   workspaceContextBufferClear:
-    "POST /api/workspace/context-buffer/clear — clear_context_buffer MCP",
+    "POST /api/workspace/context-buffer/clear — session_context_buffer_clear MCP",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
-    "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
+    "POST /api/exec/run-script — utility_script_run MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
-    "POST /api/exec/command — exec_command MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/command — utility_command_exec MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
   execShell:
-    "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
+    "POST /api/exec/shell — utility_shell_exec MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
-    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google direct HTML or Custom Search API)",
+    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — utility_web_search MCP (Google direct HTML or Custom Search API)",
   webImages:
-    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google Images direct or API)",
+    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — utility_web_images_search MCP (Google Images direct or API)",
   webPage:
-    "GET /api/web/page?url=&maxChars=&maxBytes= — read_web_page MCP (fetch external page as plain text)",
+    "GET /api/web/page?url=&maxChars=&maxBytes= — utility_web_page_read MCP (fetch external page as plain text)",
   webPreview:
-    "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
+    "GET /api/web/preview?url= — get_external_page_preview_from_url MCP (OpenGraph/meta card)",
   webExtract:
-    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
+    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — utility_document_text_extract MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/0-agent-kit/0-agent/)",
+    "GET /api/agent/identity/agent — session_agent_profile_get MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/0-agent-kit/0-user/)",
+    "GET /api/agent/identity/user — session_user_profile_get MCP (awn-topics/0-agent-kit/0-user/)",
   activity:
-    "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
+    "GET /api/agent/activity?since=&limit= — workspace_activity_list MCP",
   sidecarResolve:
     "GET /api/storage/sidecar/resolve?sourcePath=|path=&slot=&file= — resolve_sidecar_path MCP",
   sidecarRead:
@@ -15118,7 +15118,7 @@ async function buildAgentSessionContext() {
     hint:
       "wsMap — карта всех manifest.md (вместо list_topics/list_databases); alwaysContext — файлы, которые всегда в контексте. " +
       "Записи темы: read_content_index_toc. Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. " +
-      "Cron/heartbeat: get_workspace_cron_registry / get_workspace_heartbeat_registry."
+      "Cron/heartbeat: session_list_cron / session_list_heartbeat."
   };
 }
 
@@ -17825,7 +17825,7 @@ function buildAgentMcpPing() {
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./lib/version/product-version").getProductVersion(),
     mcpVersion: require("./lib/version/mcp-version").getMcpVersion(),
-    hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
+    hint: "MCP connection OK. Call workspace_summary_get for sidebar storage stats."
   };
 }
 
@@ -17965,7 +17965,7 @@ async function buildAgentStorageSummary() {
       intake: intakeTotals
     }),
     hint:
-      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (только .git в корне workspace агента), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP get_workspace_index_status), lastIndexedAt."
+      "Сводка workspace: menu/workspace/intake (sidebar #menu-agent-stats), catalog (инфоблоки, репозитории, настройки), git (только .git в корне workspace агента), runtime (always-context, cron, heartbeat), workspaceIndexStatus (как MCP index_status_get), lastIndexedAt."
   };
 }
 

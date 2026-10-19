@@ -50,7 +50,7 @@ See `TODO.SQL.md`. Agent-facing summary: `GLOBAL-SKILL-5-SEARCH.md`.
 
 | Channel | Call |
 |---------|------|
-| MCP | `query_workspace_storage({ workspaceId, dql: "..." })` |
+| MCP | `index_storage_query({ workspaceId, dql: "..." })` |
 | REST | `POST /api/storage-index/query` body `{ "dql": "..." }` |
 | Preset | `registry-queries.yml` → `source: dql`, field `dql:` → `run_workspace_registry_query` |
 | Preview | fenced `` ```awn-query `` / `` ```dataview `` → `dql-table.js` |
@@ -59,4 +59,4 @@ See `TODO.SQL.md`. Agent-facing summary: `GLOBAL-SKILL-5-SEARCH.md`.
 - **Response:** `dql-query` | `dql-group` | `dql-hybrid`; `engine: sqlite | memory`. Raw SQL (`sql` / `rawSql`) → 500.
 - **UI:** **DQL** button → modal **Text / Constructor / Views**. Views are stored in `.agent-cms/settings/dql-views.yml` (`GET|POST|DELETE /api/storage-index/dql-views`). Constructor → `POST /api/storage-index/dql-build`.
 - **Preview transform:** `@transform {"pick":["path","awn-name"]}` (no JS eval).
-- **Rebuild:** `rebuild_workspace_storage_index`. SQLite: setting `index-storage-sqlite-enabled` (default on).
+- **Rebuild:** `index_storage_rebuild`. SQLite: setting `index-storage-sqlite-enabled` (default on).

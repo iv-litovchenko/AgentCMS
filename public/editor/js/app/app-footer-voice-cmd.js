@@ -81,7 +81,7 @@
       items: [
         {
           phrases: ["открой …", "перейди к …"],
-          tools: ["search_workspace_hybrid", "get_topic_url"],
+          tools: ["index_3_hybrid_search_query", "get_record_url_from_path"],
           status: "mcp"
         },
         {
@@ -96,7 +96,7 @@
         },
         {
           phrases: ["открой журнал"],
-          tools: ["list_journal_entries", "get_topic_url"],
+          tools: ["journal_entries_list", "get_topic_url"],
           status: "mcp"
         },
         {
@@ -112,7 +112,7 @@
         },
         {
           phrases: ["переключись на workspace …"],
-          tools: ["list_workspaces", "set_default_workspace"],
+          tools: ["workspaces_list", "workspace_default_set"],
           status: "mcp"
         }
       ]
@@ -121,10 +121,10 @@
       id: "search",
       title: "Поиск и ответ",
       items: [
-        { phrases: ["найди …", "где про …"], tools: ["search_workspace_hybrid"], status: "mcp" },
-        { phrases: ["поищи смысл …"], tools: ["search_workspace_semantic"], status: "mcp" },
+        { phrases: ["найди …", "где про …"], tools: ["index_3_hybrid_search_query"], status: "mcp" },
+        { phrases: ["поищи смысл …"], tools: ["search_semantic"], status: "mcp" },
         { phrases: ["что мы решили про …"], tools: ["search_and_get_context", "ask_workspace"], status: "mcp" },
-        { phrases: ["покажи ссылки на …"], tools: ["search_workspace_links"], status: "mcp" }
+        { phrases: ["покажи ссылки на …"], tools: ["search_links"], status: "mcp" }
       ]
     },
     {
@@ -133,7 +133,7 @@
       items: [
         { phrases: ["прочитай страницу …"], tools: ["read_topic_body"], status: "mcp" },
         { phrases: ["свойства страницы"], tools: ["read_topic_properties"], status: "mcp" },
-        { phrases: ["напомни факты про …"], tools: ["search_workspace_facts", "list_workspace_facts"], status: "mcp" }
+        { phrases: ["напомни факты про …"], tools: ["facts_search", "facts_list"], status: "mcp" }
       ]
     },
     {
@@ -141,13 +141,13 @@
       title: "Записать (с подтверждением)",
       note: "«да / подтверждаю» перед delete и move.",
       items: [
-        { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "append_journal_entry"], status: "mcp" },
-        { phrases: ["добавь задачу …"], tools: ["write_workspace_todo"], status: "mcp" },
-        { phrases: ["зафиксируй факт …"], tools: ["retain_workspace_fact"], status: "mcp" },
+        { phrases: ["запиши в заметку …"], tools: ["write_topic_body", "journal_entry_append"], status: "mcp" },
+        { phrases: ["добавь задачу …"], tools: ["session_todo_write"], status: "mcp" },
+        { phrases: ["зафиксируй факт …"], tools: ["fact_create"], status: "mcp" },
         { phrases: ["создай страницу … в теме …"], tools: ["create_topic"], status: "mcp" },
         { phrases: ["переименуй", "перенеси", "удали"], tools: ["rename_topic", "move_topic", "delete_topic"], status: "mcp" },
-        { phrases: ["разбери inbox …"], tools: ["triage_inbox_item"], status: "mcp" },
-        { phrases: ["уведомь …"], tools: ["notify_user"], status: "mcp" }
+        { phrases: ["разбери inbox …"], tools: ["inbox_item_triage"], status: "mcp" },
+        { phrases: ["уведомь …"], tools: ["user_notification_send"], status: "mcp" }
       ]
     },
     {

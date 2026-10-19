@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { slotsListInputSchema } from "./content-placement-zod.js";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -14,10 +15,12 @@ export function registerSlotTools({ reg, client }) {
     return { ...data, placement: formatPublicPlacement(kind, manifestPath) };
   };
 
-  reg(
-    "list_slots",
-    "List storage slots for a container: topic | channel | media | database | repository (placement.kind + slug path, or legacy path with hub prefix).",
-    slotsListInputSchema,
-    listHandler
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_slots_list",
+    legacy: "list_slots",
+    description:
+      "List storage slots for a container: topic | channel | media | database | repository (placement.kind + slug path, or legacy path with hub prefix).",
+    schema: slotsListInputSchema,
+    handler: listHandler
+  });
 }

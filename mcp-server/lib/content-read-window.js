@@ -43,7 +43,7 @@ function scanFences(lines, from, to) {
 
 /**
  * Cut a line window from raw file text. Line numbers are 1-based over the whole file
- * (frontmatter included), matching search_workspace_* startLine/endLine.
+ * (frontmatter included), matching search_* startLine/endLine.
  */
 export function readTextWindow(text, { startLine, limitLines, full = false, markdownBody = false } = {}) {
   const raw = String(text ?? "");
