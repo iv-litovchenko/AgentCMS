@@ -75,8 +75,8 @@ user-agent-cms
 │   └── 🟢 nav_index_toc_media_libraries_refresh ← refresh_media_library_index_toc
 │
 ├── 🗺 id, URL, типы · 11
-│   ├── list_types
-│   ├── get_type
+│   ├── 🟡 list_types
+│   ├── 🟡 get_type
 │   ├── 🟡 list_slots
 │   ├── find_by_id
 │   ├── resolve_workspace_id
