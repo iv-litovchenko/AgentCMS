@@ -53,17 +53,17 @@ user-agent-cms
 │
 ├── 🎬 Session · session_* · workspaceId · 20
 │   ├── 🟢 session_context_get                ← get_session_context
-│   ├── 🟡 session_agent_get                  ← agent_identity_get ← get_agent_identity
-│   ├── 🟡 session_user_get                   ← user_identity_get ← get_user_identity
+│   ├── 🟢 session_agent_profile_get          ← agent_identity_get ← get_agent_identity ← session_agent_get
+│   ├── 🟢 session_user_profile_get           ← user_identity_get ← get_user_identity ← session_user_get
 │   ├── 🟡 session_ui_focus_get               ← get_ui_focus ← get_user_active_context_now
-│   ├── 🟡 session_always_registry_get        ← workspace_always_context_registry_get
-│   ├── 🟡 session_cron_registry_get          ← workspace_cron_registry_get
-│   ├── 🟡 session_heartbeat_registry_get     ← workspace_heartbeat_registry_get
+│   ├── 🟢 session_always_registry_list       ← get_workspace_always_context_registry ← session_always_registry_get
+│   ├── 🟢 session_cron_registry_list         ← get_workspace_cron_registry ← session_cron_registry_get
+│   ├── 🟢 session_heartbeat_registry_list    ← get_workspace_heartbeat_registry ← session_heartbeat_registry_get
 │   ├── 🟡 session_registry_queries_list      ← list_workspace_registry_queries
 │   ├── 🟡 session_registry_query_run         ← run_workspace_registry_query
-│   ├── 🟡 session_nav_focus_get              ← preset nav-focus / awn-focus
-│   ├── 🟡 session_nav_main_get               ← preset nav-main / awn-main
-│   ├── 🟡 get_ui_open_location               (legacy session_ui_focus_get)
+│   ├── 🟢 session_nav_focus_list             ← session_nav_focus_get (query nav-focus / awn-focus)
+│   ├── 🟢 session_nav_main_list              ← session_nav_main_get (query nav-main / awn-main)
+│   ├── 🔴 get_ui_open_location               (legacy session_ui_focus_get)
 │   ├── session_note_* (2)
 │   │   ├── 🟢 session_note_read              ← workspace_note_read ← read_workspace_note
 │   │   └── 🟢 session_note_write             ← workspace_note_write ← write_workspace_note
@@ -96,10 +96,10 @@ user-agent-cms
 │   ├── 🟡 list_types
 │   ├── 🟡 get_type
 │   ├── 🟡 list_slots
-│   ├── get_workspace_open_url_from_path   (канон URL; legacy get_topic_url)
-│   ├── get_workspace_url_page_preview
-│   ├── get_external_url_page_preview
-│   └── get_link_preview
+│   ├── 🔴 get_workspace_open_url_from_path   ← get_topic_url
+│   ├── 🔴 get_workspace_url_page_preview
+│   ├── 🔴 get_external_url_page_preview      ← get_link_preview
+│   └── 🔴 get_link_preview                   (legacy alias)
 │
 ├── 🧭 Темы · topics_ / topic_ · 25
 │   ├── 🟢 topics_list                    ← list_topics
@@ -307,9 +307,9 @@ Stub: `module_media_cloud_upload`, `module_media_cloud_url`, `module_file_hub_in
 
 ```
 Сейчас
-├── get_workspace_always_context_registry — файлы always-context
-├── get_workspace_cron_registry — cron темы/записи
-└── get_workspace_heartbeat_registry — heartbeat
+├── session_always_registry_list — файлы always-context
+├── session_cron_registry_list — cron темы/записи
+└── session_heartbeat_registry_list — heartbeat
 
 Фокус и главная
 ├── get_ui_focus — live «где человек в UI» (не реестр)

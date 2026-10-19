@@ -14938,7 +14938,7 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/agent/dependencies — обновить dependencies.csv; MCP: workspace_dependencies_write",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext:
-    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: get_workspace_always_context_registry",
+    "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: session_always_registry_list",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
   indexExcludeRegistry:
@@ -15061,9 +15061,9 @@ const SESSION_CONTEXT_API_MAP = {
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — tool_document_text_extract MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-topics/0-agent-kit/0-agent/)",
+    "GET /api/agent/identity/agent — session_agent_profile_get MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — get_user_identity MCP (awn-topics/0-agent-kit/0-user/)",
+    "GET /api/agent/identity/user — session_user_profile_get MCP (awn-topics/0-agent-kit/0-user/)",
   activity:
     "GET /api/agent/activity?since=&limit= — workspace_activity_list MCP",
   sidecarResolve:
@@ -15118,7 +15118,7 @@ async function buildAgentSessionContext() {
     hint:
       "wsMap — карта всех manifest.md (вместо list_topics/list_databases); alwaysContext — файлы, которые всегда в контексте. " +
       "Записи темы: read_content_index_toc. Скиллы GLOBAL-SKILL-*: клиент или read_platform_doc. " +
-      "Cron/heartbeat: get_workspace_cron_registry / get_workspace_heartbeat_registry."
+      "Cron/heartbeat: session_cron_registry_list / session_heartbeat_registry_list."
   };
 }
 

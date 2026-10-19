@@ -129,7 +129,7 @@ agent-cms MCP
 │
 ├── 🛠️ Утилиты · identity
 │   ├── generate_workspace_slug · workspace_summary_get · workspace_activity_list · workspace_notifications_list
-│   └── get_agent_identity · get_user_identity
+│   └── session_agent_profile_get · session_user_profile_get
 │
 ├── 📤 File hub · 📓 pads
 │   ├── read_file_hub_queue · add/remove_file_from_file_hub · clear_file_hub_queue
