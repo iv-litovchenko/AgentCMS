@@ -29302,28 +29302,39 @@ function createMenuTreePreviewNode(source) {
 
   const previewUrl = String(source.previewUrl || "").trim();
   const nodePath = String(source.path || source.relativePath || "").trim();
-  if (previewUrl && !isBrokenImageSrc(previewUrl, nodePath)) {
+  const previewRaw = getPropsEntryValueByKey(source?.props, "awn-preview") || source?.previewPath || "";
+  const fromProps = previewRaw ? buildPreviewUiFromPath(previewRaw, nodePath) : null;
+  const previewUi =
+    (fromProps?.imageUrl && !fromProps.broken ? fromProps : null) ||
+    (previewUrl && !isBrokenImageSrc(previewUrl, nodePath)
+      ? { imageUrl: finalizeAwnPreviewImageUrl(previewUrl, nodePath), previewPath: "" }
+      : null);
+  if (previewUi?.imageUrl && !previewUi.broken) {
     const appended = appendNavigationItemPreviewThumb(
       wrap,
       source,
-      { imageUrl: previewUrl },
+      previewUi,
       {
         className: "menu-tree-preview-img",
         cacheBust: false,
         loading: "lazy",
-        timeoutMs: resolvePreviewLoadTimeoutMs(previewUrl)
+        timeoutMs: resolvePreviewLoadTimeoutMs(previewUi.imageUrl)
       }
     );
     if (appended) return wrap;
   }
 
-  wrap.appendChild(
-    createBrokenImagePlaceholder({
-      className: "menu-tree-preview-img",
-      label: "Превью не найдено"
-    })
-  );
-  return wrap;
+  if (source?.hasPreview) {
+    wrap.appendChild(
+      createBrokenImagePlaceholder({
+        className: "menu-tree-preview-img",
+        label: "Превью не найдено"
+      })
+    );
+    return wrap;
+  }
+
+  return null;
 }
 
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
@@ -36394,10 +36405,8 @@ function getGraphNodeRadius(node, degrees, showPreviews = false) {
 
 function resolveGraphPreviewUrl(node) {
   if (!node?.previewUrl) return "";
-  return appendMediaThumbToApiUrl(
-    appendCacheBuster(appendAgentToApiUrl(node.previewUrl)),
-    MEDIA_THUMB_MAX_GRID
-  );
+  const nodePath = node.nodePath || node.filePath || "";
+  return finalizeAwnPreviewImageUrl(node.previewUrl, nodePath);
 }
 
 function sanitizeGraphDomId(value) {
@@ -38300,6 +38309,39 @@ function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_DEFAULT) {
     const joiner = raw.includes("?") ? "&" : "?";
     return `${raw}${joiner}thumb=1&max=${encodeURIComponent(String(max))}`;
   }
+}
+
+function stripMediaThumbFromApiUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return raw;
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    parsed.searchParams.delete("thumb");
+    parsed.searchParams.delete("max");
+    const relative = `${parsed.pathname}${parsed.search}`;
+    return raw.startsWith("http") ? parsed.toString() : relative;
+  } catch {
+    return raw
+      .replace(/([?&])thumb=1&?/gi, "$1")
+      .replace(/([?&])max=[^&]*&?/gi, "$1")
+      .replace(/[?&]$/, "");
+  }
+}
+
+/** Оригинал файла для свойства awn-preview (без thumb=1). */
+function finalizeAwnPreviewImageUrl(url, nodePath = activePath) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
+  let resolved = raw;
+  if (!resolved.startsWith("/api/") && !isLoadableImageDisplayUrl(resolved)) {
+    resolved = resolveMarkdownAssetSrc(resolved, nodePath);
+  }
+  if (!isLoadableImageDisplayUrl(resolved)) return "";
+  const withAgent = resolved.startsWith("/api/")
+    ? appendCacheBuster(appendAgentToApiUrl(resolved))
+    : appendCacheBuster(resolved);
+  return stripMediaThumbFromApiUrl(withAgent);
 }
 
 function encodeMarkdownPathSegment(segment) {
@@ -42570,7 +42612,10 @@ function resolveExternalItemPreviewUi(item, nodePath = activePath) {
   const contextPath = getExternalItemContextPath(item, nodePath);
   if (previewPath) return buildPreviewUiFromPath(previewPath, contextPath);
   if (item?.hasPreview && item?.previewUrl) {
-    return { imageUrl: item.previewUrl, previewPath: "" };
+    return {
+      imageUrl: finalizeAwnPreviewImageUrl(item.previewUrl, contextPath),
+      previewPath: ""
+    };
   }
   return null;
 }
@@ -42603,10 +42648,7 @@ function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
   const rawUrl = String(preview.imageUrl || "").trim();
   if (!rawUrl) return false;
 
-  const imageUrl =
-    /^https?:\/\//i.test(rawUrl) || rawUrl.startsWith("/api/")
-      ? appendCacheBuster(appendAgentToApiUrl(rawUrl))
-      : appendCacheBuster(rawUrl);
+  const imageUrl = finalizeAwnPreviewImageUrl(rawUrl, activePath);
 
   const img = document.createElement("img");
   img.className = className;
@@ -42619,6 +42661,11 @@ function appendPreviewUiThumb(parent, preview, { className = "" } = {}) {
       createBrokenImagePlaceholder({ label: "Превью не найдено", className })
     );
   };
+
+  if (!imageUrl) {
+    handlePreviewFail();
+    return true;
+  }
 
   const lifecycle = bindPreviewImageLifecycle(img, {
     loadingClassTarget: parent,
@@ -64110,20 +64157,10 @@ function resolveAwnPreviewDisplayUrl(previewPath, nodePath = activePath) {
 function resolvePreviewThumbImageSrc(preview, nodePath = activePath) {
   if (preview?.broken) return "";
   if (preview?.imageUrl) {
-    const raw = String(preview.imageUrl).trim();
-    if (!raw) return "";
-    if (/^https?:\/\//i.test(raw) || /^data:/i.test(raw)) return raw;
-    if (!isLoadableImageDisplayUrl(raw)) return "";
-    return appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(raw)),
-      MEDIA_THUMB_MAX_PREVIEW
-    );
+    return finalizeAwnPreviewImageUrl(preview.imageUrl, nodePath);
   }
   const previewPath = String(preview?.previewPath || "").trim();
-  return appendMediaThumbToApiUrl(
-    resolveAwnPreviewDisplayUrl(previewPath, nodePath),
-    MEDIA_THUMB_MAX_PREVIEW
-  );
+  return finalizeAwnPreviewImageUrl(resolveAwnPreviewDisplayUrl(previewPath, nodePath), nodePath);
 }
 
 function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
@@ -64132,7 +64169,7 @@ function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
   if (isBrokenImageSrc(trimmed, nodePath)) {
     return { broken: true, previewPath: trimmed };
   }
-  const imageUrl = resolveAwnPreviewDisplayUrl(trimmed, nodePath);
+  const imageUrl = finalizeAwnPreviewImageUrl(resolveAwnPreviewDisplayUrl(trimmed, nodePath), nodePath);
   if (!imageUrl) return { broken: true, previewPath: trimmed };
   return { imageUrl, previewPath: trimmed };
 }
@@ -71448,7 +71485,7 @@ async function fetchNodeOverviewPreview(nodePath = activePath, entries = null) {
     const data = await response.json();
     if (!data?.exists || !data?.imageUrl) return null;
     return {
-      imageUrl: appendAgentToApiUrl(data.imageUrl),
+      imageUrl: finalizeAwnPreviewImageUrl(data.imageUrl, previewContextPath),
       previewPath: String(data.file || "").trim()
     };
   } catch {
@@ -75814,6 +75851,7 @@ function appendNavigationItemPreviewThumb(
       ? appendAgentToApiUrl(rawUrl)
       : rawUrl;
   if (cacheBust) imageUrl = appendCacheBuster(imageUrl);
+  imageUrl = stripMediaThumbFromApiUrl(imageUrl);
 
   const img = document.createElement("img");
   img.className = className;
