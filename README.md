@@ -16,8 +16,8 @@
 - [Лицензия](#-лицензия-gb-license)
 - [Ссылки](#-ссылки-gb-links)
 - [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
-- [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+- [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
 - [С чего начать?](#-с-чего-начать-gb-where-to-start)
 
@@ -37,8 +37,8 @@
 > - [License](#-лицензия-gb-license)
 > - [Links](#-ссылки-gb-links)
 > - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
-> - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+> - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
 
@@ -340,22 +340,6 @@ Copyright © 2026 Agent CMS
 > | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
 >
 > **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from the repo root; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
-
-## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
-
-🇷🇺 **[ru]**
-
-Те же файлы в корне репо — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
-
-См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
-
----
-
-> 🇬🇧 **[en]**
->
-> Same files at the repository root — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
->
-> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
@@ -662,6 +646,22 @@ user-agent-cms
 └── ⚡ Специальные (Special) · 1
     └── 🟢 batch_tools_invoke
 ```
+
+## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
+
+🇷🇺 **[ru]**
+
+Те же файлы в корне репо — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
+
+См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Same files at the repository root — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
+>
+> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
 
 ## 🇷🇺 Мечта (🇬🇧 Vision)
 
