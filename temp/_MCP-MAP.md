@@ -68,7 +68,7 @@ agent-cms MCP
 │   ├── create/update_glossary_term · list/search_glossary_terms
 │   ├── create/update_reference_entry · list/search_reference_entries
 │   ├── list_journal_entries · append_journal_entry
-│   └── list_workspace_notifications · notify_user
+│   └── workspace_notifications_list · notify_user
 │
 ├── 📄 Тема (manifest · hub topic)
 │   ├── topic_exists · get_topic_meta
@@ -128,7 +128,7 @@ agent-cms MCP
 │   └── run_script · exec_command · exec_shell
 │
 ├── 🛠️ Утилиты · identity
-│   ├── generate_workspace_slug · workspace_summary_get · workspace_activity_list
+│   ├── generate_workspace_slug · workspace_summary_get · workspace_activity_list · workspace_notifications_list
 │   └── get_agent_identity · get_user_identity
 │
 ├── 📤 File hub · 📓 pads

@@ -479,7 +479,7 @@ module.exports = {
           http: "GET /api/agent/workspace-journal/list"
         },
         {
-          name: "list_workspace_notifications",
+          name: "workspace_notifications_list",
           description: "Лента колокольчика 🔔 — те же записи журнала в формате уведомлений.",
           parameters: "since?, limit?, notifyOnly?",
           http: "GET /api/agent/workspace-notifications"

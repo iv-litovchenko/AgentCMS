@@ -30,7 +30,7 @@ user-agent-cms
 │   ├── 🟢 setting_read                       ← read_setting
 │   └── 🟢 setting_write                      ← write_setting
 │
-├── 🚀 Старт и workspace · 18
+├── 🚀 Старт и workspace · 19
 │   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
 │   ├── 🟢 workspaces_scan                    ← workspaces_discover ← discover_workspaces
 │   ├── 🟢 workspace_create                   ← create_workspace
@@ -48,7 +48,8 @@ user-agent-cms
 │   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
 │   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
 │   ├── 🟢 workspace_summary_get              ← get_workspace_storage_info ← workspace_storage_info_get
-│   └── 🟢 workspace_activity_list            ← list_recent_activity
+│   ├── 🟢 workspace_activity_list            ← list_recent_activity
+│   └── 🟢 workspace_notifications_list     ← list_workspace_notifications
 │
 ├── 🎬 Session · session_* · workspaceId · 20
 │   ├── 🟢 session_context_get                ← get_session_context
@@ -284,15 +285,14 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 8
+├── 🔴 TBD · канон / группа не зафиксированы · 7
 │   ├── 🔴 batch_invoke
 │   ├── 🔴 find_by_id
 │   ├── 🔴 resolve_workspace_id             ← дубль find_by_id (→ legacy)
 │   ├── 🔴 assign_workspace_id              ← TBD assign_record_awn_id
 │   ├── 🔴 resolve_workspace_path
 │   ├── 🔴 notify_user
-│   ├── 🔴 record_slug_generate             ← generate_workspace_slug
-│   └── 🔴 workspace_notifications_list     ← list_workspace_notifications
+│   └── 🔴 record_slug_generate             ← generate_workspace_slug
 │
 └── 📓 Journal · 2
     ├── 🟢 journal_entry_append              ← append_journal_entry
@@ -331,6 +331,7 @@ id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве к�
 
 Прочее
 ├── workspace_activity_list — лента событий workspace (since / limit); 🟢
+├── workspace_notifications_list — колокольчик / journal notify (since / limit); 🟢
 └── get_topic_url — legacy; канон get_workspace_open_url_from_path (любой path, CHPU + view)
 ```
 
@@ -346,7 +347,7 @@ id / path / slug / batch / inbox — см. блок 🔴 TBD в дереве к�
 - [x] **Facts · glossary · reference:** канон в MCP + legacy — `facts-tools.js`, `glossary-tools.js`, `reference-tools.js`
 - [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
 - [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`)
-- [ ] **🔴 TBD:** `batch_invoke`, id/path/slug, `notify_user`, inbox/discussion, `workspace_notifications_list` — имена и группы
+- [ ] **🔴 TBD:** `batch_invoke`, id/path/slug, `notify_user`, inbox/discussion — имена и группы
 - [x] **Annotations:** `annotation_comment_*`, `annotation_sidecar_*` — `comment-tools.js`, `sidecar-tools.js`, `annotation-tools.js`
 - [x] **Session · pads · buffer:** `session_note_*`, `session_todo_*`, `session_buffer_*` — `workspace-pad-tools.js`, `context-buffer-tools.js` (регистрация в `session-tools.js`)
 - [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
