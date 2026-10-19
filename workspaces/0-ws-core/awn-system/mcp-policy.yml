@@ -74,7 +74,7 @@ batch_invoke:
     - index_entity_rebuild
     - index_1_ocr_run
     - index_ocr_run
-    - record_index_sync
+    - index_record_sync
     - rebuild_workspace_indexes
     - rebuild_workspace_semantic_index
     - rebuild_workspace_storage_index
@@ -128,7 +128,7 @@ batch_invoke:
     - content_read
     - content_meta_get
     - content_binary_read
-    - get_record_binary_url_from_path
+    - record_binary_url_get
     - content_binary_url_get
     - get_content_binary_url
     - content_property_read

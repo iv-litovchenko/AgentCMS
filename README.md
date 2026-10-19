@@ -343,7 +343,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 212** · **🟡** 14 · **🔴** 6 (legacy в MCP, не в дереве)
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 14 · **🔴** 0
 
 ```
 user-agent-cms
@@ -425,12 +425,6 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_repositories_refresh
 │   ├── 🟢 nav_index_toc_media_libraries_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh
-│
-├── 🗺 ID и URL (ID & URL) · 4
-│   ├── 🔴 get_record_url_from_path
-│   ├── 🔴 get_workspace_page_preview_from_path
-│   ├── 🔴 get_external_page_preview_from_url
-│   └── 🔴 get_record_binary_url_from_path
 │
 ├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list
@@ -514,7 +508,7 @@ user-agent-cms
 │   ├── 🟢 repository_delete
 │   └── 🟢 repository_rename
 │
-├── 🔍 Поиск и индексы (Search & indexes) · 26
+├── 🔍 Поиск и индексы (Search & indexes) · 27
 │   ├── 0. Запрос (Query) · 2
 │   │   ├── 🟢 query_workspace_ask — архив + always-context (сейчас)
 │   │   └── 🟡 search_workspace_zzz — идея: один поиск, mode hybrid|fulltext|links|storage
@@ -547,18 +541,24 @@ user-agent-cms
 │   ├── Мониторинг (Monitoring) · 2
 │   │   ├── 🟢 index_status_get
 │   │   └── 🟢 index_monitor_get
-│   └── Операции (Ops) · 2
+│   └── Операции (Ops) · 3
 │       ├── 🟢 index_rebuild_all
+│       ├── 🟢 index_record_sync
 │       └── 🟢 index_search_query_batch
 │
-├── 🆔 Запись (Record) · 7
-│   ├── 🔴 record_find_by_id
-│   ├── 🔴 record_index_sync
-│   ├── 🟢 record_id_exists
-│   ├── 🟢 record_id_assign
-│   ├── 🟢 record_generate_slug
-│   ├── 🟢 record_slug_exists
-│   └── 🟢 record_path_resolve
+├── 🆔 Запись (Record) · 9
+│   ├── 🔑 ID (ID) · 3
+│   │   ├── 🟢 record_id_resolve
+│   │   ├── 🟢 record_id_exists
+│   │   └── 🟢 record_id_assign
+│   ├── 🏷 Slug (Slug) · 2
+│   │   ├── 🟢 record_slug_generate
+│   │   └── 🟢 record_slug_exists
+│   └── 🧭 Путь и URL (Path & URL) · 4
+│       ├── 🟢 record_path_resolve
+│       ├── 🟢 record_url_get
+│       ├── 🟢 record_binary_url_get
+│       └── 🟢 record_preview_get
 │
 ├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 12
 │   ├── Факты (Facts) · 4
@@ -617,11 +617,12 @@ user-agent-cms
 │   ├── 🟡 module_file_hub_inbound_list_zzz
 │   └── 🟡 module_file_hub_inbound_upload_zzz
 │
-├── 🛠 Утилиты (Utilities) · 8
+├── 🛠 Утилиты (Utilities) · 9
 │   ├── 🟢 utility_mcp_ping
 │   ├── 🟢 utility_web_search
 │   ├── 🟢 utility_web_images_search
 │   ├── 🟢 utility_web_page_read
+│   ├── 🟢 utility_web_page_preview
 │   ├── 🟢 utility_document_text_extract
 │   ├── 🟢 utility_script_run
 │   ├── 🟢 utility_command_exec

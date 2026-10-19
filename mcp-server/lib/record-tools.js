@@ -18,19 +18,14 @@ export function registerRecordTools(reg, client) {
     client.get("/api/workspace-id/resolve", { id: normalizeAwnIdParam(id) });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "record_find_by_id",
-    legacy: "find_by_id",
+    canonical: "record_id_resolve",
+    legacy: "record_find_by_id",
+    extraLegacy: ["find_by_id", "resolve_workspace_id"],
     description:
       "Find workspace file path(s) by global awn-id (frontmatter awn-id). Duplicate ids return paths[] and duplicate:true.",
     schema: awnIdSchema,
     handler: resolveByIdHandler
   });
-  reg(
-    "resolve_workspace_id",
-    "Deprecated alias for record_find_by_id.",
-    awnIdSchema,
-    resolveByIdHandler
-  );
 
   const idExistsHandler = async ({ id }) => {
     const data = await resolveByIdHandler({ id });
@@ -46,7 +41,7 @@ export function registerRecordTools(reg, client) {
 
   reg(
     "record_id_exists",
-    "Check whether a global awn-id is assigned (lightweight). For full resolve use record_find_by_id.",
+    "Check whether a global awn-id is assigned (lightweight). For full resolve use record_id_resolve.",
     awnIdSchema,
     idExistsHandler
   );
@@ -112,21 +107,15 @@ export function registerRecordTools(reg, client) {
   };
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "record_generate_slug",
-    legacy: "generate_workspace_slug",
+    canonical: "record_slug_generate",
+    legacy: "record_generate_slug",
+    extraLegacy: ["generate_workspace_slug"],
     description:
       "Derive disk slug from title/text (same rules as topic_create/content_create). Does not create files.",
     schema: slugGenerateSchema,
     handler: slugGenerateHandler,
     options: { agentScope: false }
   });
-  reg(
-    "record_slug_generate",
-    "Deprecated alias for record_generate_slug.",
-    slugGenerateSchema,
-    slugGenerateHandler,
-    { agentScope: false }
-  );
 
   const slugExistsSchema = z.object({
     path: z
@@ -173,9 +162,9 @@ export function registerRecordTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "record_index_sync",
-    legacy: "sync_workspace_index_file",
-    extraLegacy: ["index_file_sync", "index_9_file_sync"],
+    canonical: "index_record_sync",
+    legacy: "record_index_sync",
+    extraLegacy: ["sync_workspace_index_file", "index_file_sync", "index_9_file_sync"],
     description:
       "After saving one record/file: incrementally update fulltext, semantic, storage catalog, and link graph for that path. Requires prior full index_rebuild_all.",
     schema: recordIndexSyncSchema,

@@ -5,13 +5,13 @@ description: Как искать и ориентироваться в Agent CMS 
 
 # Agent CMS — поиск и навигация
 
-Оглавления, поиск и индексы — отдельные tools, не `read_content`. Устройство хранилища и чтение файлов — скилл `agent-cms`.
+Оглавления, поиск и индексы — отдельные tools, не `content_read`. Устройство хранилища и чтение файлов — скилл `agent-cms`.
 
 | Задача | Tool |
 |--------|------|
 | Обзор | `topics_list`; INDEX — `nav_index_toc_topics_read`; все manifest — `nav_map_workspace_read`; папки без manifest — `contents_list` (`kind: root`) |
-| Тема / слот | `read_content_index_toc` |
-| Каталоги хабов | `read_channels_index_toc`, `read_databases_index_toc`, `read_repository_index_toc`, `read_media_library_index_toc` (+ `refresh_*`) |
+| Тема / слот | `nav_index_toc_contents_read` |
+| Каталоги хабов | `nav_index_toc_channels_read`, `nav_index_toc_databases_read`, `nav_index_toc_repositories_read`, `nav_index_toc_media_libraries_read` (+ `refresh_*`) |
 | Поиск (по умолчанию) | `index_3_hybrid_search_query`; несколько вопросов — `index_search_query_batch` |
 | Точный текст / по смыслу | `index_2_fulltext_search_query` / `index_3_semantic_search_query` |
 | Внутри темы | `record_path_resolve` → `topic.folderPath` → параметр `pathPrefix` |
@@ -22,13 +22,13 @@ description: Как искать и ориентироваться в Agent CMS 
 | Готовые выборки | `registry_queries_list` → `registry_query_run({ id })`; nav: `session_list_in_focus` / `session_list_on_main` |
 | Лента и аудит | `workspace_feed_list`, `workspace_activity_list`, `workspace_memory_audit` |
 
-Хиты поиска содержат `startLine` / `endLine` → `read_content` с `kind: root`, `startLine`, `limitLines`. Лёгкая мета без тела — `read_content` с `part=meta`.
+Хиты поиска содержат `startLine` / `endLine` → `content_read` с `kind: root`, `startLine`, `limitLines`. Лёгкая мета без тела — `content_read` с `part=meta`.
 
 Код в `awn-repositories/` не индексируется — только `manifest.md`, `index.md`, `groups.yml`.
 
 ## Индексы (номера как в UI popover)
 
-После правки одного файла — `record_index_sync`; полный pipeline — `index_rebuild_all` (только после массовых изменений). По слоям 1–6: `index_1_ocr_run_zzz` (stub, 🟡) / рабочий `index_1_ocr_run`, `index_2_fulltext_rebuild`, `index_3_semantic_rebuild`, `index_4_storage_rebuild`, `index_5_link_rebuild`, `index_6_entity_rebuild`. **6. Сущности (эксперимент)** — в каноне дерева `index_6_entity_*_zzz` (🟡); API без `_zzz`. **7. ID** — `record_*`; **Карта** / **Мониторинг** без № — `nav_map_workspace_*`, `index_status_get`, `index_monitor_get`.
+После правки одного файла — `index_record_sync`; полный pipeline — `index_rebuild_all` (только после массовых изменений). По слоям 1–6: `index_1_ocr_run_zzz` (stub, 🟡) / рабочий `index_1_ocr_run`, `index_2_fulltext_rebuild`, `index_3_semantic_rebuild`, `index_4_storage_rebuild`, `index_5_link_rebuild`, `index_6_entity_rebuild`. **6. Сущности (эксперимент)** — в каноне дерева `index_6_entity_*_zzz` (🟡); API без `_zzz`. **7. ID** — `record_*`; **Карта** / **Мониторинг** без № — `nav_map_workspace_*`, `index_status_get`, `index_monitor_get`.
 
 ## DQL для `index_4_storage_query`
 

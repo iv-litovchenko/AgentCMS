@@ -802,9 +802,9 @@ export function registerMapTools(reg, client, pagePath) {
     });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_record_url_from_path",
-    legacy: "get_workspace_open_url_from_path",
-    extraLegacy: ["get_topic_url"],
+    canonical: "record_url_get",
+    legacy: "get_record_url_from_path",
+    extraLegacy: ["get_workspace_open_url_from_path", "get_topic_url"],
     description:
       "Agent CMS open URL (CHPU) from workspace path: manifest.md, slot .md, folder, system file. " +
       "view: edit, todo, nav, list, preview, … Returns url + pathname.",

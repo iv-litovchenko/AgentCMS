@@ -5,7 +5,7 @@ description: Работа с Agent CMS через MCP — общим храни�
 
 # Agent CMS — базовый скилл
 
-Как устроено хранилище и какими tools с ним работать. Правила — `agent-cms-rules`, стиль — `agent-cms-response-style`, markdown — `agent-cms-markdown`, поиск — `agent-cms-search`, модули (git) — `agent-cms-modules`. Ввод и карта скиллов — `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный: если не установлен — `read_platform_doc({ path: "GLOBAL-SKILL-0-MCP-WELCOME.md" })`.
+Как устроено хранилище и какими tools с ним работать. Правила — `agent-cms-rules`, стиль — `agent-cms-response-style`, markdown — `agent-cms-markdown`, поиск — `agent-cms-search`, модули (git) — `agent-cms-modules`. Ввод и карта скиллов — `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный: если не установлен — `platform_doc_read({ path: "GLOBAL-SKILL-0-MCP-WELCOME.md" })`.
 
 Разделы: 1 Старт · 2 Карта · 3 Темы · 4 Слоты · 5 Контент · 6 Базы · 7 Каналы · 8 Репозитории · 9 Медиатеки · 10 Память · 11 Крон · 12 Зависимости · 13 Sidecar · 14 Поиск (→ скилл 5) · 15 Файлы и выполнение · 16 Корзина · 17 Модули (→ скилл 6) · 18 Хранилища и настройки.
 
@@ -39,19 +39,19 @@ Workspace — папка с md-файлами. Хабы:
 Поток: сырое → канал (или `inbox` темы) → тема или база.
 
 - **`manifest.md`** — карточка единицы: frontmatter + описание.
-- **`awn-id`** — глобальный номер записи (не `workspaceId`). `record_find_by_id({ id })`; проверка — `record_id_exists`; старым проставить — `record_id_assign`. Slug: `record_generate_slug` → `record_slug_exists` → create. Остальные свойства — «Базовые свойства» ниже.
+- **`awn-id`** — глобальный номер записи (не `workspaceId`). `record_id_resolve({ id })`; проверка — `record_id_exists`; старым проставить — `record_id_assign`. Slug: `record_slug_generate` → `record_slug_exists` → create. Остальные свойства — «Базовые свойства» ниже.
 - **Служебные папки:** `awn-temp/` (все временные файлы), `awn-scripts/`, `awn-recycler/` (корзина, раздел 16), `.agent-cms/` (кэши, журнал, настройки).
 - **Файлы корня** (`AGENTS.md`, `SKILL.md`, `NOTE.md`, `TODO.md`, `dependencies.csv`) — раздел 15.
 - **Свободная память** — папки без `manifest.md`: `contents_list` (`kind: root`, `path`) + `content_read` / `content_write` с `kind: root`. Описание папки — `{folder}/sidecar.md`. В тему превращает `topic_create`.
 
 ### Базовые свойства (frontmatter)
 
-Есть у любой записи и карточки (`manifest.md`, запись слота). Читать/писать — `content_read` / `content_write` с `part: properties` (patch) или `topic_property_*`. Полный список полей типа — `topic_schema_read` / `get_type`; здесь только общие.
+Есть у любой записи и карточки (`manifest.md`, запись слота). Читать/писать — `content_read` / `content_write` с `part: properties` (patch) или `topic_property_*`. Полный список полей типа — `topic_schema_read` / `platform_type_get`; здесь только общие.
 
 | Свойство | Что значит | Правило |
 |----------|-----------|---------|
 | `awn-type` | Тип сущности (`awn.hub.topic`, `awn.content.record`…) | Не менять |
-| `awn-id` | Глобальный числовой номер в workspace (≠ `workspaceId`, ≠ slug) | Не менять; поиск — `record_find_by_id` |
+| `awn-id` | Глобальный числовой номер в workspace (≠ `workspaceId`, ≠ slug) | Не менять; поиск — `record_id_resolve` |
 | `awn-name` | Отображаемое имя в меню и ответах; пусто → берётся slug (имя папки/файла) | Менять для смены названия; slug — `rename_*` |
 | `awn-description` | Короткое описание, одна-две фразы | — |
 | `awn-summary` | Развёрнутое резюме: о чём запись, факты, выводы (подробнее description) | Хорошо для поиска и контекста |
@@ -99,7 +99,7 @@ Workspace — папка с md-файлами. Хабы:
 | Секреты | `topic_env_read` / `topic_env_write` |
 | Слоты-шаблон | `topic_slots_template_get` / `topic_slots_template_set` |
 | Есть ли / лёгкая мета | `topic_exists` / `topic_meta_get` |
-| Ссылка / slug | `get_record_url_from_path({ path, view? })` (legacy `get_topic_url`) / `record_generate_slug` |
+| Ссылка / slug | `record_url_get({ path, view? })` (legacy `get_topic_url`) / `record_slug_generate` |
 
 `schema.yml` — поля формы (override типа); `config.yml` — только UI.
 
@@ -107,7 +107,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 4. Слоты
 
-Слот — папка под `awn-storage/` темы (и канала, медиатеки, базы, репозитория). `list_slots({ placement: { kind: "topic", path } })` — слоты и драйвер: `external` (папка файлов, нужен `ref`) или `internal` (один файл, **без `ref`**).
+Слот — папка под `awn-storage/` темы (и канала, медиатеки, базы, репозитория). `contents_slots_list({ placement: { kind: "topic", path } })` — слоты и драйвер: `external` (папка файлов, нужен `ref`) или `internal` (один файл, **без `ref`**).
 
 | Слот | Что там |
 |------|---------|
@@ -176,7 +176,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Адресация по `store` (путь под `awn-databases/`, например `tasks`, `taxonomies/tags`):
 
-- **Каркас** (`group` / `collection` / `single`): `databases_list`, `database_get`, `database_register`, `database_update`, `database_delete`, `database_rename`, `database_schema_read` / `database_schema_write`, `database_properties_read` / `database_properties_write`, `read_databases_index_toc` (legacy `list_databases`, `read_database_schema`, …).
+- **Каркас** (`group` / `collection` / `single`): `databases_list`, `database_get`, `database_register`, `database_update`, `database_delete`, `database_rename`, `database_schema_read` / `database_schema_write`, `database_properties_read` / `database_properties_write`, `nav_index_toc_databases_read` (legacy `list_databases`, `read_database_schema`, …).
 - **Записи** в `data/`: `contents_list`, `content_create` (`isSection` или `awn.content.category` — раздел), `content_delete`, `content_move` (`targetParent`, `slug`); тело и поля — `content_read` / `content_write` / `content_property_*` с `kind: database`, `slot: data`, `ref`.
 
 | `collectionType` | Когда |
@@ -263,7 +263,7 @@ Workspace — папка с md-файлами. Хабы:
 2. **`always-context-md-files`** (scope `platform`) — какие **корневые** `.md` workspace подмешивать (по умолчанию `AGENTS.md`; также AUTH, BOOTSTRAP, ONBOARDING, SKILL, README, NOTE, TODO). `setting_read` / `setting_write`.
 3. **`always-context-ws-folder`** (scope `platform`) — путь от корня workspace; **рекурсивно** `.md`, `.yml`, `.yaml`, `.txt` (по умолчанию `awn-topics/0-shared/0-context/awn-storage/`). Пустая строка — каталог отключён.
 
-**`GLOBAL-SKILL-*`** сюда не входят — скиллы клиента или `read_platform_doc`.
+**`GLOBAL-SKILL-*`** сюда не входят — скиллы клиента или `platform_doc_read`.
 
 Флаги frontmatter темы/записи (`topic_properties_write` / `content_write`, `part=properties`):
 
@@ -299,7 +299,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Метаданные к файлу: `photo.png` → `photo.sidecar.md`. Сам не создаётся.
 
-**Sidecar** (`awn.annotation.sidecar`, `*.sidecar.md`): `annotation_sidecar_path_resolve`, `annotation_sidecar_read`, `annotation_sidecar_create` (409, если есть), `annotation_sidecar_update`, `annotation_sidecar_delete`. Текст из картинок и PDF — `index_ocr_run`.
+**Sidecar** (`awn.annotation.sidecar`, `*.sidecar.md`): `annotation_sidecar_path_resolve`, `annotation_sidecar_read`, `annotation_sidecar_create` (409, если есть), `annotation_sidecar_update`, `annotation_sidecar_delete`. Текст из картинок и PDF — `index_1_ocr_run_zzz` (пока заглушка).
 
 ---
 
@@ -318,7 +318,7 @@ Workspace — папка с md-файлами. Хабы:
 | Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `utility_document_text_extract` |
-| Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `get_external_page_preview_from_url` |
+| Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `utility_web_page_preview` |
 | Скрипт | `utility_script_run` (`.py` / `.js` / `.sh`) |
 | Команда | `utility_command_exec` (массив args) / `utility_shell_exec` (строка с пайпами) |
 | Файлообменник | `module_file_hub_outbound_*` (list, enqueue, remove, clear); inbound — stub `module_file_hub_inbound_*_zzz` |
@@ -351,6 +351,6 @@ Git-модуль хранилища (`module_git_*`) и другие модул�
 
 **Настройки** — 4 независимых scope: `platform` (MCP policy, индексы, always-context), `workspace` (`awn-id-*`, voice, колонки зависимостей), `integrations` (skills, MCP, git-партии), `user` (меню, сайдбар). `settings_list`, `setting_read`, `setting_write` (`sys-*` и `awn-id-*` — только чтение). Секретов в settings нет — для темы есть `.env`.
 
-**Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
+**Типы:** `platform_types_list({ filter })` → `platform_type_get({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
 
 **Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `utility_mcp_ping`, `workspace_summary_get`, …
