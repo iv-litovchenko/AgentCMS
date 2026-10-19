@@ -15,7 +15,7 @@
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
-**Итого в дереве: 222 метода** (legacy-алиасы и `*_zzz` stub не считаются).
+**Итого в дереве: 221 метода** (legacy-алиасы и `*_zzz` stub не считаются).
 
 ```
 user-agent-cms
@@ -186,9 +186,8 @@ user-agent-cms
 │   ├── 🟢 repository_delete
 │   └── 🟢 repository_rename
 │
-├── 🔍 Поиск и индексы (Search & indexes) · 16
+├── 🔍 Поиск и индексы (Search & indexes) · 15
 │   ├── 0. query_*
-│   │   ├── 🟢 query_context_get
 │   │   └── 🟢 query_workspace_ask
 │   ├── 1. index_1_ocr_*
 │   │   └── 🟡 index_1_ocr_run_zzz

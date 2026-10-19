@@ -16,7 +16,7 @@ description: Как искать и ориентироваться в Agent CMS 
 | Точный текст / по смыслу | `index_2_fulltext_search_query` / `index_3_semantic_search_query` |
 | Внутри темы | `record_path_resolve` → `topic.folderPath` → параметр `pathPrefix` |
 | Backlinks и исходящие | **только** `index_5_link_search_query` (нужен `index_5_link_rebuild`) |
-| Ответ по архиву с контекстом | `query_workspace_ask` / `query_context_get` |
+| Ответ по архиву с контекстом | `query_workspace_ask` |
 | Люди, даты, суммы, теги | слой 6 эксперимент: `index_6_entity_*_zzz` (🟡) / рабочие `index_6_entity_*` |
 | Выборка по frontmatter | `index_4_storage_query({ dql })` |
 | Готовые выборки | `registry_queries_list` → `registry_query_run({ id })`; nav: `session_list_in_focus` / `session_list_on_main` |

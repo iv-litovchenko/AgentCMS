@@ -52,7 +52,7 @@ description: Правила, запреты и антипаттерны аген
 | `get_link_preview` / `get_external_url_page_preview` | `get_external_page_preview_from_url` |
 | `content_binary_url_get` / `get_content_binary_url` | `get_record_binary_url_from_path` |
 | `search_content` / `search_semantic` / `search_hybrid` / `search_links` / `search_batch` | `index_2_fulltext_search_query` / `index_3_semantic_search_query` / `index_3_hybrid_search_query` / `index_5_link_search_query` / `index_search_query_batch` |
-| `ask_workspace` / `search_and_get_context` | `query_workspace_ask` / `query_context_get` |
+| `ask_workspace` / `search_and_get_context` / `query_context_get` | `query_workspace_ask` |
 | `index_ocr_run` … `sync_workspace_index_file` / `indexes_rebuild` | `index_1_ocr_run` … `record_index_sync` / `index_rebuild_all` (слои 1–6: `index_{N}_*`; ops/monitor без №) |
 | `get_workspace_index_status` / `get_workspace_index_monitor` | `index_status_get` / `index_monitor_get` |
 | `index_entity_*` (query, catalog, rebuild, …) | `index_6_entity_*` |

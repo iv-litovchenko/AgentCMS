@@ -46,7 +46,6 @@ batch_invoke:
     - list_workspaces
     - list_vaults
     - query_workspace_ask
-    - query_context_get
     - ask_workspace
     - search_and_get_context
     - user_notification_send

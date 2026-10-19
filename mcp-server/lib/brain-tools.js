@@ -73,35 +73,10 @@ export function registerBrainTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "query_workspace_ask",
     legacy: "ask_workspace",
+    extraLegacy: ["search_and_get_context", "query_context_get"],
     description:
       "Composite Q&A retrieval: semantic search + full-text search + always-context. Returns cited hits for the agent to synthesize an answer.",
     schema: queryWorkspaceAskSchema,
     handler: queryWorkspaceAskHandler
-  });
-
-  const queryContextGetSchema = z.object({
-    query: z.string().min(2).describe("Question or search phrase about past workspace data"),
-    limit: z.number().int().min(1).max(20).optional().describe("Max cited hits (default 8)"),
-    scopes: z
-      .array(z.enum(["semantic", "fulltext", "always"]))
-      .optional()
-      .describe("Sources to search (default: all three)"),
-    includeSnippets: z.boolean().optional().describe("Include text snippets in hits (default true)")
-  });
-  const queryContextGetHandler = ({ query, limit, scopes, includeSnippets }) =>
-    client.get("/api/agent/search-and-get-context", {
-      q: query,
-      ...(limit ? { limit } : {}),
-      ...(scopes?.length ? { scopes: scopes.join(",") } : {}),
-      ...(includeSnippets === false ? { includeSnippets: "false" } : {})
-    });
-
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "query_context_get",
-    legacy: "search_and_get_context",
-    description:
-      "Retrieve relevant workspace context before answering questions about past data (archives, history, old messages/documents, prior decisions). Same retrieval as query_workspace_ask — returns cited snippets, not a finished answer.",
-    schema: queryContextGetSchema,
-    handler: queryContextGetHandler
   });
 }
