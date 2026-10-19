@@ -112,7 +112,7 @@
         },
         {
           phrases: ["переключись на workspace …"],
-          tools: ["list_workspaces", "set_default_workspace"],
+          tools: ["workspaces_list", "workspace_default_set"],
           status: "mcp"
         }
       ]

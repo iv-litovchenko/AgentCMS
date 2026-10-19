@@ -8,18 +8,22 @@ const workspacePath = z
   .describe("Workspace-relative file path, e.g. awn-topics/tema/awn-storage/media/doc.pdf");
 
 export function registerAgentUtilsTools(reg, client) {
-  reg(
-    "test_mcp_connection",
-    "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
-    z.object({}),
-    () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "mcp_connection_test",
+    legacy: "test_mcp_connection",
+    description:
+      "Ping Agent CMS: ok, workspaceId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/mcp-ping", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 
-  reg(
-    "generate_workspace_slug",
-    "Derive disk slug from title/text (same rules as create_topic/create_content). preset: topic|page|content|store|database|repository|catalog|filename (page = legacy alias for topic). Pass slug to sanitize only.",
-    z
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "record_slug_generate",
+    legacy: "generate_workspace_slug",
+    description:
+      "Derive disk slug from title/text (same rules as topic_create/content_create). preset: topic|page|content|store|database|repository|catalog|filename (page = legacy alias for topic). Pass slug to sanitize only.",
+    schema: z
       .object({
         text: z.string().optional().describe("Display name or arbitrary text"),
         title: z.string().optional(),
@@ -46,7 +50,7 @@ export function registerAgentUtilsTools(reg, client) {
           ),
         { message: "Provide text, title, displayName, name, or slug" }
       ),
-    (payload) => {
+    handler: (payload) => {
       const text =
         payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
       return client.get(
@@ -60,35 +64,40 @@ export function registerAgentUtilsTools(reg, client) {
         { agentScope: false }
       );
     },
-    { agentScope: false }
-  );
+    options: { agentScope: false }
+  });
 
-  reg(
-    "get_workspace_storage_info",
-    "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
-    z.object({}),
-    () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_storage_info_get",
+    legacy: "get_workspace_storage_info",
+    description:
+      "Workspace storage summary: menu/workspace (fileCount, mdFileCount — .md pages only, excludes .mdback history)/intake (sidebar #menu-agent-stats), catalog (iblocks, repositories, settings), git (agent workspace root .git only: branch/clean/changes/commitCount), alwaysContextCount, cronCount, heartbeatCount, workspaceIndexStatus (like get_workspace_index_status), lastIndexedAt + summaryLine.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/storage-summary", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 
-  reg(
-    "get_agent_identity",
-    "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
-    z.object({}),
-    () => client.get("/api/agent/identity/agent")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "agent_identity_get",
+    legacy: "get_agent_identity",
+    description: "Agent persona and permissions from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md).",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/identity/agent")
+  });
 
-  reg(
-    "get_user_identity",
-    "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
-    z.object({}),
-    () => client.get("/api/agent/identity/user")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "user_identity_get",
+    legacy: "get_user_identity",
+    description: "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/identity/user")
+  });
 
-  reg(
-    "list_recent_activity",
-    "Recent workspace activity feed (MCP + UI changes, notifications).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspace_activity_list",
+    legacy: "list_recent_activity",
+    description: "Recent workspace activity feed (MCP + UI changes, notifications).",
+    schema: z.object({
       since: z
         .number()
         .int()
@@ -97,8 +106,8 @@ export function registerAgentUtilsTools(reg, client) {
         .describe("Return events with id greater than since"),
       limit: z.number().int().min(1).max(100).optional().describe("Max events, default 50")
     }),
-    ({ since, limit }) => client.get("/api/agent/activity", { since, limit })
-  );
+    handler: ({ since, limit }) => client.get("/api/agent/activity", { since, limit })
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "get_external_url_page_preview",

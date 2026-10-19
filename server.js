@@ -14933,9 +14933,9 @@ const SESSION_CONTEXT_API_MAP = {
   repositoryRegister:
     "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: repository_register",
   dependencies:
-    "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: read_dependencies",
+    "GET /api/agent/dependencies — dependencies.csv + схема колонок; MCP: workspace_dependencies_read",
   dependenciesWrite:
-    "POST /api/agent/dependencies — обновить dependencies.csv; MCP: write_dependencies",
+    "POST /api/agent/dependencies — обновить dependencies.csv; MCP: workspace_dependencies_write",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext:
     "GET /api/agent/always-context — workspace always-context (без GLOBAL-SKILL-0/README); MCP: get_workspace_always_context_registry",

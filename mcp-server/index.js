@@ -116,36 +116,48 @@ function createServer() {
     );
   };
 
+  // ── Platform · settings (before workspace pick) ───────────────────────────
+
+  registerSettingsTools(reg, client);
+  registerPlatformTools(reg, client);
+
   // ── Workspaces (no agentId) ─────────────────────────────────────────────────
 
   const listWorkspacesHandler = () => client.get("/api/agents", {}, { agentScope: false });
+  const listWorkspacesSchema = z.object({});
+  const listWorkspacesDescription =
+    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before session_context_get.";
 
-  reg(
-    "list_workspaces",
-    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before get_session_context.",
-    z.object({}),
-    listWorkspacesHandler,
-    { agentScope: false }
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "workspaces_list",
+    legacy: "list_workspaces",
+    description: listWorkspacesDescription,
+    schema: listWorkspacesSchema,
+    handler: listWorkspacesHandler,
+    options: { agentScope: false }
+  });
 
   reg(
     "list_vaults",
-    "Alias for list_workspaces — same registry of agents / vaults / хранилища.",
-    z.object({}),
+    "Deprecated alias for workspaces_list — same registry of agents / vaults / хранилища.",
+    listWorkspacesSchema,
     listWorkspacesHandler,
     { agentScope: false }
   );
 
   registerWorkspaceTools(reg, client);
+  registerDependenciesTools(reg, client);
 
   // ── Старт / контекст (4) ───────────────────────────────────────────────────
 
-  reg(
-    "get_session_context",
-    "START HERE (light): wsMap (fresh generated WS-MAP markdown: all manifest.md nodes + root entries — replaces list topics/databases calls) + alwaysContext (full text of always-loaded files: runtime-load-always, system md, ws-folder). Nothing else. GLOBAL-SKILL-*: client skills or read_platform_doc. Runtime registries: get_workspace_cron_registry / get_workspace_heartbeat_registry.",
-    z.object({}),
-    () => client.get("/api/agent/session-context")
-  );
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "session_context_get",
+    legacy: "get_session_context",
+    description:
+      "START HERE (light): wsMap (fresh generated WS-MAP markdown: all manifest.md nodes + root entries — replaces list topics/databases calls) + alwaysContext (full text of always-loaded files: runtime-load-always, system md, ws-folder). Nothing else. GLOBAL-SKILL-*: client skills or platform_doc_read. Runtime registries: workspace_cron_registry_get / workspace_heartbeat_registry_get.",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/session-context")
+  });
 
   const getUiFocusHandler = () => client.get("/api/agent/active-context");
   const getUiFocusSchema = z.object({});
@@ -171,40 +183,55 @@ function createServer() {
   const getWorkspaceAlwaysContextRegistryHandler = () => client.get("/api/agent/always-context");
   const getWorkspaceAlwaysContextRegistrySchema = z.object({});
   const getWorkspaceAlwaysContextRegistryDescription =
-    "Always-context registry (same alwaysContext block as get_session_context): items include full content for runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*. Full session: get_session_context.";
+    "Always-context registry (same alwaysContext block as session_context_get): items include full content for runtime-load-always, workspace system md, ws-folder. No GLOBAL-SKILL-*. Full session: session_context_get.";
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_always_context_registry",
-    legacy: "list_workspace_always_context",
+    canonical: "workspace_always_context_registry_get",
+    legacy: "get_workspace_always_context_registry",
     description: getWorkspaceAlwaysContextRegistryDescription,
     schema: getWorkspaceAlwaysContextRegistrySchema,
     handler: getWorkspaceAlwaysContextRegistryHandler
   });
   reg(
+    "list_workspace_always_context",
+    "Deprecated alias for workspace_always_context_registry_get.",
+    getWorkspaceAlwaysContextRegistrySchema,
+    getWorkspaceAlwaysContextRegistryHandler
+  );
+  reg(
     "refresh_workspace_always_context",
-    "Deprecated alias for get_workspace_always_context_registry.",
+    "Deprecated alias for workspace_always_context_registry_get.",
     getWorkspaceAlwaysContextRegistrySchema,
     getWorkspaceAlwaysContextRegistryHandler
   );
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_cron_registry",
-    legacy: "list_workspace_cron",
+    canonical: "workspace_cron_registry_get",
+    legacy: "get_workspace_cron_registry",
     description: "Registry of topics/records with awn-runtime-cron (+ schedule). Index only, not file bodies.",
     schema: z.object({}),
     handler: () => client.get("/api/agent/cron-registry")
   });
+  reg(
+    "list_workspace_cron",
+    "Deprecated alias for workspace_cron_registry_get.",
+    z.object({}),
+    () => client.get("/api/agent/cron-registry")
+  );
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_workspace_heartbeat_registry",
-    legacy: "list_workspace_heartbeat",
+    canonical: "workspace_heartbeat_registry_get",
+    legacy: "get_workspace_heartbeat_registry",
     description: "Registry of topics/records with awn-runtime-heartbeat. Index only, not file bodies.",
     schema: z.object({}),
     handler: () => client.get("/api/agent/heartbeat-registry")
   });
+  reg(
+    "list_workspace_heartbeat",
+    "Deprecated alias for workspace_heartbeat_registry_get.",
+    z.object({}),
+    () => client.get("/api/agent/heartbeat-registry")
+  );
 
-  registerSettingsTools(reg, client);
-  registerPlatformTools(reg, client);
-  registerDependenciesTools(reg, client);
   registerGitModuleTools(reg, client);
   registerShortLinksTools(reg, client);
 

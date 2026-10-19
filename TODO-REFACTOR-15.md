@@ -18,46 +18,46 @@
 ```
 user-agent-cms
 │
-├── 🚀 Старт и workspace · 27
-│   ├── list_workspaces
-│   ├── discover_workspaces
-│   ├── create_workspace
-│   ├── register_workspace
-│   ├── update_workspace
-│   ├── set_default_workspace
-│   ├── set_orchestrator_workspace
-│   ├── list_workspace_groups
-│   ├── create_workspace_group
-│   ├── update_workspace_group
-│   ├── delete_workspace_group
-│   ├── assign_workspace_to_group
-│   ├── remove_workspace_from_group
-│   ├── reorder_workspace_groups
-│   ├── get_session_context
-│   ├── get_ui_focus
-│   ├── get_ui_open_location
-│   ├── get_workspace_always_context_registry
-│   ├── get_workspace_cron_registry
-│   ├── get_workspace_heartbeat_registry
-│   ├── test_mcp_connection
-│   ├── get_workspace_storage_info
-│   ├── get_agent_identity
-│   ├── get_user_identity
-│   ├── generate_workspace_slug
-│   ├── list_recent_activity
-│   └── notify_user
+├── ⚙️ Платформа и настройки · 8
+│   ├── 🟢 platform_info_get                  ← get_platform_info
+│   ├── 🟢 platform_health_get                ← get_platform_health
+│   ├── 🟢 platform_docs_list                 ← list_platform_docs
+│   ├── 🟢 platform_doc_read                  ← read_platform_doc
+│   ├── 🟢 platform_config_list               ← list_platform_config
+│   ├── 🟢 settings_list                      ← list_settings
+│   ├── 🟢 setting_read                       ← read_setting
+│   └── 🟢 setting_write                      ← write_setting
 │
-├── ⚙️ Платформа и настройки · 10
-│   ├── get_platform_info
-│   ├── get_platform_health
-│   ├── list_platform_docs
-│   ├── read_platform_doc
-│   ├── list_platform_config
-│   ├── list_settings
-│   ├── read_setting
-│   ├── write_setting
-│   ├── read_dependencies
-│   └── write_dependencies
+├── 🚀 Старт и workspace · 29
+│   ├── 🟢 workspaces_list                    ← list_workspaces (+ list_vaults legacy)
+│   ├── 🟢 workspaces_discover                ← discover_workspaces
+│   ├── 🟢 workspace_create                   ← create_workspace
+│   ├── 🟢 workspace_register                 ← register_workspace
+│   ├── 🟢 workspace_update                   ← update_workspace
+│   ├── 🟢 workspace_default_set              ← set_default_workspace
+│   ├── 🟢 workspace_orchestrator_set         ← set_orchestrator_workspace
+│   ├── 🟢 workspace_groups_list              ← list_workspace_groups
+│   ├── 🟢 workspace_group_create             ← create_workspace_group
+│   ├── 🟢 workspace_group_update             ← update_workspace_group
+│   ├── 🟢 workspace_group_delete             ← delete_workspace_group
+│   ├── 🟢 workspace_group_assign             ← assign_workspace_to_group
+│   ├── 🟢 workspace_group_unassign           ← remove_workspace_from_group
+│   ├── 🟢 workspace_groups_reorder           ← reorder_workspace_groups
+│   ├── 🟢 workspace_dependencies_read        ← dependencies_read / read_dependencies
+│   ├── 🟢 workspace_dependencies_write       ← dependencies_write / write_dependencies
+│   ├── 🟢 session_context_get                ← get_session_context
+│   ├── 🟡 get_ui_focus                       ← get_user_active_context_now legacy
+│   ├── 🟡 get_ui_open_location               (дубль get_ui_focus → legacy-only позже)
+│   ├── 🟢 workspace_always_context_registry_get ← get_workspace_always_context_registry
+│   ├── 🟢 workspace_cron_registry_get        ← get_workspace_cron_registry
+│   ├── 🟢 workspace_heartbeat_registry_get   ← get_workspace_heartbeat_registry
+│   ├── 🔴 mcp_connection_test                ← test_mcp_connection (ожидает platform_* / блок платформы)
+│   ├── 🟢 workspace_storage_info_get         ← get_workspace_storage_info
+│   ├── 🟢 agent_identity_get                 ← get_agent_identity
+│   ├── 🟢 user_identity_get                  ← get_user_identity
+│   ├── 🟢 record_slug_generate               ← generate_workspace_slug
+│   ├── 🟢 workspace_activity_list            ← list_recent_activity
+│   └── 🟡 notify_user
 │
 ├── 🗺 Карты, TOC (хабы), id, URL · 22
 │   ├── read_workspace_map
@@ -313,7 +313,7 @@ UI
 └── get_ui_open_location — тот же API, акцент на URL → убрать из канона, оставить get_ui_focus
 
 Переименовать
-├── generate_workspace_slug → generate_record_slug (slug для topic/content/store/…)
+├── 🟢 record_slug_generate ← generate_workspace_slug (slug для topic/content/store/…)
 └── assign_workspace_id → assign_record_awn_id (awn-id в frontmatter записи)
 
 id
@@ -339,6 +339,8 @@ id
 - [x] **Тема:** канон в MCP + legacy — `page-tools.js`, `topics_list` в `map-tools.js`
 - [x] **Контент:** канон в MCP + legacy — `content-tools.js` (`content_*`, `contents_list`; `batch_invoke` без переименования)
 - [x] **Sidecar · context_buffer:** `sidecar_*`, `context_buffer_*` — `sidecar-tools.js`, `context-buffer-tools.js`
+- [x] **Старт и workspace:** канон в MCP + legacy — `index.js`, `workspace-tools.js`, `agent-utils-tools.js`
+- [x] **Платформа и настройки:** канон в MCP + legacy — `platform-tools.js`, `settings-tools.js` (регистрация **до** workspace); `dependencies_*` — `dependencies-tools.js`, в дереве и `index.js` **в блоке хранилища** (нужен `workspaceId`)
 - [ ] Дубли в legacy: `get_ui_open_location`, `resolve_workspace_id`, `get_topic_url`
 - [ ] Переименовать: `generate_record_slug`, `assign_record_awn_id`
 - [ ] Док/skills: дерево без legacy; URL только `get_workspace_open_url_from_path`

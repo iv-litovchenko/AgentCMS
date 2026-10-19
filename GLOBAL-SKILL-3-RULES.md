@@ -18,7 +18,7 @@ description: Правила, запреты и антипаттерны аген
 - **Только MCP tools.** Никаких `curl` к API, сторонних tools и чтения или записи файлов хранилища в обход MCP. Команды — `run_script` / `exec_command` / `exec_shell`.
 - **Пути и типы не угадывай.** Бери из `read_*_index_toc`, `contents_list`, `resolve_workspace_path`, `get_ui_focus`, `get_type`.
 - **Удаление и выполнение** (риск — см. п. 3). Если в настройках платформы включены `confirm-delete` / `confirm-exec`, передавай `confirm: true` только после моего явного согласия.
-- **Связи.** Перед удалением или переносом записи проверь `read_dependencies`.
+- **Связи.** Перед удалением или переносом записи проверь `workspace_dependencies_read`.
 - **Git.** Коммит, push, pull — только по моей просьбе.
 - **Неясно, куда положить** — спроси или предложи вариант с обоснованием. Лучше один вопрос, чем файл не в том месте.
 - **Моё — главное.** Мои слова и структура важнее твоих догадок: сохраняй как есть, не переписывай и не удаляй по своей инициативе.
@@ -45,7 +45,7 @@ description: Правила, запреты и антипаттерны аген
 |----------|-----------|
 | `read_dialogs` / `append_dialog` | `read_discussion` / `append_discussion` |
 | `list_system_files` / `read_system_file` / `write_system_file` | `contents_list` / `content_read` / `content_write` (`kind: root`) |
-| `list_vaults` | `list_workspaces` |
+| `list_vaults` / `list_workspaces` | `workspaces_list` |
 | `get_topic_map` | `topics_list` + `read_topic_index_toc` + `contents_list` (`kind: root`) |
 | `get_content_map` | `read_content_index_toc` + `content_read` (`part=properties`) |
 | `read_content`, `write_content`, `list_content`, … | `content_read`, `content_write`, `contents_list`, … |
@@ -59,7 +59,7 @@ description: Правила, запреты и антипаттерны аген
 
 1. Зафиксируй итоги в `NOTE.md`, нужной записи или `append_discussion`.
 2. Предложи мне перезагрузить контекст и кратко резюмируй сделанное.
-3. Не выдумывай правила и пути, которых уже не видишь, — перечитай `get_session_context` или нужный файл.
+3. Не выдумывай правила и пути, которых уже не видишь, — перечитай `session_context_get` или нужный файл.
 
 ---
 

@@ -8,9 +8,10 @@ import { existsSync, readFileSync } from "node:fs";
  */
 const DEFAULT_MCP_INSTRUCTIONS = `
 Agent CMS MCP. Начинай только по просьбе человека.
-Старт: list_workspaces → get_session_context({ workspaceId }); дальше тот же workspaceId во всех tools.
-Установи скиллы из репозитория AgentCMS — файлы GLOBAL-SKILL-*.md в корне репо (минимум agent-cms; agent-cms-welcome — по желанию; ещё agent-cms-response-style, agent-cms-rules, agent-cms-markdown, agent-cms-search, agent-cms-modules).
-Задачи по хранилищу — скилл agent-cms (GLOBAL-SKILL-1-BASE). Текст скиллов через MCP: list_platform_docs, read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" }).
+Платформа: platform_docs_list → platform_doc_read({ path: "GLOBAL-SKILL-1-BASE.md" }) для скиллов в корне репо.
+Старт хранилища: workspaces_list → session_context_get({ workspaceId }); дальше тот же workspaceId во всех tools.
+Установи скиллы из репозитория AgentCMS — файлы GLOBAL-SKILL-*.md (минимум agent-cms; agent-cms-welcome — по желанию; ещё agent-cms-response-style, agent-cms-rules, agent-cms-markdown, agent-cms-search, agent-cms-modules).
+Задачи по хранилищу — скилл agent-cms (GLOBAL-SKILL-1-BASE).
 `.trim();
 
 function instructionsDisabled() {

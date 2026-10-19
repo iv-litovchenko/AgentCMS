@@ -1352,14 +1352,14 @@ fields:
     default: |
       1. Строки зависимостей — в dependencies.csv (host, kind, name, …).
       2. Схема колонок — в этом разделе (dependencies-columns).
-      3. MCP: read_dependencies / write_dependencies.
-      4. Менять колонки — здесь; менять строки — в CSV или через write_dependencies.
+      3. MCP: workspace_dependencies_read / workspace_dependencies_write.
+      4. Менять колонки — здесь; менять строки — в CSV или через workspace_dependencies_write.
 
   dependencies-columns:
     type: awn.field.repeater
     title: Колонки CSV
     description: >
-      Схема колонок dependencies.csv. Строки зависимостей — в CSV (MCP: read_dependencies / write_dependencies).
+      Схема колонок dependencies.csv. Строки зависимостей — в CSV (MCP: workspace_dependencies_read / workspace_dependencies_write).
       Колонку host меняют только здесь; это среда/агент (cursor, claude, any), не имя LLM-модели.
     group: dependencies
     sort: 3

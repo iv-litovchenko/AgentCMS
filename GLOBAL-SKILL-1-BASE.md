@@ -1,6 +1,6 @@
 ---
 name: agent-cms
-description: Работа с Agent CMS через MCP — общим хранилищем человека и агента (workspace, каналы, темы, слоты, базы, репозитории, медиатеки, журнал, факты, глоссарий, справочник, крон, зависимости, sidecar, корзина). Используй, когда человек просит что-то сделать в хранилище — прочитать, найти, создать, разобрать, отредактировать, удалить, закоммитить, — а также при упоминании workspace, workspaceId, awn-*, manifest.md, awn-storage или tools вроде content_read / content_write / get_session_context.
+description: Работа с Agent CMS через MCP — общим хранилищем человека и агента (workspace, каналы, темы, слоты, базы, репозитории, медиатеки, журнал, факты, глоссарий, справочник, крон, зависимости, sidecar, корзина). Используй, когда человек просит что-то сделать в хранилище — прочитать, найти, создать, разобрать, отредактировать, удалить, закоммитить, — а также при упоминании workspace, workspaceId, awn-*, manifest.md, awn-storage или tools вроде content_read / content_write / session_context_get.
 ---
 
 # Agent CMS — базовый скилл
@@ -15,12 +15,12 @@ description: Работа с Agent CMS через MCP — общим храни�
 
 Работа начинается по запросу человека, сам ничего не запускай.
 
-1. `list_workspaces` → выбери id → `get_session_context({ workspaceId })`. Во всех вызовах — тот же `workspaceId` (селектор в UI на MCP не влияет).
+1. `workspaces_list` → выбери id → `session_context_get({ workspaceId })`. Во всех вызовах — тот же `workspaceId` (селектор в UI на MCP не влияет).
 2. Человек говорит «вот это» без пути → `get_ui_focus` (готовые `path` / `slot` / `ref`).
 3. Дали только путь → `resolve_workspace_path` (тема, слот, готовые аргументы).
-4. Кто ты и кто человек — `get_agent_identity` / `get_user_identity`.
+4. Кто ты и кто человек — `agent_identity_get` / `user_identity_get`.
 
-**«Перезагрузи контекст»** = снова `get_session_context` и при необходимости `get_workspace_always_context_registry`, `read_topic_index_toc`, `read_content_index_toc`.
+**«Перезагрузи контекст»** = снова `session_context_get` и при необходимости `workspace_always_context_registry_get`, `read_topic_index_toc`, `read_content_index_toc`.
 
 ---
 
@@ -64,7 +64,7 @@ Workspace — папка с md-файлами. Хабы:
 | `awn-web-url` | URL оригинала в интернете | — |
 | `awn-main` / `awn-focus` | Показ на главной / в быстром навигаторе | — |
 | `awn-slots-flexible` | Тема без типовых слотов (только hub, см. раздел 4) | — |
-| `awn-runtime-load-always` | Всегда подгружать в контекст агента (`get_session_context`) | Включать редко |
+| `awn-runtime-load-always` | Всегда подгружать в контекст агента (`session_context_get`) | Включать редко |
 | `awn-runtime-cron` · `-cron-schedule` · `-heartbeat` · `-reminder` · `-commands` | Запуск по расписанию (cron-выражение), heartbeat, напоминание, в инструкции есть команды | Раздел 11 |
 | `awn-index-exclude-record` / `-subtree` | Исключить запись / всё содержимое папки из поиска и индексов | — |
 | `awn-create` · `awn-update` · `awn-version` · `awn-owner` | Создан / изменён / версия / владелец | Системные, не писать |
@@ -99,7 +99,7 @@ Workspace — папка с md-файлами. Хабы:
 | Секреты | `topic_env_read` / `topic_env_write` |
 | Слоты-шаблон | `topic_slots_template_get` / `topic_slots_template_set` |
 | Есть ли / лёгкая мета | `topic_exists` / `topic_meta_get` |
-| Ссылка / slug | `get_workspace_open_url_from_path({ path, view? })` (legacy `get_topic_url`) / `generate_workspace_slug` |
+| Ссылка / slug | `get_workspace_open_url_from_path({ path, view? })` (legacy `get_topic_url`) / `record_slug_generate` |
 
 `schema.yml` — поля формы (override типа); `config.yml` — только UI.
 
@@ -255,12 +255,12 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 11. Крон, heartbeat, always-context
 
-**Старт чата:** `get_session_context` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `get_workspace_always_context_registry`.
+**Старт чата:** `session_context_get` → `alwaysContext` (полные тексты файлов) и `wsMap`. Только реестр always-context без карты: `workspace_always_context_registry_get`.
 
 Состав `alwaysContext` (все три источника суммируются):
 
 1. **`awn-runtime-load-always: true`** на теме или content-записи.
-2. **`always-context-md-files`** (scope `platform`) — какие **корневые** `.md` workspace подмешивать (по умолчанию `AGENTS.md`; также AUTH, BOOTSTRAP, ONBOARDING, SKILL, README, NOTE, TODO). `read_setting` / `write_setting`.
+2. **`always-context-md-files`** (scope `platform`) — какие **корневые** `.md` workspace подмешивать (по умолчанию `AGENTS.md`; также AUTH, BOOTSTRAP, ONBOARDING, SKILL, README, NOTE, TODO). `setting_read` / `setting_write`.
 3. **`always-context-ws-folder`** (scope `platform`) — путь от корня workspace; **рекурсивно** `.md`, `.yml`, `.yaml`, `.txt` (по умолчанию `awn-topics/0-shared/0-context/awn-storage/`). Пустая строка — каталог отключён.
 
 **`GLOBAL-SKILL-*`** сюда не входят — скиллы клиента или `read_platform_doc`.
@@ -269,8 +269,8 @@ Workspace — папка с md-файлами. Хабы:
 
 | Поле | Значение | Реестр |
 |------|----------|--------|
-| `awn-runtime-load-always: true` | Всегда в контексте | `get_workspace_always_context_registry` |
-| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `get_workspace_cron_registry` |
+| `awn-runtime-load-always: true` | Всегда в контексте | `workspace_always_context_registry_get` |
+| `awn-runtime-cron: true` + `awn-runtime-cron-schedule` | По расписанию | `workspace_cron_registry_get` |
 | `awn-runtime-heartbeat: true` | Периодическая проверка | `get_workspace_heartbeat_registry` |
 | `awn-runtime-reminder: true` | В «Напоминания» | — |
 | `awn-runtime-commands: true` | В инструкции есть команды | — |
@@ -279,7 +279,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 12. Зависимости
 
-`dependencies.csv` в корне — связи между записями. `read_dependencies`, `write_dependencies` (весь CSV или `rows`). Колонки меняются только в настройках workspace.
+`dependencies.csv` в корне — связи между записями. `workspace_dependencies_read`, `workspace_dependencies_write` (весь CSV или `rows`). Колонки меняются только в настройках workspace.
 
 ---
 
@@ -335,10 +335,10 @@ Git-модуль хранилища (`module_git_*`) и другие модул�
 
 ## 18. Хранилища, настройки, типы
 
-**Хранилища:** `list_workspaces`, `create_workspace`, `discover_workspaces` → `register_workspace`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`. Группы: `list_workspace_groups`, `create_` / `update_` / `delete_workspace_group`, `assign_workspace_to_group`, `remove_workspace_from_group`, `reorder_workspace_groups`.
+**Хранилища:** `workspaces_list`, `workspace_create`, `workspaces_discover` → `workspace_register`, `workspace_update`, `workspace_default_set`, `workspace_orchestrator_set`. Группы: `workspace_groups_list`, `workspace_group_create` / `workspace_group_update` / `workspace_group_delete`, `workspace_group_assign`, `workspace_group_unassign`, `workspace_groups_reorder`.
 
-**Настройки** — 4 независимых scope: `platform` (MCP policy, индексы, always-context), `workspace` (`awn-id-*`, voice, колонки зависимостей), `integrations` (skills, MCP, git-партии), `user` (меню, сайдбар). `list_settings`, `read_setting`, `write_setting` (`sys-*` и `awn-id-*` — только чтение). Секретов в settings нет — для темы есть `.env`.
+**Настройки** — 4 независимых scope: `platform` (MCP policy, индексы, always-context), `workspace` (`awn-id-*`, voice, колонки зависимостей), `integrations` (skills, MCP, git-партии), `user` (меню, сайдбар). `settings_list`, `setting_read`, `setting_write` (`sys-*` и `awn-id-*` — только чтение). Секретов в settings нет — для темы есть `.env`.
 
 **Типы:** `list_types({ filter })` → `get_type({ id })`, всегда по `id`. `filter`: `create-page` (`awn.hub.topic`), `slot-content` (`awn.content.record`, `awn.content.record-csv`), `data-containers` (`awn.hub.database.collection`), `data-elements` (`awn.content.record`, `-lite`, `-csv`, `awn.content.category`).
 
-**Платформа:** `test_mcp_connection`, `get_platform_info`, `get_platform_health`, `get_workspace_storage_info`, `list_platform_config`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `list_platform_docs` → `read_platform_doc({ path })`.
+**Платформа:** `platform_info_get`, `platform_health_get`, `platform_config_list`, `settings_list`, `setting_read`, `setting_write`. Документы (`GLOBAL-SKILL-*.md` и README в корне репо): `platform_docs_list` → `platform_doc_read({ path })`. **Хранилище (после `workspaceId`):** `workspace_dependencies_read` / `workspace_dependencies_write`, `mcp_connection_test`, `workspace_storage_info_get`, …

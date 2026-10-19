@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const settingsScope = z
   .enum(["all", "platform", "workspace", "integrations", "plugins", "user", "global", "local"])
@@ -18,35 +19,40 @@ const settingValue = z
   .describe("New value (type coerced from schema defaults)");
 
 export function registerSettingsTools(reg, client) {
-  reg(
-    "list_settings",
-    "List Agent CMS settings with values and schema metadata (platform .agent-cms-global/settings/platform.yml, workspace .agent-cms/settings/workspace.yml, integrations .agent-cms/settings/integrations.yml, user .agent-cms/settings/user.yml).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "settings_list",
+    legacy: "list_settings",
+    description:
+      "List Agent CMS settings with values and schema metadata (platform .agent-cms-global/settings/platform.yml, workspace .agent-cms/settings/workspace.yml, integrations .agent-cms/settings/integrations.yml, user .agent-cms/settings/user.yml).",
+    schema: z.object({
       scope: settingsScope.describe(
         "Filter scope: all (default), platform, workspace, integrations, or user"
       )
     }),
-    ({ scope }) => client.get("/api/agent/settings/list", { scope: scope || "all" })
-  );
+    handler: ({ scope }) => client.get("/api/agent/settings/list", { scope: scope || "all" })
+  });
 
-  reg(
-    "read_setting",
-    "Read one setting value with schema metadata (title, readonly, runtimeEffect).",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "setting_read",
+    legacy: "read_setting",
+    description: "Read one setting value with schema metadata (title, readonly, runtimeEffect).",
+    schema: z.object({
       scope: settingsScopeRequired,
       key: settingKey
     }),
-    ({ scope, key }) => client.get("/api/agent/settings/read", { scope, key })
-  );
+    handler: ({ scope, key }) => client.get("/api/agent/settings/read", { scope, key })
+  });
 
-  reg(
-    "write_setting",
-    "Write one setting value. Readonly keys (sys-*, awn-id-*) are rejected. Blocked in mcp-mode=readonly.",
-    z.object({
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "setting_write",
+    legacy: "write_setting",
+    description:
+      "Write one setting value. Readonly keys (sys-*, awn-id-*) are rejected. Blocked in mcp-mode=readonly.",
+    schema: z.object({
       scope: settingsScopeRequired,
       key: settingKey,
       value: settingValue
     }),
-    ({ scope, key, value }) => client.post("/api/agent/settings/write", { scope, key, value })
-  );
+    handler: ({ scope, key, value }) => client.post("/api/agent/settings/write", { scope, key, value })
+  });
 }

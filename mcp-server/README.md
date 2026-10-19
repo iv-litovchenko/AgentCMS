@@ -30,24 +30,24 @@ npm install
 
 ## Термины
 
-**`workspaceId`** — канонический параметр (id из `list_workspaces`, напр. `0-ws-test`). Legacy alias: **`agentId`** (не путать с темой **0-agent** / identity).
+**`workspaceId`** — канонический параметр (id из `workspaces_list`, напр. `0-ws-test`). Legacy alias: **`agentId`** (не путать с темой **0-agent** / identity).
 
 **workspace** · **vault** · **хранилище** · **рабочее пространство** — синонимы хранилища.
 
 ## Старт нового чата
 
 ```
-list_workspaces
-get_session_context({ workspaceId: "<выбранный-id>" })
+workspaces_list
+session_context_get({ workspaceId: "<выбранный-id>" })
 ```
 
 Дальше **каждый** workspace-scoped tool с тем же **`workspaceId`**. Пример фразы пользователя:
 
-> Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
+> Работай с хранилищем MedCenter. Сначала workspaces_list, потом session_context_get с нужным workspaceId, дальше всегда передавай этот workspaceId во все MCP tools.
 
 Затем при необходимости: `get_ui_focus` → `read_*` / `write_*` по задаче.
 
-**Без `workspaceId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
+**Без `workspaceId`:** только `workspaces_list`, `list_vaults` (legacy), `search_web*`, `read_web_page`, `get_link_preview`.
 
 ### Два слоя API
 
@@ -62,8 +62,9 @@ get_session_context({ workspaceId: "<выбранный-id>" })
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `list_workspaces` (`list_vaults`), `create_workspace`, `register_workspace`, `discover_workspaces`, `update_workspace`, `set_default_workspace`, `set_orchestrator_workspace`, `list_workspace_groups`, `*_workspace_group*`, `get_session_context`, `get_ui_focus`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
-| Platform | `get_platform_info`, `get_platform_health` (нужен `workspaceId`), `list_platform_docs`, `read_platform_doc`, `list_platform_config`; значения настроек: `list_settings` (`scope: platform`) |
+| Старт | `workspaces_list` (`list_vaults` legacy), `workspace_*`, `workspaces_discover`, `workspace_groups_*`, `session_context_get`, `get_ui_focus`, `workspace_*_registry_get`, `mcp_connection_test`, `workspace_storage_info_get` — registry/group tools **без** `workspaceId`; остальное **с `workspaceId`** (legacy `agentId`) |
+| Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
+| Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
 | Навигация и поиск | `read_*_index_toc` / `refresh_*_index_toc` (TOC markdown), `read_workspace_map` / `refresh_workspace_map` (WS-MAP.md), `find_by_id` (`resolve_workspace_id`), `resolve_workspace_path`, `get_topic_url`, hubs (`read/refresh_*_index_toc`), `search_workspace_*` (опц. `pathPrefix`), `rebuild_workspace_*`, `get_workspace_index_*` — **не** `read_content`. **Deprecated:** `get_topic_map` → `read_topic_index_toc` + `list_content` (`kind: root`); `get_content_map` → `read_content_index_toc` + `read_content` (`part=properties`) |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
