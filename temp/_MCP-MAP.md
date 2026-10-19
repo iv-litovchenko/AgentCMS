@@ -6,7 +6,7 @@
 
 **Старт:** `list_workspaces` → `get_session_context({ workspaceId })` → дальше тот же **`workspaceId`** (legacy: `agentId`; не persona `0-agent`).
 
-**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `generate_workspace_slug`, registry workspace (`create_workspace`, …), `workspace_summary_get` (см. описание tool).
+**Scope:** почти все tools требуют **`workspaceId`**. **Без scope:** `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`, `test_mcp_connection`, `record_generate_slug`, registry workspace (`create_workspace`, …), `workspace_summary_get` (см. описание tool).
 
 **Контент:** `read_content` / `write_content` / `list_content` + **`placement.kind`:** `topic` | `channel` | `media` | `database` | `repository` | `root` (legacy `page` → `topic`). Hub-индексы и поиск — отдельные tools (не `placement`).
 
@@ -46,7 +46,7 @@ agent-cms MCP
 │   ├── read_content_index_toc · refresh_content_index_toc
 │   ├── read_workspace_map · refresh_workspace_map
 │   ├── resolve_workspace_path · get_topic_url
-│   ├── find_by_id · resolve_workspace_id · assign_workspace_id
+│   ├── record_find_by_id · record_id_exists · record_id_assign · record_generate_slug · record_slug_exists
 │   └── deprecated: get_topic_map · get_content_map
 │
 ├── 🔍 Поиск · DQL · индексы
@@ -128,7 +128,7 @@ agent-cms MCP
 │   └── run_script · exec_command · exec_shell
 │
 ├── 🛠️ Утилиты · identity
-│   ├── generate_workspace_slug · workspace_summary_get · workspace_activity_list · workspace_notifications_list
+│   ├── workspace_summary_get · workspace_activity_list · workspace_notifications_list
 │   └── session_agent_profile_get · session_user_profile_get
 │
 ├── 📤 File hub · 📓 pads

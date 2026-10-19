@@ -29,6 +29,7 @@ import { registerDatabaseTools } from "./lib/iblock-tools.js";
 import { registerToolTools } from "./lib/tool-tools.js";
 import { registerToolWebTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
+import { registerRecordTools } from "./lib/record-tools.js";
 import { registerMediaCloudTools } from "./lib/media-cloud-tools.js";
 import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
@@ -157,6 +158,7 @@ function createServer() {
 
   registerNavTools(reg, client, pagePath);
   registerMapTools(reg, client, pagePath);
+  registerRecordTools(reg, client);
 
   registerSearchWorkspaceTools(reg, client);
 

@@ -13,7 +13,7 @@
 
 ## 🌳 Канон MCP `user-agent-cms` (без legacy)
 
-**Итого в дереве: 232 метода** (legacy-алиасы и `*_zzz` stub не считаются; `get_topic_url` = alias, не отдельная строка).
+**Итого в дереве: 234 метода** (legacy-алиасы и `*_zzz` stub не считаются; `get_topic_url` = alias, не отдельная строка).
 
 ```
 user-agent-cms
@@ -76,6 +76,13 @@ user-agent-cms
 ├── 📋 Registry queries · registry_* · 2
 │   ├── 🟢 registry_queries_list              ← list_workspace_registry_queries ← session_registry_queries_list
 │   └── 🟢 registry_query_run                 ← run_workspace_registry_query ← session_registry_query_run
+│
+├── 🆔 Record · record_* · workspaceId · 5
+│   ├── 🟢 record_find_by_id                  ← find_by_id ← resolve_workspace_id
+│   ├── 🟢 record_id_exists
+│   ├── 🟢 record_id_assign                   ← assign_workspace_id
+│   ├── 🟢 record_generate_slug               ← generate_workspace_slug ← record_slug_generate
+│   └── 🟢 record_slug_exists
 │
 ├── 🧭 Навигация · nav_* · 14
 │   ├── 🟢 nav_map_workspace_read             ← workspace_map_read / read_workspace_map
@@ -284,14 +291,10 @@ user-agent-cms
 │   ├── 🔴 read_discussion
 │   └── 🔴 append_discussion
 │
-├── 🔴 TBD · канон / группа не зафиксированы · 10
+├── 🔴 TBD · канон / группа не зафиксированы · 6
 │   ├── 🔴 batch_invoke
-│   ├── 🔴 find_by_id
-│   ├── 🔴 resolve_workspace_id             ← дубль find_by_id (→ legacy)
-│   ├── 🔴 assign_workspace_id              ← TBD assign_record_awn_id
 │   ├── 🔴 resolve_workspace_path
 │   ├── 🔴 notify_user
-│   ├── 🔴 record_slug_generate             ← generate_workspace_slug
 │   ├── 🔴 session_ui_focus_get             ← get_ui_focus ← get_user_active_context_now
 │   ├── 🔴 get_ui_open_location             ← legacy session_ui_focus_get (тот же API)
 │   └── 🔴 content_binary_url_get           ← get_content_binary_url

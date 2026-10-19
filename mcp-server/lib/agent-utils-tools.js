@@ -4,55 +4,6 @@ import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 const pageUrl = z.string().url().describe("Public http(s) URL");
 
 export function registerAgentUtilsTools(reg, client) {
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "record_slug_generate",
-    legacy: "generate_workspace_slug",
-    description:
-      "Derive disk slug from title/text (same rules as topic_create/content_create). preset: topic|page|content|store|database|repository|catalog|filename (page = legacy alias for topic). Pass slug to sanitize only.",
-    schema: z
-      .object({
-        text: z.string().optional().describe("Display name or arbitrary text"),
-        title: z.string().optional(),
-        displayName: z.string().optional(),
-        name: z.string().optional(),
-        slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
-        preset: z
-          .enum(["topic", "page", "content", "store", "database", "repository", "catalog", "filename"])
-          .optional()
-          .describe("Default topic (page = legacy)"),
-        stripExtension: z
-          .boolean()
-          .optional()
-          .describe("For preset=filename: strip any file extension before slugify")
-      })
-      .refine(
-        (value) =>
-          Boolean(
-            String(value.text || "").trim() ||
-              String(value.title || "").trim() ||
-              String(value.displayName || "").trim() ||
-              String(value.name || "").trim() ||
-              String(value.slug || "").trim()
-          ),
-        { message: "Provide text, title, displayName, name, or slug" }
-      ),
-    handler: (payload) => {
-      const text =
-        payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
-      return client.get(
-        "/api/workspace-slug/generate",
-        {
-          text,
-          slug: payload.slug,
-          preset: payload.preset,
-          stripExtension: payload.stripExtension
-        },
-        { agentScope: false }
-      );
-    },
-    options: { agentScope: false }
-  });
-
   const workspaceSummarySchema = z.object({});
   const workspaceSummaryHandler = () =>
     client.get("/api/agent/storage-summary", {}, { agentScope: false });

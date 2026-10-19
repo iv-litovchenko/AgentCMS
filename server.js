@@ -14907,10 +14907,10 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
-  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: find_by_id / resolve_workspace_id)",
-  workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_find_by_id)",
+  workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (MCP: record_id_assign; body: path, force?)",
   workspaceSlugGenerate:
-    "GET|POST /api/workspace-slug/generate — generate_workspace_slug MCP (text, preset?, slug?, stripExtension?)",
+    "GET|POST /api/workspace-slug/generate — record_generate_slug MCP (text, preset?, slug?, stripExtension?)",
   workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
   workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",

@@ -583,45 +583,6 @@ function registerSearchWorkspaceTools(reg, client) {
     handler: ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   });
 
-  const findByIdSchema = z.object({
-    id: z
-      .union([z.number().int().positive(), z.string().min(1)])
-      .describe('Global awn-id from frontmatter, e.g. 81, "81", or "#81" (not INDEX.md row id)')
-  });
-
-  const resolveWorkspaceIdHandler = ({ id }) =>
-    client.get("/api/workspace-id/resolve", {
-      id: String(id ?? "")
-        .trim()
-        .replace(/^#+/, "")
-    });
-
-  reg(
-    "find_by_id",
-    "Find workspace file path(s) by global awn-id number (frontmatter field awn-id). Example: 81 → path to manifest or note. Duplicate ids return paths[] and duplicate:true. Assign missing ids: assign_workspace_id.",
-    findByIdSchema,
-    resolveWorkspaceIdHandler
-  );
-
-  reg(
-    "resolve_workspace_id",
-    "Same handler as find_by_id — resolve path(s) by global awn-id (workspace counter). Prefer find_by_id for discovery. Alternative: index_storage_query with where: [{ field: 'awn-id', eq: N }].",
-    findByIdSchema,
-    resolveWorkspaceIdHandler
-  );
-
-  reg(
-    "assign_workspace_id",
-    "Assign the next global awn-id to an existing record (page manifest, content .md, sidecar). Use for old records without id — same as UI «Присвоить id».",
-    z.object({
-      path: z
-        .string()
-        .min(1)
-        .describe("Workspace-relative path to file with frontmatter, e.g. awn-topics/topic/manifest.md"),
-      force: z.boolean().optional().describe("Replace existing awn-id (default false)")
-    }),
-    (payload) => client.post("/api/workspace-id/assign", payload)
-  );
 }
 
 export function registerMapTools(reg, client, pagePath) {

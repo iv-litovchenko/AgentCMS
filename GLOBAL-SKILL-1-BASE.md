@@ -39,7 +39,7 @@ Workspace — папка с md-файлами. Хабы:
 Поток: сырое → канал (или `inbox` темы) → тема или база.
 
 - **`manifest.md`** — карточка единицы: frontmatter + описание.
-- **`awn-id`** — глобальный номер записи (не `workspaceId`). `find_by_id({ id })`; старым проставить — `assign_workspace_id`. Остальные свойства — «Базовые свойства» ниже.
+- **`awn-id`** — глобальный номер записи (не `workspaceId`). `record_find_by_id({ id })`; проверка — `record_id_exists`; старым проставить — `record_id_assign`. Slug: `record_generate_slug` → `record_slug_exists` → create. Остальные свойства — «Базовые свойства» ниже.
 - **Служебные папки:** `awn-temp/` (все временные файлы), `awn-scripts/`, `awn-recycler/` (корзина, раздел 16), `.agent-cms/` (кэши, журнал, настройки).
 - **Файлы корня** (`AGENTS.md`, `SKILL.md`, `NOTE.md`, `TODO.md`, `dependencies.csv`) — раздел 15.
 - **Свободная память** — папки без `manifest.md`: `contents_list` (`kind: root`, `path`) + `content_read` / `content_write` с `kind: root`. Описание папки — `{folder}/sidecar.md`. В тему превращает `topic_create`.
@@ -51,7 +51,7 @@ Workspace — папка с md-файлами. Хабы:
 | Свойство | Что значит | Правило |
 |----------|-----------|---------|
 | `awn-type` | Тип сущности (`awn.hub.topic`, `awn.content.record`…) | Не менять |
-| `awn-id` | Глобальный числовой номер в workspace (≠ `workspaceId`, ≠ slug) | Не менять; поиск — `find_by_id` |
+| `awn-id` | Глобальный числовой номер в workspace (≠ `workspaceId`, ≠ slug) | Не менять; поиск — `record_find_by_id` |
 | `awn-name` | Отображаемое имя в меню и ответах; пусто → берётся slug (имя папки/файла) | Менять для смены названия; slug — `rename_*` |
 | `awn-description` | Короткое описание, одна-две фразы | — |
 | `awn-summary` | Развёрнутое резюме: о чём запись, факты, выводы (подробнее description) | Хорошо для поиска и контекста |
