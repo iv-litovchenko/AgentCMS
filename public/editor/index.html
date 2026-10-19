@@ -1835,6 +1835,15 @@
                       <span class="agents-picker-tool-label">Крупные файлы</span>
                     </button>
                     <button
+                      id="agent-short-links-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-short-links-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Короткие ссылки — реестр awn-short-links"
+                    >
+                      <span class="agents-picker-tool-label">Короткие ссылки</span>
+                    </button>
+                    <button
                       id="agent-broken-links-btn"
                       class="header-profile-menu-item agents-picker-tool-btn agent-broken-links-btn"
                       type="button"
@@ -3897,6 +3906,28 @@
         <div id="agent-large-files-content" class="agent-tool-body agent-large-files-content"></div>
       </main>
 
+      <main id="agent-short-links-pane" class="agent-canvas-pane agent-tool-pane agent-short-links-pane hidden" aria-label="Короткие ссылки workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Короткие ссылки</h2>
+            <p class="agent-canvas-lead">
+              Публичные короткие URL на страницы workspace. Реестр: <code>awn-short-links/{code}.md</code>.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-short-links-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить список">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-short-links-info" class="agent-tool-info">
+          <p id="agent-short-links-meta" class="agent-tool-info-desc">Ссылки ведут на превью, затем «Просмотр» открывает полную страницу.</p>
+          <div id="agent-short-links-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-short-links-content" class="agent-tool-body agent-short-links-content"></div>
+      </main>
+
       <main id="agent-broken-links-pane" class="agent-canvas-pane agent-tool-pane agent-broken-links-pane hidden" aria-label="Битые ссылки workspace">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
@@ -5485,68 +5516,100 @@
                       </svg>
                     </button>
                     <div id="workspace-links-menu-popover" class="workspace-links-menu-popover hidden" role="menu" aria-label="Ссылки">
-                      <ul class="workspace-links-menu-list">
-                        <li>
-                          <button
-                            id="workspace-links-copy-link-btn"
-                            class="workspace-links-menu-item"
-                            type="button"
-                            role="menuitem"
-                            data-action="copy-link"
-                            disabled
-                          >
-                            Web-адрес
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            id="workspace-links-copy-full-path-btn"
-                            class="workspace-links-menu-item"
-                            type="button"
-                            role="menuitem"
-                            data-action="copy-full-path"
-                            disabled
-                          >
-                            Путь (полный)
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            id="workspace-links-copy-root-path-btn"
-                            class="workspace-links-menu-item"
-                            type="button"
-                            role="menuitem"
-                            data-action="copy-root-path"
-                            disabled
-                          >
-                            Путь (от корня)
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            id="workspace-links-copy-editor-link-btn"
-                            class="workspace-links-menu-item"
-                            type="button"
-                            role="menuitem"
-                            data-action="copy-editor-link"
-                            disabled
-                          >
-                            Для ссылок
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            id="workspace-links-share-btn"
-                            class="workspace-links-menu-item"
-                            type="button"
-                            role="menuitem"
-                            data-action="share"
-                            disabled
-                          >
-                            Поделиться
-                          </button>
-                        </li>
-                      </ul>
+                      <div class="workspace-links-menu-group">
+                        <p class="workspace-links-menu-group-title">Копирование</p>
+                        <ul class="workspace-links-menu-list">
+                          <li>
+                            <button
+                              id="workspace-links-copy-link-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="copy-link"
+                              disabled
+                            >
+                              Web-адрес
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              id="workspace-links-copy-full-path-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="copy-full-path"
+                              disabled
+                            >
+                              Путь (полный)
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              id="workspace-links-copy-root-path-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="copy-root-path"
+                              disabled
+                            >
+                              Путь (от корня)
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              id="workspace-links-copy-editor-link-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="copy-editor-link"
+                              disabled
+                            >
+                              Для ссылок
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="workspace-links-menu-group">
+                        <p class="workspace-links-menu-group-title">Короткая ссылка</p>
+                        <ul class="workspace-links-menu-list">
+                          <li>
+                            <button
+                              id="workspace-links-share-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="share"
+                              disabled
+                            >
+                              Поделиться
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              id="workspace-links-copy-short-btn"
+                              class="workspace-links-menu-item"
+                              type="button"
+                              role="menuitem"
+                              data-action="copy-short-link"
+                              disabled
+                            >
+                              Скопировать ссылку
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              id="workspace-links-delete-short-btn"
+                              class="workspace-links-menu-item workspace-links-menu-item--danger"
+                              type="button"
+                              role="menuitem"
+                              data-action="delete-short-link"
+                              disabled
+                            >
+                              Удалить ссылку
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                   <input id="folder-browse-upload-input" type="file" multiple class="hidden" />

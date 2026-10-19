@@ -49,6 +49,12 @@ entries:
     view: large-files
     implementation: active
     ui-surfaces: [picker]
+  - module-id: module-short-links
+    label: Короткие ссылки
+    view: short-links
+    implementation: active
+    ui-surfaces: [picker]
+    mcp: [create_short_link, get_short_link, delete_short_link, list_short_links]
   - module-id: module-broken-links
     label: Битые ссылки
     view: broken-links

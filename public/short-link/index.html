@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Короткая ссылка — Agent CMS</title>
+    <meta name="description" content="Передаем важное — превью страницы Agent CMS" />
+    <link rel="icon" type="image/svg+xml" href="/_resources/favicon.svg" />
+    <link rel="stylesheet" href="/editor/styles.css" />
+    <link rel="stylesheet" href="/short-link/short-link.css" />
+  </head>
+  <body class="not-found-standalone short-link-standalone">
+    <main class="not-found-page short-link-page" id="short-link-root" data-state="loading" aria-live="polite">
+      <div class="not-found-bg" aria-hidden="true"></div>
+      <div class="not-found-orbit not-found-orbit--one" aria-hidden="true"></div>
+      <div class="not-found-orbit not-found-orbit--two" aria-hidden="true"></div>
+
+      <div class="short-link-layout">
+        <header class="short-link-top">
+          <img class="short-link-logo" src="/_resources/favicon.svg" width="56" height="56" alt="Agent CMS" />
+        </header>
+
+        <div class="short-link-center">
+          <div class="short-link-loading" id="short-link-loading">
+            <div class="short-link-spinner" aria-hidden="true"></div>
+            <p class="short-link-loading-text">Загружаем страницу…</p>
+          </div>
+
+          <p class="short-link-error hidden" id="short-link-error" role="alert"></p>
+
+          <div class="short-link-ready hidden" id="short-link-ready">
+            <div class="short-link-workspace-orbit hidden" id="short-link-workspace-orbit" aria-label="Хранилище агента">
+              <div class="short-link-workspace-orbit-visual">
+                <span class="short-link-workspace-orbit-ring" aria-hidden="true"></span>
+                <span class="short-link-workspace-orbit-link" aria-hidden="true"></span>
+                <span class="short-link-workspace-bubble" id="short-link-workspace-bubble">
+                  <img
+                    class="short-link-workspace-avatar-img hidden"
+                    id="short-link-workspace-avatar-img"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span class="short-link-workspace-avatar-emoji hidden" id="short-link-workspace-avatar-emoji" aria-hidden="true"></span>
+                  <span class="short-link-workspace-avatar-initials hidden" id="short-link-workspace-avatar-initials" aria-hidden="true"></span>
+                </span>
+              </div>
+              <div class="short-link-workspace-orbit-copy">
+                <p class="short-link-workspace-eyebrow">Workspace</p>
+                <p class="short-link-workspace-name" id="short-link-workspace-name"></p>
+                <p class="short-link-workspace-slug" id="short-link-workspace-slug"></p>
+              </div>
+            </div>
+
+            <article class="short-link-card" aria-labelledby="short-link-title">
+              <div class="short-link-preview" id="short-link-preview-frame">
+                <img
+                  class="short-link-preview-img hidden"
+                  id="short-link-preview-img"
+                  alt=""
+                  loading="eager"
+                  decoding="async"
+                />
+                <div class="short-link-preview-emoji hidden" id="short-link-preview-emoji" aria-hidden="true"></div>
+                <div class="short-link-preview-empty" id="short-link-preview-empty">
+                  <span class="short-link-preview-empty-mark" aria-hidden="true">◇</span>
+                  <span class="short-link-preview-empty-text">Нет превью страницы</span>
+                </div>
+              </div>
+
+              <div class="short-link-card-body">
+                <h1 class="short-link-page-title" id="short-link-title"></h1>
+                <p class="short-link-page-desc hidden" id="short-link-desc"></p>
+                <p class="short-link-stale hidden" id="short-link-stale"></p>
+                <div class="not-found-path-card short-link-path-card hidden" id="short-link-path-card">
+                  <span class="not-found-path-label">Путь в workspace</span>
+                  <code class="not-found-path" id="short-link-target"></code>
+                </div>
+              </div>
+
+              <div class="short-link-card-actions">
+                <a class="not-found-btn not-found-btn--primary short-link-open-btn" id="short-link-open-btn" href="#">Просмотр</a>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <footer class="short-link-bottom">
+          <p class="short-link-slogan">Передаем важное</p>
+          <p class="short-link-footnote hidden" id="short-link-footnote"></p>
+        </footer>
+      </div>
+    </main>
+    <script src="/short-link/short-link.js"></script>
+  </body>
+</html>

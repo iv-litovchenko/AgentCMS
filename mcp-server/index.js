@@ -44,6 +44,7 @@ import { registerPlatformTools } from "./lib/platform-tools.js";
 import { registerDependenciesTools } from "./lib/dependencies-tools.js";
 import { registerWorkspaceRootTools } from "./lib/workspace-root-tools.js";
 import { registerGitModuleTools } from "./lib/git-module-tools.js";
+import { registerShortLinksTools } from "./lib/short-links-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
@@ -205,6 +206,7 @@ function createServer() {
   registerPlatformTools(reg, client);
   registerDependenciesTools(reg, client);
   registerGitModuleTools(reg, client);
+  registerShortLinksTools(reg, client);
 
   // ── Навигация (3) ──────────────────────────────────────────────────────────
 

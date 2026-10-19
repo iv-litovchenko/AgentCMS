@@ -418,6 +418,14 @@ const { isSchemaModFileName } = require("./lib/config/schema-mod-paths");
 const { rewriteAgentMarkdownLinks } = require("./lib/tools/markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./lib/tools/broken-links-scanner");
 const {
+  listShortLinks,
+  getShortLinkByCode,
+  findShortLinkByTargetPath,
+  createShortLink,
+  deleteShortLink,
+  readTargetDisplayMeta
+} = require("./lib/services/workspace-short-links-service");
+const {
   getMergedCatalogsPayload,
   getCatalogLookupMaps,
   loadSchemasCatalogPreset,
@@ -16753,6 +16761,169 @@ async function resolveUploadedMediaFileAbsolute(nodeAbsolute, relFile) {
   return null;
 }
 
+async function resolvePublicShortLinkCoverAbsolute(targetPath) {
+  const targetRel = String(targetPath || "").trim();
+  if (!targetRel) return null;
+
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(targetRel);
+  const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
+  if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+    const sidecar = await findNodePreviewImageAbsolute(nodeAbsolute);
+    if (sidecar) return sidecar;
+  }
+
+  const previewMeta = await getNodePreviewMeta(targetRel);
+  const previewUrl = String(previewMeta?.previewUrl || "");
+  if (previewUrl.startsWith("/api/media/file")) {
+    try {
+      const params = new URL(previewUrl, "http://localhost").searchParams;
+      const relPath = params.get("path");
+      const relFile = params.get("file");
+      const contextPath = params.get("contextPath");
+      if (relPath && relFile) {
+        const storageContext = await resolveApiStorageContext(contextPath || relPath);
+        const normalizedRelFile = normalizeRelativeFilePath(relFile);
+        if (storageContext && normalizedRelFile) {
+          let fileAbsolute = null;
+          const manifestRel = String(relPath || contextPath || "").replace(/\\/g, "/");
+          const libraryFolder = resolveMediaStorageSubfolderForManifest(manifestRel, params.get("folder"));
+          const libraryFolderAbsolute = await resolveNodeSubfolderAbsolute(
+            storageContext.absolute,
+            libraryFolder
+          );
+          if (libraryFolderAbsolute) {
+            const directAbsolute = path.join(libraryFolderAbsolute, normalizedRelFile);
+            if (
+              isPathInsideDirectory(libraryFolderAbsolute, directAbsolute) &&
+              (await fileExists(directAbsolute))
+            ) {
+              fileAbsolute = directAbsolute;
+            }
+          }
+          if (!fileAbsolute) {
+            fileAbsolute = await resolveUploadedMediaFileAbsolute(
+              storageContext.absolute,
+              normalizedRelFile
+            );
+          }
+          if (fileAbsolute) return fileAbsolute;
+        }
+      }
+    } catch {
+      // try awn-preview fallback below
+    }
+  }
+
+  if (nodeAbsolute && isManifestMdAbsolute(nodeAbsolute)) {
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(targetRel);
+      const previewRaw = String(getYamlScalar(frontmatter, "awn-preview") || "").trim();
+      if (previewRaw && !/^https?:/i.test(previewRaw)) {
+        const viaPreview = await resolveUploadedMediaFileAbsolute(nodeAbsolute, previewRaw);
+        if (viaPreview) return viaPreview;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+async function enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link) {
+  const meta = await readTargetDisplayMeta(agentRoot, link.targetPath);
+  const coverAbsolute = await resolvePublicShortLinkCoverAbsolute(link.targetPath);
+  const coverQuery = `agentId=${encodeURIComponent(agent.id)}&code=${encodeURIComponent(link.code)}`;
+  let previewImageUrl = null;
+
+  if (coverAbsolute) {
+    previewImageUrl = `${baseUrl}/api/public/short-link/cover?${coverQuery}`;
+  } else {
+    const previewMeta = await getNodePreviewMeta(link.targetPath);
+    const rawPreviewUrl = String(previewMeta?.previewUrl || "").trim();
+    if (/^https?:\/\//i.test(rawPreviewUrl)) {
+      previewImageUrl = rawPreviewUrl;
+    } else if (previewMeta?.hasPreview && rawPreviewUrl.startsWith("/api/media/file")) {
+      previewImageUrl = `${baseUrl}/api/public/short-link/cover?${coverQuery}`;
+    }
+  }
+
+  let previewEmoji = null;
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(link.targetPath);
+    const previewRaw = String(getYamlScalar(frontmatter, "awn-preview") || "").trim();
+    const isEmojiLike =
+      previewRaw &&
+      !previewImageUrl &&
+      !/[\\/]/.test(previewRaw) &&
+      !/^https?:/i.test(previewRaw) &&
+      [...previewRaw].length <= 4;
+    if (isEmojiLike) previewEmoji = previewRaw;
+  } catch {
+    // ignore
+  }
+
+  if (!previewImageUrl && !previewEmoji && link.fullUrl) {
+    try {
+      const og = await Promise.race([
+        getDocumentExtractService().getLinkPreview({ url: link.fullUrl }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3500))
+      ]);
+      if (og?.imageUrl) previewImageUrl = String(og.imageUrl).trim();
+    } catch {
+      // ignore og timeout/errors
+    }
+  }
+
+  const enrichedAgent = enrichAgentEntry(agent);
+  let workspaceTitle = String(agent.name || agent.id || "").trim();
+  let workspaceEmoji = null;
+  try {
+    const rootManifest = readWorkspaceManifestSync(agentRoot);
+    if (rootManifest?.name) workspaceTitle = String(rootManifest.name).trim();
+    const previewRaw = String(rootManifest?.preview || "").trim();
+    if (
+      previewRaw &&
+      !/[\\/]/.test(previewRaw) &&
+      !/^https?:/i.test(previewRaw) &&
+      [...previewRaw].length <= 4
+    ) {
+      workspaceEmoji = previewRaw;
+    }
+  } catch {
+    // ignore manifest read errors
+  }
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent("manifest.md");
+    const emojiRaw = String(getYamlScalar(frontmatter, "awn-emoji") || "").trim();
+    if (emojiRaw && [...emojiRaw].length <= 4) workspaceEmoji = emojiRaw;
+  } catch {
+    // ignore
+  }
+
+  let workspacePreviewUrl = null;
+  try {
+    const agentPreview = await getAgentPreviewMeta(agent);
+    workspacePreviewUrl = agentPreview.previewUrl || null;
+  } catch {
+    // ignore
+  }
+
+  return {
+    ...link,
+    title: meta.title,
+    description: meta.description,
+    workspaceName: workspaceTitle,
+    workspaceId: agent.id,
+    workspacePath: enrichedAgent.path || agent.id,
+    workspacePreviewUrl,
+    workspaceEmoji,
+    tagline: "Передаем важное",
+    previewImageUrl: previewImageUrl || null,
+    previewEmoji: previewEmoji || null
+  };
+}
+
 async function getNodePreviewMeta(nodeRelativePath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(nodeRelativePath);
   const nodeAbsolute = normalizeWorkspacePath(resolvedRelPath);
@@ -22256,6 +22427,88 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan broken links",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/short-links") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const links = await listShortLinks(agentRoot, agentId, baseUrl);
+      return sendJson(res, 200, { links, count: links.length });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list short links",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/short-links/resolve") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const code = String(url.searchParams.get("code") || "").trim();
+      const targetPath = String(url.searchParams.get("path") || url.searchParams.get("targetPath") || "").trim();
+      let link = null;
+      if (code) {
+        link = await getShortLinkByCode(agentRoot, agentId, baseUrl, code);
+      } else if (targetPath) {
+        link = await findShortLinkByTargetPath(agentRoot, agentId, baseUrl, targetPath);
+      } else {
+        return sendJson(res, 400, { error: "code or path is required" });
+      }
+      if (!link) return sendJson(res, 404, { error: "Short link not found" });
+      return sendJson(res, 200, { link });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve short link",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/short-links") {
+    try {
+      const agentRoot = getAgentRoot();
+      const agentId = getActiveAgentId();
+      if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const baseUrl =
+        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+        resolveInternalCmsApiUrl();
+      const result = await createShortLink(agentRoot, agentId, baseUrl, payload);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const status = Number(error.status) || 500;
+      return sendJson(res, status, {
+        error: status === 500 ? "Failed to create short link" : String(error.message || error),
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  const shortLinkDeleteMatch = url.pathname.match(/^\/api\/agent\/short-links\/([a-z0-9]{6,32})$/i);
+  if (req.method === "DELETE" && shortLinkDeleteMatch) {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await deleteShortLink(agentRoot, shortLinkDeleteMatch[1]);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const status = Number(error.status) || 500;
+      return sendJson(res, status, {
+        error: status === 500 ? "Failed to delete short link" : String(error.message || error),
         details: String(error.message || error)
       });
     }
@@ -32118,6 +32371,53 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (
+    req.method === "GET" &&
+    (url.pathname === "/api/public/short-link" || url.pathname === "/api/public/short-link/cover")
+  ) {
+    const agentId = resolveWorkspaceIdFromArgs({
+      agent: url.searchParams.get("agent"),
+      workspaceId: url.searchParams.get("workspace") || url.searchParams.get("workspaceId"),
+      agentId: url.searchParams.get("agentId")
+    });
+    const code = String(url.searchParams.get("code") || "").trim().toLowerCase();
+    const agent = agentId ? resolveAgent(agentId) : null;
+    if (!agent || !code) {
+      return sendJson(res, 400, { error: "agentId and code are required" });
+    }
+    return runWithAgent(agent.id, async () => {
+      try {
+        const agentRoot = getAgentRoot();
+        const baseUrl =
+          getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
+          resolveInternalCmsApiUrl();
+        const link = await getShortLinkByCode(agentRoot, agent.id, baseUrl, code);
+        if (!link) return sendJson(res, 404, { error: "Short link not found" });
+
+        if (url.pathname === "/api/public/short-link/cover") {
+          const imageAbsolute = await resolvePublicShortLinkCoverAbsolute(link.targetPath);
+          if (!imageAbsolute) return sendJson(res, 404, { error: "Preview image not found" });
+          const thumb = wantsThumbVariant(url.searchParams);
+          const sent = await sendImageFileResponse(res, imageAbsolute, {
+            thumb,
+            thumbMax: clampThumbMax(url.searchParams.get("max") || 1200),
+            cacheControl: "public, max-age=300"
+          });
+          if (!sent) return sendJson(res, 404, { error: "Preview image not found" });
+          return;
+        }
+
+        const payload = await enrichPublicShortLinkPayload(agent, agentRoot, baseUrl, link);
+        return sendJson(res, 200, payload);
+      } catch (error) {
+        return sendJson(res, 500, {
+          error: "Failed to load short link",
+          details: String(error.message || error)
+        });
+      }
+    });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agents/focus") {
     const agentId = resolveWorkspaceIdFromArgs({
       agent: url.searchParams.get("agent"),
@@ -32873,6 +33173,10 @@ function createRequestHandler() {
       res.writeHead(301, { Location: location });
       res.end();
       return;
+    }
+
+    if (/^\/link\/[^/]+\/[^/]+\/?$/i.test(url.pathname)) {
+      return serveStatic("/short-link/index.html", res, req);
     }
 
     const voiceRedirect = shellToVoiceRedirect(url.pathname);

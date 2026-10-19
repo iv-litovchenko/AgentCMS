@@ -952,6 +952,11 @@ const AGENT_LARGE_FILES_THRESHOLD_MB_OPTIONS = [3, 5, 10, 15, 25, 45, 100, 250, 
 let agentLargeFilesThresholdMb = 45;
 let agentLargeFilesSortDir = "desc";
 let agentLargeFilesCachedReport = null;
+const agentShortLinksPaneNode = document.getElementById("agent-short-links-pane");
+const agentShortLinksContentNode = document.getElementById("agent-short-links-content");
+const agentShortLinksStatsNode = document.getElementById("agent-short-links-stats");
+const agentShortLinksMetaNode = document.getElementById("agent-short-links-meta");
+const agentShortLinksRefreshBtn = document.getElementById("agent-short-links-refresh-btn");
 const agentBrokenLinksPaneNode = document.getElementById("agent-broken-links-pane");
 const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-content");
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
@@ -984,6 +989,7 @@ const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentAwnTypesRefreshBtn = document.getElementById("agent-awn-types-refresh-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
+const agentShortLinksBtn = document.getElementById("agent-short-links-btn");
 const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
 const agentRunScriptsBtn = document.getElementById("agent-run-scripts-btn");
 const agentTodoListBtn = document.getElementById("agent-todo-list-btn");
@@ -2472,6 +2478,7 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-registry",
   "module-large-files",
   "module-broken-links",
+  "module-short-links",
   "module-run-scripts",
   "module-todo-list",
   "module-catalog",
@@ -2487,6 +2494,7 @@ const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   "runtime-registry": "module-registry",
   "large-files": "module-large-files",
   "broken-links": "module-broken-links",
+  "short-links": "module-short-links",
   "run-scripts": "module-run-scripts",
   "todo-list": "module-todo-list",
   "module-catalog": "module-catalog",
@@ -2558,6 +2566,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-registry": "module-registry",
   "m-large-files": "module-large-files",
   "m-broken-links": "module-broken-links",
+  "m-short-links": "module-short-links",
   "m-run-scripts": "module-run-scripts",
   "m-todo-list": "module-todo-list",
   "m-visualization": "module-visualization",
@@ -4416,6 +4425,124 @@ function scheduleActivePageContextSync() {
 }
 
 const WORKSPACE_SHARE_ACTIONS_ENABLED = true;
+let workspaceShortLinkLookupSeq = 0;
+let workspaceShortLinkForActivePath = null;
+
+async function refreshWorkspaceShortLinkIndicator() {
+  const targetRel = getWorkspaceEditorLinkTargetRel();
+  if (!targetRel || !activeWorkspaceId) {
+    workspaceShortLinkForActivePath = null;
+    workspaceLinksMenuBtn?.classList.remove("has-short-link");
+    return;
+  }
+  const seq = ++workspaceShortLinkLookupSeq;
+  try {
+    const response = await fetch(
+      buildApiUrl(`/api/agent/short-links/resolve?path=${encodeURIComponent(targetRel)}`)
+    );
+    if (seq !== workspaceShortLinkLookupSeq) return;
+    if (!response.ok) {
+      workspaceShortLinkForActivePath = null;
+      workspaceLinksMenuBtn?.classList.remove("has-short-link");
+      return;
+    }
+    const data = await response.json();
+    workspaceShortLinkForActivePath = data.link || null;
+    workspaceLinksMenuBtn?.classList.toggle("has-short-link", Boolean(workspaceShortLinkForActivePath));
+  } catch {
+    if (seq !== workspaceShortLinkLookupSeq) return;
+    workspaceShortLinkForActivePath = null;
+    workspaceLinksMenuBtn?.classList.remove("has-short-link");
+  }
+}
+
+function formatWorkspaceShortLinkUrl(link) {
+  const raw = String(link?.previewUrl || link?.shortPath || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("/")) return new URL(raw, location.origin).href;
+  return raw;
+}
+
+async function handleWorkspaceShareShortLink() {
+  const targetRel = getWorkspaceEditorLinkTargetRel();
+  if (!targetRel) {
+    showToast("Нет пути для короткой ссылки", "error");
+    return;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/short-links"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetPath: targetRel, path: targetRel })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    const link = data.link;
+    workspaceShortLinkForActivePath = link;
+    workspaceLinksMenuBtn?.classList.add("has-short-link");
+    updateWorkspaceShareLinkButton();
+    const url = formatWorkspaceShortLinkUrl(link);
+    if (url) await copyWorkspacePathText(url, "Короткая ссылка скопирована");
+    showToast(data.created === false ? "Короткая ссылка уже была" : "Короткая ссылка создана", "success");
+  } catch (error) {
+    showToast(`Не удалось создать короткую ссылку: ${error.message}`, "error");
+  }
+}
+
+async function handleWorkspaceCopyShortLinkOnly() {
+  let link = workspaceShortLinkForActivePath;
+  if (!link) {
+    const targetRel = getWorkspaceEditorLinkTargetRel();
+    if (!targetRel) {
+      showToast("Нет короткой ссылки для этой страницы", "error");
+      return;
+    }
+    try {
+      const response = await fetch(
+        buildApiUrl(`/api/agent/short-links/resolve?path=${encodeURIComponent(targetRel)}`)
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.link) {
+        showToast("Сначала создайте ссылку через «Поделиться»", "error");
+        return;
+      }
+      link = data.link;
+      workspaceShortLinkForActivePath = link;
+      workspaceLinksMenuBtn?.classList.add("has-short-link");
+      updateWorkspaceShareLinkButton();
+    } catch (error) {
+      showToast(`Не удалось получить ссылку: ${error.message}`, "error");
+      return;
+    }
+  }
+  const url = formatWorkspaceShortLinkUrl(link);
+  if (!url) {
+    showToast("Короткая ссылка недоступна", "error");
+    return;
+  }
+  await copyWorkspacePathText(url, "Короткая ссылка скопирована");
+}
+
+async function handleWorkspaceDeleteShortLink() {
+  const code = String(workspaceShortLinkForActivePath?.code || "").trim();
+  if (!code) {
+    showToast("Для этой страницы нет короткой ссылки", "error");
+    return;
+  }
+  try {
+    const response = await fetch(buildApiUrl(`/api/agent/short-links/${encodeURIComponent(code)}`), {
+      method: "DELETE"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    workspaceShortLinkForActivePath = null;
+    workspaceLinksMenuBtn?.classList.remove("has-short-link");
+    updateWorkspaceShareLinkButton();
+    showToast("Короткая ссылка удалена", "success");
+  } catch (error) {
+    showToast(`Не удалось удалить ссылку: ${error.message}`, "error");
+  }
+}
 
 function updateWorkspaceShareLinkButton() {
   const hasAgent = Boolean(activeWorkspaceId && agentsCache.some((agent) => agent.id === activeWorkspaceId));
@@ -4434,11 +4561,35 @@ function updateWorkspaceShareLinkButton() {
     workspacePrintBtn.setAttribute("aria-label", inWorkspace ? printLabel : "Печать");
   }
 
+  const hasShortLink = Boolean(workspaceShortLinkForActivePath?.code);
+
   for (const item of workspaceLinksMenuItems) {
     const action = item.dataset.action || "";
     if (action === "share") {
-      item.disabled = true;
-      item.title = "Поделиться доступом (скоро)";
+      item.disabled = !actionsEnabled;
+      item.title = actionsEnabled
+        ? hasShortLink
+          ? "Создать заново нельзя — уже есть; используйте «Скопировать ссылку»"
+          : "Создать короткую ссылку и скопировать в буфер"
+        : "";
+      continue;
+    }
+    if (action === "copy-short-link") {
+      item.disabled = !actionsEnabled || !hasShortLink;
+      item.title = actionsEnabled
+        ? hasShortLink
+          ? "Скопировать короткий URL в буфер"
+          : "Сначала «Поделиться»"
+        : "";
+      continue;
+    }
+    if (action === "delete-short-link") {
+      item.disabled = !actionsEnabled || !hasShortLink;
+      item.title = actionsEnabled
+        ? hasShortLink
+          ? "Удалить запись из awn-short-links"
+          : "Нет короткой ссылки"
+        : "";
       continue;
     }
     item.disabled = !actionsEnabled;
@@ -4455,9 +4606,15 @@ function updateWorkspaceShareLinkButton() {
 
   if (workspaceLinksMenuBtn) {
     workspaceLinksMenuBtn.disabled = !inWorkspace;
-    workspaceLinksMenuBtn.title = inWorkspace ? "Ссылки" : "Ссылки";
-    workspaceLinksMenuBtn.setAttribute("aria-label", inWorkspace ? "Ссылки" : "Ссылки");
+    workspaceLinksMenuBtn.title = inWorkspace
+      ? workspaceShortLinkForActivePath
+        ? "Ссылки · есть короткая ссылка"
+        : "Ссылки"
+      : "Ссылки";
+    workspaceLinksMenuBtn.setAttribute("aria-label", workspaceLinksMenuBtn.title);
   }
+
+  void refreshWorkspaceShortLinkIndicator();
 }
 
 function resetWorkspaceLinksMenuPopoverPosition() {
@@ -4547,6 +4704,18 @@ function handleWorkspaceLinksMenuAction(action) {
   }
   if (action === "copy-editor-link") {
     void copyWorkspaceEditorLinkPath();
+    return;
+  }
+  if (action === "share") {
+    void handleWorkspaceShareShortLink();
+    return;
+  }
+  if (action === "copy-short-link") {
+    void handleWorkspaceCopyShortLinkOnly();
+    return;
+  }
+  if (action === "delete-short-link") {
+    void handleWorkspaceDeleteShortLink();
   }
 }
 
@@ -12986,6 +13155,7 @@ function wireAgentsPickerToolButtons() {
     agentAwnTypesBtn,
     agentRegistryBtn,
     agentLargeFilesBtn,
+    agentShortLinksBtn,
     agentBrokenLinksBtn,
     agentRunScriptsBtn,
     agentTodoListBtn,
@@ -28418,6 +28588,50 @@ function createLargeFilesMarkerSvg() {
   return svg;
 }
 
+function createShortLinksMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+  const c1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c1.setAttribute("cx", "7");
+  c1.setAttribute("cy", "12");
+  c1.setAttribute("r", "2.5");
+  c1.setAttribute("fill", "none");
+  c1.setAttribute("stroke", "currentColor");
+  c1.setAttribute("stroke-width", "1.75");
+  svg.appendChild(c1);
+  const c2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c2.setAttribute("cx", "17");
+  c2.setAttribute("cy", "7");
+  c2.setAttribute("r", "2.5");
+  c2.setAttribute("fill", "none");
+  c2.setAttribute("stroke", "currentColor");
+  c2.setAttribute("stroke-width", "1.75");
+  svg.appendChild(c2);
+  const c3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c3.setAttribute("cx", "17");
+  c3.setAttribute("cy", "17");
+  c3.setAttribute("r", "2.5");
+  c3.setAttribute("fill", "none");
+  c3.setAttribute("stroke", "currentColor");
+  c3.setAttribute("stroke-width", "1.75");
+  svg.appendChild(c3);
+  const p1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p1.setAttribute("d", "M9.2 11.2 14.8 8.3");
+  p1.setAttribute("stroke", "currentColor");
+  p1.setAttribute("stroke-width", "1.75");
+  p1.setAttribute("stroke-linecap", "round");
+  svg.appendChild(p1);
+  const p2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p2.setAttribute("d", "M9.2 12.8 14.8 15.7");
+  p2.setAttribute("stroke", "currentColor");
+  p2.setAttribute("stroke-width", "1.75");
+  p2.setAttribute("stroke-linecap", "round");
+  svg.appendChild(p2);
+  return svg;
+}
+
 function createBrokenLinksMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -34916,6 +35130,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   journal: "Бортовой журнал",
   recycler: "Корзина",
   "large-files": "Крупные файлы (медиа в облаке)",
+  "short-links": "Короткие ссылки",
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
   "todo-list": "Список задач",
@@ -108252,7 +108467,7 @@ function isAcceptedAgentWorkspaceView(view) {
     view === "journal" ||
     view === "project-settings" ||
     view === "large-files" ||
-    view === "broken-links" ||
+    view === "short-links" || view === "broken-links" ||
     view === "run-scripts" ||
     view === "todo-list" ||
     view === "module-catalog" ||
@@ -108279,7 +108494,7 @@ function shouldPersistAgentWorkspaceViewToConfig(view) {
     view !== "git" &&
     view !== "awn-types" &&
     view !== "large-files" &&
-    view !== "broken-links" &&
+    view !== "short-links" && view !== "broken-links" &&
     view !== "run-scripts" &&
     view !== "todo-list" &&
     view !== "module-catalog" &&
@@ -108392,7 +108607,7 @@ function saveAgentWorkspaceView(view) {
     view === "git" ||
     view === "awn-types" ||
     view === "large-files" ||
-    view === "broken-links" ||
+    view === "short-links" || view === "broken-links" ||
     view === "run-scripts" ||
     view === "todo-list" ||
     view === "module-catalog" ||
@@ -108412,7 +108627,7 @@ function resetGitWorkspaceViewToDefault() {
     agentWorkspaceView !== "git" &&
     agentWorkspaceView !== "awn-types" &&
     agentWorkspaceView !== "large-files" &&
-    agentWorkspaceView !== "broken-links" &&
+    agentWorkspaceView !== "short-links" && agentWorkspaceView !== "broken-links" &&
     agentWorkspaceView !== "run-scripts" &&
     agentWorkspaceView !== "todo-list" &&
     agentWorkspaceView !== "module-catalog" &&
@@ -108458,6 +108673,7 @@ function applyAgentWorkspaceCanvasUi() {
     !showCanvas || agentWorkspaceView !== "project-settings"
   );
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
+  agentShortLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "short-links");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
   agentRunScriptsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "run-scripts");
   agentTodoListPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "todo-list");
@@ -108509,6 +108725,8 @@ function applyAgentWorkspaceCanvasUi() {
     void loadProjectSettingsContent();
   } else if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
+  } else if (agentWorkspaceView === "short-links") {
+    void renderAgentShortLinksView();
   } else if (agentWorkspaceView === "broken-links") {
     void renderAgentBrokenLinksView();
   } else if (agentWorkspaceView === "run-scripts") {
@@ -108551,6 +108769,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAwnDashboardsToolbarUi();
   syncSidebarRoadmapGlobeToolbarUi();
   syncAgentLargeFilesToolbarUi();
+  syncAgentShortLinksToolbarUi();
   syncAgentBrokenLinksToolbarUi();
   syncAgentRunScriptsToolbarUi();
   syncAgentTodoListToolbarUi();
@@ -108581,7 +108800,7 @@ function setAgentWorkspaceView(
     view !== "git" &&
     view !== "project-settings" &&
     view !== "large-files" &&
-    view !== "broken-links" &&
+    view !== "short-links" && view !== "broken-links" &&
     view !== "run-scripts" &&
     view !== "todo-list" &&
     view !== "module-catalog" &&
@@ -108762,6 +108981,19 @@ function syncAgentLargeFilesToolbarUi() {
   agentLargeFilesBtn?.classList.toggle(
     "is-active",
     agentWorkspaceView === "large-files" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
+function initAgentShortLinksToolbar() {
+  if (!agentShortLinksBtn) return;
+  mountAgentToolbarBtnIcon(agentShortLinksBtn, createShortLinksMarkerSvg(), "agent-short-links-btn-icon");
+  syncAgentShortLinksToolbarUi();
+}
+
+function syncAgentShortLinksToolbarUi() {
+  agentShortLinksBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "short-links" && isAgentWorkspaceCanvasVisible()
   );
 }
 
@@ -111587,6 +111819,133 @@ async function renderAgentLargeFilesView(options = {}) {
   }
 }
 
+async function fetchAgentShortLinks() {
+  const response = await fetch(buildApiUrl("/api/agent/short-links"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function deleteAgentShortLink(code) {
+  const response = await fetch(buildApiUrl(`/api/agent/short-links/${encodeURIComponent(code)}`), {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+async function renderAgentShortLinksView() {
+  if (!agentShortLinksContentNode) return;
+  agentShortLinksContentNode.replaceChildren();
+  if (agentShortLinksStatsNode) agentShortLinksStatsNode.replaceChildren();
+
+  const loading = document.createElement("p");
+  loading.className = "agent-tool-loading";
+  loading.textContent = "Загрузка коротких ссылок…";
+  agentShortLinksContentNode.appendChild(loading);
+
+  try {
+    const data = await fetchAgentShortLinks();
+    const links = Array.isArray(data.links) ? data.links : [];
+    agentShortLinksContentNode.replaceChildren();
+
+    if (agentShortLinksStatsNode) {
+      agentShortLinksStatsNode.append(
+        createAgentWorkspaceStatElement(links.length, "ссылок", links.length ? "warn" : ""),
+        createAgentWorkspaceStatElement(
+          links.filter((item) => item.targetExists === false).length,
+          "без файла",
+          ""
+        )
+      );
+    }
+
+    if (agentShortLinksMetaNode) {
+      agentShortLinksMetaNode.textContent =
+        "Реестр awn-short-links · при перемещении файла ссылка может устареть.";
+    }
+
+    const shell = document.createElement("div");
+    shell.className = "agent-tool-shell agent-short-links-shell";
+
+    if (!links.length) {
+      const empty = document.createElement("div");
+      empty.className = "agent-tool-empty-card";
+      empty.innerHTML =
+        '<p class="agent-tool-empty-title">Коротких ссылок пока нет</p><p class="agent-tool-empty-text">Создайте через «Поделиться» в меню ссылок на странице или MCP <code>create_short_link</code>.</p>';
+      shell.appendChild(empty);
+    } else {
+      const list = document.createElement("ul");
+      list.className = "agent-tool-list agent-short-links-list";
+      for (const link of links) {
+        const row = document.createElement("li");
+        row.className = "agent-short-links-row";
+        const mainBtn = document.createElement("button");
+        mainBtn.type = "button";
+        mainBtn.className = "agent-short-links-hit";
+        mainBtn.title = link.targetPath || link.code;
+        const badge = document.createElement("span");
+        badge.className = "agent-short-links-code";
+        badge.textContent = link.code;
+        const main = document.createElement("span");
+        main.className = "agent-short-links-copy";
+        const urlNode = document.createElement("span");
+        urlNode.className = "agent-short-links-url";
+        urlNode.textContent = link.previewUrl || link.shortPath || link.code;
+        const targetNode = document.createElement("span");
+        targetNode.className = "agent-short-links-target";
+        targetNode.textContent = link.targetPath || "—";
+        if (link.targetExists === false) {
+          targetNode.classList.add("is-missing");
+          targetNode.textContent += " · файл не найден";
+        }
+        main.append(urlNode, targetNode);
+        mainBtn.append(badge, main);
+        mainBtn.addEventListener("click", () => {
+          if (link.targetPath) void openWorkspaceInspectorPath(link.targetPath);
+        });
+        const actions = document.createElement("div");
+        actions.className = "agent-short-links-row-actions";
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "agent-short-links-action-btn";
+        copyBtn.textContent = "Копировать";
+        copyBtn.title = "Скопировать короткий URL";
+        copyBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void copyWorkspacePathText(link.previewUrl || link.shortPath || "", "Короткая ссылка скопирована");
+        });
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "agent-short-links-action-btn agent-short-links-action-btn--danger";
+        deleteBtn.textContent = "Удалить";
+        deleteBtn.title = "Удалить из awn-short-links";
+        deleteBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void deleteAgentShortLink(link.code).then(() => renderAgentShortLinksView());
+        });
+        actions.append(copyBtn, deleteBtn);
+        row.append(mainBtn, actions);
+        list.appendChild(row);
+      }
+      shell.appendChild(list);
+    }
+
+    agentShortLinksContentNode.appendChild(shell);
+  } catch (error) {
+    agentShortLinksContentNode.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-broken-links-empty is-alert";
+    errorNode.textContent = `Не удалось загрузить короткие ссылки: ${error.message}`;
+    agentShortLinksContentNode.appendChild(errorNode);
+  }
+}
+
 async function fetchAgentBrokenLinks() {
   const response = await fetch(buildApiUrl("/api/agent/broken-links"));
   if (!response.ok) {
@@ -111731,6 +112090,7 @@ const WORKSPACE_MODULES_CATALOG = [
     status: "active"
   },
   { id: "module-large-files", label: "Крупные файлы", view: "large-files", mcp: "—", status: "active" },
+  { id: "module-short-links", label: "Короткие ссылки", view: "short-links", mcp: "create_short_link, get_short_link, delete_short_link, list_short_links", status: "active" },
   { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_workspace_links", status: "active" },
   { id: "module-run-scripts", label: "Запуск скриптов", view: "run-scripts", mcp: "run_script", status: "stub" },
   {
@@ -115985,6 +116345,7 @@ function hideAllAgentCanvasPanes() {
   agentRecyclerPaneNode?.classList.add("hidden");
   agentProjectSettingsPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
+  agentShortLinksPaneNode?.classList.add("hidden");
   agentBrokenLinksPaneNode?.classList.add("hidden");
   agentRuntimeRegistryPaneNode?.classList.add("hidden");
   agentAwnTypesPaneNode?.classList.add("hidden");
@@ -133892,6 +134253,10 @@ agentLargeFilesBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("large-files");
 });
 
+agentShortLinksBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("short-links");
+});
+
 agentBrokenLinksBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("broken-links");
 });
@@ -134305,8 +134670,14 @@ agentLargeFilesRefreshBtn?.addEventListener("click", () => {
   }
 });
 
+agentShortLinksRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "short-links") {
+    void renderAgentShortLinksView();
+  }
+});
+
 agentBrokenLinksRefreshBtn?.addEventListener("click", () => {
-  if (agentWorkspaceView === "broken-links") {
+  if (agentWorkspaceView === "short-links" || agentWorkspaceView === "broken-links") {
     void renderAgentBrokenLinksView();
   }
 });
@@ -135538,6 +135909,7 @@ initAgentAwnTypesToolbar();
 initSidebarRoadmapGlobeToolbar();
 initAgentGitToolbar();
 initAgentLargeFilesToolbar();
+initAgentShortLinksToolbar();
 initAgentBrokenLinksToolbar();
 initAgentRunScriptsToolbar();
 initAgentTodoListToolbar();
