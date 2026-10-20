@@ -1122,6 +1122,30 @@ async function getAppLockStatus() {
   };
 }
 
+async function resolveOpsAppLockGate(req) {
+  const status = await getAppLockStatus();
+  const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
+  return {
+    enabled: status.enabled,
+    sessionActive,
+    canToggleMaintenance: !status.enabled || sessionActive
+  };
+}
+
+async function getOpsMaintenanceWriteDeniedResponse(req) {
+  const gate = await resolveOpsAppLockGate(req);
+  if (gate.canToggleMaintenance) return null;
+  return {
+    status: 403,
+    body: {
+      ok: false,
+      error: "app_lock_required",
+      message:
+        "Для изменения maintenance-mode нужна сессия app-lock (войдите в Editor или POST /api/app-lock/login)."
+    }
+  };
+}
+
 async function verifyAppLockCredentials(login, password) {
   const env = await readRootEnvFile();
   const expectedLogin = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
@@ -14889,7 +14913,7 @@ const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
   opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
-  opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode",
+  opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -19025,6 +19049,13 @@ function resolvePublicStaticCacheControl(diskPath) {
 }
 
 async function serveStatic(reqPath, res, req) {
+  const staticPathNorm = String(reqPath || "/").replace(/\/+$/, "") || "/";
+  if (staticPathNorm === "/control") {
+    res.writeHead(301, { Location: "/control/" });
+    res.end();
+    return;
+  }
+
   let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
@@ -22757,6 +22788,7 @@ async function handleApiForAgent(req, res, url) {
         buildAgentMcpPing,
         packageVersion
       });
+      payload.appLock = await resolveOpsAppLockGate(req);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -22784,6 +22816,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/ops/maintenance") {
     try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+
       const payload = await readJsonBody(req);
       const next = Boolean(payload?.enabled);
       await patchPlatformSettings({ "maintenance-mode": next }, getProjectRoot());

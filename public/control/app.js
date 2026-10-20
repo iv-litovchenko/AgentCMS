@@ -132,13 +132,25 @@ function applySummaryChip(status) {
   }
 }
 
-function applyMaintenanceUi(enabled) {
+function maintenanceSummaryText(enabled, appLock) {
+  const base = enabled ? "сейчас включён · 503 stub" : "сейчас выключен";
+  if (appLock?.enabled && !appLock?.sessionActive) {
+    return `${base} · переключатель после входа (app-lock в Editor)`;
+  }
+  return base;
+}
+
+function applyMaintenanceUi(enabled, appLock) {
   const toggle = document.getElementById("maintenance-toggle");
   const card = document.getElementById("maintenance-card");
   const summary = document.getElementById("maintenance-summary");
-  if (toggle && !maintenanceBusy) toggle.checked = Boolean(enabled);
+  const canToggle = appLock?.canToggleMaintenance !== false;
+  if (toggle && !maintenanceBusy) {
+    toggle.checked = Boolean(enabled);
+    toggle.disabled = !canToggle;
+  }
   if (card) card.dataset.state = enabled ? "on" : "off";
-  if (summary) summary.textContent = enabled ? "сейчас включён · 503 stub" : "сейчас выключен";
+  if (summary) summary.textContent = maintenanceSummaryText(Boolean(enabled), appLock);
 }
 
 function applyFooter(status) {
@@ -153,7 +165,7 @@ function renderAll(status) {
   renderMonitor(status);
   renderQuickLinks(status);
   applySummaryChip(status);
-  applyMaintenanceUi(Boolean(status?.maintenance));
+  applyMaintenanceUi(Boolean(status?.maintenance), status?.appLock);
   applyFooter(status);
 }
 
@@ -194,6 +206,7 @@ async function setMaintenance(enabled) {
   const response = await fetch("/api/ops/maintenance", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify({ enabled: Boolean(enabled) })
   });
   const data = await response.json().catch(() => ({}));
@@ -216,15 +229,15 @@ function bindUi() {
     toggle.disabled = true;
     try {
       const result = await setMaintenance(next);
-      applyMaintenanceUi(Boolean(result.enabled));
+      applyMaintenanceUi(Boolean(result.enabled), lastStatus?.appLock);
       if (lastStatus) lastStatus.maintenance = Boolean(result.enabled);
     } catch (error) {
       toggle.checked = prev;
-      applyMaintenanceUi(prev);
+      applyMaintenanceUi(prev, lastStatus?.appLock);
       console.error("maintenance toggle failed", error);
     } finally {
       maintenanceBusy = false;
-      toggle.disabled = false;
+      toggle.disabled = lastStatus?.appLock?.canToggleMaintenance === false;
     }
   });
 }

@@ -67,7 +67,7 @@ Editor:     HTTP 3000   HTTPS 3443
 Voice:      HTTP 3088   HTTPS 3488
 Commander:  HTTP 3188
 MCP stdio:  (без порта) · MCP HTTP: 3490 → `/mcp`
-Web Control (ops):  /control/  на порту Editor  ·  GET /api/ops/status
+Web Control (ops):  /control/  (редirect с `/control`)  ·  GET /api/ops/status  ·  POST maintenance — с app-lock в `.env`, если настроен
 ```
 
 Скрипт экспорта: `node lib/config/agent-cms-ports.js`
