@@ -6104,7 +6104,10 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/agent/settings-schema",
   "/api/agent/settings/list",
   "/api/agent/settings/read",
-  "/api/agent/settings/write"
+  "/api/agent/settings/write",
+  "/api/ops/status",
+  "/api/ops/maintenance",
+  "/api/agent/mcp-ping"
 ]);
 
 async function resolveWorkspaceTextFileMaxBytes(options = {}) {
@@ -14885,6 +14888,8 @@ const SESSION_CONTEXT_API_MAP = {
   // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
+  opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
+  opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -18909,6 +18914,10 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return false;
 
+  // Web Control (/control) — ops-пульт остаётся доступен в maintenance.
+  if (normalized === "/control" || normalized.startsWith("/control/")) return false;
+  if (String(safePath || "").startsWith("control/")) return false;
+
   if (safePath === "index.html" || normalized === "/") return true;
   if (isSpaAppRoute(reqPath)) return true;
   if (isVoiceShellSpaRoute(reqPath)) return true;
@@ -22727,6 +22736,66 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build platform health",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/status") {
+    try {
+      const { buildOpsStatus } = require("./lib/ops/ops-status");
+      let packageVersion = null;
+      try {
+        packageVersion = require("./package.json").version || null;
+      } catch {
+        packageVersion = null;
+      }
+      const payload = await buildOpsStatus({
+        projectRoot: getProjectRoot(),
+        hostHeader: String(req.headers?.host || ""),
+        getPlatformSettings,
+        buildAgentMcpPing,
+        packageVersion
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build ops status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/maintenance") {
+    try {
+      const settings = await getPlatformSettings(getProjectRoot());
+      return sendJson(res, 200, {
+        ok: true,
+        enabled: isPlatformMaintenanceMode(settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read maintenance-mode",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/maintenance") {
+    try {
+      const payload = await readJsonBody(req);
+      const next = Boolean(payload?.enabled);
+      await patchPlatformSettings({ "maintenance-mode": next }, getProjectRoot());
+      const settings = await getPlatformSettings(getProjectRoot());
+      return sendJson(res, 200, {
+        ok: true,
+        enabled: isPlatformMaintenanceMode(settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to save maintenance-mode",
         details: String(error.message || error)
       });
     }

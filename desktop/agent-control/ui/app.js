@@ -565,8 +565,8 @@ function renderServicesMonitor() {
       <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
-        <summary>Control — desktop на Mac, без порта</summary>
-        <p>Этот мониторинг — только процессы CMS. На VPS Control не ставят: <code>docker compose up</code>, systemd или <code>scripts/agent-https-service.sh</code>.</p>
+        <summary>Desktop Control · Web Control на сервере</summary>
+        <p>Этот пульт — <strong>desktop</strong> на Mac (без своего порта). На VPS откройте web-ops: <code>/control/</code> на порту Editor (после старта CMS). Запуск сервера: <code>docker compose up</code>, systemd или <code>scripts/agent-https-service.sh</code>.</p>
       </details>
     </div>
   `;
