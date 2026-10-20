@@ -56,6 +56,15 @@ const SERVICE_MONITOR_DEFS = [
     portLabel: "HTTP"
   },
   {
+    id: "control",
+    title: "Agent CMS Control (Web)",
+    shortName: "Control",
+    accent: "control",
+    icon: "control.svg",
+    portKey: "controlHttp",
+    portLabel: "HTTP"
+  },
+  {
     id: "mcp",
     title: "Agent CMS MCP",
     shortName: "MCP",
@@ -394,6 +403,13 @@ function getServiceMonitorOpenUrl(def, server, ports) {
     if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/commander/`;
     return ports.commanderHttp ? `http://localhost:${ports.commanderHttp}/` : "";
   }
+  if (def.id === "control") {
+    if (urls.controlHttp) return urls.controlHttp;
+    if (server?.controlHttp && ports.controlHttp) return `http://localhost:${ports.controlHttp}/`;
+    if (urls.controlEditor) return urls.controlEditor;
+    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/control/`;
+    return "";
+  }
   if (def.id === "mcp") {
     if (server?.mcpHttp && ports.mcpHttp) return `http://localhost:${ports.mcpHttp}/health`;
     if (server?.cms && ports.editorHttps) return getTestUrl("mcp");
@@ -405,6 +421,35 @@ function getServiceMonitorOpenUrl(def, server, ports) {
 function getServiceMonitorRowState(def, server, ports) {
   const port = ports[def.portKey];
   const portText = port != null ? String(port) : "—";
+
+  if (def.id === "control") {
+    const dedicated = Boolean(server?.controlHttp);
+    if (dedicated) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: "HTTP localhost",
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    if (server?.cms) {
+      return {
+        state: "on",
+        label: "Через Editor",
+        detail: `/control/ · :${ports.editorHttps}`,
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    return {
+      state: "off",
+      label: "Не запущен",
+      detail: "порт свободен",
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
 
   if (def.id === "mcp") {
     const httpUp = Boolean(server?.mcpHttp);
@@ -566,7 +611,7 @@ function renderServicesMonitor() {
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
         <summary>Desktop Control · Web Control на сервере</summary>
-        <p>Этот пульт — <strong>desktop</strong> на Mac (без своего порта). На VPS откройте web-ops: <code>/control/</code> на порту Editor (после старта CMS). Запуск сервера: <code>docker compose up</code>, systemd или <code>scripts/agent-https-service.sh</code>.</p>
+        <p>Этот пульт — <strong>desktop</strong> на Mac (без своего порта). Web Control: <code>http://host:3288/</code> (или <code>/control/</code> на Editor). Запуск: <code>npm start</code>, <code>docker compose up</code>, systemd.</p>
       </details>
     </div>
   `;
@@ -1108,6 +1153,7 @@ function getPorts() {
       voiceHttps: 3488,
       voiceHttp: 3088,
       commanderHttp: 3188,
+      controlHttp: 3288,
       mcpHttp: 3490
     }
   );
@@ -1574,7 +1620,8 @@ function getCardPorts(accent) {
     editorHttp: 3000,
     voiceHttps: 3488,
     voiceHttp: 3088,
-    commanderHttp: 3188
+    commanderHttp: 3188,
+    controlHttp: 3288
   };
 
   if (accent === "cms") {
@@ -1585,6 +1632,9 @@ function getCardPorts(accent) {
   }
   if (accent === "commander") {
     return { main: ports.commanderHttp, sub: "HTTP" };
+  }
+  if (accent === "control") {
+    return { main: ports.controlHttp, sub: "HTTP" };
   }
   return null;
 }

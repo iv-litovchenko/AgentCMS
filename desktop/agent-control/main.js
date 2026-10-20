@@ -324,15 +324,17 @@ async function probeServerStatus() {
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
 
-  const [cmsPid, voicePid, commanderPid, mcpHttpPid] = await Promise.all([
+  const [cmsPid, voicePid, commanderPid, controlHttpPid, mcpHttpPid] = await Promise.all([
     getPortPid(ports.editorHttps),
     getPortPid(ports.voiceHttps),
     getPortPid(ports.commanderHttp),
+    getPortPid(ports.controlHttp),
     getPortPid(ports.mcpHttp)
   ]);
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
   const commander = Boolean(commanderPid);
+  const controlHttp = Boolean(controlHttpPid);
   const mcpHttp = Boolean(mcpHttpPid);
   const running = cms || voice;
   const autoStart = await probeLaunchAgentStatus();
@@ -372,6 +374,7 @@ async function probeServerStatus() {
     cms,
     voice,
     commander,
+    controlHttp,
     mcpHttp,
     supervisorAlive,
     supervisorPid,
@@ -395,7 +398,9 @@ async function probeServerStatus() {
       cms: cms ? `https://localhost:${ports.editorHttps}` : null,
       voice: voice ? `https://localhost:${ports.voiceHttps}` : null,
       commanderHttp: commander ? `http://localhost:${ports.commanderHttp}/` : null,
-      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null
+      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null,
+      controlHttp: controlHttp ? `http://localhost:${ports.controlHttp}/` : null,
+      controlEditor: cms ? `https://localhost:${ports.editorHttps}/control/` : null
     }
   };
 }
@@ -432,6 +437,7 @@ async function forceStopServerPorts() {
   const ports = getServerPortsPayload();
   const portList = [
     ports.commanderHttp,
+    ports.controlHttp,
     ports.voiceHttps,
     ports.voiceHttp,
     ports.editorHttps,

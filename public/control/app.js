@@ -98,6 +98,7 @@ function renderQuickLinks(status) {
   const urls = status?.urls || {};
   const ports = status?.ports || {};
   const items = [
+    { label: "Web Control", url: urls.controlHttp || urls.control || null, port: ports.controlHttp },
     { label: "Editor", url: urls.editor || "/", port: ports.editorHttps },
     { label: "Chat", url: urls.voice || null, port: ports.voiceHttps },
     { label: "Commander", url: urls.commanderHttps || urls.commanderHttp || "/commander/", port: ports.commanderHttp },

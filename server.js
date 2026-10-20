@@ -22,6 +22,7 @@ const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
 const { startCommanderServer, stopCommanderServer } = require("./desktop/agent-commander/server");
+const { startControlServer, stopControlServer } = require("./lib/ops/control-server");
 const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
@@ -620,6 +621,7 @@ let httpServer = null;
 let httpsServer = null;
 let voiceServerInfo = null;
 let commanderServerInfo = null;
+let controlServerInfo = null;
 
 function getAppRoot() {
   return appRoot;
@@ -33729,6 +33731,7 @@ async function startServer(options = {}) {
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
   const commanderAutostart = process.env.COMMANDER_AUTOSTART !== "0";
+  const controlAutostart = process.env.CONTROL_AUTOSTART !== "0";
 
   function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
     return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });
@@ -33754,6 +33757,16 @@ async function startServer(options = {}) {
     return commanderServerInfo;
   }
 
+  async function maybeStartControlServer(cmsApiUrl) {
+    if (!controlAutostart) return null;
+    controlServerInfo = await startControlServer({
+      root: options.root || __dirname,
+      host: process.env.CONTROL_HOST || host || "127.0.0.1",
+      cmsApiUrl
+    });
+    return controlServerInfo;
+  }
+
   function commanderHttpsViaEditorUrl(httpsBase) {
     const base = String(httpsBase || "").trim().replace(/\/+$/, "");
     return base ? `${base}/commander/` : null;
@@ -33768,6 +33781,7 @@ async function startServer(options = {}) {
     const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort: null, boundTlsPort });
     const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
     const commanderInfo = await maybeStartCommanderServer();
+    const controlInfo = await maybeStartControlServer(cmsApiUrl);
     const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
     const editorHttps = lanIp ? `https://${lanIp}:${boundTlsPort}` : url;
     return {
@@ -33785,6 +33799,7 @@ async function startServer(options = {}) {
       voiceHttpsUrl: voiceInfo?.httpsUrl || null,
       commanderHttpUrl: commanderInfo?.url || null,
       commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttps),
+      controlHttpUrl: controlInfo?.url || null,
       mobileUrl: voiceUrl || (lanIp ? `https://${lanIp}:${boundTlsPort}/` : `${url}/`),
       stop: stopServer
     };
@@ -33822,6 +33837,7 @@ async function startServer(options = {}) {
   const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
   const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
   const commanderInfo = await maybeStartCommanderServer();
+  const controlInfo = await maybeStartControlServer(cmsApiUrl);
   const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
   const editorHttpsResolved = lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl;
 
@@ -33840,6 +33856,7 @@ async function startServer(options = {}) {
     voiceHttpsUrl: voiceInfo?.httpsUrl || null,
     commanderHttpUrl: commanderInfo?.url || null,
     commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttpsResolved),
+    controlHttpUrl: controlInfo?.url || null,
     mobileUrl:
       voiceUrl ||
       (httpsUrl
@@ -33856,8 +33873,10 @@ async function startServer(options = {}) {
 async function stopServer() {
   await stopVoiceServer().catch(() => null);
   await stopCommanderServer().catch(() => null);
+  await stopControlServer().catch(() => null);
   voiceServerInfo = null;
   commanderServerInfo = null;
+  controlServerInfo = null;
   try {
     require("./agent-shell/runtime-cli-session").shutdownCliSessionPool();
   } catch {
@@ -33931,6 +33950,7 @@ if (require.main === module) {
       else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
       if (info.commanderHttpUrl) console.log(`Agent CMS Commander HTTP  at ${info.commanderHttpUrl}`);
       if (info.commanderHttpsUrl) console.log(`Agent CMS Commander HTTPS at ${info.commanderHttpsUrl}`);
+      if (info.controlHttpUrl) console.log(`Agent CMS Web Control HTTP at ${info.controlHttpUrl}`);
       console.log(`Voice UI:         ${info.mobileUrl}`);
       console.log("");
       if (info.voiceHttpsUrl || info.httpsUrl) {

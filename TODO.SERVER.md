@@ -52,6 +52,7 @@
 | Editor HTTPS | `3443` (mkcert) | `443` / свой `TLS_PORT` |
 | Voice HTTP/HTTPS | `3088` / `3488` | те же env или только HTTPS |
 | Commander | `3188` | опционально, часто не наружу |
+| Web Control | `3288` | ops-пульт; `CONTROL_HOST=0.0.0.0` для LAN |
 | **MCP HTTP** | **`3490`** (`npm run mcp:http`) | **`AGENT_CMS_MCP_HTTP_PORT`**, token **`AGENT_CMS_MCP_TOKEN`** |
 
 Канон имён портов: `lib/config/agent-cms-ports.js` (`AGENT_CMS_EDITOR_*`, `AGENT_CMS_VOICE_*`, …). Для сервера — `.env` или compose `environment:` + проброс volume.
@@ -66,8 +67,9 @@
 Editor:     HTTP 3000   HTTPS 3443
 Voice:      HTTP 3088   HTTPS 3488
 Commander:  HTTP 3188
+Web Control: HTTP 3288  (`npm run control:start` или CONTROL_AUTOSTART=1) · также /control/ на Editor
 MCP stdio:  (без порта) · MCP HTTP: 3490 → `/mcp`
-Web Control (ops):  /control/  (редirect с `/control`)  ·  GET /api/ops/status  ·  POST maintenance — с app-lock в `.env`, если настроен
+Ops API: GET /api/ops/status · POST maintenance (app-lock, если в `.env`)
 ```
 
 Скрипт экспорта: `node lib/config/agent-cms-ports.js`

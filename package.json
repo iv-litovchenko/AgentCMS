@@ -30,6 +30,7 @@
     "control:pack": "node scripts/build-desktop-subapp.js agent-control pack && node scripts/flatten-desktop-dist.js agent-control",
     "control:dist": "node scripts/build-desktop-subapp.js agent-control dist && node scripts/flatten-desktop-dist.js agent-control",
     "control:open": "open \"dist/agent-control/Agent CMS Control.app\"",
+    "control:start": "node control-server.js",
     "commander:start": "node commander-server.js",
     "commander:desktop": "electron ./desktop/agent-commander",
     "commander:pack": "node scripts/build-desktop-subapp.js agent-commander pack && node scripts/flatten-desktop-dist.js agent-commander",

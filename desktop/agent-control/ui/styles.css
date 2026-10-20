@@ -16,6 +16,7 @@
   --commander: #f43f5e;
   --commander-dim: #be123c;
   --mcp: #fbbf24;
+  --control: #0d9488;
   --mcp-dim: #d97706;
   --danger: #f87171;
   --ok: #34d399;
@@ -1061,6 +1062,11 @@ body.is-booting {
   box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
 }
 
+.svc-rack-seg[data-on="1"][data-accent="control"] {
+  background: var(--control);
+  box-shadow: 0 0 10px rgba(13, 148, 136, 0.45);
+}
+
 .svc-rack-seg[data-on="1"][data-accent="mcp"] {
   background: var(--mcp);
   box-shadow: 0 0 10px rgba(129, 140, 248, 0.45);
@@ -1106,7 +1112,7 @@ body.is-booting {
 
 .svc-rack-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 10px;
   align-items: stretch;
 }
@@ -1177,6 +1183,10 @@ body.is-booting {
 
 .svc-rack-card[data-accent="commander"]::before {
   background: linear-gradient(90deg, var(--commander), transparent);
+}
+
+.svc-rack-card[data-accent="control"]::before {
+  background: linear-gradient(90deg, var(--control), transparent);
 }
 
 .svc-rack-card[data-accent="mcp"]::before {
@@ -1256,6 +1266,10 @@ body.is-booting {
 
 .svc-rack-card[data-accent="commander"] .svc-rack-port {
   color: var(--commander);
+}
+
+.svc-rack-card[data-accent="control"] .svc-rack-port {
+  color: var(--control);
 }
 
 .svc-rack-card[data-accent="mcp"] .svc-rack-port {
