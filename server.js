@@ -478,7 +478,7 @@ const {
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
   ensureAgentTaskQueueStoreScaffold,
-  ensureExternalMemoryGroupScaffold,
+  ensureExternalMemoryStoreScaffold,
   TASK_QUEUE_STORE_REL,
   AGENT_TASK_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
@@ -486,7 +486,7 @@ const {
   FACTS_STORE_REL,
   GLOSSARY_STORE_REL,
   REFERENCE_STORE_REL,
-  EXTERNAL_MEMORY_GROUP_REL
+  EXTERNAL_MEMORY_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -27231,10 +27231,10 @@ async function handleApiForAgent(req, res, url) {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
-      const result = ensureExternalMemoryGroupScaffold(agentRoot, getProjectRoot());
+      const result = ensureExternalMemoryStoreScaffold(agentRoot, getProjectRoot());
       return sendJson(res, 201, {
         ok: true,
-        groupRel: EXTERNAL_MEMORY_GROUP_REL,
+        storeRel: EXTERNAL_MEMORY_STORE_REL,
         ...result
       });
     } catch (error) {

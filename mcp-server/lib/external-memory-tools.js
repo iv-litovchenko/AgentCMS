@@ -3,7 +3,7 @@ import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
 const providerSchema = z
   .enum(["claude", "cursor", "chatgpt", "other"])
-  .describe("Assistant / service (folder under 0-external-memory/)");
+  .describe("Section under 0-contents/0-external-memory/awn-storage/data/ (claude, cursor, …)");
 
 const listSchema = z.object({
   provider: providerSchema,
@@ -42,7 +42,7 @@ export function registerExternalMemoryTools(reg, client) {
     canonical: "external_memory_list",
     legacy: "list_external_memory",
     description:
-      "List memory entries from awn-databases/0-external-memory/{provider} (claude, cursor, chatgpt, other).",
+      "List memory entries from section claude|cursor|chatgpt|other in awn-databases/0-contents/0-external-memory/.",
     schema: listSchema,
     handler: ({ provider, limit }) =>
       client.get("/api/agent/workspace-external-memory/list", {
@@ -63,7 +63,7 @@ export function registerExternalMemoryTools(reg, client) {
     canonical: "external_memory_sync",
     legacy: "sync_external_memory",
     description:
-      "Sync external memory: pull entries into CMS, push export markdown to awn-databases/0-external-memory/exports/{provider}.md, update 0-sync state.",
+      "Sync external memory: pull entries into a section, push export to exports/{provider}.md, update sync-state.json.",
     schema: syncSchema,
     handler: (payload) => client.post("/api/agent/workspace-external-memory/sync", payload)
   });
@@ -71,7 +71,7 @@ export function registerExternalMemoryTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "external_memory_sync_status",
     legacy: "external_memory_sync_status_get",
-    description: "Read lastSync metadata from awn-databases/0-external-memory/0-sync singleton.",
+    description: "Read lastSync metadata from awn-databases/0-contents/0-external-memory/sync-state.json.",
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-external-memory/sync-status")
   });

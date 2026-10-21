@@ -18043,7 +18043,7 @@ const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
 const AWN_CONTENTS_REFERENCE_STORE = `${AWN_CONTENTS_GROUP}/reference`;
-const AWN_EXTERNAL_MEMORY_GROUP = "0-external-memory";
+const AWN_EXTERNAL_MEMORY_STORE = `${AWN_CONTENTS_GROUP}/external-memory`;
 const AWN_TASK_QUEUE_STORE = "task-queue";
 const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
 const LEGACY_AWN_AGENT_QUEUE_STORE = "agent-queue";
@@ -18541,9 +18541,9 @@ const WORKSPACE_TOOL_MODULE_META = {
     title: "Очередь задач",
     lead: "Коллекция task-queue — чекпоинты и задачи (слот task-queue в теме и канале)."
   },
-  [`awn-databases/${AWN_EXTERNAL_MEMORY_GROUP}`]: {
+  [`awn-databases/${AWN_EXTERNAL_MEMORY_STORE}`]: {
     title: "Внешняя память",
-    lead: "Синхронизация памяти ассистентов: 0-claude, 0-cursor, 0-chatgpt, 0-other (external_memory_sync)."
+    lead: "0-contents/0-external-memory — разделы claude, cursor, chatgpt, other (external_memory_sync)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -121349,16 +121349,16 @@ function syncAwnDataCreateGroupPresetsUi() {
   }
 
   const externalMemoryBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
-    '[data-awn-data-group-preset="external-memory"]'
+    '[data-awn-data-group-preset="contents-external-memory"]'
   );
   if (externalMemoryBtn) {
-    const exists = isAwnContentsCollectionPresent(AWN_EXTERNAL_MEMORY_GROUP, activeWorkspaceId);
+    const exists = isAwnContentsCollectionPresent(AWN_EXTERNAL_MEMORY_STORE, activeWorkspaceId);
     externalMemoryBtn.disabled = exists;
     externalMemoryBtn.classList.toggle("is-disabled", exists);
     externalMemoryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
     externalMemoryBtn.title = exists
-      ? "Группа awn-databases/0-external-memory/ уже создана"
-      : "Группа 0-external-memory/ — claude, cursor, chatgpt, other и 0-sync (MCP external_memory_sync)";
+      ? "Коллекция awn-databases/0-contents/0-external-memory уже создана"
+      : "Группа 0-contents/ и коллекция 0-external-memory (разделы claude, cursor…, MCP external_memory_sync)";
   }
 }
 
@@ -130868,7 +130868,7 @@ async function submitAwnDataScaffoldExternalMemory(agentId = activeWorkspaceId) 
     return;
   }
   const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
-    '[data-awn-data-group-preset="external-memory"]'
+    '[data-awn-data-group-preset="contents-external-memory"]'
   );
   if (presetBtn) presetBtn.disabled = true;
   try {
@@ -130880,19 +130880,19 @@ async function submitAwnDataScaffoldExternalMemory(agentId = activeWorkspaceId) 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
     closeAwnDataCreateModal();
-    const created = Array.isArray(data.storesCreated) ? data.storesCreated : [];
-    if (data.groupCreated) {
+    const sections = Array.isArray(data.sectionsCreated) ? data.sectionsCreated : [];
+    if (data.storeCreated) {
       showToast(
-        created.length
-          ? `Создана «Внешняя память»: ${created.join(", ")}`
-          : "Создана группа «Внешняя память»",
+        sections.length
+          ? `Создана «Внешняя память», разделы: ${sections.join(", ")}`
+          : "Создана коллекция «Внешняя память»",
         "success"
       );
     } else {
-      showToast("Группа «Внешняя память» уже существует", "success");
+      showToast("Коллекция «Внешняя память» уже существует", "success");
     }
     await refreshMenuAwnDataStores(agentId);
-    void openAwnDataViewPage(AWN_EXTERNAL_MEMORY_GROUP, agentId);
+    void openAwnDataViewPage(AWN_EXTERNAL_MEMORY_STORE, agentId);
   } catch (error) {
     showToast(String(error.message || error), "error");
   } finally {
@@ -130987,7 +130987,7 @@ function setupAwnDataStoresUi() {
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "glossary" });
     if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
-    if (preset === "external-memory") void submitAwnDataScaffoldExternalMemory();
+    if (preset === "contents-external-memory") void submitAwnDataScaffoldExternalMemory();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));
