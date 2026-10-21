@@ -204,6 +204,57 @@
       box-shadow: inset 3px 0 0 #f87171;
     }
 
+    .jarvis-extra-toggle {
+      appearance: none;
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      background: rgba(251, 191, 36, 0.14);
+      color: #fcd34d;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 10px 10px 9px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .jarvis-extra-toggle:hover {
+      background: rgba(251, 191, 36, 0.22);
+      border-color: rgba(251, 191, 36, 0.65);
+      color: #fde68a;
+    }
+
+    .jarvis-extra-toggle:focus-visible {
+      outline: 2px solid #fbbf24;
+      outline-offset: 1px;
+    }
+
+    .jarvis-extra-toggle[aria-expanded="true"] {
+      box-shadow: inset 3px 0 0 #fbbf24;
+    }
+
+    .jarvis-extra-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+
+    .jarvis-extra-list[hidden] {
+      display: none !important;
+    }
+
+    .jarvis-item[data-extra="true"] {
+      border-color: rgba(251, 191, 36, 0.18);
+    }
+
+    .jarvis-item[data-extra="true"] .label {
+      color: #fde68a;
+    }
+
     .main {
       flex: 1;
       min-width: 0;
@@ -339,6 +390,11 @@
     </div>
   </div>
   <script>
+    const JARVIS_EXTRA_FALLBACK = [
+      { id: 'jarvis-bridge', file: 'http://127.0.0.1:5173/', label: 'JARVIS Bridge', note: 'JarvisAndBrains/jarvis · npm run dev' },
+      { id: 'holo-gestures', file: 'brains/holo-gestures/holo.html', label: 'HOLO Gestures', note: 'JarvisAndBrains/holo-gestures' },
+    ];
+
     const JARVIS_FALLBACK = [
       { id: 'jarvis-v1', file: 'jarvis-v1/index.html', label: 'JARVIS v1' },
       { id: 'composer', file: 'composer-2.5.html', label: 'Composer 2.5' },
@@ -360,9 +416,11 @@
     const fileHint = document.getElementById('file-hint');
     const directLink = document.getElementById('direct-link');
     const storageKey = 'myjarvis-active-core';
+    const extraOpenKey = 'myjarvis-extra-open';
     const isFileProtocol = location.protocol === 'file:';
 
     let JARVIS = [];
+    let JARVIS_EXTRA = [];
 
     const STRUCK_IDS = new Set(['composer', 'grok', 'kimi', 'glm', 'gpt']);
 
@@ -397,13 +455,60 @@
       }
     }
 
+    async function loadExtraCores() {
+      if (isFileProtocol) return JARVIS_EXTRA_FALLBACK.slice();
+      try {
+        const res = await fetch('extra-cores.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        if (!Array.isArray(data) || !data.length) throw new Error('empty');
+        return data.filter((c) => c && c.id && c.file && c.label);
+      } catch (_) {
+        return JARVIS_EXTRA_FALLBACK.slice();
+      }
+    }
+
+    function readExtraOpen() {
+      try {
+        return localStorage.getItem(extraOpenKey) === '1';
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function writeExtraOpen(open) {
+      try {
+        localStorage.setItem(extraOpenKey, open ? '1' : '0');
+      } catch (_) {}
+    }
+
+    function allCores() {
+      return JARVIS_EXTRA.concat(JARVIS);
+    }
+
     function findById(id) {
-      return JARVIS.find((j) => j.id === id) || JARVIS[0];
+      return allCores().find((j) => j.id === id) || JARVIS[0];
+    }
+
+    function createCoreButton(entry, { extra = false } = {}) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'jarvis-item' + (STRUCK_IDS.has(entry.id) ? ' is-struck' : '');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('data-id', entry.id);
+      if (extra) btn.setAttribute('data-extra', 'true');
+      btn.setAttribute('aria-selected', 'false');
+      const fileLine = entry.note ? entry.note : entry.file;
+      btn.innerHTML =
+        '<span class="label">' + entry.label + '</span>' +
+        '<span class="file">' + fileLine + '</span>';
+      btn.addEventListener('click', () => setActive(entry));
+      return btn;
     }
 
     function setActive(entry, { updateHash = true } = {}) {
       if (!entry) return;
-      JARVIS.forEach((j) => {
+      allCores().forEach((j) => {
         const btn = coreList.querySelector('[data-id="' + j.id + '"]');
         if (btn) btn.setAttribute('aria-selected', j.id === entry.id ? 'true' : 'false');
       });
@@ -429,24 +534,35 @@
       const pinned = JARVIS.filter((j) => j.id === 'jarvis-v1');
       const rest = JARVIS.filter((j) => j.id !== 'jarvis-v1');
       const ordered = pinned.concat(rest);
-      coreCount.textContent = JARVIS.length + ' ядер';
-      ordered.forEach((j) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'jarvis-item' + (STRUCK_IDS.has(j.id) ? ' is-struck' : '');
-        btn.setAttribute('role', 'tab');
-        btn.setAttribute('data-id', j.id);
-        btn.setAttribute('aria-selected', 'false');
-        btn.innerHTML =
-          '<span class="label">' + j.label + '</span>' +
-          '<span class="file">' + j.file + '</span>';
-        btn.addEventListener('click', () => setActive(j));
-        coreList.appendChild(btn);
+      const extraCount = JARVIS_EXTRA.length;
+      coreCount.textContent =
+        JARVIS.length + ' ядер' + (extraCount ? ' · +' + extraCount + ' доп.' : '');
+
+      let extraOpen = readExtraOpen();
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'jarvis-extra-toggle';
+      toggle.textContent = 'Доп джарвисы';
+      toggle.setAttribute('aria-expanded', extraOpen ? 'true' : 'false');
+      const extraWrap = document.createElement('div');
+      extraWrap.className = 'jarvis-extra-list';
+      extraWrap.hidden = !extraOpen;
+      JARVIS_EXTRA.forEach((j) => extraWrap.appendChild(createCoreButton(j, { extra: true })));
+      toggle.addEventListener('click', () => {
+        extraOpen = !extraOpen;
+        extraWrap.hidden = !extraOpen;
+        toggle.setAttribute('aria-expanded', extraOpen ? 'true' : 'false');
+        writeExtraOpen(extraOpen);
       });
+      coreList.appendChild(toggle);
+      coreList.appendChild(extraWrap);
+
+      ordered.forEach((j) => coreList.appendChild(createCoreButton(j)));
     }
 
     async function boot() {
       JARVIS = await loadCores();
+      JARVIS_EXTRA = await loadExtraCores();
       renderList();
 
       const fromHash = location.hash.replace(/^#/, '');

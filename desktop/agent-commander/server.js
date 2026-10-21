@@ -9,11 +9,17 @@ const { getAgentCmsPorts, hydrateProcessEnvFromRoot, syncLegacyPortEnvVars } =
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
-  ".ico": "image/x-icon"
+  ".ico": "image/x-icon",
+  ".wasm": "application/wasm",
+  ".glb": "model/gltf-binary",
+  ".mp3": "audio/mpeg",
+  ".task": "application/octet-stream",
+  ".md": "text/markdown; charset=utf-8"
 };
 
 let activeServer = null;
@@ -22,6 +28,42 @@ function resolvePublicRoot(options = {}) {
   if (options.publicRoot) return path.resolve(options.publicRoot);
   const root = path.resolve(String(options.root || path.join(__dirname, "..", "..")));
   return path.join(root, "public", "commander");
+}
+
+function resolveBrainsRoot(projectRoot) {
+  const fromEnv = String(process.env.JARVIS_BRAINS_ROOT || "").trim();
+  if (fromEnv) {
+    const resolved = path.resolve(fromEnv);
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  const root = path.resolve(projectRoot);
+  const candidates = [
+    path.join(root, "..", "ws-focus", "awn-repositories", "JarvisAndBrains"),
+    path.join(root, "workspaces", "0-ws-core", "awn-repositories", "JarvisAndBrains")
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function resolveCommanderFilePath(urlPath, publicRoot, projectRoot) {
+  let rel = urlPath === "/" ? "/index.html" : urlPath;
+  if (rel.includes("..")) return { error: 403 };
+
+  const brainsPrefix = "/brains/";
+  if (rel.startsWith(brainsPrefix)) {
+    const brainsRoot = resolveBrainsRoot(projectRoot);
+    if (!brainsRoot) return { error: 404 };
+    const brainsRel = rel.slice(brainsPrefix.length);
+    const filePath = path.join(brainsRoot, brainsRel);
+    if (!filePath.startsWith(brainsRoot)) return { error: 403 };
+    return { filePath };
+  }
+
+  const filePath = path.join(publicRoot, rel);
+  if (!filePath.startsWith(publicRoot)) return { error: 403 };
+  return { filePath };
 }
 
 function loadMaintenanceHelpers(projectRoot) {
@@ -85,19 +127,13 @@ function createStaticHandler(publicRoot, projectRoot) {
       return;
     }
 
-    let rel = urlPath === "/" ? "/index.html" : urlPath;
-    if (rel.includes("..")) {
-      res.writeHead(403);
-      res.end("Forbidden");
+    const resolved = resolveCommanderFilePath(urlPath, publicRoot, projectRoot);
+    if (resolved.error) {
+      res.writeHead(resolved.error, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end(resolved.error === 403 ? "Forbidden" : "Not found");
       return;
     }
-
-    const filePath = path.join(publicRoot, rel);
-    if (!filePath.startsWith(publicRoot)) {
-      res.writeHead(403);
-      res.end("Forbidden");
-      return;
-    }
+    const filePath = resolved.filePath;
 
     const maintenanceActive = await isCommanderMaintenanceActive(projectRoot);
     if (maintenanceActive && !isCommanderMaintenanceBypassPath(urlPath)) {
