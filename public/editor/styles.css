@@ -12326,6 +12326,21 @@ body.workspace-idle-screensaver-active {
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
 }
 
+.agent-visualization-pane .agent-rmm-view-chrome-filters {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-visualization-pane .agent-rmm-view-chrome-settings-selects {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .agent-visualization-pane .agent-rmm-content:has(#agent-rmm-graph-chrome:not(.hidden)) .agent-rmm-depth-on-canvas {
   right: 40px;
 }

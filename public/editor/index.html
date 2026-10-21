@@ -5004,18 +5004,35 @@
         </div>
         <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
           <div id="agent-rmm-view-chrome" class="agent-rmm-view-chrome">
-            <label
-              class="agent-rmm-depth-label agent-rmm-depth-on-canvas"
-              for="agent-rmm-depth"
-              title="Заготовка: уровень детализации визуализации по markdown"
+            <div
+              class="agent-rmm-depth-on-canvas agent-rmm-view-chrome-filters agent-rmm-depth-label agent-rmm-view-chrome-settings"
+              title="Заготовка: фильтры карты workspace"
             >
-              <span class="agent-rmm-depth-label-text">Глубина</span>
-              <select id="agent-rmm-depth" aria-label="Глубина данных">
-                <option value="md-file">MD-файл</option>
-                <option value="md-headings">MD-файл + заголовки</option>
-                <option value="md-links">MD-файл + заголовки + ссылки и теги</option>
-              </select>
-            </label>
+              <span class="agent-rmm-depth-label-text">Настройки</span>
+              <div class="agent-rmm-view-chrome-settings-selects">
+                <select
+                  id="agent-rmm-depth-scope"
+                  aria-label="Ограничение глубины веток"
+                  title="Заготовка: какие узлы показывать на карте по типу"
+                >
+                  <optgroup label="Ограничение глубины веток">
+                    <option value="hubs-only">Только хабы</option>
+                    <option value="hubs-content">Хабы + контент</option>
+                  </optgroup>
+                </select>
+                <select
+                  id="agent-rmm-depth"
+                  aria-label="Ограничение глубины чтения"
+                  title="Заготовка: уровень детализации визуализации по markdown"
+                >
+                  <optgroup label="Ограничение глубины чтения">
+                    <option value="md-file">MD-файл</option>
+                    <option value="md-headings">MD-файл + заголовки</option>
+                    <option value="md-links">MD-файл + заголовки + ссылки и теги</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
           </div>
           <div id="agent-rmm-graph-chrome" class="agent-rmm-graph-chrome hidden" aria-hidden="true">
             <div class="agent-rmm-graph-chrome-top-center">

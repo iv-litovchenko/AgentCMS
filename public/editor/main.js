@@ -1258,9 +1258,15 @@ const agentRoadmapMapPaneNode = document.getElementById("agent-roadmap-map-pane"
 const agentRoadmapMapContentNode = document.getElementById("agent-roadmap-map-content");
 const agentRoadmapMapHostNode = document.getElementById("agent-rmm-host");
 const agentRoadmapMapDetailNode = document.getElementById("agent-rmm-detail");
+const agentRoadmapMapDepthScopeNode = document.getElementById("agent-rmm-depth-scope");
 const agentRoadmapMapDepthNode = document.getElementById("agent-rmm-depth");
 const agentRoadmapMapZoomNode = document.getElementById("agent-rmm-zoom");
+const AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY = "agentcms.agentRmmDepthScope.v1";
 const AGENT_RMM_MARKDOWN_DEPTH_STORAGE_KEY = "agentcms.agentRmmMarkdownDepth.v1";
+const AGENT_RMM_DEPTH_SCOPE_LABELS = {
+  "hubs-only": "Только хабы",
+  "hubs-content": "Хабы + контент"
+};
 const AGENT_RMM_MARKDOWN_DEPTH_LABELS = {
   "md-file": "MD-файл",
   "md-headings": "MD-файл + заголовки",
@@ -1294,6 +1300,47 @@ function persistAgentRoadmapMapDepth(depth) {
 
 let agentRoadmapMapDepth = loadAgentRoadmapMapDepthFromStorage();
 
+function normalizeAgentRoadmapMapDepthScope(raw) {
+  const value = String(raw || "").trim();
+  if (value === "hubs-content" || value === "hubs+content" || value === "content") return "hubs-content";
+  if (value === "hubs-only" || value === "hubs") return "hubs-only";
+  return "hubs-only";
+}
+
+function loadAgentRoadmapMapDepthScopeFromStorage() {
+  try {
+    return normalizeAgentRoadmapMapDepthScope(localStorage.getItem(AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY));
+  } catch {
+    return "hubs-only";
+  }
+}
+
+function persistAgentRoadmapMapDepthScope(scope) {
+  try {
+    localStorage.setItem(AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY, normalizeAgentRoadmapMapDepthScope(scope));
+  } catch {
+    /* ignore */
+  }
+}
+
+let agentRoadmapMapDepthScope = loadAgentRoadmapMapDepthScopeFromStorage();
+
+function getAgentRoadmapMapDepthScopeLabel(scope = agentRoadmapMapDepthScope) {
+  return (
+    AGENT_RMM_DEPTH_SCOPE_LABELS[normalizeAgentRoadmapMapDepthScope(scope)] ||
+    AGENT_RMM_DEPTH_SCOPE_LABELS["hubs-only"]
+  );
+}
+
+function syncAgentRoadmapMapDepthScopeSelectUi() {
+  if (!agentRoadmapMapDepthScopeNode) return;
+  const normalized = normalizeAgentRoadmapMapDepthScope(agentRoadmapMapDepthScope);
+  if (agentRoadmapMapDepthScopeNode.value !== normalized) {
+    agentRoadmapMapDepthScopeNode.value = normalized;
+  }
+  agentRoadmapMapDepthScopeNode.title = `Заготовка: ограничение глубины веток — ${getAgentRoadmapMapDepthScopeLabel(normalized)}`;
+}
+
 function getAgentRoadmapMapDepthLabel(depth = agentRoadmapMapDepth) {
   return AGENT_RMM_MARKDOWN_DEPTH_LABELS[normalizeAgentRoadmapMapDepth(depth)] || AGENT_RMM_MARKDOWN_DEPTH_LABELS["md-file"];
 }
@@ -1321,10 +1368,7 @@ function syncAgentRoadmapMapDepthSelectUi() {
   if (agentRoadmapMapDepthNode.value !== normalized) {
     agentRoadmapMapDepthNode.value = normalized;
   }
-  const label = agentRoadmapMapDepthNode.closest("label");
-  if (label) {
-    label.title = `Заготовка: ${getAgentRoadmapMapDepthLabel(normalized)}`;
-  }
+  agentRoadmapMapDepthNode.title = `Заготовка: ограничение глубины чтения — ${getAgentRoadmapMapDepthLabel(normalized)}`;
 }
 let agentRoadmapMapRenderSeq = 0;
 let agentRoadmapMapViewportApi = null;
@@ -114264,6 +114308,7 @@ async function renderAgentRoadmapMapLiveView(renderSeq) {
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
 
   agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmDepthScope = agentRoadmapMapDepthScope;
   agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
 
   const graphHost = document.createElement("div");
@@ -114315,7 +114360,7 @@ function renderAgentRoadmapMapPlaceholderSubview(container) {
   );
   const hint = document.createElement("p");
   hint.className = "agent-rmm-depth-stub-hint";
-  hint.textContent = `Глубина: ${getAgentRoadmapMapDepthLabel()} — заготовка, логика представления позже.`;
+  hint.textContent = `Ограничение глубины веток: ${getAgentRoadmapMapDepthScopeLabel()}; ограничение глубины чтения: ${getAgentRoadmapMapDepthLabel()} — заготовка, логика представления позже.`;
   wrap.appendChild(hint);
   container.appendChild(wrap);
 }
@@ -114332,7 +114377,14 @@ function ensureAgentRoadmapMapUiBindings() {
       if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
     });
   });
+  syncAgentRoadmapMapDepthScopeSelectUi();
   syncAgentRoadmapMapDepthSelectUi();
+  agentRoadmapMapDepthScopeNode?.addEventListener("change", () => {
+    agentRoadmapMapDepthScope = normalizeAgentRoadmapMapDepthScope(agentRoadmapMapDepthScopeNode.value);
+    persistAgentRoadmapMapDepthScope(agentRoadmapMapDepthScope);
+    syncAgentRoadmapMapDepthScopeSelectUi();
+    if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
+  });
   agentRoadmapMapDepthNode?.addEventListener("change", () => {
     agentRoadmapMapDepth = normalizeAgentRoadmapMapDepth(agentRoadmapMapDepthNode.value);
     persistAgentRoadmapMapDepth(agentRoadmapMapDepth);
@@ -114754,6 +114806,7 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
     pageIndexPayload
   });
   agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmDepthScope = agentRoadmapMapDepthScope;
   agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
   if (graph.nodes.length <= 1) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "В workspace пока нет узлов для графа");
