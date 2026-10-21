@@ -18,6 +18,7 @@
 - [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
 - [Time tracker — идея MCP (черновик)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
+- [Transfer — идея MCP (черновик)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
 - [С чего начать?](#-с-чего-начать-gb-where-to-start)
@@ -40,6 +41,7 @@
 > - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
 > - [Time tracker — MCP idea (draft)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
+> - [Transfer — MCP idea (draft)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
 > - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
@@ -345,7 +347,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 23 · **🔴** 0
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0
 
 ```
 user-agent-cms
@@ -419,6 +421,16 @@ user-agent-cms
 │   ├── 🟡 time_tracker_activity_stop_zzz — идея: стоп текущей активности
 │   ├── 🟡 time_tracker_entry_log_zzz — идея: запись задним числом или длительностью
 │   └── 🟡 time_tracker_summary_zzz — идея: отчёт за период (workspace, category, label)
+│
+├── 🔗 Record links (Ссылки записи) · 2
+│   ├── 🟡 record_links_outgoing_get_zzz — идея: на кого/что ссылается (wikilinks, md, assets)
+│   └── 🟡 record_links_incoming_get_zzz — идея: кто ссылается на эту запись
+│
+├── 🔀 Transfer (Между хранилищами) · 4
+│   ├── 🟡 transfer_record_zzz — идея: одна запись (.md, manifest, sidecar) A → B
+│   ├── 🟡 transfer_record_binary_zzz — идея: один бинарник (media, awn-storage) A → B
+│   ├── 🟡 transfer_record_plan_zzz — идея: plan зависимых записей/бинарников + конфликты
+│   └── 🟡 transfer_record_plan_execute_zzz — идея: выполнить plan (серия transfer_*)
 │
 ├── 📋 Запросы реестра (Registry queries) · 2
 │   ├── 🟢 registry_queries_list
@@ -714,6 +726,54 @@ user-agent-cms
 > 🇬🇧 **[en]**
 >
 > Personal **time tracker** — CMS workspaces *and* off-screen life (gym, walk). Separate MCP group `time_tracker_*`, not session tools. Start/stop timer, log entries after the fact, summary by category or workspace. Examples above; orbit UI can use workspace slice of `time_tracker_summary_zzz` only.
+
+## 🇷🇺 Transfer — идея MCP (черновик) (🇬🇧 Transfer — MCP idea (draft))
+
+🇷🇺 **[ru]**
+
+**Зачем.** Перенос **между workspace**. Не путать с 🟢 `content_move` / `topic_move` (только внутри vault). Сначала ссылки записи, потом plan, потом перенос.
+
+**Ссылки записи** (текущий workspace):
+
+| Tool | Смысл |
+|------|--------|
+| `record_links_outgoing_get_zzz` | На кого/что ссылается: wikilinks, md-ссылки, картинки в теле |
+| `record_links_incoming_get_zzz` | Кто ссылается на эту запись |
+
+**Transfer:**
+
+| Tool | Смысл |
+|------|--------|
+| `transfer_record_plan_zzz` | Список зависимых записей/бинарников для переноса, конфликты slug в B |
+| `transfer_record_plan_execute_zzz` | Выполнить plan |
+| `transfer_record_zzz` | Одна текстовая запись (copy \| move), опционально `dryRun` |
+| `transfer_record_binary_zzz` | Один бинарник |
+
+**Поток:** `record_links_outgoing_get` → `transfer_record_plan` → `transfer_record_plan_execute` (или вручную по plan).
+
+```json
+// record_links_outgoing_get_zzz
+{ "path": "awn-topics/demo", "slot": "main", "ref": "note.md" }
+
+// transfer_record_plan_zzz
+{
+  "fromWorkspaceId": "0-ws-test",
+  "toWorkspaceId": "0-ws-core",
+  "source": { "path": "awn-topics/demo", "slot": "main", "ref": "note.md" },
+  "target": { "path": "awn-topics/imported", "slot": "main" },
+  "includeIncoming": false,
+  "dryRun": true
+}
+
+// transfer_record_plan_execute_zzz
+{ "planId": "…", "mode": "copy", "rewriteLinks": "same-vault-only" }
+```
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Cross-workspace **transfer**: `record_links_outgoing_get_zzz` / `record_links_incoming_get_zzz`, then `transfer_record_plan_zzz` → `transfer_record_plan_execute_zzz` (or single `transfer_record_*`). In-vault: `content_move` / `topic_move`.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
