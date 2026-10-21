@@ -347,7 +347,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 29 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -672,6 +672,13 @@ user-agent-cms
 ├── 📥 Входящие (Inbox) · 2
 │   ├── 🟢 inbox_items_list
 │   └── 🟢 inbox_item_triage
+│
+├── 🗨️ Чаты (Chats · awn-dialogs/) · 5
+│   ├── 🟡 chat_runtimes_list_zzz — идея: runtime-папки (claude, codex, qwenpaw…); не `discussion_*`
+│   ├── 🟡 chat_sessions_list_zzz — идея: сессии (uuid) внутри runtime
+│   ├── 🟡 chat_history_zzz — идея: переписка; опора `readShellDialogHistory`, HTTP `GET /api/shell/dialogs/history`
+│   ├── 🟡 chat_archive_summary_zzz — идея: сводка архива (файлы, даты, объём; блок «Диалоги (чаты) с ИИ»)
+│   └── 🟡 chat_import_zzz — идея: выгрузка Claude Desktop / Codex → `awn-dialogs/<runtime>/<session>/`
 │
 ├── 💬 Обсуждение (Discussion) · 2
 │   ├── 🟢 discussion_read
