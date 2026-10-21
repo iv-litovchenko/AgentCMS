@@ -13171,6 +13171,80 @@ body.workspace-idle-screensaver-active {
   word-break: break-all;
 }
 
+.agent-rmm-atlas-kinds-scroll {
+  gap: 16px;
+}
+
+.agent-rmm-atlas-kinds-section {
+  margin: 0;
+}
+
+.agent-rmm-atlas-kinds-section-title {
+  margin: 0 0 8px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.agent-rmm-atlas-kinds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.agent-rmm-atlas-kind-card {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+}
+
+.agent-rmm-atlas-kind-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.agent-rmm-atlas-kind-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.agent-rmm-atlas-kind-id code {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+.agent-rmm-atlas-kind-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.25;
+}
+
+.agent-rmm-atlas-kind-desc {
+  margin: 0 0 6px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.agent-rmm-atlas-kind-meta {
+  margin: 0;
+  font-size: 9px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.agent-rmm-atlas-kind-meta code {
+  font-size: 9px;
+}
+
 .agent-rmm-mode-tabs {
   display: flex;
   flex-wrap: wrap;

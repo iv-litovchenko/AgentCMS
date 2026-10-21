@@ -114010,6 +114010,11 @@ function renderAgentRoadmapMapView() {
     return;
   }
 
+  if (agentRoadmapMapSubview === "atlas-kinds") {
+    void renderAgentRoadmapMapAtlasKindsView(renderSeq);
+    return;
+  }
+
   if (!currentMenuData) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
     return;
@@ -114095,6 +114100,102 @@ async function renderAgentRoadmapMapAtlasView(renderSeq) {
     if (renderSeq !== agentRoadmapMapRenderSeq) return;
     agentRoadmapMapHostNode.replaceChildren();
     renderListEmptyMessage(agentRoadmapMapHostNode, `Атлас: ${error?.message || error}`);
+  }
+}
+
+async function renderAgentRoadmapMapAtlasKindsView(renderSeq) {
+  if (!agentRoadmapMapHostNode) return;
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка реестра видов…");
+  try {
+    const [kindsRes, atlasRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/kinds")),
+      fetch(buildApiUrl("/api/viz/atlas"))
+    ]);
+    const payload = kindsRes.ok ? await kindsRes.json() : { sections: [], kinds: [] };
+    const atlas = atlasRes.ok ? await atlasRes.json() : { items: [] };
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+
+    const sections = Array.isArray(payload.sections) ? payload.sections : [];
+    const kinds = Array.isArray(payload.kinds) ? payload.kinds : [];
+    const countByKind = new Map();
+    for (const item of Array.isArray(atlas.items) ? atlas.items : []) {
+      const k = String(item.kind || "").toLowerCase();
+      countByKind.set(k, (countByKind.get(k) || 0) + 1);
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll agent-rmm-atlas-kinds-scroll";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Виды карт визуализации");
+
+    const head = document.createElement("div");
+    head.className = "agent-rmm-atlas-head";
+    head.innerHTML =
+      `<p class="agent-rmm-atlas-title">Виды карт — реестр платформы</p>` +
+      `<p class="agent-rmm-atlas-meta">${kinds.length} видов · файлы <code>*.{kind}.viz.md</code> · раздел «Атлас» — экземпляры в workspace</p>`;
+    wrap.appendChild(head);
+
+    const kindsBySection = new Map();
+    for (const kind of kinds) {
+      const sid = String(kind.section || "knowledge").toLowerCase();
+      if (!kindsBySection.has(sid)) kindsBySection.set(sid, []);
+      kindsBySection.get(sid).push(kind);
+    }
+
+    const sectionOrder = sections.length
+      ? sections.map((s) => s.id)
+      : [...kindsBySection.keys()];
+
+    for (const sectionDef of sections.length ? sections : sectionOrder.map((id) => ({ id, label: id, icon: "" }))) {
+      const sid = sectionDef.id;
+      const sectionKinds = kindsBySection.get(sid) || [];
+      if (!sectionKinds.length) continue;
+
+      const block = document.createElement("section");
+      block.className = "agent-rmm-atlas-kinds-section";
+
+      const blockHead = document.createElement("h3");
+      blockHead.className = "agent-rmm-atlas-kinds-section-title";
+      const secIcon = sectionDef.icon ? `${sectionDef.icon} ` : "";
+      blockHead.textContent = `${secIcon}${sectionDef.label || sid}`;
+      block.appendChild(blockHead);
+
+      const grid = document.createElement("div");
+      grid.className = "agent-rmm-atlas-kinds-grid";
+
+      for (const kind of sectionKinds) {
+        const card = document.createElement("div");
+        card.className = "agent-rmm-atlas-kind-card";
+        const n = countByKind.get(kind.id) || 0;
+        const countLabel = n ? `${n} в атласе` : "пока нет карт";
+        card.innerHTML =
+          `<div class="agent-rmm-atlas-kind-card-head">` +
+          `<span class="agent-rmm-atlas-kind-icon" aria-hidden="true">${escapeHtml(kind.icon || "🗺")}</span>` +
+          `<span class="agent-rmm-atlas-kind-id"><code>${escapeHtml(kind.id)}</code></span>` +
+          `</div>` +
+          `<p class="agent-rmm-atlas-kind-label">${escapeHtml(kind.label || kind.id)}</p>` +
+          `<p class="agent-rmm-atlas-kind-desc">${escapeHtml(kind.description || "")}</p>` +
+          `<p class="agent-rmm-atlas-kind-meta">${escapeHtml(countLabel)} · <code>*.${escapeHtml(kind.id)}.viz.md</code></p>`;
+        grid.appendChild(card);
+      }
+
+      block.appendChild(grid);
+      wrap.appendChild(block);
+    }
+
+    if (!wrap.querySelector(".agent-rmm-atlas-kinds-section")) {
+      const empty = document.createElement("p");
+      empty.className = "agent-rmm-atlas-empty";
+      empty.textContent = "Реестр видов пуст. Проверьте awn-system/types/viz/.";
+      wrap.appendChild(empty);
+    }
+
+    agentRoadmapMapHostNode.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+    renderListEmptyMessage(agentRoadmapMapHostNode, `Виды карт: ${error?.message || error}`);
   }
 }
 

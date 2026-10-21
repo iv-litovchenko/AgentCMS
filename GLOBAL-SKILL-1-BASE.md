@@ -70,7 +70,7 @@ Workspace — папка с md-файлами. Хабы:
 | `awn-create` · `awn-update` · `awn-version` · `awn-owner` | Создан / изменён / версия / владелец | Системные, не писать |
 | `awn-viewed` · `awn-deadline` · `awn-auto-toc` | Заглушки — пока не заполняются и ни на что не влияют | Не опираться |
 | 🔴 `awn-viz-graph` · `awn-viz-mindmap` · `awn-viz-roadmap` | **Не актуально (legacy)** — метаданные узла для RMM в canvas («Граф» / «Интеллект-карта» / «Дорожная карта»); новые карты — отдельные файлы `*.viz.md` (`viz-kind`, `viz-about`) | Агенту не заполнять; только если человек явно просит править legacy UI |
-| `viz-kind` · `viz-about` · `viz-title` | Живые карты визуализации (атлас): `{имя}.{kind}.viz.md` рядом с записью | Виды: `mindmap`, `roadmap` (реестр `awn-system/types/viz/`); API `GET/POST /api/viz/map`, `GET /api/viz/maps-for-about` |
+| `viz-kind` · `viz-about` · `viz-title` | Живые карты визуализации (атлас): `{имя}.{kind}.viz.md` рядом с записью | Реестр `awn-system/types/viz/`: **Знания** — mindmap, concept; **Планы** — roadmap, goaltree; **Процессы** — flowchart, architecture, decision; **Время** — timeline; **Люди** — people; **Места** — geo. API `GET/POST /api/viz/map`, `GET /api/viz/kinds`, `GET /api/viz/atlas` |
 | `awn-location-*`, `awn-is-real-world-*` | Физическая локация, координаты, признак реального объекта/события (записи) | — |
 
 Префикс `awn-` — системные поля платформы; свои поля темы задаются в `schema` и могут быть без префикса. Поля типа ведут свои хабы (например `awn-code` / `awn-target-path` у short-link) — смотри схему типа.
