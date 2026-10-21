@@ -13186,6 +13186,69 @@ body.workspace-idle-screensaver-active {
   word-break: break-all;
 }
 
+.agent-rmm-atlas-preview-wrap {
+  gap: 12px;
+}
+
+.agent-rmm-atlas-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 4px 2px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.agent-rmm-atlas-preview-back,
+.agent-rmm-atlas-preview-open-editor {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.agent-rmm-atlas-preview-back:hover,
+.agent-rmm-atlas-preview-open-editor:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.agent-rmm-atlas-preview-heading {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-rmm-atlas-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.agent-rmm-atlas-preview-meta {
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.agent-rmm-atlas-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 4px 16px;
+}
+
+.agent-rmm-atlas-preview-body {
+  max-width: none;
+}
+
 .agent-rmm-atlas-kinds-scroll {
   gap: 16px;
 }
@@ -50900,7 +50963,6 @@ img.is-svg-media,
 
 .node-navigation-memory-head--record-materials .node-navigation-memory-title-icon--materials-folder {
   font-size: 19px;
-  filter: saturate(1.35) sepia(0.25);
 }
 
 .node-navigation-memory-title-label,

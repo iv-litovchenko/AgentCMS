@@ -1273,6 +1273,8 @@ const AGENT_RMM_MARKDOWN_DEPTH_LABELS = {
   "md-links": "MD-файл + заголовки + ссылки и теги"
 };
 let agentRoadmapMapSubview = "graph";
+/** @type {{ path?: string, about?: string, title?: string, kind?: string, kindLabel?: string } | null} */
+let agentRoadmapAtlasSelectedItem = null;
 
 function normalizeAgentRoadmapMapDepth(raw) {
   const value = String(raw || "").trim();
@@ -67090,27 +67092,91 @@ async function enableExternalFileEditor(filePath, content, options = {}) {
   }
 }
 
+function resolveVizMapTopicManifestPath(aboutRel, mapPath) {
+  const candidates = [
+    String(aboutRel || "").replace(/\\/g, "/").replace(/^\/+/, ""),
+    String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    const fromBundle = resolveTopicManifestFromBundlePath(candidate);
+    if (fromBundle && isTopicManifestPath(fromBundle)) return fromBundle;
+    const owner = resolveOwningManifestRelFromNodePath(candidate);
+    if (owner && isTopicManifestPath(owner)) return owner;
+  }
+  return "";
+}
+
+async function ensureVizMapTopicOpen(manifestPath) {
+  const target = normalizeMenuNodePath(manifestPath);
+  if (!target) return false;
+  const activeManifest = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+  if (activeManifest !== target) {
+    await openNodeFromMenu(getLabelFromPath(target), target, {
+      contentMode: "external",
+      skipRouteSync: true
+    });
+  }
+  return true;
+}
+
+function normalizeVizMapAboutRef(aboutRel) {
+  return String(aboutRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function isVizMapAboutCurrentEntryOverview(aboutRel) {
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) return false;
+  const current = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+  const target = normalizeVizMapAboutRef(aboutRel);
+  return Boolean(current && target && current === target);
+}
+
 if (typeof window !== "undefined") {
-  window.agentCmsOpenVizMap = async function agentCmsOpenVizMap(mapWorkspaceRel, aboutRel) {
+  window.agentCmsOpenVizMap = async function agentCmsOpenVizMap(mapWorkspaceRel, aboutRel, options = {}) {
     const mapPath = String(mapWorkspaceRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
-    const manifest = getResolvedNodePath(activePath);
-    if (!manifest || !mapPath) {
-      showToast("Не удалось открыть карту — нет активной темы", "error");
+    if (!mapPath) {
+      showToast("Не удалось открыть карту — путь пустой", "error");
       return;
     }
-    const extRoot = getExternalMemoryRootRel(manifest).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-    if (extRoot && (mapPath === extRoot || mapPath.startsWith(`${extRoot}/`))) {
-      const fileRel = mapPath === extRoot ? "" : mapPath.slice(extRoot.length + 1);
-      if (fileRel) {
-        await openExternalFile(fileRel);
-        return;
+
+    if (
+      !options.navigateToMap &&
+      (options.stayOnPage || isVizMapAboutCurrentEntryOverview(aboutRel))
+    ) {
+      return;
+    }
+
+    const manifestPath = resolveVizMapTopicManifestPath(aboutRel, mapPath);
+
+    if (manifestPath) {
+      await ensureVizMapTopicOpen(manifestPath);
+      const extRoot = getExternalMemoryRootRel(manifestPath).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+      if (extRoot && (mapPath === extRoot || mapPath.startsWith(`${extRoot}/`))) {
+        const fileRel = mapPath === extRoot ? "" : mapPath.slice(extRoot.length + 1);
+        if (fileRel) {
+          await openExternalFile(fileRel);
+          syncAppRouteToUrl({ push: true });
+          return;
+        }
       }
     }
-    if (aboutRel && getPropsContextPath() === String(aboutRel).replace(/\\/g, "/")) {
-      showToast(`Карта: ${mapPath.split("/").pop()} — откройте файл из списка темы`, "info");
+
+    try {
+      if (await tryOpenMarkdownLinkByWorkspaceRel(mapPath, { skipRouteSync: true })) {
+        syncAppRouteToUrl({ push: true });
+        return;
+      }
+      await openWorkspaceFilePreviewByRelPath(mapPath, {
+        label: mapPath.split("/").pop() || "Карта",
+        nodePath: manifestPath || undefined
+      });
+      syncAppRouteToUrl({ push: true });
       return;
+    } catch (error) {
+      const hint = manifestPath
+        ? "Файл не найден или путь legacy/colocated."
+        : "Укажите viz-about в карте или откройте тему записи.";
+      showToast(`Не удалось открыть карту: ${error?.message || hint}`, "error");
     }
-    showToast("Откройте запись в теме, затем нажмите «Открыть» у карты", "info");
   };
 }
 
@@ -79381,7 +79447,7 @@ function createEntryOverviewRecordMaterialsCard(
     badgeText,
     badgeModeId: "assets",
     imageColumnsToggle: true,
-    icon: "📁",
+    icon: "📒",
     titleIconClass: "node-navigation-memory-title-icon--materials-folder"
   });
   head.classList.add("node-navigation-memory-head--record-materials");
@@ -79954,7 +80020,11 @@ async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
   if (!about || !kind) return;
 
   if (dataset.hasMap === "1" && dataset.mapPath) {
-    void window.agentCmsOpenVizMap?.(dataset.mapPath, about);
+    const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+    if (body && context) {
+      await refreshEntryOverviewVizMapsBody(body, context);
+    }
+    showToast(`Карта «${kind}» уже в списке ниже`, "info");
     return;
   }
 
@@ -79970,7 +80040,6 @@ async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
       throw new Error(`${data.error || response.statusText}.${hint}`);
     }
     showToast(`Карта «${kind}» создана`, "success");
-    if (data.path) void window.agentCmsOpenVizMap?.(data.path, about);
     const body = card?.querySelector(".node-entry-overview-viz-maps-body");
     if (body && context) {
       const { count } = await refreshEntryOverviewVizMapsBody(body, context);
@@ -80062,7 +80131,7 @@ function createEntryOverviewVizMapListRow(row, about) {
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    void window.agentCmsOpenVizMap?.(filePath, about);
+    void window.agentCmsOpenVizMap?.(filePath, about, { navigateToMap: true });
   });
   return btn;
 }
@@ -80087,6 +80156,14 @@ function createEntryOverviewVizMapsCard(
   });
   head.classList.add("node-navigation-memory-head--record-viz-maps");
   head.classList.add("node-navigation-memory-head--actionable");
+
+  const vizTitleNode = head.querySelector(".node-navigation-memory-title");
+  if (vizTitleNode) {
+    vizTitleNode
+      .querySelectorAll(".node-navigation-memory-title-icon--svg")
+      .forEach((node) => node.remove());
+    fillNavigationMemoryTitleNode(vizTitleNode, title, "", "🗺");
+  }
 
   if (aboutPath) {
     const actions = document.createElement("div");
@@ -114705,8 +114782,97 @@ function renderAgentRoadmapMapView() {
   void renderAgentRoadmapMapRoadmapView(renderSeq);
 }
 
+async function renderAgentRoadmapAtlasMapPreview(host, item, renderSeq) {
+  if (!host || !item?.path) return;
+  renderAgentRoadmapMapLoading(host, "Загрузка карты…");
+  const mapPath = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: mapPath }));
+    const data = await response.json();
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    if (!response.ok) throw new Error(data.error || response.statusText);
+
+    host.replaceChildren();
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll agent-rmm-atlas-preview-wrap";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Просмотр карты визуализации");
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "agent-rmm-atlas-preview-toolbar";
+
+    const backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "agent-rmm-atlas-preview-back";
+    backBtn.textContent = "← К списку";
+    backBtn.addEventListener("click", () => {
+      agentRoadmapAtlasSelectedItem = null;
+      renderAgentRoadmapMapView();
+    });
+
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "agent-rmm-atlas-preview-heading";
+    const titleNode = document.createElement("span");
+    titleNode.className = "agent-rmm-atlas-preview-title";
+    titleNode.textContent = item.title || mapPath.split("/").pop() || "Карта";
+    const metaNode = document.createElement("span");
+    metaNode.className = "agent-rmm-atlas-preview-meta";
+    metaNode.textContent = [item.kindLabel || item.kind, mapPath].filter(Boolean).join(" · ");
+    titleWrap.append(titleNode, metaNode);
+
+    const openEditBtn = document.createElement("button");
+    openEditBtn.type = "button";
+    openEditBtn.className = "agent-rmm-atlas-preview-open-editor";
+    openEditBtn.textContent = "В редакторе";
+    openEditBtn.title = "Открыть файл карты в редакторе темы";
+    openEditBtn.addEventListener("click", () => {
+      void window.agentCmsOpenVizMap?.(mapPath, item.about || "", { navigateToMap: true });
+    });
+
+    toolbar.append(backBtn, titleWrap, openEditBtn);
+
+    const article = document.createElement("article");
+    article.className = "agent-rmm-atlas-preview markdown-preview";
+    const body = document.createElement("div");
+    body.className = "markdown-body agent-rmm-atlas-preview-body";
+    const content = String(data.content || "");
+    if (typeof renderMarkdownToHtml === "function") {
+      body.innerHTML = renderMarkdownToHtml(content, { hideFrontmatter: true, nodePath: mapPath });
+      if (typeof hydrateMarkdownPreviewElement === "function") {
+        hydrateMarkdownPreviewElement(body, mapPath);
+      }
+    } else {
+      body.textContent = content;
+    }
+    article.appendChild(body);
+    wrap.append(toolbar, article);
+    host.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    host.replaceChildren();
+    renderListEmptyMessage(host, `Карта: ${error?.message || error}`);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "agent-rmm-atlas-preview-back";
+    retry.textContent = "← К списку";
+    retry.addEventListener("click", () => {
+      agentRoadmapAtlasSelectedItem = null;
+      renderAgentRoadmapMapView();
+    });
+    host.appendChild(retry);
+  }
+}
+
 async function renderAgentRoadmapMapAtlasView(renderSeq) {
   if (!agentRoadmapMapHostNode) return;
+  if (agentRoadmapAtlasSelectedItem?.path) {
+    await renderAgentRoadmapAtlasMapPreview(
+      agentRoadmapMapHostNode,
+      agentRoadmapAtlasSelectedItem,
+      renderSeq
+    );
+    return;
+  }
   renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка атласа…");
   try {
     const [atlasRes, kindsRes] = await Promise.all([
@@ -114753,9 +114919,15 @@ async function renderAgentRoadmapMapAtlasView(renderSeq) {
       const title = item.title || item.path?.split("/").pop() || "—";
       row.innerHTML = `<span class="agent-rmm-atlas-row-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="agent-rmm-atlas-row-copy"><span class="agent-rmm-atlas-row-title">${escapeHtml(title)}</span><span class="agent-rmm-atlas-row-meta">${escapeHtml(item.kindLabel || item.kind || "")} · ${escapeHtml(item.path || "")}</span></span>`;
       row.addEventListener("click", () => {
+        agentRoadmapAtlasSelectedItem = {
+          path: item.path,
+          about: item.about,
+          title,
+          kind: item.kind,
+          kindLabel: item.kindLabel
+        };
         setAgentRoadmapMapDetail(title, item.path || "");
-        if (item.path && item.about) void window.agentCmsOpenVizMap?.(item.path, item.about);
-        else if (item.path) showToast(`Карта: ${item.path}`, "info");
+        renderAgentRoadmapMapView();
       });
       list.appendChild(row);
     }
@@ -114986,6 +115158,7 @@ function ensureAgentRoadmapMapUiBindings() {
       agentRoadmapMapPaneNode?.querySelectorAll("[data-rmm-mode]").forEach((b) => b.classList.remove("is-active"));
       btn.classList.add("is-active");
       agentRoadmapMapSubview = btn.dataset.rmmMode || "graph";
+      if (agentRoadmapMapSubview !== "atlas") agentRoadmapAtlasSelectedItem = null;
       if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
     });
   });
