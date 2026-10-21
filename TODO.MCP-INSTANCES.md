@@ -178,6 +178,84 @@ Claude Desktop (один MCP stdio)
 
 ---
 
+## MCP tools: platform / instances (предложение)
+
+Слой **«platform / instances»** поверх уже существующих workspace-tools (`content_*`, `search_*`, `module_git_*`, …).
+
+```
+platform / instances (MCP)
+│
+├─ Реестр
+│  ├─ instances_list
+│  ├─ instance_get
+│  ├─ instance_select          → default instance в сессии MCP
+│  └─ instance_health          → ping / version
+│
+├─ Tunnel
+│  ├─ tunnel_devices_list
+│  └─ tunnel_invoke            → method + path + body → device
+│
+├─ Workspaces (на выбранном instance)
+│  ├─ workspaces_list
+│  ├─ workspace_default_get / workspace_default_set
+│  └─ session_context_get      ← уже есть
+│
+├─ Платформа (read)
+│  ├─ platform_info_get        ← уже есть (частично)
+│  ├─ platform_config_list / platform_config_get
+│  └─ server_status_get
+│
+├─ Routing (опционально)
+│  └─ routing_resolve          → local | tunnel | auto → instanceId + baseUrl
+│
+└─ Admin / Control only ⚠
+   ├─ instance_create | instance_update | instance_delete
+   ├─ instance_token_rotate
+   └─ server_restart
+```
+
+| Группа | Правило |
+|--------|---------|
+| Реестр + tunnel + workspaces | Обычный MCP агента; **без token** в ответах (`hasToken`, redacted URL) |
+| Платформа (read) | Без секретов из `.env` |
+| Admin / Control | **Не** в публичный MCP или только **admin scope** + localhost; запись **`instances.json`** — человек / Control |
+
+**MVP (п. 1 — управление точками входа):** `instances_list`, `instance_get`, `instance_select`, `tunnel_devices_list`, `tunnel_invoke`, плюс уже имеющиеся `workspaces_list` и `session_context_get` (опционально аргумент `instanceId`).
+
+### Пример (агент, один Mac + hub с tunnel)
+
+```
+1. instances_list
+   → [{ id: "local", kind: "local", online: true },
+      { id: "hub", kind: "remote", baseUrl: "https://cms.example.ru", online: true }]
+
+2. instance_select({ instanceId: "local" })
+   → activeInstanceId: "local"
+
+3. workspaces_list()
+   → ["local:medcenter", "local:downloads", …]
+
+4. session_context_get({ workspaceId: "medcenter" })   // или "local:medcenter" при merged list
+   → workspaceId, paths, agent profile
+
+5. (на hub) tunnel_devices_list()
+   → [{ deviceId: "marina-macbook", online: true }]
+
+6. tunnel_invoke({
+     deviceId: "marina-macbook",
+     method: "GET",
+     path: "/api/agents/medcenter/manifest"
+   })
+   → данные с Mac без открытия портов на ноутбуке
+
+7. routing_resolve({ workspaceId: "medcenter", prefer: "auto" })
+   → { instanceId: "local", viaTunnel: false }
+   // или { instanceId: "hub", viaTunnel: true, deviceId: "marina-macbook" }
+     если MCP сидит на VPS, а данные только на Mac
+```
+
+---
+
 ## Обсудить (голосом с Claude)
 
 - Достаточно ли ясно в UI, что **инстанс ≠ workspace**?
