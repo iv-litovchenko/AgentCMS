@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>09 — Two-row grid</title>
+    <link rel="stylesheet" href="../shared-page.css" />
+    <link rel="stylesheet" href="../dock-mock.css" />
+  </head>
+  <body class="layout-09">
+    <div class="demo-top">
+      <a href="../index.html">← Каталог ui-variant-16</a>
+      <h1>09 · Two-row grid</h1>
+      <p>Сетка 2×N: верх — бренд и «тяжёлые» кнопки, низ — toggles + поиск на всю ширину.</p>
+      <span class="demo-tag">уже по горизонтали</span>
+    </div>
+    <article class="demo-stage">
+      <h2>Фон страницы</h2>
+      <p class="fake-text">Компромисс: чуть выше dock, но не разъезжается в одну бесконечную линию на узких экранах.</p>
+    </article>
+    <div class="dock-anchor asc-dock-mock">
+      <div class="m-capsule m-capsule--grid">
+        <div class="m-brand"><span class="m-brand-icon"></span><span class="m-brand-label">CMS</span></div>
+        <div class="m-row m-row-top-right m-tools-full">
+          <button type="button" class="m-btn m-btn--icon m-btn--accent">⊞</button>
+          <button type="button" class="m-btn m-btn--icon m-btn--pomo">🍅</button>
+          <button type="button" class="m-btn m-btn--icon-sm">📷</button>
+          <button type="button" class="m-btn m-btn--icon-sm">↗</button>
+          <button type="button" class="m-btn m-btn--icon m-btn--mark">🔖</button>
+        </div>
+        <div class="m-row m-row-bottom">
+          <span class="m-toggle-track"><span class="m-toggle-thumb"></span></span>
+          <span class="m-toggle-track is-on"><span class="m-toggle-thumb"></span></span>
+          <span class="m-toggle-track"><span class="m-toggle-thumb"></span></span>
+          <div class="m-search">
+            <span class="m-search-picker">Яндекс</span>
+            <input class="m-search-input" placeholder="Поиск…" readonly />
+            <span class="m-search-go">→</span>
+          </div>
+        </div>
+      </div>
+      <div class="m-vault m-vault-row">
+        <span class="m-vault-avatar"></span>
+        <span class="m-vault-meta"><span class="m-vault-name">0-ws-core</span><span class="m-vault-hint">онлайн</span></span>
+      </div>
+    </div>
+  </body>
+</html>

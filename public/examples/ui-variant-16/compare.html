@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Сравнение — ui-variant-16</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: #eef2f7;
+        color: #1f2937;
+        padding: 20px 16px 32px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+      }
+      .lead {
+        margin: 0 0 16px;
+        color: #64748b;
+        font-size: 13px;
+        max-width: 720px;
+        line-height: 1.5;
+      }
+      a {
+        color: #6d28d9;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 12px;
+      }
+      figure {
+        margin: 0;
+        background: #fff;
+        border: 1px solid #d7deeb;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      figcaption {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        border-bottom: 1px solid #eef2f7;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 380px;
+        border: 0;
+        background: #eef2f7;
+      }
+    </style>
+  </head>
+  <body>
+    <p><a href="./index.html">← Каталог</a></p>
+    <h1>Компактный dock — 10 вариантов</h1>
+    <p class="lead">Нижняя часть iframe — mock панели в позиции как на сайте. Сравните ширину и число строк.</p>
+    <div class="grid">
+      <figure><figcaption>01 Icon strip <a href="./01-icon-strip/">↗</a></figcaption><iframe src="./01-icon-strip/index.html" title="01"></iframe></figure>
+      <figure><figcaption>02 Vault stack <a href="./02-vault-stack/">↗</a></figcaption><iframe src="./02-vault-stack/index.html" title="02"></iframe></figure>
+      <figure><figcaption>03 Segmented <a href="./03-segmented/">↗</a></figcaption><iframe src="./03-segmented/index.html" title="03"></iframe></figure>
+      <figure><figcaption>04 Overflow <a href="./04-overflow-menu/">↗</a></figcaption><iframe src="./04-overflow-menu/index.html" title="04"></iframe></figure>
+      <figure><figcaption>05 Brand flank <a href="./05-brand-flank/">↗</a></figcaption><iframe src="./05-brand-flank/index.html" title="05"></iframe></figure>
+      <figure><figcaption>06 Vault inline <a href="./06-vault-inline/">↗</a></figcaption><iframe src="./06-vault-inline/index.html" title="06"></iframe></figure>
+      <figure><figcaption>07 Search 2nd row <a href="./07-search-second-row/">↗</a></figcaption><iframe src="./07-search-second-row/index.html" title="07"></iframe></figure>
+      <figure><figcaption>08 Toggle merged <a href="./08-toggle-merged/">↗</a></figcaption><iframe src="./08-toggle-merged/index.html" title="08"></iframe></figure>
+      <figure><figcaption>09 Two-row grid <a href="./09-two-row-grid/">↗</a></figcaption><iframe src="./09-two-row-grid/index.html" title="09"></iframe></figure>
+      <figure><figcaption>10 Minimal expand <a href="./10-minimal-expand/">↗</a></figcaption><iframe src="./10-minimal-expand/index.html" title="10"></iframe></figure>
+    </div>
+  </body>
+</html>
