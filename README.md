@@ -347,7 +347,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0 · **🔵** 7
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -486,7 +486,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 17
+├── 📄 Контент (Content) · 18
 │   ├── 🟢 contents_list
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
@@ -503,7 +503,8 @@ user-agent-cms
 │   ├── 🟢 content_move
 │   ├── 🟢 content_split
 │   ├── 🟢 content_merge
-│   └── 🟢 contents_slots_list
+│   ├── 🟢 contents_slots_list
+│   └── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
 │
 ├── 🗃 Базы (Databases) · 12
 │   ├── 🟢 databases_list

@@ -125,6 +125,7 @@ batch_invoke:
     - topic_exists
     - content_exists
     - contents_list
+    - contents_list_reconcile
     - content_read
     - content_meta_get
     - content_binary_read

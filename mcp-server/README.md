@@ -68,7 +68,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Навигация и поиск | `nav_*`, `record_id_resolve`, `record_path_resolve`, `record_url_get`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
-| Контент | `content_read` / `content_write` / `contents_list` (legacy `read_content`, …), `content_exists`, `content_meta_get`, lifecycle `content_*`; hub file legacy — `MCP_LEGACY_TOOLS=1` |
+| Контент | `content_read` / `content_write` / `contents_list`, `contents_list_reconcile` (🔵), `content_exists`, `content_meta_get`, lifecycle `content_*` (legacy `read_content`, …); hub file legacy — `MCP_LEGACY_TOOLS=1` |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
 | Session pads | `session_note_*`, `session_todo_*` (legacy `workspace_note_*`, `read_workspace_*`) — `workspace-pad-tools.js`, регистрация в `session-tools.js` |

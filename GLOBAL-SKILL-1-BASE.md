@@ -133,7 +133,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_read`, `content_binary_write`, `content_binary_write_from_url`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
+Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_read`, `content_binary_write`, `content_binary_write_from_url`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). **`contents_list_reconcile`** (🔵) — пакетная сверка `{ id?, path? }[]` из памяти/cron с диском (краткий diff, без тел); затем точечный `content_read` / write. Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }

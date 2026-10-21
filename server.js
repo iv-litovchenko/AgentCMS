@@ -504,6 +504,7 @@ const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-servic
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
 const { buildHubWorkspaceOutsideStructureReport } = require("./lib/services/hub-outside-structure");
 const { createExistsApi } = require("./lib/api/exists-api");
+const { createContentReconcileApi } = require("./lib/api/content-reconcile-api");
 const {
   validateContentSlotAccess,
   slotKeyFromStorageFolder
@@ -14961,6 +14962,8 @@ const SESSION_CONTEXT_API_MAP = {
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
   workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_id_resolve)",
+  contentReconcile:
+    "POST /api/content/reconcile — сверка списка id/path из памяти агента с диском (MCP: contents_list_reconcile; body: items[], includeMeta?)",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (MCP: record_id_assign; body: path, force?)",
   workspaceSlugGenerate:
     "GET|POST /api/workspace-slug/generate — record_slug_generate MCP (text, preset?, slug?, stripExtension?)",
@@ -21420,7 +21423,20 @@ function getExistsApi() {
 }
 
 let contentSchemaApi = null;
+let contentReconcileApi = null;
 let vizMapsApi = null;
+
+function getContentReconcileApi() {
+  if (!contentReconcileApi) {
+    contentReconcileApi = createContentReconcileApi({
+      resolveId: (id) => getWorkspaceIdService().resolveId(id),
+      parseAwnId,
+      resolveRecordContext: resolveApiIndexableRecordContext,
+      statNodeFileMeta
+    });
+  }
+  return contentReconcileApi;
+}
 
 function getVizMapsApi() {
   if (!vizMapsApi) {
@@ -23284,6 +23300,21 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to read content meta",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/content/reconcile") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getContentReconcileApi().reconcile(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = error?.code === "EINVAL" ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to reconcile content records",
+        details: message
       });
     }
   }

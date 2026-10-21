@@ -136,6 +136,44 @@ export function registerContentTools({ reg, client, pagePath }) {
     handler: (args) => listContentItems(client, args)
   });
 
+  reg(
+    "contents_list_reconcile",
+    "Reconcile agent memory with workspace: batch compare id and/or path (short meta: title, updatedAt). " +
+      "Statuses: ok, moved, missing, path_missing, id_mismatch, duplicate, no_id. Max 50 items. " +
+      "Use before cron/always refresh or after long sessions — then targeted content_read/content_write. " +
+      "HTTP POST /api/content/reconcile.",
+    z
+      .object({
+        items: z
+          .array(
+            z
+              .object({
+                id: z
+                  .union([z.number().int().positive(), z.string().min(1)])
+                  .optional()
+                  .describe("Global awn-id (#81 ok)"),
+                path: z
+                  .string()
+                  .min(1)
+                  .optional()
+                  .describe("Workspace-relative path as agent remembers it"),
+                note: z.string().optional().describe("Agent hint echoed in response")
+              })
+              .strict()
+          )
+          .min(1)
+          .max(50)
+          .describe("Records to check; each item needs id and/or path"),
+        includeMeta: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("Include title, updatedAt, size in actual (default true)")
+      })
+      .strict(),
+    (payload) => client.post("/api/content/reconcile", payload)
+  );
+
   const pagePreviewSchema = address({
     path: z
       .string()
