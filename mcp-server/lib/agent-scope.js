@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 import { z } from "zod";
+import { parseWorkspaceRef } from "./workspace-ref.js";
 
 const require = createRequire(import.meta.url);
 const { normalizeLegacyWorkspaceId } = require("../../lib/workspace/bundled-workspaces.js");
@@ -49,18 +50,33 @@ function noteLegacyWorkspaceIdArg(args = {}) {
 }
 
 export function runWithAgentId(agentId, fn) {
-  return agentContext.run({ agentId: String(agentId || "").trim() }, fn);
+  const ref = parseWorkspaceRef(String(agentId || "").trim());
+  return runWithWorkspaceScope(ref, fn);
+}
+
+export function runWithWorkspaceScope(ref, fn) {
+  const workspaceId = String(ref?.workspaceId || "").trim();
+  const instanceId = String(ref?.instanceId || "local").trim() || "local";
+  return agentContext.run({ agentId: workspaceId, instanceId }, fn);
 }
 
 export function getActiveAgentIdFromContext() {
   return agentContext.getStore()?.agentId || "";
 }
 
+export function getActiveWorkspaceIdFromContext() {
+  return getActiveAgentIdFromContext();
+}
+
+export function getActiveInstanceIdFromContext() {
+  return agentContext.getStore()?.instanceId || "local";
+}
+
 export function resolveWorkspaceId(args = {}, fallbackAgent = "") {
-  const fromArgs = normalizeLegacyWorkspaceId(
-    String(args.workspaceId || args.agentId || args.agent || "").trim()
-  );
-  if (fromArgs) return fromArgs;
+  const raw = String(args.workspaceId || args.agentId || args.agent || "").trim();
+  if (raw) {
+    return parseWorkspaceRef(raw).workspaceId;
+  }
 
   const fallback = String(
     fallbackAgent || process.env.AGENT_CMS_AGENT || process.env.YAMLCMS_AGENT || ""

@@ -190,3 +190,32 @@ list_workspaces →
 Итог: один коннектор, конфиг без адресов, серверы добавляются в UI, а выбор инстанса — через `agentId`.
 
 **Ограничение:** облачный коннектор по URL (экран с `https://`) всё равно будет отдельным, со своим `https://cms.example.com/mcp`. До твоего `localhost` Anthropic не достучится. Один коннектор на всё получается только в Desktop/stdio-режиме.
+
+---
+
+## UI (инстансы MCP)
+
+- **Только Control:** шаг 3 «MCP к агенту» → **Инстансы MCP** (Editor без UI инстансов)
+- API: `GET /api/platform/mcp-instances` (token скрыт); POST → 403
+
+## Реализовано (проба)
+
+- **`instances.json`** — `.agent-cms-global/instances.example.json` (local / remote / tunnel)
+- **MCP:** `workspaces_list` с префиксами `instanceId:workspaceId`; маршрутизация по инстансу; автопоиск локального CMS (`/api/agent/mcp-ping` на 3001, 3000, …)
+- **Туннель:** `ws://…/api/tunnel/ws` на CMS, `npm run tunnel:device`, `POST /api/tunnel/invoke`, `GET /api/tunnel/devices`
+- **Env:** `AGENT_CMS_TUNNEL_TOKEN` / `AGENT_CMS_MCP_TOKEN`, `AGENT_CMS_DEVICE_ID`, `AGENT_CMS_TUNNEL_URL`
+
+**Попробовать (хаб = Docker CMS на 3001):**
+
+```bash
+cp .agent-cms-global/instances.example.json .agent-cms-global/instances.json
+# оставь local + marina-macbook (hubUrl http://127.0.0.1:3001)
+
+AGENT_CMS_TUNNEL_TOKEN=какой-нибудь-секрет \
+AGENT_CMS_TUNNEL_URL=ws://127.0.0.1:3001/api/tunnel/ws \
+AGENT_CMS_DEVICE_ID=marina-macbook \
+AGENT_CMS_BASE_URL=http://127.0.0.1:3001 \
+npm run tunnel:device
+```
+
+В другом терминале: `npm run mcp` → `workspaces_list` — должен появиться `marina-macbook:…` если на ноуте те же workspaces.

@@ -1,6 +1,6 @@
 {
   "name": "agent-cms",
-  "version": "0.0.3-beta",
+  "version": "0.0.4-beta",
   "private": true,
   "description": "File-based CMS prototype for agents (no database)",
   "author": "Agent CMS",
@@ -16,6 +16,7 @@
     "voice:https": "bash scripts/start-voice-https.sh",
     "mcp": "node mcp-server/index.js",
     "mcp:http": "node mcp-server/http.js",
+    "tunnel:device": "node scripts/tunnel-device.js",
     "shell:sidecar": "bash agent-shell/voice-sidecar/run.sh",
     "postinstall": "mkdir -p public/_resources/vendor public/_resources/vendor/fancybox public/shell/vendor/loaders public/shell/vendor/utils && node scripts/sync-material-file-icons.js && node scripts/sync-channel-preset-icons.js && cp node_modules/markdown-it/dist/markdown-it.min.js public/_resources/vendor/markdown-it.min.js && cp node_modules/mermaid/dist/mermaid.min.js public/_resources/vendor/mermaid.min.js && cp node_modules/@toast-ui/editor/dist/toastui-editor.css public/_resources/vendor/toastui-editor.css && cp node_modules/mammoth/mammoth.browser.min.js public/_resources/vendor/mammoth.browser.min.js && cp node_modules/xlsx/dist/xlsx.full.min.js public/_resources/vendor/xlsx.full.min.js && cp node_modules/three/build/three.module.js public/shell/vendor/three.module.js && cp node_modules/three/examples/jsm/loaders/GLTFLoader.js public/shell/vendor/loaders/GLTFLoader.js && cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js public/shell/vendor/utils/BufferGeometryUtils.js && curl -fsSL https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js -o public/_resources/vendor/toastui-editor-all.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js -o public/_resources/vendor/highlight.min.js && curl -fsSL https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css -o public/_resources/vendor/highlight-github.min.css && curl -fsSL https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.css -o public/_resources/vendor/fancybox/fancybox.css && curl -fsSL https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.umd.js -o public/_resources/vendor/fancybox/fancybox.umd.js",
     "cms:desktop": "electron .",
@@ -57,6 +58,7 @@
     "pdf-parse": "^2.4.5",
     "sharp": "^0.35.2",
     "tesseract.js": "^6.0.1",
+    "ws": "^8.22.0",
     "xlsx": "^0.18.5"
   },
   "optionalDependencies": {

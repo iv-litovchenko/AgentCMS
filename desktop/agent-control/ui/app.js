@@ -1196,11 +1196,7 @@ function buildMcpConfigObject({ useAbsPath = false } = {}) {
     mcpServers: {
       "agent-cms": {
         command: "node",
-        args: [scriptPath],
-        env: {
-          AGENT_CMS_BASE_URL: getEffectiveCmsBaseUrl(),
-          ...getMcpTlsInsecureEnv()
-        }
+        args: [scriptPath]
       }
     }
   };
@@ -1482,9 +1478,24 @@ function renderGuideStepMcp() {
           <li>Запустите <strong>сервер</strong> (шаг 2)</li>
           <li><strong>Cursor:</strong> Settings → MCP или <code>.cursor/mcp.json</code></li>
           <li><strong>Claude Desktop:</strong> <code>claude_desktop_config.json</code></li>
-          <li>Вставьте JSON ниже; <code>&lt;ABS_PATH&gt;</code> — корень проекта на вашей машине</li>
+          <li>Вставьте JSON ниже (без URL — local и remote из <code>instances.json</code>)</li>
+          <li>Удалённые CMS: блок <strong>Инстансы MCP</strong> ниже или в Editor → MCP Server → Инстансы MCP</li>
           <li>Перезапустите MCP-клиент</li>
         </ol>
+        <div class="mcp-instances-control panel-inset" id="mcp-instances-control-root">
+          <p class="mcp-config-note">
+            Единственное место для URL и token удалённых CMS. Editor показывает список без секретов; MCP stdio читает этот файл с диска.
+          </p>
+          <h4>Инстансы MCP</h4>
+          <p class="mcp-config-note" id="mcp-instances-control-file"></p>
+          <div id="mcp-instances-control-list"></div>
+          <div class="guide-actions">
+            <button type="button" class="ghost-btn" id="mcp-instances-control-add">+ Remote</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-reload">Обновить</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-save">Сохранить</button>
+          </div>
+          <p class="mcp-config-note" id="mcp-instances-control-status" role="status"></p>
+        </div>
         <div class="mcp-config-box">
           <div class="cmd-row">
             <pre class="mcp-config-json" id="mcp-config-json" aria-label="Пример MCP-конфига"></pre>
@@ -1506,6 +1517,114 @@ function syncMcpConfigPreview() {
   if (!node) return;
 
   node.textContent = JSON.stringify(buildMcpConfigObject({ useAbsPath: true }), null, 2);
+}
+
+let mcpInstancesControlState = { instances: [] };
+
+function renderMcpInstancesControlRows() {
+  const list = document.getElementById("mcp-instances-control-list");
+  if (!list) return;
+  list.innerHTML = (mcpInstancesControlState.instances || [])
+    .map((inst, index) => {
+      const kind = inst.kind || "local";
+      const ro = kind === "local" && inst.id === "local";
+      return `
+        <fieldset class="mcp-instance-row" data-index="${index}">
+          <legend>${escapeAttr(inst.label || inst.id)}</legend>
+          <label>id <input name="id" value="${escapeAttr(inst.id || "")}" ${ro ? "readonly" : ""} /></label>
+          <label>kind
+            <select name="kind" ${ro ? "disabled" : ""}>
+              <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
+              <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
+              <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
+            </select>
+          </label>
+          <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" /></label>
+          <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" /></label>
+          <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" /></label>
+          <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" /></label>
+          ${ro ? "" : `<button type="button" class="ghost-btn mcp-instance-remove" data-index="${index}">Удалить</button>`}
+        </fieldset>`;
+    })
+    .join("");
+  list.querySelectorAll(".mcp-instance-remove").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mcpInstancesControlState.instances.splice(Number(btn.dataset.index), 1);
+      renderMcpInstancesControlRows();
+    });
+  });
+}
+
+function collectMcpInstancesControlForm() {
+  const list = document.getElementById("mcp-instances-control-list");
+  if (!list) return { instances: [] };
+  const instances = [];
+  list.querySelectorAll(".mcp-instance-row").forEach((row) => {
+    const get = (name) => row.querySelector(`[name="${name}"]`)?.value?.trim() || "";
+    const kind = get("kind") || "local";
+    const entry = { id: get("id"), kind, label: get("label") || get("id") };
+    if (kind === "local") entry.auto = true;
+    if (get("url")) entry.url = get("url");
+    if (get("token")) entry.token = get("token");
+    if (get("deviceId")) entry.deviceId = get("deviceId");
+    if (get("hubUrl")) entry.hubUrl = get("hubUrl");
+    instances.push(entry);
+  });
+  return { instances };
+}
+
+async function loadMcpInstancesControl() {
+  const status = document.getElementById("mcp-instances-control-status");
+  const fileNode = document.getElementById("mcp-instances-control-file");
+  if (!window.agentControl?.getMcpInstances) return;
+  if (status) status.textContent = "Загрузка…";
+  const data = await window.agentControl.getMcpInstances();
+  if (!data.ok) {
+    if (status) status.textContent = data.error || "Ошибка загрузки";
+    return;
+  }
+  mcpInstancesControlState = { instances: data.instances || [] };
+  renderMcpInstancesControlRows();
+  if (fileNode) fileNode.textContent = data.filePath || "";
+  if (status) status.textContent = "Готово";
+}
+
+async function bindMcpInstancesControl() {
+  const root = document.getElementById("mcp-instances-control-root");
+  if (!root || root.dataset.bound === "1") {
+    if (root) await loadMcpInstancesControl();
+    return;
+  }
+  root.dataset.bound = "1";
+  const add = document.getElementById("mcp-instances-control-add");
+  const reload = document.getElementById("mcp-instances-control-reload");
+  const save = document.getElementById("mcp-instances-control-save");
+  const status = document.getElementById("mcp-instances-control-status");
+  add?.addEventListener("click", () => {
+    mcpInstancesControlState.instances.push({
+      id: "server",
+      kind: "remote",
+      label: "VPS",
+      url: "https://",
+      token: ""
+    });
+    renderMcpInstancesControlRows();
+  });
+  reload?.addEventListener("click", () => loadMcpInstancesControl());
+  save?.addEventListener("click", async () => {
+    if (!window.agentControl?.saveMcpInstances) return;
+    if (status) status.textContent = "Сохранение…";
+    const payload = collectMcpInstancesControlForm();
+    const data = await window.agentControl.saveMcpInstances(payload);
+    if (!data.ok) {
+      if (status) status.textContent = data.error || "Ошибка";
+      return;
+    }
+    mcpInstancesControlState = { instances: data.instances || [] };
+    renderMcpInstancesControlRows();
+    if (status) status.textContent = "Сохранено. Перезапустите Claude Desktop.";
+  });
+  await loadMcpInstancesControl();
 }
 
 function escapePromptHtml(text) {
@@ -1728,6 +1847,7 @@ async function renderLayout() {
   bindActionHandlers();
   await bindMaintenanceToggle();
   syncMcpConfigPreview();
+  void bindMcpInstancesControl();
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
   syncServerUi(lastServer || bootstrap?.server);
   void refreshMobileVoiceQr();

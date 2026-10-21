@@ -39007,6 +39007,12 @@ body.workspace-pomodoro-break-active {
   color: #93c5fd;
 }
 
+.doc-block-btn .type-moe-agent-note,
+.file-content-preview .type-moe-agent-note {
+  background: #134e4a;
+  color: #5eead4;
+}
+
 .doc-block-btn .type-moe-todo,
 .file-content-preview .type-moe-todo {
   background: #1e293b;
@@ -58626,6 +58632,15 @@ button.node-navigation-memory-title:focus-visible {
   color: #0969da;
 }
 
+.file-content-preview .md-marker-block--agent-note {
+  border-left-color: #0d9488;
+  background: #f0fdfa;
+}
+
+.file-content-preview .md-marker-block--agent-note .md-marker-block-label {
+  color: #0f766e;
+}
+
 .file-content-preview .md-marker-block--todo {
   border-left-color: #57606a;
   background: #f6f8fa;
@@ -67955,6 +67970,61 @@ button.node-navigation-memory-title:focus-visible {
   box-sizing: border-box;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.mcp-instances-panel {
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+
+.mcp-instances-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.mcp-instance-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.mcp-instance-row legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.mcp-instance-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.mcp-instance-wide {
+  grid-column: 1 / -1;
+}
+
+.mcp-instance-row input,
+.mcp-instance-row select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mcp-instances-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .api-docs-path {

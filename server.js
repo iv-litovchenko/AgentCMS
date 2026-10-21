@@ -1240,12 +1240,16 @@ function getFingerprintScannerService() {
 }
 
 function sendJson(res, statusCode, payload, extraHeaders = null) {
+  if (res.headersSent || res.writableEnded) {
+    return false;
+  }
   const headers = { "Content-Type": "application/json; charset=utf-8" };
   if (extraHeaders && typeof extraHeaders === "object") {
     Object.assign(headers, extraHeaders);
   }
   res.writeHead(statusCode, headers);
   res.end(JSON.stringify(payload, null, 2));
+  return true;
 }
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
@@ -22730,6 +22734,49 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  {
+    const tunnelHandled = await require("./lib/tunnel/http-handlers.js").handleTunnelHttp(
+      req,
+      res,
+      url,
+      sendJson
+    );
+    if (tunnelHandled) return;
+  }
+
+  if (url.pathname === "/api/platform/mcp-instances") {
+    const instancesStore = require("./lib/instances/instances-store.js");
+    const projectRoot = getProjectRoot();
+    if (req.method === "GET") {
+      try {
+        const { filePath, document, exists } = instancesStore.readInstances(projectRoot);
+        const instances = (document.instances || []).map((entry) => {
+          const row = { ...entry };
+          if (row.token) {
+            row.hasToken = true;
+            delete row.token;
+          }
+          return row;
+        });
+        let tunnelDevices = [];
+        try {
+          tunnelDevices = require("./lib/tunnel/registry.js").listOnlineDeviceIds();
+        } catch {
+          tunnelDevices = [];
+        }
+        return sendJson(res, 200, { filePath, exists, instances, tunnelDevices });
+      } catch (error) {
+        return sendJson(res, 500, { error: String(error.message || error) });
+      }
+    }
+    if (req.method === "POST") {
+      return sendJson(res, 403, {
+        error: "MCP instances are configured in Agent CMS Control (Electron), not via Editor."
+      });
+    }
+    return sendJson(res, 405, { error: "Method not allowed" });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/mcp-ping") {
     try {
       return sendJson(res, 200, buildAgentMcpPing());
@@ -33832,6 +33879,14 @@ async function startServer(options = {}) {
     httpServer = http.createServer(handler);
     boundPort = await listenServer(httpServer, { host, port, tryNextPort });
     httpUrl = `http://${hostname}:${boundPort}`;
+  }
+
+  try {
+    const { attachAgentCmsTunnel } = require("./lib/tunnel/registry.js");
+    if (httpServer) attachAgentCmsTunnel(httpServer);
+    if (httpsServer) attachAgentCmsTunnel(httpsServer);
+  } catch (error) {
+    console.warn("Agent CMS tunnel disabled:", error?.message || error);
   }
 
   const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
