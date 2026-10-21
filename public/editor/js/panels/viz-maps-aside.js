@@ -18,7 +18,10 @@
     if (typeof window.showToast === "function") window.showToast(message, tone);
   }
 
-  async function confirmVizMapsAction(message, { okLabel, title = "Подтверждение", hint = "" } = {}) {
+  async function confirmVizMapsAction(
+    message,
+    { okLabel, title = "Подтверждение", hint = "", variant = "info" } = {}
+  ) {
     const ask = typeof window.askConfirm === "function" ? window.askConfirm : null;
     if (ask) {
       return ask(message, {
@@ -27,7 +30,7 @@
         title,
         hint,
         icon: "🗺",
-        variant: "info"
+        variant
       });
     }
     return window.confirm(String(message || "").replace(/\n+/g, " "));
@@ -90,6 +93,34 @@
         })();
       });
       actions.appendChild(openBtn);
+      if (!readOnly) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "props-viz-maps-btn props-viz-maps-btn--delete";
+        deleteBtn.textContent = "Удалить";
+        deleteBtn.addEventListener("click", () => {
+          void (async () => {
+            const labelText = row.label || row.kind;
+            const mapPath = row.map?.path || "";
+            if (typeof window.deleteEntryOverviewVizMap !== "function") {
+              toast("Удаление недоступно — перезагрузите редактор.", "error");
+              return;
+            }
+            deleteBtn.disabled = true;
+            try {
+              const deleted = await window.deleteEntryOverviewVizMap({
+                mapPath,
+                kind: row.kind,
+                label: labelText
+              });
+              if (deleted) onRefresh();
+            } finally {
+              deleteBtn.disabled = false;
+            }
+          })();
+        });
+        actions.appendChild(deleteBtn);
+      }
     } else if (!readOnly) {
       const createBtn = document.createElement("button");
       createBtn.type = "button";

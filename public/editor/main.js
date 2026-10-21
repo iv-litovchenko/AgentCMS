@@ -79930,6 +79930,28 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
 let entryOverviewVizMapsCreatePopoverNode = null;
 let entryOverviewVizMapsCreatePopoverListNode = null;
 let entryOverviewVizMapsCreatePopoverAnchor = null;
+/** Popover config (about, context, card) — not JSON in dataset (DOM nodes + large props break parse). */
+let entryOverviewVizMapsCreatePendingConfig = null;
+
+function resolveVizMapsUiContext(config) {
+  if (config?.context?.relPath) return config.context;
+  const about = String(config?.about || "").trim();
+  if (!about) return activeEntryOverviewContext;
+  if (activeEntryOverviewContext) {
+    const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+    if (activeAbout === about) return activeEntryOverviewContext;
+  }
+  if (isTopicManifestPath(about) || isAreaNodePath(about)) {
+    const entries =
+      typeof resolveNodeOverviewPropsEntries === "function" ? resolveNodeOverviewPropsEntries() : [];
+    return buildNodeManifestVizMapsOverviewContext(about, entries);
+  }
+  return {
+    relPath: about,
+    relativePath: about.split("/").pop() || "manifest.md",
+    memoryKind: "external"
+  };
+}
 
 function ensureEntryOverviewVizMapsCreatePopover() {
   if (entryOverviewVizMapsCreatePopoverNode) return;
@@ -79958,15 +79980,12 @@ function ensureEntryOverviewVizMapsCreatePopover() {
     if (!btn || btn.disabled) return;
     event.preventDefault();
     event.stopPropagation();
-    const raw = entryOverviewVizMapsCreatePopoverNode?.dataset.vizCreateConfig || "";
-    let config = null;
-    try {
-      config = raw ? JSON.parse(raw) : null;
-    } catch {
-      config = null;
-    }
+    const config = entryOverviewVizMapsCreatePendingConfig;
     closeEntryOverviewVizMapsCreatePopover();
-    if (!config?.about) return;
+    if (!config?.about) {
+      showToast("Не удалось создать карту: потерян контекст. Закройте меню и нажмите «+» снова.", "error");
+      return;
+    }
     void handleEntryOverviewVizMapsCreatePick(config, btn.dataset);
   });
 }
@@ -79974,6 +79993,7 @@ function ensureEntryOverviewVizMapsCreatePopover() {
 function closeEntryOverviewVizMapsCreatePopover() {
   entryOverviewVizMapsCreatePopoverNode?.classList.add("hidden");
   entryOverviewVizMapsCreatePopoverNode?.removeAttribute("data-viz-create-config");
+  entryOverviewVizMapsCreatePendingConfig = null;
   if (entryOverviewVizMapsCreatePopoverAnchor) {
     entryOverviewVizMapsCreatePopoverAnchor.setAttribute("aria-expanded", "false");
     entryOverviewVizMapsCreatePopoverAnchor = null;
@@ -80067,7 +80087,7 @@ async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
   const about = String(config.about || "").trim();
   const kind = String(dataset.vizKind || "").trim();
   const card = config.card || null;
-  const context = config.context || activeEntryOverviewContext;
+  const context = resolveVizMapsUiContext(config);
   if (!about || !kind) return;
 
   if (dataset.hasMap === "1" && dataset.mapPath) {
@@ -80085,32 +80105,27 @@ async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ about, kind })
     });
-    const data = await response.json();
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
     if (!response.ok) {
       const hint = data.hint ? ` ${data.hint}` : "";
-      throw new Error(`${data.error || response.statusText}.${hint}`);
+      const details = data.details ? ` ${data.details}` : "";
+      throw new Error(`${data.error || response.statusText}.${hint}${details}`);
     }
     showToast(`Карта «${kind}» создана`, "success");
-    const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+    const body =
+      card?.querySelector(".node-entry-overview-viz-maps-body") ||
+      document.querySelector(
+        `.node-entry-overview-viz-maps-card[data-viz-maps-about="${CSS.escape(about)}"] .node-entry-overview-viz-maps-body`
+      );
     if (body && context) {
       const { count } = await refreshEntryOverviewVizMapsBody(body, context);
-      const badge = card.querySelector(".node-navigation-memory-badge");
-      if (badge) {
-        if (count > 0) {
-          badge.textContent = String(count);
-          badge.classList.remove("hidden");
-        } else {
-          badge.remove();
-        }
-      } else if (count > 0) {
-        const head = card.querySelector(".node-navigation-memory-head");
-        if (head) {
-          const newBadge = document.createElement("span");
-          newBadge.className = "node-navigation-memory-badge node-navigation-memory-badge--viz";
-          newBadge.textContent = String(count);
-          head.appendChild(newBadge);
-        }
-      }
+      const vizCard = card || body.closest(".node-entry-overview-viz-maps-card");
+      syncEntryOverviewVizMapsCardBadge(vizCard, count);
     }
   } catch (error) {
     showToast(error.message || "Не удалось создать карту", "error");
@@ -80136,18 +80151,275 @@ async function openEntryOverviewVizMapsCreatePopover(event, config) {
 
   closeEntryOverviewVizMapsCreatePopover();
   if (!config?.about) return;
+  entryOverviewVizMapsCreatePendingConfig = {
+    about: config.about,
+    context: config.context || null,
+    card: config.card || null
+  };
   await populateEntryOverviewVizMapsCreatePopover(config.about);
-  entryOverviewVizMapsCreatePopoverNode.dataset.vizCreateConfig = JSON.stringify(config);
   entryOverviewVizMapsCreatePopoverAnchor = anchor;
   anchor.setAttribute("aria-expanded", "true");
   positionEntryOverviewVizMapsCreatePopover(anchor);
 }
 
-function createEntryOverviewVizMapListRow(row, about) {
+let entryOverviewVizMapPreviewModalNode = null;
+let entryOverviewVizMapPreviewBodyNode = null;
+let entryOverviewVizMapPreviewTitleNode = null;
+let entryOverviewVizMapPreviewRenderSeq = 0;
+let entryOverviewVizMapPreviewEscapeHandler = null;
+
+function closeEntryOverviewVizMapPreviewModal() {
+  entryOverviewVizMapPreviewRenderSeq += 1;
+  entryOverviewVizMapPreviewModalNode?.classList.add("hidden");
+  if (entryOverviewVizMapPreviewEscapeHandler) {
+    document.removeEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+    entryOverviewVizMapPreviewEscapeHandler = null;
+  }
+}
+
+function ensureEntryOverviewVizMapPreviewModal() {
+  if (entryOverviewVizMapPreviewModalNode) return entryOverviewVizMapPreviewModalNode;
+
+  const overlay = document.createElement("div");
+  overlay.id = "entry-overview-viz-map-preview-modal";
+  overlay.className = "modal-overlay entry-overview-viz-map-preview-modal hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "entry-overview-viz-map-preview-title");
+
+  const card = document.createElement("div");
+  card.className = "modal-card entry-overview-viz-map-preview-card";
+
+  const head = document.createElement("div");
+  head.className = "entry-overview-viz-map-preview-head";
+
+  const title = document.createElement("h3");
+  title.id = "entry-overview-viz-map-preview-title";
+  title.className = "entry-overview-viz-map-preview-title";
+  title.textContent = "Карта";
+
+  const headActions = document.createElement("div");
+  headActions.className = "entry-overview-viz-map-preview-head-actions";
+
+  const openEditorBtn = document.createElement("button");
+  openEditorBtn.type = "button";
+  openEditorBtn.className = "node-overview-action-btn entry-overview-viz-map-preview-open-editor";
+  openEditorBtn.textContent = "В редакторе";
+  openEditorBtn.addEventListener("click", () => {
+    const mapPath = overlay.dataset.vizMapPath || "";
+    const about = overlay.dataset.vizMapAbout || "";
+    closeEntryOverviewVizMapPreviewModal();
+    if (mapPath) void window.agentCmsOpenVizMap?.(mapPath, about, { navigateToMap: true });
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className =
+    "node-overview-action-btn entry-overview-viz-map-preview-delete entry-overview-viz-map-delete-btn";
+  deleteBtn.textContent = "Удалить";
+  deleteBtn.addEventListener("click", () => {
+    void (async () => {
+      const mapPath = overlay.dataset.vizMapPath || "";
+      const aboutPath = overlay.dataset.vizMapAbout || "";
+      const kindId = overlay.dataset.vizMapKind || "";
+      const mapLabel = overlay.dataset.vizMapLabel || "";
+      const deleted = await deleteEntryOverviewVizMap({
+        mapPath,
+        about: aboutPath,
+        kind: kindId,
+        label: mapLabel
+      });
+      if (!deleted) return;
+      closeEntryOverviewVizMapPreviewModal();
+      const card = document.querySelector(
+        `.node-entry-overview-viz-maps-card[data-viz-maps-about="${CSS.escape(aboutPath)}"]`
+      );
+      const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+      if (body) {
+        const context = resolveVizMapsUiContext({ about: aboutPath });
+        const { count } = await refreshEntryOverviewVizMapsBody(body, context);
+        syncEntryOverviewVizMapsCardBadge(card, count);
+      }
+    })();
+  });
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "node-overview-action-btn entry-overview-viz-map-preview-close";
+  closeBtn.setAttribute("aria-label", "Закрыть просмотр");
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => closeEntryOverviewVizMapPreviewModal());
+
+  headActions.append(openEditorBtn, deleteBtn, closeBtn);
+  head.append(title, headActions);
+
+  const body = document.createElement("div");
+  body.className = "entry-overview-viz-map-preview-body markdown-preview";
+  body.setAttribute("role", "document");
+
+  card.append(head, body);
+  overlay.appendChild(card);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeEntryOverviewVizMapPreviewModal();
+  });
+
+  document.body.appendChild(overlay);
+  entryOverviewVizMapPreviewModalNode = overlay;
+  entryOverviewVizMapPreviewBodyNode = body;
+  entryOverviewVizMapPreviewTitleNode = title;
+  return overlay;
+}
+
+function syncEntryOverviewVizMapsCardBadge(vizCard, count) {
+  if (!vizCard) return;
+  const badge = vizCard.querySelector(".node-navigation-memory-badge");
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = String(count);
+      badge.classList.remove("hidden");
+    } else {
+      badge.remove();
+    }
+  } else if (count > 0) {
+    const head = vizCard.querySelector(".node-navigation-memory-head");
+    if (head) {
+      const newBadge = document.createElement("span");
+      newBadge.className = "node-navigation-memory-badge node-navigation-memory-badge--viz";
+      newBadge.textContent = String(count);
+      head.appendChild(newBadge);
+    }
+  }
+}
+
+async function deleteEntryOverviewVizMap({ mapPath, kind = "", label = "" } = {}) {
+  const filePath = String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!filePath) return false;
+  const kindId = String(kind || "").trim();
+  const displayLabel = String(label || kindId || filePath.split("/").pop() || "карта").trim();
+  const confirmed = await askConfirm(
+    `Удалить карту «${displayLabel}»?\n\nФайл будет удалён с диска; запись-«хозяин» не затрагивается.`,
+    {
+      okLabel: "Удалить",
+      cancelLabel: "Отмена",
+      title: "Удалить карту",
+      hint: filePath,
+      icon: "🗺",
+      variant: "danger"
+    }
+  );
+  if (!confirmed) return false;
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: filePath }), { method: "DELETE" });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    showToast(`Карта «${displayLabel}» удалена`, "success");
+    return true;
+  } catch (error) {
+    showToast(error.message || "Не удалось удалить карту", "error");
+    return false;
+  }
+}
+
+window.deleteEntryOverviewVizMap = deleteEntryOverviewVizMap;
+
+async function openEntryOverviewVizMapPreviewModal({ mapPath, about = "", label = "", kind = "" } = {}) {
+  const normalizedPath = String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalizedPath) return;
+
+  const overlay = ensureEntryOverviewVizMapPreviewModal();
+  const body = entryOverviewVizMapPreviewBodyNode;
+  const titleNode = entryOverviewVizMapPreviewTitleNode;
+  if (!body || !titleNode) return;
+
+  overlay.dataset.vizMapPath = normalizedPath;
+  overlay.dataset.vizMapAbout = String(about || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  overlay.dataset.vizMapKind = String(kind || "").trim();
+  overlay.dataset.vizMapLabel = String(label || kind || "").trim();
+
+  const displayLabel = String(label || kind || normalizedPath.split("/").pop() || "Карта").trim();
+  titleNode.textContent = displayLabel;
+
+  const renderSeq = ++entryOverviewVizMapPreviewRenderSeq;
+  overlay.classList.remove("hidden");
+
+  if (entryOverviewVizMapPreviewEscapeHandler) {
+    document.removeEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+  }
+  entryOverviewVizMapPreviewEscapeHandler = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeEntryOverviewVizMapPreviewModal();
+    }
+  };
+  document.addEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+
+  body.replaceChildren();
+  body.classList.add("is-loading");
+  const loading = document.createElement("p");
+  loading.className = "entry-overview-viz-map-preview-loading";
+  loading.textContent = "Загрузка карты…";
+  body.appendChild(loading);
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: normalizedPath }));
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
+    if (renderSeq !== entryOverviewVizMapPreviewRenderSeq) return;
+    if (!response.ok) throw new Error(data.error || response.statusText);
+
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const article = document.createElement("article");
+    article.className = "entry-overview-viz-map-preview-article markdown-body";
+    const inner = document.createElement("div");
+    inner.className = "entry-overview-viz-map-preview-inner";
+    const content = String(data.content || "");
+    if (typeof renderMarkdownToHtml === "function") {
+      inner.innerHTML = renderMarkdownToHtml(content, {
+        hideFrontmatter: true,
+        nodePath: normalizedPath
+      });
+      if (typeof hydrateMarkdownPreviewElement === "function") {
+        hydrateMarkdownPreviewElement(inner, normalizedPath);
+      }
+    } else {
+      inner.textContent = content;
+    }
+    article.appendChild(inner);
+    body.appendChild(article);
+  } catch (error) {
+    if (renderSeq !== entryOverviewVizMapPreviewRenderSeq) return;
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const err = document.createElement("p");
+    err.className = "entry-overview-viz-map-preview-error";
+    err.textContent = error.message || "Не удалось загрузить карту";
+    body.appendChild(err);
+  }
+}
+
+function createEntryOverviewVizMapListRow(row, about, { onListMutate = null } = {}) {
   const map = row?.map;
   if (!map?.path) return null;
 
   const filePath = String(map.path || "").replace(/\\/g, "/");
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-viz-map-row-wrap";
+  wrap.setAttribute("role", "listitem");
+
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "node-entry-overview-record-parts-asset-row node-entry-overview-viz-map-row";
@@ -80184,7 +80456,53 @@ function createEntryOverviewVizMapListRow(row, about) {
     event.stopPropagation();
     void window.agentCmsOpenVizMap?.(filePath, about, { navigateToMap: true });
   });
-  return btn;
+
+  const previewBtn = document.createElement("button");
+  previewBtn.type = "button";
+  previewBtn.className =
+    "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-map-preview-btn";
+  previewBtn.setAttribute("aria-label", `Просмотр: ${row.label || row.kind || "карта"}`);
+  previewBtn.title = "Просмотр во всплывающем окне";
+  previewBtn.textContent = "👁";
+  previewBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openEntryOverviewVizMapPreviewModal({
+      mapPath: filePath,
+      about,
+      label: row.label || row.kind,
+      kind: row.kind
+    });
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className =
+    "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-map-delete-btn";
+  deleteBtn.setAttribute("aria-label", `Удалить: ${row.label || row.kind || "карта"}`);
+  deleteBtn.title = "Удалить карту";
+  deleteBtn.textContent = "🗑";
+  deleteBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void (async () => {
+      deleteBtn.disabled = true;
+      try {
+        const deleted = await deleteEntryOverviewVizMap({
+          mapPath: filePath,
+          about,
+          kind: row.kind,
+          label: row.label || row.kind
+        });
+        if (deleted && typeof onListMutate === "function") await onListMutate();
+      } finally {
+        deleteBtn.disabled = false;
+      }
+    })();
+  });
+
+  wrap.append(btn, previewBtn, deleteBtn);
+  return wrap;
 }
 
 function createEntryOverviewVizMapsCard(
@@ -80320,7 +80638,12 @@ async function refreshEntryOverviewVizMapsBody(body, context, helpers = {}) {
   list.className = "node-entry-overview-viz-maps-list";
   list.setAttribute("role", "list");
   for (const row of maps) {
-    const item = createEntryOverviewVizMapListRow(row, about);
+    const item = createEntryOverviewVizMapListRow(row, about, {
+      onListMutate: async () => {
+        const { count } = await refreshEntryOverviewVizMapsBody(body, context, helpers);
+        syncEntryOverviewVizMapsCardBadge(body.closest(".node-entry-overview-viz-maps-card"), count);
+      }
+    });
     if (item) list.appendChild(item);
   }
   body.appendChild(list);

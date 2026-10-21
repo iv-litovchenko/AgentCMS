@@ -26376,6 +26376,36 @@ a.header-tool-btn {
   gap: 6px;
 }
 
+.node-entry-overview-viz-map-row-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.node-entry-overview-viz-map-row-wrap .node-entry-overview-viz-map-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.node-entry-overview-viz-map-preview-btn,
+.node-entry-overview-viz-map-delete-btn {
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-width: 40px;
+  padding: 0 10px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.node-entry-overview-viz-map-delete-btn:hover,
+.node-entry-overview-viz-map-delete-btn:focus-visible,
+.entry-overview-viz-map-preview-delete:hover,
+.entry-overview-viz-map-preview-delete:focus-visible {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .node-entry-overview-viz-map-row {
   width: 100%;
   text-align: left;
@@ -26446,6 +26476,79 @@ a.header-tool-btn {
 .entry-overview-viz-maps-create-popover .menu-context-menu-btn {
   text-align: left;
   white-space: normal;
+}
+
+.entry-overview-viz-map-preview-modal {
+  z-index: 1120;
+}
+
+.entry-overview-viz-map-preview-card {
+  width: min(80vw, 1400px);
+  max-height: min(85vh, 960px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.entry-overview-viz-map-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  flex: 0 0 auto;
+}
+
+.entry-overview-viz-map-preview-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.entry-overview-viz-map-preview-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-overview-viz-map-preview-close {
+  min-width: 36px;
+  padding: 0 10px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.entry-overview-viz-map-preview-body {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow: auto;
+  padding: 12px 16px 18px;
+}
+
+.entry-overview-viz-map-preview-body.is-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entry-overview-viz-map-preview-loading,
+.entry-overview-viz-map-preview-error {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.entry-overview-viz-map-preview-error {
+  color: #b91c1c;
+}
+
+.entry-overview-viz-map-preview-inner {
+  max-width: none;
 }
 
 .entry-overview-viz-maps-create-loading,
@@ -26532,6 +26635,16 @@ a.header-tool-btn {
 .props-viz-maps-btn--create {
   border-color: #bfdbfe;
   color: #1d4ed8;
+}
+
+.props-viz-maps-btn--delete {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.props-viz-maps-btn--delete:hover {
+  border-color: #fca5a5;
+  background: #fef2f2;
 }
 
 .props-viz-maps-row-empty {
