@@ -612,11 +612,11 @@ user-agent-cms
 │   │   ├── 🟢 reference_entry_update
 │   │   ├── 🟢 reference_entries_list
 │   │   └── 🟢 reference_entries_search
-│   └── Внешняя память (External memory) · 4
-│       ├── ⚪ external_memory_list
-│       ├── ⚪ external_memory_upsert
-│       ├── ⚪ external_memory_sync
-│       └── ⚪ external_memory_sync_status
+│   └── Внешняя память (External memory) · 4 · `0-contents/0-external-memory/`
+│       ├── ⚪ external_memory_list — `platform` опционален (фильтр раздела)
+│       ├── ⚪ external_memory_upsert — `platform` обязателен: slug клиента (не модель), агент сам: `cursor`, `claude-code`, `codex`, `claude-cli`, `chatgpt`, `claude`… → раздел `data/{platform}/`
+│       ├── ⚪ external_memory_sync — то же `platform`; pull/push, `exports/{platform}.md`
+│       └── ⚪ external_memory_sync_status — `sync-state.json` (map `platforms`)
 │
 ├── 📝 Аннотации (Annotations) · 11
 │   ├── Комментарии (Comments) · 6
