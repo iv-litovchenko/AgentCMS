@@ -58,6 +58,7 @@ docs:
   markdown: GLOBAL-SKILL-4-MARKDOWN.md
   search: GLOBAL-SKILL-5-SEARCH.md
   modules: GLOBAL-SKILL-6-MODULES.md
+  viz: GLOBAL-SKILL-7-VIZ-MAPS.md
   markdown-showcase: GLOBAL-SKILL-4-MARKDOWN.md
   agents: AGENTS.md
 

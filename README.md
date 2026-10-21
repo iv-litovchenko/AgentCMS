@@ -314,6 +314,7 @@ Copyright © 2026 Agent CMS
 | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
 | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
 | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*` |
 
 **Как установить**
 
@@ -342,6 +343,7 @@ Copyright © 2026 Agent CMS
 > | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
 > | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
 > | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
+> | [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Viz maps `*.viz.md`, Atlas UI, `viz_map_*` |
 >
 > **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from the repo root; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
 
@@ -452,14 +454,13 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_media_libraries_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh
 │
-├── 🎨 Визуализация — карты `*.viz.md` (Viz maps) · 7
-│   ├── 🔵 viz_kind_list — реестр видов (mindmap, roadmap…; `awn-system/types/viz/`)
-│   ├── 🔵 viz_atlas_read — атлас: список всех карт workspace (фильтр kind / about / section)
-│   ├── 🔵 viz_atlas_refresh — пересобрать индекс атласа
-│   ├── 🔵 viz_map_read — прочитать одну карту (path или about + kind)
-│   ├── 🔵 viz_map_write — создать/обновить (`about`, `kind`, `body`; имя `{stem}.{kind}.viz.md`)
-│   ├── 🔵 viz_map_delete — удалить карту
-│   └── 🔵 viz_maps_for_about — карты, привязанные к записи (сейчас **HTTP** `GET /api/viz/maps-for-about`)
+├── 🎨 Визуализация — карты `*.viz.md` (Viz maps) · 6
+│   ├── 🟢 viz_map_types_list — реестр видов (mindmap, roadmap…; `awn-system/types/viz/`)
+│   ├── 🟢 viz_maps_all_list — все карты workspace (фильтр kind / recordPath / section; UI «Атлас»)
+│   ├── 🟢 viz_maps_for_record — карты по записи (ожидаемый путь + есть ли файл)
+│   ├── 🟢 viz_map_read — прочитать карту (mapPath или recordPath + kind)
+│   ├── 🟢 viz_map_write — создать/обновить (`recordPath`, `kind`, `content`; `{stem}.{kind}.viz.md`)
+│   └── 🟢 viz_map_delete — удалить карту
 │
 ├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list

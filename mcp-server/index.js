@@ -50,6 +50,7 @@ import { registerAnnotationTools } from "./lib/annotation-tools.js";
 import { registerIntakeTools } from "./lib/intake-tools.js";
 import { registerNotificationTools } from "./lib/notification-tools.js";
 import { registerNavTools } from "./lib/nav-tools.js";
+import { registerVizMapTools } from "./lib/viz-map-tools.js";
 import { registerSessionTools } from "./lib/session-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
@@ -200,6 +201,7 @@ function createServer() {
 
   registerNavTools(reg, client, pagePath);
   registerMapTools(reg, client, pagePath);
+  registerVizMapTools(reg, client);
   registerRecordTools(reg, client);
 
   registerSearchWorkspaceTools(reg, client);
