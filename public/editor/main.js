@@ -18043,6 +18043,7 @@ const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
 const AWN_CONTENTS_REFERENCE_STORE = `${AWN_CONTENTS_GROUP}/reference`;
+const AWN_EXTERNAL_MEMORY_GROUP = "0-external-memory";
 const AWN_TASK_QUEUE_STORE = "task-queue";
 const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
 const LEGACY_AWN_AGENT_QUEUE_STORE = "agent-queue";
@@ -18539,6 +18540,10 @@ const WORKSPACE_TOOL_MODULE_META = {
   [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач",
     lead: "Коллекция task-queue — чекпоинты и задачи (слот task-queue в теме и канале)."
+  },
+  [`awn-databases/${AWN_EXTERNAL_MEMORY_GROUP}`]: {
+    title: "Внешняя память",
+    lead: "Синхронизация памяти ассистентов: 0-claude, 0-cursor, 0-chatgpt, 0-other (external_memory_sync)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -121342,6 +121347,19 @@ function syncAwnDataCreateGroupPresetsUi() {
       ? "Коллекция awn-databases/task-queue/ уже создана"
       : "Коллекция task-queue — md с разделами, как слот «Очередь задач» в теме и канале";
   }
+
+  const externalMemoryBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="external-memory"]'
+  );
+  if (externalMemoryBtn) {
+    const exists = isAwnContentsCollectionPresent(AWN_EXTERNAL_MEMORY_GROUP, activeWorkspaceId);
+    externalMemoryBtn.disabled = exists;
+    externalMemoryBtn.classList.toggle("is-disabled", exists);
+    externalMemoryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+    externalMemoryBtn.title = exists
+      ? "Группа awn-databases/0-external-memory/ уже создана"
+      : "Группа 0-external-memory/ — claude, cursor, chatgpt, other и 0-sync (MCP external_memory_sync)";
+  }
 }
 
 function openAwnDataCreateModal(kind = "collection", options = {}) {
@@ -130844,6 +130862,44 @@ async function submitAwnDataScaffoldContents(agentId = activeWorkspaceId, { pres
   }
 }
 
+async function submitAwnDataScaffoldExternalMemory(agentId = activeWorkspaceId) {
+  if (!agentId) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
+    '[data-awn-data-group-preset="external-memory"]'
+  );
+  if (presetBtn) presetBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-external-memory", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    closeAwnDataCreateModal();
+    const created = Array.isArray(data.storesCreated) ? data.storesCreated : [];
+    if (data.groupCreated) {
+      showToast(
+        created.length
+          ? `Создана «Внешняя память»: ${created.join(", ")}`
+          : "Создана группа «Внешняя память»",
+        "success"
+      );
+    } else {
+      showToast("Группа «Внешняя память» уже существует", "success");
+    }
+    await refreshMenuAwnDataStores(agentId);
+    void openAwnDataViewPage(AWN_EXTERNAL_MEMORY_GROUP, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    syncAwnDataCreateGroupPresetsUi();
+  }
+}
+
 async function submitAwnDataScaffoldTaskQueue(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
@@ -130931,6 +130987,7 @@ function setupAwnDataStoresUi() {
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "glossary" });
     if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
+    if (preset === "external-memory") void submitAwnDataScaffoldExternalMemory();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));

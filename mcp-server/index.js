@@ -38,6 +38,7 @@ import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
 import { registerReferenceTools } from "./lib/reference-tools.js";
+import { registerExternalMemoryTools } from "./lib/external-memory-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
@@ -222,6 +223,7 @@ function createServer() {
   registerFactsTools(reg, client);
   registerGlossaryTools(reg, client);
   registerReferenceTools(reg, client);
+  registerExternalMemoryTools(reg, client);
   registerJournalTools(reg, client);
 
   // ── awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*; records → *_content_*) ─

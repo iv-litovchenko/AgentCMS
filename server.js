@@ -197,6 +197,9 @@ const {
 const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
 const { createWorkspaceReferenceService } = require("./lib/services/workspace-reference-service");
 const {
+  createWorkspaceExternalMemoryService
+} = require("./lib/services/workspace-external-memory-service");
+const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
   collectEntriesFromRoot,
@@ -475,13 +478,15 @@ const {
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
   ensureAgentTaskQueueStoreScaffold,
+  ensureExternalMemoryGroupScaffold,
   TASK_QUEUE_STORE_REL,
   AGENT_TASK_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
   GLOSSARY_STORE_REL,
-  REFERENCE_STORE_REL
+  REFERENCE_STORE_REL,
+  EXTERNAL_MEMORY_GROUP_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -2418,6 +2423,7 @@ let workspaceBrainService = null;
 let workspaceFactsService = null;
 let workspaceGlossaryService = null;
 let workspaceReferenceService = null;
+let workspaceExternalMemoryService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
@@ -2453,6 +2459,17 @@ function getWorkspaceReferenceService() {
     });
   }
   return workspaceReferenceService;
+}
+
+function getWorkspaceExternalMemoryService() {
+  if (!workspaceExternalMemoryService) {
+    workspaceExternalMemoryService = createWorkspaceExternalMemoryService({
+      getAgentRoot,
+      getProjectRoot,
+      onMemoryWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceExternalMemoryService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -15040,6 +15057,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — glossary_term_update MCP",
   workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — glossary_terms_list MCP",
   workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — glossary_terms_search MCP",
+  workspaceExternalMemoryList: "GET /api/agent/workspace-external-memory/list?provider= — external_memory_list MCP",
+  workspaceExternalMemoryUpsert: "POST /api/agent/workspace-external-memory/upsert — external_memory_upsert MCP",
+  workspaceExternalMemorySync: "POST /api/agent/workspace-external-memory/sync — external_memory_sync MCP",
+  workspaceExternalMemorySyncStatus: "GET /api/agent/workspace-external-memory/sync-status — external_memory_sync_status MCP",
   workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — reference_entry_create MCP",
   workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — reference_entry_update MCP",
   workspaceReferenceList: "GET /api/agent/workspace-reference/list — reference_entries_list MCP",
@@ -25308,6 +25329,66 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-external-memory/list") {
+    try {
+      const provider = url.searchParams.get("provider") || "";
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceExternalMemoryService().listProviderItems(provider, {
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /provider must be|Agent not selected/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to list external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-external-memory/upsert") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceExternalMemoryService().upsertMemoryEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|provider must be/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to upsert external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-external-memory/sync") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceExternalMemoryService().syncExternalMemory(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /direction must be|provider must be|required/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to sync external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-external-memory/sync-status") {
+    try {
+      const payload = await getWorkspaceExternalMemoryService().syncStatus();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read external memory sync status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/create") {
     try {
       const body = await readJsonBody(req);
@@ -27141,6 +27222,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold contents group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-external-memory") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = ensureExternalMemoryGroupScaffold(agentRoot, getProjectRoot());
+      return sendJson(res, 201, {
+        ok: true,
+        groupRel: EXTERNAL_MEMORY_GROUP_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold external memory group",
         details: String(error.message || error)
       });
     }
