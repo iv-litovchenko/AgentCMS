@@ -19,6 +19,7 @@ import "../core/editor-system-files-runtime.js";
 import "../core/editor-shared-theme-presets-runtime.js";
 import "../context-buffer/context-buffer-client.js";
 import "../context-buffer/context-buffer-panel.js";
+import "../file-hub/file-hub-band-panel.js";
 import "../cms/awn-enum-options.js";
 import "../core/node-config-bundle.js";
 import "../core/topic-schema-slot-specs.js";

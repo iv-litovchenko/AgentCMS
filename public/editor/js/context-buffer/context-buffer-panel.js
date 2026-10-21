@@ -264,6 +264,7 @@
     if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
+    global.FileHubBandPanel?.syncMount?.();
   }
 
   function init(options = {}) {

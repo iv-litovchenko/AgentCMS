@@ -6656,6 +6656,56 @@
           </p>
         </div>
       </aside>
+
+      <aside
+        id="file-hub-band"
+        class="context-buffer-band context-buffer-band--global file-hub-band is-collapsed"
+        aria-label="Файлообменник — файлы туда‑сюда (заготовка, TODO)"
+      >
+        <div class="context-buffer-head">
+          <button
+            type="button"
+            id="file-hub-toggle-btn"
+            class="context-buffer-toggle"
+            aria-expanded="false"
+            aria-controls="file-hub-body"
+            title="Свернуть или развернуть «Файлообменник — файлы туда‑сюда»"
+          >
+            <span class="context-buffer-chevron sidebar-accent-band-chevron" aria-hidden="true"></span>
+            <span class="context-buffer-title file-hub-band-title">
+              <span class="file-hub-band-brand">📁 Файлообменник — файлы туда‑сюда</span>
+              <span class="stub-static-mark file-hub-band-todo-mark" title="Заготовка, функционал в разработке">TODO</span>
+            </span>
+            <span id="file-hub-count" class="context-buffer-count">0</span>
+          </button>
+          <div class="context-buffer-actions">
+            <button
+              type="button"
+              id="file-hub-refresh-btn"
+              class="context-buffer-action-btn context-buffer-action-btn--ghost"
+              title="Обновить очередь (скоро)"
+              disabled
+            >
+              ↻
+            </button>
+            <button
+              type="button"
+              id="file-hub-clear-btn"
+              class="context-buffer-action-btn context-buffer-action-btn--ghost"
+              title="Очистить очередь (скоро)"
+              disabled
+            >
+              Очистить
+            </button>
+          </div>
+        </div>
+        <div id="file-hub-body" class="context-buffer-body">
+          <div id="file-hub-list" class="context-buffer-list" role="list"></div>
+          <p class="context-buffer-caption context-buffer-caption--file-hub">
+            Файлы туда‑сюда · агент: <code>module_file_hub_outbound_list</code> / inbound (скоро)
+          </p>
+        </div>
+      </aside>
         </div>
 
         <aside id="discuss-aside" class="discuss-aside" aria-label="Agent CMS Voice" data-active-tab="shell">
@@ -9100,7 +9150,8 @@ awn-type: awn.page.ws
             "/editor/js/core/editor-system-files-runtime.js?v=1",
             "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
             "/editor/js/context-buffer/context-buffer-client.js?v=1",
-            "/editor/js/context-buffer/context-buffer-panel.js?v=1"
+            "/editor/js/context-buffer/context-buffer-panel.js?v=1",
+            "/editor/js/file-hub/file-hub-band-panel.js?v=1"
           ];
           loadScriptChain(preMain, 0, function () {
             startEditorMain("/editor/main.js?v=" + version);

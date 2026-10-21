@@ -104772,6 +104772,10 @@ function bindVoiceChatDragSourceObserver() {
   observer.observe(host, { childList: true, subtree: true });
 }
 
+function setupFileHubBandPanel() {
+  window.FileHubBandPanel?.init?.();
+}
+
 function setupContextBufferPanel() {
   if (!window.ContextBufferPanel?.init) return;
   window.ContextBufferPanel.init({
@@ -134597,6 +134601,7 @@ window.AgentCmsLinkDrag = {
 };
 setupVoiceChatContextDrag();
 setupContextBufferPanel();
+setupFileHubBandPanel();
 setupMenuNodeMoveDragDrop();
 setupMemoryListDragDrop();
 setupEditorMenuLinkDrop();
