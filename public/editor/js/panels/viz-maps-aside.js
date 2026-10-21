@@ -33,16 +33,19 @@
     return window.confirm(String(message || "").replace(/\n+/g, " "));
   }
 
-  function isRecordMdPath(contextPath) {
-    const p = String(contextPath || "").replace(/\\/g, "/");
-    if (!p || p.endsWith("/manifest.md")) return false;
-    if (!/\.md$/i.test(p)) return false;
+  function isVizMapsAsideHostPath(contextPath) {
+    if (typeof window.isVizMapsAboutHostRelPath === "function") {
+      return window.isVizMapsAboutHostRelPath(contextPath);
+    }
+    const p = String(contextPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    if (!p || !/\.md$/i.test(p)) return false;
     if (/\.viz\.md$/i.test(p)) return false;
+    if (/\/manifest\.md$/i.test(p)) return true;
     return true;
   }
 
   window.agentCmsVizMapsAsideAvailable = function agentCmsVizMapsAsideAvailable(contextPath) {
-    return isRecordMdPath(contextPath);
+    return isVizMapsAsideHostPath(contextPath);
   };
 
   function renderRow(row, { readOnly, about, onRefresh }) {
@@ -96,7 +99,7 @@
         void (async () => {
           const label = row.label || row.kind;
           const confirmed = await confirmVizMapsAction(
-            `Создать карту «${label}» для этой записи?\n\nФайл появится в assets/viz/{awn-id}/.`,
+            `Создать карту «${label}» для этого узла?\n\nФайл появится в assets/viz/{awn-id}/.`,
             {
               okLabel: "Создать",
               title: "Создать карту",
@@ -193,10 +196,11 @@
     mount.replaceChildren();
 
     const about = String(contextPath || "").replace(/\\/g, "/").trim();
-    if (!isRecordMdPath(about)) {
+    if (!isVizMapsAsideHostPath(about)) {
       const empty = document.createElement("p");
       empty.className = "doc-viz-maps-empty";
-      empty.textContent = "Карты *.viz.md доступны для обычных записей Markdown (не manifest и не *.viz.md).";
+      empty.textContent =
+        "Карты *.viz.md доступны для записей и для manifest темы или раздела (нужен awn-id у этого файла).";
       mount.appendChild(empty);
       return;
     }
@@ -207,7 +211,7 @@
     const intro = document.createElement("p");
     intro.className = "props-viz-maps-hint";
     intro.textContent =
-      "Карты в assets/viz/{awn-id}/ — нужен awn-id записи. Legacy *.viz.md рядом с файлом только читаются.";
+      "Карты в assets/viz/{awn-id}/ — нужен awn-id у записи, темы или раздела (manifest). Legacy *.viz.md рядом с файлом только читаются.";
 
     const list = document.createElement("div");
     list.className = "props-viz-maps-list";

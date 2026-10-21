@@ -40919,16 +40919,67 @@ function shouldShowEntryOverviewRecordParts(context) {
   return Boolean(getRecordSlugFromStorageRelativePath(relativePath));
 }
 
+function isVizMapsAboutHostRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized || !/\.md$/i.test(normalized)) return false;
+  if (/\.viz\.md$/i.test(normalized)) return false;
+
+  if (isNodeManifestPath(normalized)) {
+    if (isAgentRootIndexPath(normalized)) return false;
+    if (isAgentSystemRootIndexPath(normalized)) return false;
+    if (
+      new RegExp(
+        `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+        "i"
+      ).test(normalized)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (isMarkdownStorageFilePath(normalized)) return true;
+  if (isRecordStorageRelativePath(normalized)) return true;
+  return false;
+}
+
+window.isVizMapsAboutHostRelPath = isVizMapsAboutHostRelPath;
+
+function buildNodeManifestVizMapsOverviewContext(manifestNodePath, propEntries = []) {
+  const relPath = String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!relPath || !isVizMapsAboutHostRelPath(relPath)) return null;
+  if (!isTopicManifestPath(relPath) && !isAreaNodePath(relPath)) return null;
+  const props = Array.isArray(propEntries) ? propEntries : [];
+  const awnId = parseRecordMaterialsAwnIdValue(getPropsEntryValueByKey(props, "awn-id"));
+  const entryKind = String(getPropsEntryValueByKey(props, "awn-type") || "").trim();
+  return {
+    relPath,
+    relativePath: String(relPath.split("/").pop() || "manifest.md"),
+    memoryKind: "external",
+    entryKind,
+    props,
+    ...(awnId ? { awnId } : {})
+  };
+}
+
 function shouldShowEntryOverviewVizMaps(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
-  if (isEntryOverviewCategoryContext(context)) return false;
   if (context.entryKind === "awn.media.asset") return false;
-  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!relativePath || !isMarkdownStorageFilePath(relativePath)) return false;
-  if (isVizMapStorageFilePath(relativePath)) return false;
-  if (isSectionReadmePath(relativePath)) return false;
-  if (context.memoryKind !== "external" && !isFlatEntryOverviewMemoryKind(context.memoryKind)) return false;
+
+  const hostRel = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!hostRel || !isVizMapsAboutHostRelPath(hostRel)) return false;
+
+  if (isEntryOverviewCategoryContext(context) && !/\/manifest\.md$/i.test(hostRel)) return false;
+
+  const hostIsNodeManifest = isNodeManifestPath(hostRel);
+  if (
+    context.memoryKind !== "external" &&
+    !isFlatEntryOverviewMemoryKind(context.memoryKind) &&
+    !hostIsNodeManifest
+  ) {
+    return false;
+  }
   return true;
 }
 
@@ -80139,7 +80190,7 @@ function createEntryOverviewVizMapListRow(row, about) {
 function createEntryOverviewVizMapsCard(
   title,
   contentNode,
-  { badgeText = null, aboutPath = "", context = null } = {}
+  { badgeText = null, aboutPath = "", context = null, onEditClick = null } = {}
 ) {
   const card = document.createElement("section");
   card.className =
@@ -80178,6 +80229,10 @@ function createEntryOverviewVizMapsCard(
       event.stopPropagation();
       closeEntryOverviewVizMapsCreatePopover();
       const ctx = context || activeEntryOverviewContext;
+      if (typeof onEditClick === "function") {
+        onEditClick(ctx);
+        return;
+      }
       if (ctx) void openEntryOverviewEdit(ctx).then(() => setDocAsideTab("viz"));
     });
 
@@ -80240,7 +80295,7 @@ async function refreshEntryOverviewVizMapsBody(body, context, helpers = {}) {
   if (!maps.length) {
     const empty = document.createElement("div");
     empty.className = "node-entry-overview-record-parts-empty";
-    empty.textContent = "Пока нет карт *.viz.md — создайте при редактировании записи.";
+    empty.textContent = "Пока нет карт *.viz.md — создайте через «+» или вкладку «Карты» при редактировании.";
     body.appendChild(empty);
     const actions = document.createElement("div");
     actions.className = "node-entry-overview-record-parts-actions";
@@ -80272,7 +80327,7 @@ async function refreshEntryOverviewVizMapsBody(body, context, helpers = {}) {
   return { count: maps.length };
 }
 
-async function renderEntryOverviewVizMapsPart(context) {
+async function renderEntryOverviewVizMapsPart(context, { onEditClick = null } = {}) {
   if (!shouldShowEntryOverviewVizMaps(context)) return null;
 
   const about = normalizeEntryOverviewVizMapsAboutPath(context);
@@ -80285,17 +80340,24 @@ async function renderEntryOverviewVizMapsPart(context) {
   body.className = "node-entry-overview-viz-maps-body";
   bodyWrap.appendChild(body);
 
-  const { count } = await refreshEntryOverviewVizMapsBody(body, context, {
-    onCreate: () => {
-      void openEntryOverviewEdit(context).then(() => setDocAsideTab("viz"));
+  const openVizAsideAfterEdit = () => {
+    if (typeof onEditClick === "function") {
+      onEditClick(context);
+      return;
     }
+    void openEntryOverviewEdit(context).then(() => setDocAsideTab("viz"));
+  };
+
+  const { count } = await refreshEntryOverviewVizMapsBody(body, context, {
+    onCreate: openVizAsideAfterEdit
   });
 
   const badgeText = count > 0 ? String(count) : null;
   return createEntryOverviewVizMapsCard(ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL, bodyWrap, {
     badgeText,
     aboutPath: about,
-    context
+    context,
+    onEditClick: openVizAsideAfterEdit
   });
 }
 
@@ -96686,6 +96748,18 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav,
     });
     hubMain.appendChild(hero);
+    if (isTopicManifestPath(nodePath)) {
+      const vizContext = buildNodeManifestVizMapsOverviewContext(nodePath, entries);
+      if (vizContext) {
+        const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
+          onEditClick: () => {
+            openDescriptionFromOverview();
+            queueMicrotask(() => setDocAsideTab("viz"));
+          }
+        });
+        if (vizPanel && !isStale()) hubMain.appendChild(vizPanel);
+      }
+    }
   }
 
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
