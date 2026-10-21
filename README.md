@@ -17,6 +17,7 @@
 - [Ссылки](#-ссылки-gb-links)
 - [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+- [Time tracker — идея MCP (черновик)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
 - [С чего начать?](#-с-чего-начать-gb-where-to-start)
@@ -38,6 +39,7 @@
 > - [Links](#-ссылки-gb-links)
 > - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+> - [Time tracker — MCP idea (draft)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
 > - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
@@ -343,7 +345,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 19 · **🔴** 0
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 23 · **🔴** 0
 
 ```
 user-agent-cms
@@ -405,12 +407,18 @@ user-agent-cms
 │   │   ├── 🟢 session_context_buffer_append
 │   │   ├── 🟢 session_context_buffer_remove
 │   │   └── 🟢 session_context_buffer_clear
-│   └── Буфер обмена (Clipboard) · 5
-│       ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
-│       ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит
-│       ├── 🟡 session_clipboard_paste_zzz — идея: вставить в target placement
-│       ├── 🟡 session_clipboard_read_zzz — идея: что сейчас в буфере
-│       └── 🟡 session_clipboard_clear_zzz — идея: очистить
+│   ├── Буфер обмена (Clipboard) · 5
+│   │   ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
+│   │   ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит
+│   │   ├── 🟡 session_clipboard_paste_zzz — идея: вставить в target placement
+│   │   ├── 🟡 session_clipboard_read_zzz — идея: что сейчас в буфере
+│   │   └── 🟡 session_clipboard_clear_zzz — идея: очистить
+│
+├── ⏱ Time tracker (Трекер времени) · 4
+│   ├── 🟡 time_tracker_activity_start_zzz — идея: старт (workspace, тема, «зал», таймер)
+│   ├── 🟡 time_tracker_activity_stop_zzz — идея: стоп текущей активности
+│   ├── 🟡 time_tracker_entry_log_zzz — идея: запись задним числом или длительностью
+│   └── 🟡 time_tracker_summary_zzz — идея: отчёт за период (workspace, category, label)
 │
 ├── 📋 Запросы реестра (Registry queries) · 2
 │   ├── 🟢 registry_queries_list
@@ -653,6 +661,59 @@ user-agent-cms
 └── ⚡ Специальные (Special) · 1
     └── 🟢 batch_tools_invoke
 ```
+
+## 🇷🇺 Time tracker — идея MCP (черновик) (🇬🇧 Time tracker — MCP idea (draft))
+
+🇷🇺 **[ru]**
+
+**Зачем.** Личный **time tracker**: куда ушло время — не только **workspace** в Agent CMS, но и **жизнь вне экрана** (зал, прогулка, сон). Это не «сессия MCP» и не лента правок (`workspace_activity_list`). Отдельная группа tools с префиксом `time_tracker_*`. Сбор: **Jarvis** (голос «начал тренировку»), **редактор** (авто по открытому workspace), **ручная/голосовая запись** после факта.
+
+**Запись** — `{ startedAt, endedAt?, durationMinutes?, kind, category?, label?, workspaceId?, path?, source }`.  
+`kind`: `workspace` | `life` | `custom`. Хранение: `.agent-cms/state/time-tracker-log.json` (или database frame + `awn.field.duration`).
+
+| Tool | Смысл |
+|------|--------|
+| `time_tracker_activity_start_zzz` | Старт таймера (зал, проект, workspace) |
+| `time_tracker_activity_stop_zzz` | Стоп текущей активности |
+| `time_tracker_entry_log_zzz` | Запись без таймера: «был в зале 75 мин» |
+| `time_tracker_summary_zzz` | Отчёт: минуты и % по `workspaceId`, `category`, `label` |
+
+Примеры:
+
+```json
+// time_tracker_activity_start_zzz — «пошёл в зал»
+{ "kind": "life", "category": "sport", "label": "зал", "source": "jarvis" }
+
+// time_tracker_entry_log_zzz — после тренировки, без таймера
+{
+  "kind": "life",
+  "category": "sport",
+  "label": "зал",
+  "startedAt": "2026-10-21T18:00:00+03:00",
+  "durationMinutes": 75,
+  "source": "jarvis"
+}
+
+// time_tracker_activity_start_zzz — работа в песочнице (авто из UI)
+{
+  "kind": "workspace",
+  "workspaceId": "0-ws-test",
+  "path": "awn-topics/test-md-blokov/main/demo.md",
+  "source": "editor"
+}
+
+// time_tracker_summary_zzz
+{ "period": "today", "groupBy": "category" }
+// → [{ "category": "sport", "label": "зал", "minutes": 75 }, { "category": "workspace", "workspaceId": "0-ws-core", "minutes": 90, "percent": 55 }, …]
+```
+
+Орбита landing (mock «доли внимания») может читать только `kind: workspace` из `time_tracker_summary_zzz`. **Не путать** с `session_*` и `awn-runtime-heartbeat` (агент/cron).
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Personal **time tracker** — CMS workspaces *and* off-screen life (gym, walk). Separate MCP group `time_tracker_*`, not session tools. Start/stop timer, log entries after the fact, summary by category or workspace. Examples above; orbit UI can use workspace slice of `time_tracker_summary_zzz` only.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
