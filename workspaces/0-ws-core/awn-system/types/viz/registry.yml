@@ -1,0 +1,16 @@
+# Реестр видов карт визуализации (*.viz.md) — не путать с awn-viz-* в base.yml (RMM/UI).
+sections:
+  - id: knowledge
+    label: Знания
+  - id: plans
+    label: Планы
+  - id: process
+    label: Процессы
+  - id: time
+    label: Время
+  - id: people
+    label: Люди
+
+kinds:
+  - mindmap
+  - roadmap

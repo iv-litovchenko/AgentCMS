@@ -504,6 +504,7 @@ const {
   slotKeyFromStorageFolder
 } = require("./lib/api/slot-placement-guard");
 const { createContentSchemaApi } = require("./lib/api/content-schema-api");
+const { createVizMapsApi } = require("./lib/api/viz-maps-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./lib/api/ui-context-api");
 const {
   readIdleScreensaverBreaks,
@@ -21398,6 +21399,21 @@ function getExistsApi() {
 }
 
 let contentSchemaApi = null;
+let vizMapsApi = null;
+
+function getVizMapsApi() {
+  if (!vizMapsApi) {
+    vizMapsApi = createVizMapsApi({
+      sendJson,
+      getAgentRoot,
+      getProjectRoot,
+      normalizeWorkspacePath,
+      writeWorkspaceTextFileWithHistory,
+      resolveManifestRelForHistory: (relPath) => resolveNodeManifestRelForScopedApi(relPath) || relPath
+    });
+  }
+  return vizMapsApi;
+}
 
 function getContentSchemaApi() {
   if (!contentSchemaApi) {
@@ -21419,6 +21435,11 @@ async function handleApiForAgent(req, res, url) {
   const maintenanceResponse = await getMaintenanceModeResponse(url);
   if (maintenanceResponse) {
     return sendJson(res, maintenanceResponse.status, maintenanceResponse.body);
+  }
+
+  if (url.pathname.startsWith("/api/viz/")) {
+    const handled = await getVizMapsApi().handle(req, res, url);
+    if (handled) return;
   }
 
   if (await shellHandlers.tryHandleShellApi(req, res, url, {

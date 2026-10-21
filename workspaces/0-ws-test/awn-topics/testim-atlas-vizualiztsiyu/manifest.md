@@ -1,0 +1,41 @@
+---
+awn-description: ""
+awn-preview: ""
+awn-web-url: ""
+awn-status: open
+awn-quality: 4
+awn-importance: 0
+awn-summary: ""
+awn-note: ""
+awn-todo: ""
+awn-note-todo-sticker: ""
+awn-emoji: ""
+awn-sort: ""
+awn-runtime-load-always: false
+awn-runtime-heartbeat: ""
+awn-runtime-cron: ""
+awn-runtime-cron-schedule: ""
+awn-runtime-reminder: false
+awn-runtime-commands: false
+awn-viz-graph: ""
+awn-viz-mindmap: ""
+awn-viz-roadmap: ""
+awn-auto-toc: false
+awn-tags: []
+awn-taxonomy: ""
+awn-type: awn.page.topic
+awn-create: 2026-10-21T18:41:33.920Z
+awn-viewed: ""
+awn-event-at: ""
+awn-deadline: ""
+awn-owner: ""
+awn-index-exclude-record: false
+awn-index-exclude-subtree: false
+awn-main: false
+awn-focus: false
+awn-slots-template: standard
+awn-name: "Тестим Атлас Визуализцию"
+awn-id: 9018
+awn-update: 2026-10-21T18:41:35.951Z
+awn-version: 2
+---

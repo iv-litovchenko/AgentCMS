@@ -45,6 +45,7 @@ import "../app/header-slogan-rotator.js";
 import "../app/app-footer-voice-cmd.js";
 
 import "../panels/languagetool-panel.js";
+import "../panels/viz-maps-aside.js";
 import "../panels/file-find-bar.js";
 import "../editor/marker-blocks-preview.js";
 import "../panels/mcp-docs-primitives-help.js";

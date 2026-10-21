@@ -347,7 +347,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0
+**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0 · **🔵** 7
 
 ```
 user-agent-cms
@@ -451,6 +451,15 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_repositories_refresh
 │   ├── 🟢 nav_index_toc_media_libraries_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh
+│
+├── 🎨 Визуализация — карты `*.viz.md` (Viz maps) · 7
+│   ├── 🔵 viz_kind_list — реестр видов (mindmap, roadmap…; `awn-system/types/viz/`)
+│   ├── 🔵 viz_atlas_read — атлас: список всех карт workspace (фильтр kind / about / section)
+│   ├── 🔵 viz_atlas_refresh — пересобрать индекс атласа
+│   ├── 🔵 viz_map_read — прочитать одну карту (path или about + kind)
+│   ├── 🔵 viz_map_write — создать/обновить (`about`, `kind`, `body`; имя `{stem}.{kind}.viz.md`)
+│   ├── 🔵 viz_map_delete — удалить карту
+│   └── 🔵 viz_maps_for_about — карты, привязанные к записи (сейчас **HTTP** `GET /api/viz/maps-for-about`)
 │
 ├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list

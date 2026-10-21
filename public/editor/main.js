@@ -5129,6 +5129,10 @@ function buildApiUrl(apiPath, params = {}, workspaceId = activeWorkspaceId) {
   return `${apiPath}?${search.toString()}`;
 }
 
+if (typeof window !== "undefined") {
+  window.buildApiUrl = buildApiUrl;
+}
+
 function buildDocumentationApiUrl(apiPath, params = {}) {
   return buildApiUrl(apiPath, params, DOCUMENTATION_AGENT_ID);
 }
@@ -60808,6 +60812,14 @@ function renderPropsForm() {
 
   appendPropsAsideOrphanGroup(propsFormFieldsNode, orphanItems);
 
+  if (typeof window.agentCmsRenderVizMapsAside === "function") {
+    window.agentCmsRenderVizMapsAside({
+      container: propsFormFieldsNode,
+      readOnly,
+      contextPath: getPropsContextPath()
+    });
+  }
+
   if (!asideItems.length && !orphanItems.length) {
     const empty = document.createElement("p");
     empty.className = "props-form-empty props-form-empty--editor-custom-hint";
@@ -66884,6 +66896,30 @@ async function enableExternalFileEditor(filePath, content, options = {}) {
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ push: true });
   }
+}
+
+if (typeof window !== "undefined") {
+  window.agentCmsOpenVizMap = async function agentCmsOpenVizMap(mapWorkspaceRel, aboutRel) {
+    const mapPath = String(mapWorkspaceRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const manifest = getResolvedNodePath(activePath);
+    if (!manifest || !mapPath) {
+      showToast("Не удалось открыть карту — нет активной темы", "error");
+      return;
+    }
+    const extRoot = getExternalMemoryRootRel(manifest).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (extRoot && (mapPath === extRoot || mapPath.startsWith(`${extRoot}/`))) {
+      const fileRel = mapPath === extRoot ? "" : mapPath.slice(extRoot.length + 1);
+      if (fileRel) {
+        await openExternalFile(fileRel);
+        return;
+      }
+    }
+    if (aboutRel && getPropsContextPath() === String(aboutRel).replace(/\\/g, "/")) {
+      showToast(`Карта: ${mapPath.split("/").pop()} — откройте файл из списка темы`, "info");
+      return;
+    }
+    showToast("Откройте запись в теме, затем нажмите «Открыть» у карты", "info");
+  };
 }
 
 async function openExternalFile(filePath, options = {}) {
@@ -113969,6 +114005,11 @@ function renderAgentRoadmapMapView() {
     return;
   }
 
+  if (agentRoadmapMapSubview === "atlas") {
+    void renderAgentRoadmapMapAtlasView(renderSeq);
+    return;
+  }
+
   if (!currentMenuData) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
     return;
@@ -113987,7 +114028,74 @@ function renderAgentRoadmapMapView() {
     void renderAgentRoadmapMapMindmapView(renderSeq);
     return;
   }
+  if (agentRoadmapMapSubview === "roadmap") {
+    void renderAgentRoadmapMapRoadmapView(renderSeq);
+    return;
+  }
   void renderAgentRoadmapMapRoadmapView(renderSeq);
+}
+
+async function renderAgentRoadmapMapAtlasView(renderSeq) {
+  if (!agentRoadmapMapHostNode) return;
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка атласа…");
+  try {
+    const [atlasRes, kindsRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/atlas")),
+      fetch(buildApiUrl("/api/viz/kinds"))
+    ]);
+    const atlas = await atlasRes.json();
+    const kindsPayload = kindsRes.ok ? await kindsRes.json() : { kinds: [] };
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+
+    const items = Array.isArray(atlas.items) ? atlas.items : [];
+    const kindIcons = new Map(
+      (Array.isArray(kindsPayload.kinds) ? kindsPayload.kinds : []).map((k) => [k.id, k.icon || "🗺"])
+    );
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Атлас карт визуализации");
+
+    const head = document.createElement("div");
+    head.className = "agent-rmm-atlas-head";
+    head.innerHTML = `<p class="agent-rmm-atlas-title">Атлас — все карты <code>*.viz.md</code></p><p class="agent-rmm-atlas-meta">${items.length} карт · отдельно от RMM и полей awn-viz-*</p>`;
+    wrap.appendChild(head);
+
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "agent-rmm-atlas-empty";
+      empty.textContent =
+        "Карт пока нет. Создайте в свойствах записи (Визуализация → *.viz.md) или через API POST /api/viz/map.";
+      wrap.appendChild(empty);
+      agentRoadmapMapHostNode.appendChild(wrap);
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "agent-rmm-atlas-list";
+    for (const item of items) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "agent-rmm-atlas-row";
+      const icon = kindIcons.get(item.kind) || "🗺";
+      const title = item.title || item.path?.split("/").pop() || "—";
+      row.innerHTML = `<span class="agent-rmm-atlas-row-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="agent-rmm-atlas-row-copy"><span class="agent-rmm-atlas-row-title">${escapeHtml(title)}</span><span class="agent-rmm-atlas-row-meta">${escapeHtml(item.kindLabel || item.kind || "")} · ${escapeHtml(item.path || "")}</span></span>`;
+      row.addEventListener("click", () => {
+        setAgentRoadmapMapDetail(title, item.path || "");
+        if (item.path && item.about) void window.agentCmsOpenVizMap?.(item.path, item.about);
+        else if (item.path) showToast(`Карта: ${item.path}`, "info");
+      });
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+    agentRoadmapMapHostNode.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+    renderListEmptyMessage(agentRoadmapMapHostNode, `Атлас: ${error?.message || error}`);
+  }
 }
 
 const AGENT_RMM_PLACEHOLDER_ARIA_LABELS = {

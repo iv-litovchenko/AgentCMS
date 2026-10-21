@@ -52,7 +52,7 @@ field-groups:
     collapsed: true
   - id: visualization
     name: "{A2!} Визуализация"
-    description: Граф, карта знаний и roadmap
+    description: RMM (awn-viz-*) и живые карты *.viz.md — см. блок внизу группы
     collapsed: true
   - id: system
     name: "{A2!} Системные"
