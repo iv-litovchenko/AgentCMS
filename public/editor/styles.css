@@ -50892,27 +50892,15 @@ img.is-svg-media,
 
 .node-navigation-memory-title-icon--svg .node-navigation-memory-title-icon-svg,
 .node-navigation-memory-title-icon--svg .record-materials-icon,
-.node-navigation-memory-title-icon--svg .viz-maps-icon,
-.node-navigation-memory-title-icon--svg .navigation-memory-title-svg {
+.node-navigation-memory-title-icon--svg .viz-maps-icon {
   width: 14px;
   height: 14px;
   display: block;
 }
 
-.node-navigation-memory-head--record-materials .node-navigation-memory-title-icon--svg .record-materials-icon {
-  color: #ca8a04;
-}
-
-.node-navigation-memory-head--record-viz-maps .node-navigation-memory-title-icon--svg .viz-maps-icon {
-  color: #1e40af;
-}
-
-.node-navigation-memory-head--title-v1 .navigation-memory-title-svg--internal {
-  color: #475569;
-}
-
-.node-navigation-memory-head--title-v1 .navigation-memory-title-svg--external {
-  color: #6d28d9;
+.node-navigation-memory-head--record-materials .node-navigation-memory-title-icon--materials-folder {
+  font-size: 19px;
+  filter: saturate(1.35) sepia(0.25);
 }
 
 .node-navigation-memory-title-label,

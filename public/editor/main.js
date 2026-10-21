@@ -35010,19 +35010,6 @@ const RECORD_MATERIALS_ICON_HTML =
   '<path d="M3 7a2 2 0 0 1 2-2h4.5L11 7h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
   '<path d="M8 11h8M8 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
   "</svg>";
-const NAVIGATION_INTERNAL_MEMORY_ICON_HTML =
-  '<svg class="navigation-memory-title-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-  "</svg>";
-const NAVIGATION_EXTERNAL_MEMORY_ICON_HTML =
-  '<svg class="navigation-memory-title-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M8 13h6M8 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-  '<path d="M18 8h-1.5L15 10H11a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  "</svg>";
 
 function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
   if (!parent) return;
@@ -35056,44 +35043,6 @@ function createVizMapsMarkerSvg() {
   const template = document.createElement("template");
   template.innerHTML = VIZ_MAPS_ICON_HTML;
   return template.content.firstElementChild;
-}
-
-function createInternalMemoryMarkerSvg() {
-  const template = document.createElement("template");
-  template.innerHTML = NAVIGATION_INTERNAL_MEMORY_ICON_HTML;
-  return template.content.firstElementChild;
-}
-
-function createExternalMemoryMarkerSvg() {
-  const template = document.createElement("template");
-  template.innerHTML = NAVIGATION_EXTERNAL_MEMORY_ICON_HTML;
-  return template.content.firstElementChild;
-}
-
-function removeNavigationMemoryTitleEmojiIcon(titleNode) {
-  if (!titleNode) return;
-  titleNode
-    .querySelectorAll(".node-navigation-memory-title-icon:not(.node-navigation-memory-title-icon--svg)")
-    .forEach((node) => node.remove());
-}
-
-function decorateNavigationMemorySectionHeadIcon(head, modeId) {
-  const mode = String(modeId || "").trim();
-  const titleNode = head?.querySelector(".node-navigation-memory-title");
-  if (!titleNode) return;
-  if (mode === "internal") {
-    removeNavigationMemoryTitleEmojiIcon(titleNode);
-    injectNavigationMemoryTitleSvg(titleNode, createInternalMemoryMarkerSvg, {
-      svgClass: "navigation-memory-title-svg navigation-memory-title-svg--internal"
-    });
-    return;
-  }
-  if (mode === "external") {
-    removeNavigationMemoryTitleEmojiIcon(titleNode);
-    injectNavigationMemoryTitleSvg(titleNode, createExternalMemoryMarkerSvg, {
-      svgClass: "navigation-memory-title-svg navigation-memory-title-svg--external"
-    });
-  }
 }
 
 function injectNavigationMemoryTitleSvg(titleNode, createSvg, { svgClass = "record-materials-icon" } = {}) {
@@ -74171,7 +74120,7 @@ function createDocumentContextMeter(text) {
   return meter;
 }
 
-function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titleIcon = "") {
+function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titleIcon = "", titleIconClass = "") {
   const comment = String(titleComment || "").trim();
   const icon = String(titleIcon || "").trim();
   titleNode.replaceChildren();
@@ -74179,7 +74128,7 @@ function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titl
   titleNode.classList.toggle("node-navigation-memory-title--with-comment", Boolean(comment));
 
   if (icon) {
-    titleNode.appendChild(createNavigationMemoryTitleIcon(icon));
+    titleNode.appendChild(createNavigationMemoryTitleIcon(icon, { extraClass: titleIconClass }));
   }
 
   if (!comment) {
@@ -74211,9 +74160,11 @@ function resolveNavigationMemoryPanelIcon(viewModeId) {
   return spec?.icon || "";
 }
 
-function createNavigationMemoryTitleIcon(iconText) {
+function createNavigationMemoryTitleIcon(iconText, { extraClass = "" } = {}) {
   const icon = document.createElement("span");
   icon.className = "node-navigation-memory-title-icon";
+  const extra = String(extraClass || "").trim();
+  if (extra) icon.classList.add(extra);
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = String(iconText || "").trim();
   return icon;
@@ -74241,7 +74192,7 @@ function createNavigationSectionHead(title, options = {}) {
     });
   }
   const titleIcon = String(options.icon || (viewModeId ? resolveNavigationMemoryPanelIcon(viewModeId) : "")).trim();
-  fillNavigationMemoryTitleNode(titleNode, title, titleComment, titleIcon);
+  fillNavigationMemoryTitleNode(titleNode, title, titleComment, titleIcon, options.titleIconClass || "");
 
   const rule = document.createElement("span");
   rule.className = "node-navigation-memory-rule";
@@ -74401,7 +74352,6 @@ function createNavigationMemoryPanel(
         }
       : null
   });
-  decorateNavigationMemorySectionHeadIcon(head, headViewModeId);
   card.appendChild(head);
 
   const subtitleBelow = String(opts.subtitleBelow || "").trim();
@@ -79430,13 +79380,14 @@ function createEntryOverviewRecordMaterialsCard(
   const head = createNavigationSectionHead(title, {
     badgeText,
     badgeModeId: "assets",
-    imageColumnsToggle: true
+    imageColumnsToggle: true,
+    icon: "📁",
+    titleIconClass: "node-navigation-memory-title-icon--materials-folder"
   });
   head.classList.add("node-navigation-memory-head--record-materials");
   head.classList.add("node-navigation-memory-head--actionable");
 
   const titleNode = head.querySelector(".node-navigation-memory-title");
-  injectNavigationMemoryTitleSvg(titleNode, createRecordMaterialsMarkerSvg);
 
   if (titleNode && materialsContext && workspaceFolderPath) {
     const titleButton = document.createElement("button");
@@ -80131,13 +80082,11 @@ function createEntryOverviewVizMapsCard(
 
   const head = createNavigationSectionHead(title, {
     badgeText,
-    badgeModeId: "viz"
+    badgeModeId: "viz",
+    icon: "🗺"
   });
   head.classList.add("node-navigation-memory-head--record-viz-maps");
   head.classList.add("node-navigation-memory-head--actionable");
-
-  const titleNode = head.querySelector(".node-navigation-memory-title");
-  injectNavigationMemoryTitleSvg(titleNode, createVizMapsMarkerSvg, { svgClass: "viz-maps-icon" });
 
   if (aboutPath) {
     const actions = document.createElement("div");
@@ -87060,7 +87009,6 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
         }
       : null
   });
-  decorateNavigationMemorySectionHeadIcon(externalHead, "external");
   card.append(externalHead, body);
 
   if (mdItems.length || folderPaths.size > 0) {

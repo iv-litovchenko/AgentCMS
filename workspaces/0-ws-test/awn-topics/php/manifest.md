@@ -5,7 +5,7 @@ awn-emoji: ""
 awn-sort: 0
 awn-main: true
 awn-focus: true
-awn-slots-template: none
+awn-slots-template: standard
 awn-runtime-load-always: false
 awn-runtime-heartbeat: false
 awn-runtime-cron: false
@@ -29,8 +29,8 @@ awn-name: PHP
 awn-preview: "awn-storage/assets/preview/20260624202540.png"
 awn-priority: ""
 awn-web-url: ""
-awn-update: 2026-10-19T09:08:13.536Z
-awn-version: 34
+awn-update: 2026-10-21T23:06:13.701Z
+awn-version: 35
 ---
 
 
