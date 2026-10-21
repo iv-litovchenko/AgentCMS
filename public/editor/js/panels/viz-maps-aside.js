@@ -1,10 +1,10 @@
 /**
- * Карты визуализации (*.viz.md) в группе «Визуализация» панели свойств.
+ * Карты визуализации (*.viz.md) — вкладка «Карты» боковой панели документа.
  * Не использует awn-viz-* — RMM mindmap/roadmap остаются как были.
  */
 (function initVizMapsAside() {
+  const MOUNT_ID = "doc-viz-maps-content";
   const GROUP_CLASS = "props-viz-maps-group";
-  const COLLAPSE_KEY = "yamlcms.propsVizMapsCollapsed";
 
   function buildApiUrl(apiPath, params = {}) {
     if (typeof window.buildApiUrl === "function") {
@@ -18,6 +18,21 @@
     if (typeof window.showToast === "function") window.showToast(message, tone);
   }
 
+  async function confirmVizMapsAction(message, { okLabel, title = "Подтверждение", hint = "" } = {}) {
+    const ask = typeof window.askConfirm === "function" ? window.askConfirm : null;
+    if (ask) {
+      return ask(message, {
+        okLabel,
+        cancelLabel: "Отмена",
+        title,
+        hint,
+        icon: "🗺",
+        variant: "info"
+      });
+    }
+    return window.confirm(String(message || "").replace(/\n+/g, " "));
+  }
+
   function isRecordMdPath(contextPath) {
     const p = String(contextPath || "").replace(/\\/g, "/");
     if (!p || p.endsWith("/manifest.md")) return false;
@@ -26,29 +41,9 @@
     return true;
   }
 
-  function findVisualizationGroup(container) {
-    for (const group of container.querySelectorAll(".props-form-group--collapsible")) {
-      const title = group.querySelector(".props-form-group-title");
-      if (title && /визуал/i.test(String(title.textContent || ""))) return group;
-    }
-    return null;
-  }
-
-  function loadCollapsed() {
-    try {
-      return localStorage.getItem(COLLAPSE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  }
-
-  function saveCollapsed(value) {
-    try {
-      localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }
+  window.agentCmsVizMapsAsideAvailable = function agentCmsVizMapsAsideAvailable(contextPath) {
+    return isRecordMdPath(contextPath);
+  };
 
   function renderRow(row, { readOnly, about, onRefresh }) {
     const item = document.createElement("div");
@@ -79,7 +74,17 @@
       openBtn.className = "props-viz-maps-btn props-viz-maps-btn--open";
       openBtn.textContent = "Открыть";
       openBtn.addEventListener("click", () => {
-        void window.agentCmsOpenVizMap?.(row.map.path, about);
+        void (async () => {
+          const label = row.label || row.kind;
+          const mapPath = row.map?.path || "";
+          const confirmed = await confirmVizMapsAction(`Открыть карту «${label}»?`, {
+            okLabel: "Открыть",
+            title: "Открыть карту",
+            hint: mapPath ? mapPath.split("/").pop() || mapPath : ""
+          });
+          if (!confirmed) return;
+          void window.agentCmsOpenVizMap?.(mapPath, about);
+        })();
       });
       actions.appendChild(openBtn);
     } else if (!readOnly) {
@@ -88,23 +93,38 @@
       createBtn.className = "props-viz-maps-btn props-viz-maps-btn--create";
       createBtn.textContent = "Создать";
       createBtn.addEventListener("click", () => {
-        createBtn.disabled = true;
-        fetch(buildApiUrl("/api/viz/map"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ about, kind: row.kind })
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.error) throw new Error(data.error);
-            toast(`Карта «${row.label}» создана`, "success");
+        void (async () => {
+          const label = row.label || row.kind;
+          const confirmed = await confirmVizMapsAction(
+            `Создать карту «${label}» для этой записи?\n\nФайл появится в assets/viz/{awn-id}/.`,
+            {
+              okLabel: "Создать",
+              title: "Создать карту",
+              hint: row.expectedPath ? row.expectedPath.split("/").pop() || row.expectedPath : `${row.kind}.viz.md`
+            }
+          );
+          if (!confirmed) return;
+          createBtn.disabled = true;
+          try {
+            const response = await fetch(buildApiUrl("/api/viz/map"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ about, kind: row.kind })
+            });
+            const data = await response.json();
+            if (data.error) {
+              const hint = data.hint ? ` ${data.hint}` : "";
+              throw new Error(`${data.error}.${hint}`);
+            }
+            toast(`Карта «${label}» создана`, "success");
             if (data.path) void window.agentCmsOpenVizMap?.(data.path, about);
             onRefresh();
-          })
-          .catch((err) => toast(err.message || "Не удалось создать карту", "error"))
-          .finally(() => {
+          } catch (err) {
+            toast(err.message || "Не удалось создать карту", "error");
+          } finally {
             createBtn.disabled = false;
-          });
+          }
+        })();
       });
       actions.appendChild(createBtn);
     } else {
@@ -118,12 +138,68 @@
     return item;
   }
 
-  async function renderBlock({ container, readOnly, contextPath }) {
-    if (!container) return;
-    container.querySelectorAll(`.${GROUP_CLASS}`).forEach((node) => node.remove());
+  function renderVizMapsLoading(list) {
+    list.replaceChildren();
+    list.classList.add("props-viz-maps-list--loading");
+    list.setAttribute("aria-busy", "true");
+    list.setAttribute("aria-live", "polite");
+
+    const status = document.createElement("p");
+    status.className = "props-viz-maps-loading-status";
+    const spinner = document.createElement("span");
+    spinner.className = "props-viz-maps-loading-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.textContent = "Загрузка видов карт…";
+    status.append(spinner, label);
+
+    const skeleton = document.createElement("div");
+    skeleton.className = "props-viz-maps-skeleton";
+    skeleton.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 5; i += 1) {
+      const row = document.createElement("div");
+      row.className = "props-viz-maps-skeleton-row";
+      row.style.setProperty("--viz-skeleton-delay", `${i * 0.07}s`);
+
+      const icon = document.createElement("span");
+      icon.className = "props-viz-maps-skeleton-icon";
+
+      const copy = document.createElement("span");
+      copy.className = "props-viz-maps-skeleton-copy";
+      const title = document.createElement("span");
+      title.className = "props-viz-maps-skeleton-line props-viz-maps-skeleton-line--title";
+      const meta = document.createElement("span");
+      meta.className = "props-viz-maps-skeleton-line props-viz-maps-skeleton-line--meta";
+      copy.append(title, meta);
+
+      const btn = document.createElement("span");
+      btn.className = "props-viz-maps-skeleton-btn";
+
+      row.append(icon, copy, btn);
+      skeleton.appendChild(row);
+    }
+
+    list.append(status, skeleton);
+  }
+
+  function finishVizMapsLoading(list) {
+    list.classList.remove("props-viz-maps-list--loading");
+    list.removeAttribute("aria-busy");
+  }
+
+  async function renderBlock({ readOnly, contextPath } = {}) {
+    const mount = document.getElementById(MOUNT_ID);
+    if (!mount) return;
+    mount.replaceChildren();
 
     const about = String(contextPath || "").replace(/\\/g, "/").trim();
-    if (!isRecordMdPath(about)) return;
+    if (!isRecordMdPath(about)) {
+      const empty = document.createElement("p");
+      empty.className = "doc-viz-maps-empty";
+      empty.textContent = "Карты *.viz.md доступны для обычных записей Markdown (не manifest и не *.viz.md).";
+      mount.appendChild(empty);
+      return;
+    }
 
     const host = document.createElement("div");
     host.className = GROUP_CLASS;
@@ -131,62 +207,39 @@
     const intro = document.createElement("p");
     intro.className = "props-viz-maps-hint";
     intro.textContent =
-      "Живые карты *.viz.md (атлас). Поля awn-viz-* выше — для RMM «Интеллект-карта» / «Дорожная карта» в canvas.";
+      "Карты в assets/viz/{awn-id}/ — нужен awn-id записи. Legacy *.viz.md рядом с файлом только читаются.";
 
     const list = document.createElement("div");
     list.className = "props-viz-maps-list";
-    list.textContent = "Загрузка…";
     host.append(intro, list);
-
-    const collapsed = loadCollapsed();
-    const vizGroup = findVisualizationGroup(container);
-    if (vizGroup) {
-      const body = vizGroup.querySelector(".props-form-group-body");
-      if (body) body.appendChild(host);
-      else vizGroup.appendChild(host);
-    } else {
-      const wrap = document.createElement("section");
-      wrap.className = "props-form-group props-form-group--collapsible props-viz-maps-fallback";
-      wrap.classList.toggle("is-collapsed", collapsed);
-      const header = document.createElement("button");
-      header.type = "button";
-      header.className = "props-form-group-toggle";
-      header.setAttribute("aria-expanded", String(!collapsed));
-      const title = document.createElement("span");
-      title.className = "props-form-group-title";
-      title.textContent = "Карты .viz.md";
-      header.appendChild(title);
-      header.addEventListener("click", () => {
-        const now = !wrap.classList.contains("is-collapsed");
-        wrap.classList.toggle("is-collapsed", now);
-        header.setAttribute("aria-expanded", String(!now));
-        saveCollapsed(now);
-      });
-      const body = document.createElement("div");
-      body.className = "props-form-group-body";
-      body.appendChild(host);
-      wrap.append(header, body);
-      container.appendChild(wrap);
-      return;
-    }
+    mount.appendChild(host);
 
     async function refresh() {
-      list.textContent = "Загрузка…";
+      renderVizMapsLoading(list);
       try {
         const response = await fetch(buildApiUrl("/api/viz/maps-for-about", { about }));
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || response.statusText);
+        finishVizMapsLoading(list);
         list.replaceChildren();
         const maps = Array.isArray(data.maps) ? data.maps : [];
         if (!maps.length) {
-          list.textContent = "Нет зарегистрированных видов карт.";
+          const empty = document.createElement("p");
+          empty.className = "props-viz-maps-empty";
+          empty.textContent = "Нет зарегистрированных видов карт.";
+          list.appendChild(empty);
           return;
         }
         for (const row of maps) {
           list.appendChild(renderRow(row, { readOnly, about, onRefresh: refresh }));
         }
       } catch (error) {
-        list.textContent = `Ошибка: ${error.message}`;
+        finishVizMapsLoading(list);
+        list.replaceChildren();
+        const err = document.createElement("p");
+        err.className = "props-viz-maps-error";
+        err.textContent = `Ошибка: ${error.message}`;
+        list.appendChild(err);
       }
     }
 

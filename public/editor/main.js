@@ -2070,10 +2070,12 @@ const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
 const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
 const docAsideTabBlocksBtn = document.getElementById("doc-aside-tab-blocks");
 const docAsideTabLinksBtn = document.getElementById("doc-aside-tab-links");
+const docAsideTabVizBtn = document.getElementById("doc-aside-tab-viz");
 const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
 const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
 const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks");
 const docAsidePanelLinksNode = document.getElementById("doc-aside-panel-links");
+const docAsidePanelVizNode = document.getElementById("doc-aside-panel-viz");
 const docBlocksContentNode = document.getElementById("doc-blocks-content");
 const docLinksContentNode = document.getElementById("doc-links-content");
 let docLinksSearchQuery = "";
@@ -19362,9 +19364,15 @@ function isMarkdownStorageFilePath(filePath) {
   return /\.md$/i.test(base);
 }
 
+function isVizMapStorageFilePath(filePath) {
+  const base = String(filePath || "").replace(/\\/g, "/").split("/").pop() || "";
+  return /\.viz\.md$/i.test(base);
+}
+
 function isSlugExemptStorageFilePath(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!normalized) return false;
+  if (isVizMapStorageFilePath(normalized)) return true;
   if (isSectionReadmePath(normalized)) return true;
   if (isStorageSlotIndexRelativePath(normalized)) return true;
   const base = normalized.split("/").pop() || "";
@@ -34987,12 +34995,33 @@ function isRecordMaterialsAssetsPath(relPath) {
   return normalized === RECORD_MATERIALS_ASSETS_SUBPATH || normalized.startsWith(`${RECORD_MATERIALS_ASSETS_SUBPATH}/`);
 }
 const RECORD_MATERIALS_UI_LABEL = "Доп материалы";
+const RECORD_MATERIALS_CREATE_BTN_LABEL = "Создать доп материалы";
+const ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL = "Визуальные карты";
+const ENTRY_OVERVIEW_VIZ_MAPS_CREATE_BTN_LABEL = "Создать карту";
 const RECORD_MATERIALS_HERO_MARKER_CAPTION = "Доп материалы";
+const VIZ_MAPS_ICON_HTML =
+  '<svg class="viz-maps-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M3 6l9-4 9 4-9 4-9-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 10l9 4 9-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 14l9 4 9-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  "</svg>";
 const RECORD_MATERIALS_ICON_HTML =
   '<svg class="record-materials-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M12 3 3 7.5 12 12l9-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M3 12.5 12 17l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M3 17.5 12 22l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 7a2 2 0 0 1 2-2h4.5L11 7h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M8 11h8M8 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+  "</svg>";
+const NAVIGATION_INTERNAL_MEMORY_ICON_HTML =
+  '<svg class="navigation-memory-title-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+  "</svg>";
+const NAVIGATION_EXTERNAL_MEMORY_ICON_HTML =
+  '<svg class="navigation-memory-title-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M8 13h6M8 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+  '<path d="M18 8h-1.5L15 10H11a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
   "</svg>";
 
 function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
@@ -35006,10 +35035,83 @@ function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record
   parent.append(iconWrap, label);
 }
 
+function appendVizMapsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
+  if (!parent) return;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "record-materials-icon-wrap";
+  iconWrap.innerHTML = VIZ_MAPS_ICON_HTML.replace("viz-maps-icon", iconClass);
+  const label = document.createElement("span");
+  label.className = "record-materials-label";
+  label.textContent = labelText;
+  parent.append(iconWrap, label);
+}
+
 function createRecordMaterialsMarkerSvg() {
   const template = document.createElement("template");
   template.innerHTML = RECORD_MATERIALS_ICON_HTML;
   return template.content.firstElementChild;
+}
+
+function createVizMapsMarkerSvg() {
+  const template = document.createElement("template");
+  template.innerHTML = VIZ_MAPS_ICON_HTML;
+  return template.content.firstElementChild;
+}
+
+function createInternalMemoryMarkerSvg() {
+  const template = document.createElement("template");
+  template.innerHTML = NAVIGATION_INTERNAL_MEMORY_ICON_HTML;
+  return template.content.firstElementChild;
+}
+
+function createExternalMemoryMarkerSvg() {
+  const template = document.createElement("template");
+  template.innerHTML = NAVIGATION_EXTERNAL_MEMORY_ICON_HTML;
+  return template.content.firstElementChild;
+}
+
+function removeNavigationMemoryTitleEmojiIcon(titleNode) {
+  if (!titleNode) return;
+  titleNode
+    .querySelectorAll(".node-navigation-memory-title-icon:not(.node-navigation-memory-title-icon--svg)")
+    .forEach((node) => node.remove());
+}
+
+function decorateNavigationMemorySectionHeadIcon(head, modeId) {
+  const mode = String(modeId || "").trim();
+  const titleNode = head?.querySelector(".node-navigation-memory-title");
+  if (!titleNode) return;
+  if (mode === "internal") {
+    removeNavigationMemoryTitleEmojiIcon(titleNode);
+    injectNavigationMemoryTitleSvg(titleNode, createInternalMemoryMarkerSvg, {
+      svgClass: "navigation-memory-title-svg navigation-memory-title-svg--internal"
+    });
+    return;
+  }
+  if (mode === "external") {
+    removeNavigationMemoryTitleEmojiIcon(titleNode);
+    injectNavigationMemoryTitleSvg(titleNode, createExternalMemoryMarkerSvg, {
+      svgClass: "navigation-memory-title-svg navigation-memory-title-svg--external"
+    });
+  }
+}
+
+function injectNavigationMemoryTitleSvg(titleNode, createSvg, { svgClass = "record-materials-icon" } = {}) {
+  if (!titleNode || typeof createSvg !== "function") return;
+  const svg = createSvg();
+  if (!svg) return;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "node-navigation-memory-title-icon node-navigation-memory-title-icon--svg";
+  const svgClasses = String(svgClass || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  svg.classList.add(...svgClasses, "node-navigation-memory-title-icon-svg");
+  iconWrap.appendChild(svg);
+  const label = titleNode.querySelector(".node-navigation-memory-title-label");
+  if (label) titleNode.insertBefore(iconWrap, label);
+  else titleNode.prepend(iconWrap);
+  titleNode.classList.add("node-navigation-memory-title--with-icon");
 }
 
 function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL } = {}) {
@@ -35024,8 +35126,21 @@ function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL
   return badge;
 }
 
+function createVizMapsIndicatorBadge({ title = ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL } = {}) {
+  const badge = document.createElement("span");
+  badge.className = "nav-book-toc-viz-maps-badge";
+  badge.innerHTML = VIZ_MAPS_ICON_HTML.replace("viz-maps-icon", "nav-book-toc-viz-maps-badge-icon");
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  return badge;
+}
+
 function navigationItemHasRecordMaterials(item) {
   return Boolean(item?.hasRecordMaterials);
+}
+
+function navigationItemHasVizMaps(item) {
+  return Boolean(item?.hasVizMaps);
 }
 const ATTACHMENTS_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|svg)$/i;
 const ATTACHMENT_UI_VARIANT_KEY = "agentcms.attachmentUiVariant.v1";
@@ -40851,6 +40966,50 @@ function shouldShowEntryOverviewRecordParts(context) {
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relativePath || !isRecordStorageRelativePath(relativePath)) return false;
   return Boolean(getRecordSlugFromStorageRelativePath(relativePath));
+}
+
+function shouldShowEntryOverviewVizMaps(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
+  if (isEntryOverviewCategoryContext(context)) return false;
+  if (context.entryKind === "awn.media.asset") return false;
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath || !isMarkdownStorageFilePath(relativePath)) return false;
+  if (isVizMapStorageFilePath(relativePath)) return false;
+  if (isSectionReadmePath(relativePath)) return false;
+  if (context.memoryKind !== "external" && !isFlatEntryOverviewMemoryKind(context.memoryKind)) return false;
+  return true;
+}
+
+function normalizeEntryOverviewVizMapsAboutPath(context) {
+  if (!context) return "";
+  const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relPath && isMarkdownStorageFilePath(relPath) && !isVizMapStorageFilePath(relPath)) {
+    return relPath;
+  }
+
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const manifestBase = getResolvedNodePath(activePath);
+  const memoryKind = String(context.memoryKind || "external").trim();
+  if (!manifestBase || !relativePath) return relativePath;
+
+  if (memoryKind === "external") {
+    return (
+      buildExternalMemoryFileRef(manifestBase, relativePath) ||
+      `${getExternalMemoryRootRel(manifestBase)}/${relativePath}`
+    ).replace(/\/+/g, "/");
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    return `${getNodeStorageSubfolderPath(manifestBase, getFlatStorageSectionFolderName(memoryKind))}/${relativePath}`.replace(
+      /\/+/g,
+      "/"
+    );
+  }
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
+    const subfolder = getMediaLibraryStorageSubfolder();
+    return `${getNodeStorageSubfolderPath(manifestBase, subfolder)}/${relativePath}`.replace(/\/+/g, "/");
+  }
+  return relativePath;
 }
 
 function resolvePropsRecordMaterialsContext() {
@@ -58307,7 +58466,9 @@ function isPropsFormReadOnly() {
 
 function getDocAsideTab() {
   const saved = readStorageItem(DOC_ASIDE_TAB_STORAGE_KEY);
-  if (saved === "outline" || saved === "blocks" || saved === "links" || saved === "props") return saved;
+  if (saved === "outline" || saved === "blocks" || saved === "links" || saved === "props" || saved === "viz") {
+    return saved;
+  }
   return "outline";
 }
 
@@ -58335,25 +58496,41 @@ function isDocAsideEditorToolsTabAvailable() {
   return canInsertDocContentBlocks();
 }
 
+function isDocAsideVizMapsTabAvailable() {
+  if (!isDocAsidePropsTabAvailable()) return false;
+  const path = getPropsContextPath();
+  if (typeof window.agentCmsVizMapsAsideAvailable === "function") {
+    return window.agentCmsVizMapsAsideAvailable(path);
+  }
+  return false;
+}
+
 function getDocAsideTabAvailability() {
   return {
     outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
     propsPanelAvailable: isDocAsidePropsTabAvailable(),
-    editorToolsPanelAvailable: isDocAsideEditorToolsTabAvailable()
+    editorToolsPanelAvailable: isDocAsideEditorToolsTabAvailable(),
+    vizMapsPanelAvailable: isDocAsideVizMapsTabAvailable()
   };
 }
 
 function resolveDocAsideTab(
   tab,
-  { outlineAvailable = true, propsAvailable = true, editorToolsAvailable = true } = {}
+  {
+    outlineAvailable = true,
+    propsAvailable = true,
+    editorToolsAvailable = true,
+    vizMapsAvailable = true
+  } = {}
 ) {
-  const order = ["outline", "props", "blocks", "links"];
+  const order = ["outline", "props", "blocks", "links", "viz"];
   const preferred = order.includes(tab) ? tab : "outline";
   const availability = {
     outline: outlineAvailable,
     props: propsAvailable,
     blocks: editorToolsAvailable,
-    links: editorToolsAvailable
+    links: editorToolsAvailable,
+    viz: vizMapsAvailable
   };
   if (availability[preferred]) return preferred;
   return order.find((id) => availability[id]) || "outline";
@@ -58375,7 +58552,8 @@ function setDocAsideTab(tab) {
   const next = resolveDocAsideTab(tab, {
     outlineAvailable: availability.outlinePanelAvailable,
     propsAvailable: availability.propsPanelAvailable,
-    editorToolsAvailable: availability.editorToolsPanelAvailable
+    editorToolsAvailable: availability.editorToolsPanelAvailable,
+    vizMapsAvailable: availability.vizMapsPanelAvailable
   });
   localStorage.setItem(DOC_ASIDE_TAB_STORAGE_KEY, next);
   syncDocAsideUi(availability);
@@ -59735,20 +59913,31 @@ function syncActiveNavigationHeroTodoSticker(entries = propsFormEntries) {
   if (body) body.textContent = text;
 }
 
+function renderDocVizMapsPanel() {
+  if (typeof window.agentCmsRenderVizMapsAside !== "function") return;
+  window.agentCmsRenderVizMapsAside({
+    readOnly: isPropsFormReadOnly(),
+    contextPath: getPropsContextPath()
+  });
+}
+
 function syncDocAsideUi({
   outlinePanelAvailable = isDocAsideOutlineTabAvailable(),
   propsPanelAvailable = isDocAsidePropsTabAvailable(),
   blocksPanelAvailable = canInsertDocContentBlocks(),
-  editorToolsPanelAvailable = blocksPanelAvailable
+  editorToolsPanelAvailable = blocksPanelAvailable,
+  vizMapsPanelAvailable = isDocAsideVizMapsTabAvailable()
 } = {}) {
   const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
   const outlineAvailable = Boolean(outlinePanelAvailable);
   const propsAvailable = Boolean(propsPanelAvailable);
   const editorToolsAvailable = Boolean(editorToolsPanelAvailable);
+  const vizMapsAvailable = Boolean(vizMapsPanelAvailable);
   const effectiveTab = resolveDocAsideTab(getDocAsideTab(), {
     outlineAvailable,
     propsAvailable,
-    editorToolsAvailable
+    editorToolsAvailable,
+    vizMapsAvailable
   });
 
   syncDocAsideTabButton(
@@ -59767,12 +59956,18 @@ function syncDocAsideUi({
     editorToolsAvailable,
     "Ссылки доступны только при редактировании Markdown"
   );
+  syncDocAsideTabButton(
+    docAsideTabVizBtn,
+    vizMapsAvailable,
+    "Карты доступны для записей Markdown (не manifest / не *.viz.md)"
+  );
 
   for (const [tabId, btn] of [
     ["outline", docAsideTabOutlineBtn],
     ["props", docAsideTabPropsBtn],
     ["blocks", docAsideTabBlocksBtn],
-    ["links", docAsideTabLinksBtn]
+    ["links", docAsideTabLinksBtn],
+    ["viz", docAsideTabVizBtn]
   ]) {
     btn?.classList.toggle("active", effectiveTab === tabId);
     btn?.setAttribute("aria-selected", effectiveTab === tabId ? "true" : "false");
@@ -59782,6 +59977,7 @@ function syncDocAsideUi({
   docAsidePanelOutlineNode?.classList.toggle("hidden", effectiveTab !== "outline");
   docAsidePanelBlocksNode?.classList.toggle("hidden", effectiveTab !== "blocks");
   docAsidePanelLinksNode?.classList.toggle("hidden", effectiveTab !== "links");
+  docAsidePanelVizNode?.classList.toggle("hidden", effectiveTab !== "viz");
 
   yamlPanelNode?.classList.remove("is-collapsed");
 
@@ -59791,6 +59987,8 @@ function syncDocAsideUi({
     renderDocContentBlocks();
   } else if (effectiveTab === "links") {
     renderDocLinksLibrary();
+  } else if (effectiveTab === "viz") {
+    renderDocVizMapsPanel();
   }
 
   syncPropsPanelsUi();
@@ -60861,12 +61059,8 @@ function renderPropsForm() {
 
   appendPropsAsideOrphanGroup(propsFormFieldsNode, orphanItems);
 
-  if (typeof window.agentCmsRenderVizMapsAside === "function") {
-    window.agentCmsRenderVizMapsAside({
-      container: propsFormFieldsNode,
-      readOnly,
-      contextPath: getPropsContextPath()
-    });
+  if (getDocAsideTab() === "viz" && isDocAsideVizMapsTabAvailable()) {
+    renderDocVizMapsPanel();
   }
 
   if (!asideItems.length && !orphanItems.length) {
@@ -74207,6 +74401,7 @@ function createNavigationMemoryPanel(
         }
       : null
   });
+  decorateNavigationMemorySectionHeadIcon(head, headViewModeId);
   card.appendChild(head);
 
   const subtitleBelow = String(opts.subtitleBelow || "").trim();
@@ -75777,7 +75972,11 @@ function createAttachmentsCountBadge(count, { extraClass = "", attachmentPaths =
   return badge;
 }
 
-function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false, attachmentPaths = null, hasUnread = false } = {}) {
+function populateNavBookTocLeaders(
+  leadersHost,
+  attachmentCount,
+  { hasMaterials = false, hasVizMaps = false, attachmentPaths = null, hasUnread = false } = {}
+) {
   if (!leadersHost) return;
   const count = Number(attachmentCount);
   const badges = [];
@@ -75792,6 +75991,10 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
     const materialsBadge = createRecordMaterialsIndicatorBadge();
     if (materialsBadge) badges.push(materialsBadge);
   }
+  if (hasVizMaps) {
+    const vizMapsBadge = createVizMapsIndicatorBadge();
+    if (vizMapsBadge) badges.push(vizMapsBadge);
+  }
   if (badges.length) {
     leadersHost.classList.add("has-nav-book-toc-link-indicators");
     leadersHost.classList.toggle("has-nav-book-toc-unread-badge", hasUnread);
@@ -75800,6 +76003,7 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
       badges.some((node) => node.classList.contains("nav-book-toc-attachments-badge"))
     );
     leadersHost.classList.toggle("has-nav-book-toc-materials-badge", hasMaterials);
+    leadersHost.classList.toggle("has-nav-book-toc-viz-maps-badge", hasVizMaps);
     leadersHost.replaceChildren(...badges);
     leadersHost.removeAttribute("aria-hidden");
     return;
@@ -75808,7 +76012,8 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
     "has-nav-book-toc-link-indicators",
     "has-nav-book-toc-unread-badge",
     "has-nav-book-toc-attachments-badge",
-    "has-nav-book-toc-materials-badge"
+    "has-nav-book-toc-materials-badge",
+    "has-nav-book-toc-viz-maps-badge"
   );
   leadersHost.replaceChildren();
   leadersHost.setAttribute("aria-hidden", "true");
@@ -76564,7 +76769,8 @@ function prepareNavigationExternalItems(files, folders = []) {
       createdAt: item.createdAt || null,
       updatedAt: item.updatedAt || null,
       hasRecordMaterials:
-        Boolean(item.hasRecordMaterials) || recordFileHasPartsFolder(path, partsFoldersByParent)
+        Boolean(item.hasRecordMaterials) || recordFileHasPartsFolder(path, partsFoldersByParent),
+      hasVizMaps: Boolean(item.hasVizMaps)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       addMemorySectionFolderPath(folderPaths, ancestor);
@@ -79230,6 +79436,8 @@ function createEntryOverviewRecordMaterialsCard(
   head.classList.add("node-navigation-memory-head--actionable");
 
   const titleNode = head.querySelector(".node-navigation-memory-title");
+  injectNavigationMemoryTitleSvg(titleNode, createRecordMaterialsMarkerSvg);
+
   if (titleNode && materialsContext && workspaceFolderPath) {
     const titleButton = document.createElement("button");
     titleButton.type = "button";
@@ -79488,7 +79696,7 @@ async function renderEntryOverviewRecordPartsPart(context, workspaceFolderPath =
     const createBtn = document.createElement("button");
     createBtn.type = "button";
     createBtn.className = "node-entry-overview-record-parts-create-btn";
-    appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_UI_LABEL, {
+    appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_CREATE_BTN_LABEL, {
       iconClass: "record-materials-icon record-materials-icon--button"
     });
     const canCreateRecordMaterials = Boolean(getRecordMaterialsAwnIdFromContext(context));
@@ -79649,6 +79857,447 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
     mdEmpty.textContent = "Пока нет файлов для списка — добавьте материалы в папку.";
     body.appendChild(mdEmpty);
   }
+}
+
+let entryOverviewVizMapsCreatePopoverNode = null;
+let entryOverviewVizMapsCreatePopoverListNode = null;
+let entryOverviewVizMapsCreatePopoverAnchor = null;
+
+function ensureEntryOverviewVizMapsCreatePopover() {
+  if (entryOverviewVizMapsCreatePopoverNode) return;
+  const popover = document.createElement("div");
+  popover.id = "entry-overview-viz-maps-create-popover";
+  popover.className = "entry-overview-viz-maps-create-popover menu-context-menu hidden";
+  popover.setAttribute("role", "menu");
+  popover.setAttribute("aria-label", "Создать карту визуализации");
+
+  const title = document.createElement("div");
+  title.className = "entry-overview-viz-maps-create-popover-title";
+  title.textContent = "Вид карты";
+
+  const list = document.createElement("ul");
+  list.className = "menu-context-menu-list";
+  list.id = "entry-overview-viz-maps-create-popover-list";
+  list.setAttribute("role", "none");
+
+  popover.append(title, list);
+  document.body.appendChild(popover);
+  entryOverviewVizMapsCreatePopoverNode = popover;
+  entryOverviewVizMapsCreatePopoverListNode = list;
+
+  list.addEventListener("click", (event) => {
+    const btn = event.target.closest(".entry-overview-viz-maps-create-kind-btn");
+    if (!btn || btn.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const raw = entryOverviewVizMapsCreatePopoverNode?.dataset.vizCreateConfig || "";
+    let config = null;
+    try {
+      config = raw ? JSON.parse(raw) : null;
+    } catch {
+      config = null;
+    }
+    closeEntryOverviewVizMapsCreatePopover();
+    if (!config?.about) return;
+    void handleEntryOverviewVizMapsCreatePick(config, btn.dataset);
+  });
+}
+
+function closeEntryOverviewVizMapsCreatePopover() {
+  entryOverviewVizMapsCreatePopoverNode?.classList.add("hidden");
+  entryOverviewVizMapsCreatePopoverNode?.removeAttribute("data-viz-create-config");
+  if (entryOverviewVizMapsCreatePopoverAnchor) {
+    entryOverviewVizMapsCreatePopoverAnchor.setAttribute("aria-expanded", "false");
+    entryOverviewVizMapsCreatePopoverAnchor = null;
+  }
+}
+
+function positionEntryOverviewVizMapsCreatePopover(anchor) {
+  if (!entryOverviewVizMapsCreatePopoverNode || !anchor) return;
+  entryOverviewVizMapsCreatePopoverNode.classList.remove("hidden");
+  const anchorRect = anchor.getBoundingClientRect();
+  const popoverRect = entryOverviewVizMapsCreatePopoverNode.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(8, anchorRect.right - popoverRect.width),
+    Math.max(8, window.innerWidth - popoverRect.width - 8)
+  );
+  const top = Math.min(
+    anchorRect.bottom + 4,
+    Math.max(8, window.innerHeight - popoverRect.height - 8)
+  );
+  entryOverviewVizMapsCreatePopoverNode.style.left = `${left}px`;
+  entryOverviewVizMapsCreatePopoverNode.style.top = `${top}px`;
+}
+
+async function populateEntryOverviewVizMapsCreatePopover(about) {
+  ensureEntryOverviewVizMapsCreatePopover();
+  const list = entryOverviewVizMapsCreatePopoverListNode;
+  if (!list) return false;
+  list.replaceChildren();
+  const loadingItem = document.createElement("li");
+  loadingItem.className = "menu-context-menu-item entry-overview-viz-maps-create-loading";
+  loadingItem.textContent = "Загрузка…";
+  list.appendChild(loadingItem);
+
+  let kindsPayload;
+  let mapsPayload;
+  try {
+    const [kindsRes, mapsRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/kinds")),
+      fetch(buildApiUrl("/api/viz/maps-for-about", { about }))
+    ]);
+    kindsPayload = await kindsRes.json();
+    mapsPayload = await mapsRes.json();
+    if (!kindsRes.ok) throw new Error(kindsPayload.error || kindsRes.statusText);
+    if (!mapsRes.ok) throw new Error(mapsPayload.error || mapsRes.statusText);
+  } catch (error) {
+    list.replaceChildren();
+    const errItem = document.createElement("li");
+    errItem.className = "menu-context-menu-item entry-overview-viz-maps-create-error";
+    errItem.textContent = error.message || "Ошибка загрузки";
+    list.appendChild(errItem);
+    return true;
+  }
+
+  const kinds = Array.isArray(kindsPayload.kinds) ? kindsPayload.kinds : [];
+  const mapsByKind = new Map(
+    (Array.isArray(mapsPayload.maps) ? mapsPayload.maps : [])
+      .filter((row) => row?.map?.path)
+      .map((row) => [row.kind, row])
+  );
+
+  list.replaceChildren();
+  if (!kinds.length) {
+    const empty = document.createElement("li");
+    empty.className = "menu-context-menu-item entry-overview-viz-maps-create-error";
+    empty.textContent = "Нет зарегистрированных видов";
+    list.appendChild(empty);
+    return true;
+  }
+
+  for (const kind of kinds) {
+    const existing = mapsByKind.get(kind.id);
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn entry-overview-viz-maps-create-kind-btn";
+    btn.setAttribute("role", "menuitem");
+    btn.dataset.vizKind = kind.id;
+    btn.dataset.hasMap = existing?.map?.path ? "1" : "0";
+    btn.dataset.mapPath = existing?.map?.path || "";
+    const icon = kind.icon || "🗺";
+    btn.textContent = `${icon} ${kind.label || kind.id}`;
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+  return true;
+}
+
+async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
+  const about = String(config.about || "").trim();
+  const kind = String(dataset.vizKind || "").trim();
+  const card = config.card || null;
+  const context = config.context || activeEntryOverviewContext;
+  if (!about || !kind) return;
+
+  if (dataset.hasMap === "1" && dataset.mapPath) {
+    void window.agentCmsOpenVizMap?.(dataset.mapPath, about);
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ about, kind })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const hint = data.hint ? ` ${data.hint}` : "";
+      throw new Error(`${data.error || response.statusText}.${hint}`);
+    }
+    showToast(`Карта «${kind}» создана`, "success");
+    if (data.path) void window.agentCmsOpenVizMap?.(data.path, about);
+    const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+    if (body && context) {
+      const { count } = await refreshEntryOverviewVizMapsBody(body, context);
+      const badge = card.querySelector(".node-navigation-memory-badge");
+      if (badge) {
+        if (count > 0) {
+          badge.textContent = String(count);
+          badge.classList.remove("hidden");
+        } else {
+          badge.remove();
+        }
+      } else if (count > 0) {
+        const head = card.querySelector(".node-navigation-memory-head");
+        if (head) {
+          const newBadge = document.createElement("span");
+          newBadge.className = "node-navigation-memory-badge node-navigation-memory-badge--viz";
+          newBadge.textContent = String(count);
+          head.appendChild(newBadge);
+        }
+      }
+    }
+  } catch (error) {
+    showToast(error.message || "Не удалось создать карту", "error");
+  }
+}
+
+async function openEntryOverviewVizMapsCreatePopover(event, config) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenuContextMenu();
+  closeResourceContextMenu();
+  closeNavigationHubRailFolderCreatePopover();
+
+  const anchor = event.currentTarget;
+  const isSameAnchor =
+    entryOverviewVizMapsCreatePopoverAnchor === anchor &&
+    entryOverviewVizMapsCreatePopoverNode &&
+    !entryOverviewVizMapsCreatePopoverNode.classList.contains("hidden");
+  if (isSameAnchor) {
+    closeEntryOverviewVizMapsCreatePopover();
+    return;
+  }
+
+  closeEntryOverviewVizMapsCreatePopover();
+  if (!config?.about) return;
+  await populateEntryOverviewVizMapsCreatePopover(config.about);
+  entryOverviewVizMapsCreatePopoverNode.dataset.vizCreateConfig = JSON.stringify(config);
+  entryOverviewVizMapsCreatePopoverAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  positionEntryOverviewVizMapsCreatePopover(anchor);
+}
+
+function createEntryOverviewVizMapListRow(row, about) {
+  const map = row?.map;
+  if (!map?.path) return null;
+
+  const filePath = String(map.path || "").replace(/\\/g, "/");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-entry-overview-record-parts-asset-row node-entry-overview-viz-map-row";
+  btn.title = filePath;
+
+  const leading = document.createElement("span");
+  leading.className = "node-entry-overview-record-parts-asset-leading";
+  const icon = document.createElement("span");
+  icon.className = "node-entry-overview-viz-map-icon";
+  icon.textContent = row.icon || "🗺";
+  icon.setAttribute("aria-hidden", "true");
+  leading.appendChild(icon);
+
+  const meta = document.createElement("span");
+  meta.className = "node-entry-overview-record-parts-asset-meta";
+  const nameNode = document.createElement("span");
+  nameNode.className = "node-entry-overview-record-parts-asset-name";
+  nameNode.textContent = row.label || row.kind || "Карта";
+  const pathNode = document.createElement("span");
+  pathNode.className = "node-entry-overview-record-parts-asset-path";
+  pathNode.textContent = filePath.split("/").pop() || filePath;
+  meta.append(nameNode, pathNode);
+
+  const trailing = document.createElement("span");
+  trailing.className = "node-entry-overview-record-parts-asset-trailing";
+  const extNode = document.createElement("span");
+  extNode.className = "node-entry-overview-record-parts-asset-ext";
+  extNode.textContent = row.kind || "viz";
+  trailing.appendChild(extNode);
+
+  btn.append(leading, meta, trailing);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void window.agentCmsOpenVizMap?.(filePath, about);
+  });
+  return btn;
+}
+
+function createEntryOverviewVizMapsCard(
+  title,
+  contentNode,
+  { badgeText = null, aboutPath = "", context = null } = {}
+) {
+  const card = document.createElement("section");
+  card.className =
+    "node-navigation-memory-card node-navigation-memory-card--viz node-entry-overview-viz-maps-card";
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-memory-body";
+  body.appendChild(contentNode);
+
+  const head = createNavigationSectionHead(title, {
+    badgeText,
+    badgeModeId: "viz"
+  });
+  head.classList.add("node-navigation-memory-head--record-viz-maps");
+  head.classList.add("node-navigation-memory-head--actionable");
+
+  const titleNode = head.querySelector(".node-navigation-memory-title");
+  injectNavigationMemoryTitleSvg(titleNode, createVizMapsMarkerSvg, { svgClass: "viz-maps-icon" });
+
+  if (aboutPath) {
+    const actions = document.createElement("div");
+    actions.className = "node-entry-overview-viz-maps-head-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "node-navigation-memory-view-btn node-overview-action-btn";
+    editBtn.textContent = "Добавить";
+    editBtn.title = "Редактировать запись и открыть вкладку «Карты»";
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeEntryOverviewVizMapsCreatePopover();
+      const ctx = context || activeEntryOverviewContext;
+      if (ctx) void openEntryOverviewEdit(ctx).then(() => setDocAsideTab("viz"));
+    });
+
+    const plusBtn = document.createElement("button");
+    plusBtn.type = "button";
+    plusBtn.className =
+      "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-maps-add-btn";
+    plusBtn.setAttribute("aria-expanded", "false");
+    plusBtn.setAttribute("aria-haspopup", "menu");
+    plusBtn.title = "Быстро: создать или открыть карту…";
+    plusBtn.innerHTML = '<span class="node-entry-overview-viz-maps-add-glyph" aria-hidden="true">+</span>';
+    plusBtn.addEventListener("click", (event) => {
+      void openEntryOverviewVizMapsCreatePopover(event, {
+        about: aboutPath,
+        context: context || activeEntryOverviewContext,
+        card
+      });
+    });
+
+    actions.append(editBtn, plusBtn);
+    head.appendChild(actions);
+  }
+
+  card.append(head, body);
+  if (aboutPath) card.dataset.vizMapsAbout = aboutPath;
+  return card;
+}
+
+async function refreshEntryOverviewVizMapsBody(body, context, helpers = {}) {
+  if (!body) return;
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!about) return;
+
+  body.classList.add("is-loading");
+  body.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "node-entry-overview-viz-maps-loading";
+  loading.textContent = "Загрузка карт…";
+  body.appendChild(loading);
+
+  let data;
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/maps-for-about", { about }));
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || response.statusText);
+  } catch (error) {
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const err = document.createElement("div");
+    err.className = "node-entry-overview-record-parts-empty";
+    err.textContent = error.message || "Не удалось загрузить карты";
+    body.appendChild(err);
+    return { count: 0 };
+  }
+
+  body.classList.remove("is-loading");
+  body.replaceChildren();
+
+  const maps = (Array.isArray(data.maps) ? data.maps : []).filter((row) => row?.map?.path);
+  if (!maps.length) {
+    const empty = document.createElement("div");
+    empty.className = "node-entry-overview-record-parts-empty";
+    empty.textContent = "Пока нет карт *.viz.md — создайте при редактировании записи.";
+    body.appendChild(empty);
+    const actions = document.createElement("div");
+    actions.className = "node-entry-overview-record-parts-actions";
+    const createBtn = document.createElement("button");
+    createBtn.type = "button";
+    createBtn.className = "node-entry-overview-record-parts-create-btn";
+    appendVizMapsIconLabel(createBtn, ENTRY_OVERVIEW_VIZ_MAPS_CREATE_BTN_LABEL, {
+      iconClass: "record-materials-icon record-materials-icon--button"
+    });
+    createBtn.addEventListener("click", () => {
+      if (typeof helpers.onCreate === "function") helpers.onCreate();
+      else if (activeEntryOverviewContext) {
+        void openEntryOverviewEdit(activeEntryOverviewContext).then(() => setDocAsideTab("viz"));
+      }
+    });
+    actions.appendChild(createBtn);
+    body.appendChild(actions);
+    return { count: 0 };
+  }
+
+  const list = document.createElement("div");
+  list.className = "node-entry-overview-viz-maps-list";
+  list.setAttribute("role", "list");
+  for (const row of maps) {
+    const item = createEntryOverviewVizMapListRow(row, about);
+    if (item) list.appendChild(item);
+  }
+  body.appendChild(list);
+  return { count: maps.length };
+}
+
+async function renderEntryOverviewVizMapsPart(context) {
+  if (!shouldShowEntryOverviewVizMaps(context)) return null;
+
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!about) return null;
+
+  const bodyWrap = document.createElement("div");
+  bodyWrap.className = "node-entry-overview-viz-maps";
+
+  const body = document.createElement("div");
+  body.className = "node-entry-overview-viz-maps-body";
+  bodyWrap.appendChild(body);
+
+  const { count } = await refreshEntryOverviewVizMapsBody(body, context, {
+    onCreate: () => {
+      void openEntryOverviewEdit(context).then(() => setDocAsideTab("viz"));
+    }
+  });
+
+  const badgeText = count > 0 ? String(count) : null;
+  return createEntryOverviewVizMapsCard(ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL, bodyWrap, {
+    badgeText,
+    aboutPath: about,
+    context
+  });
+}
+
+async function appendEntryOverviewVizMapsPanel(
+  context,
+  mount,
+  isStale = () => false,
+  insertAfter = null
+) {
+  if (!shouldShowEntryOverviewVizMaps(context)) return null;
+
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  const contextKey = `${String(context?.memoryKind || "").trim()}:${about}`;
+  const panel = await renderEntryOverviewVizMapsPart(context);
+  if (!panel) return null;
+
+  const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+  const activeKey = `${String(activeEntryOverviewContext?.memoryKind || "").trim()}:${activeAbout}`;
+  if (activeKey !== contextKey) return null;
+  if (typeof isStale === "function" && isStale()) return null;
+
+  if (insertAfter?.parentElement) {
+    insertAfter.insertAdjacentElement("afterend", panel);
+    return panel;
+  }
+
+  mount?.appendChild(panel);
+  return panel;
 }
 
 async function appendEntryOverviewRecordPartsPanel(
@@ -85039,14 +85688,27 @@ async function renderEntryOverview() {
   }
   if (contentPanel) hubMain.appendChild(contentPanel);
 
+  let entryOverviewSectionInsertAfter = contentPanel || hero;
   if (showRecordParts) {
-    await appendEntryOverviewRecordPartsPanel(
+    const recordPartsPanel = await appendEntryOverviewRecordPartsPanel(
       materialsContext,
       hubMain,
       isStale,
-      contentPanel || hero,
+      entryOverviewSectionInsertAfter,
       recordPartsWorkspaceFolderPath
     );
+    if (recordPartsPanel) entryOverviewSectionInsertAfter = recordPartsPanel;
+    if (isStale()) return;
+  }
+
+  if (shouldShowEntryOverviewVizMaps(context)) {
+    const vizMapsPanel = await appendEntryOverviewVizMapsPanel(
+      context,
+      hubMain,
+      isStale,
+      entryOverviewSectionInsertAfter
+    );
+    if (vizMapsPanel) entryOverviewSectionInsertAfter = vizMapsPanel;
     if (isStale()) return;
   }
 
@@ -86200,6 +86862,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const readMemoryKind = handlers.readMemoryKind || handlers.resourceContextMenuMemoryKind || "external";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item), {
       hasMaterials: navigationItemHasRecordMaterials(item),
+      hasVizMaps: navigationItemHasVizMaps(item),
       attachmentPaths: getNavigationItemAttachmentPaths(item),
       hasUnread: isNavigationTocItemUnread(readManifestPath, item, readMemoryKind)
     });
@@ -86374,32 +87037,31 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
   if (sharedSlotMode) {
     card.dataset.slotsFlexible = "1";
   }
-  card.append(
-    createNavigationSectionHead(externalTitle, {
-      viewModeId: "external",
-      openTitle: sharedSlotMode ? "Открыть awn-storage/ — общий гибкий слот" : null,
-      titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
-      badgeText: getNavigationMemoryBadgeText("external", externalData),
-      badgeModeId: "external",
-      sort: {
-        scope: "external",
-        onChange: () => refreshNavigationExternalTocSearch(card)
-      },
-      search: showSearch
-        ? {
-            enabled: true,
-            value: navigationExternalTocSearchQuery,
-            placeholder: "Поиск по записям...",
-            ariaLabel: "Поиск по записям многофайловой памяти",
-            onInput: (value) => {
-              navigationExternalTocSearchQuery = value;
-              refreshNavigationExternalTocSearch(card);
-            }
+  const externalHead = createNavigationSectionHead(externalTitle, {
+    viewModeId: "external",
+    openTitle: sharedSlotMode ? "Открыть awn-storage/ — общий гибкий слот" : null,
+    titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
+    badgeText: getNavigationMemoryBadgeText("external", externalData),
+    badgeModeId: "external",
+    sort: {
+      scope: "external",
+      onChange: () => refreshNavigationExternalTocSearch(card)
+    },
+    search: showSearch
+      ? {
+          enabled: true,
+          value: navigationExternalTocSearchQuery,
+          placeholder: "Поиск по записям...",
+          ariaLabel: "Поиск по записям многофайловой памяти",
+          onInput: (value) => {
+            navigationExternalTocSearchQuery = value;
+            refreshNavigationExternalTocSearch(card);
           }
-        : null
-    }),
-    body
-  );
+        }
+      : null
+  });
+  decorateNavigationMemorySectionHeadIcon(externalHead, "external");
+  card.append(externalHead, body);
 
   if (mdItems.length || folderPaths.size > 0) {
     refreshNavigationExternalTocSearch(card);
@@ -96865,7 +97527,8 @@ function applyModeUi(options = {}) {
   syncDocAsideUi({
     outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
     propsPanelAvailable: isDocAsidePropsTabAvailable(),
-    editorToolsPanelAvailable: canInsertDocContentBlocks()
+    editorToolsPanelAvailable: canInsertDocContentBlocks(),
+    vizMapsPanelAvailable: isDocAsideVizMapsTabAvailable()
   });
   if (showDocAside) syncPropsFormActionsUi();
   removeYamlPanelLabel();
@@ -112874,6 +113537,7 @@ async function openWorkspaceInspectorPath(relPath) {
 }
 
 window.showToast = showToast;
+window.askConfirm = askConfirm;
 window.openWorkspaceInspectorPath = openWorkspaceInspectorPath;
 window.getEditorPlainTextForFind = () => {
   if (editorViewMode === "wysiwyg") {
@@ -135345,6 +136009,10 @@ docAsideTabLinksBtn?.addEventListener("click", () => {
   if (docAsideTabLinksBtn.disabled) return;
   setDocAsideTab("links");
 });
+docAsideTabVizBtn?.addEventListener("click", () => {
+  if (docAsideTabVizBtn.disabled) return;
+  setDocAsideTab("viz");
+});
 
 docAsideMiniDocNode?.addEventListener("click", (event) => {
   const toggleBtn = event.target.closest(".doc-aside-mini-doc-head");
@@ -135855,6 +136523,14 @@ document.addEventListener("click", (event) => {
       !event.target.closest(".nav-book-toc-folder-create-btn")
     ) {
       closeNavigationHubRailFolderCreatePopover();
+    }
+  }
+  if (entryOverviewVizMapsCreatePopoverNode?.classList.contains("hidden") === false) {
+    if (
+      !event.target.closest("#entry-overview-viz-maps-create-popover") &&
+      !event.target.closest(".node-entry-overview-viz-maps-add-btn")
+    ) {
+      closeEntryOverviewVizMapsCreatePopover();
     }
   }
   if (awnDataGroupCreatePopoverNode?.classList.contains("hidden") === false) {

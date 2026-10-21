@@ -14,20 +14,22 @@ description: Живые карты визуализации в Agent CMS — ф�
 | Где | Как называть |
 |-----|----------------|
 | UI редактора | «Атлас», «Виды карт» |
-| Файлы | `*.viz.md` рядом с записью |
-| YAML | `viz-kind`, `viz-about`, `viz-title` |
+| Файлы | `awn-storage/assets/viz/{awn-id}/{kind}.viz.md` |
+| YAML | `viz-kind`, `viz-about`, `awn-name` (из записи при создании), `awn-type` (фикс. для карты) |
 | MCP / HTTP | `viz_map_*`, `viz_maps_*` — без слова *atlas* |
 
 Список всех карт = **`viz_maps_all_list`** (скан файлов; отдельного индекса «пересобрать атлас» нет).
 
 ## Файлы и привязка к записи
 
-- Имя: `{stem-записи}.{kind}.viz.md` в той же папке, что и запись (stem — имя файла записи без расширения).
-- **`viz-about`** — путь записи, о которой карта (в MCP аргумент **`recordPath`**; поле в frontmatter остаётся `viz-about`).
-- **`viz-kind`** — id вида из реестра (`mindmap`, `roadmap`, …).
-- **`viz-title`** — заголовок карты (опционально).
+- **Канон:** `awn-storage/assets/viz/{awn-id}/{kind}.viz.md` — как `assets/materials/{awn-id}/`, связь по **`awn-id`** записи (не по имени файла).
+- **Создание** — только если у записи уже есть `awn-id` (иначе API вернёт ошибку; сначала присвоить id).
+- **Legacy (чтение):** старые `{stem}.{kind}.viz.md` рядом с записью всё ещё открываются и удаляются; новые создавай только в `assets/viz/`.
+- **`viz-about`** — путь записи в frontmatter (MCP: **`recordPath`**).
+- **`viz-kind`** — вид карты; заголовок в UI — **`awn-name`** (при создании копируется с записи; **`viz-title`** опционален, legacy).
+- **`awn-type`** на карте — свой (`awn.content.record`), **не** с родительской записи.
 
-Пример: запись `awn-topics/demo/note.md` → карта mindmap: `awn-topics/demo/note.mindmap.viz.md`.
+Пример: запись `…/main/note.md` с `awn-id: 45` → mindmap: `assets/viz/45/mindmap.viz.md`.
 
 ## Реестр видов (6 разделов · 10 kinds)
 

@@ -88,7 +88,7 @@ export function registerVizMapTools(reg, client) {
     canonical: "viz_map_write",
     legacy: "write_viz_map",
     description:
-      "Create or update a *.viz.md map. Set recordPath + kind to derive `{stem}.{kind}.viz.md` next to the record; optional content (full file body).",
+      "Create or update a *.viz.md map at assets/viz/{awn-id}/{kind}.viz.md (record must have awn-id). Optional content (full file body).",
     schema: z.object({
       recordPath,
       about: z.string().optional().describe("Deprecated alias for recordPath"),

@@ -1,10 +1,10 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 90 tools (87 canonical + 3 legacy aliases)",
+  versionLabel: "Per-chat workspaceId · снимок docs + viz_map_* (живой список — mcp-server после перезапуска)",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
-  generatedAt: "2026-10-11",
+  generatedAt: "2026-10-22",
   notes: [
     "MCP slim v0.3.8 — per-chat agentId · placement (topic|channel|media|database|repository|root; legacy page→topic) · CONTENT + FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
@@ -22,7 +22,8 @@ module.exports = {
     "user_notification_send — колокольчик CMS (не Shell). Legacy: notify_user.",
     "contents/facts: fact_create, facts_list, … (legacy workspace_fact_*, create_workspace_fact, …).",
     "contents/glossary: glossary_term_create, glossary_terms_list, … (legacy create_glossary_term, …).",
-    "contents/reference: reference_entry_create, reference_entries_list, … (legacy create_reference_entry, …)."
+    "contents/reference: reference_entry_create, reference_entries_list, … (legacy create_reference_entry, …).",
+    "Viz maps (*.viz.md): viz_map_types_list, viz_maps_all_list, viz_maps_for_record, viz_map_read / write / delete. UI «Атлас» — не имя tool (legacy viz_atlas_read → viz_maps_all_list)."
   ],
   cursorConfig: {
     command: "node",
@@ -253,6 +254,51 @@ module.exports = {
           description: "Полнотекстовый поиск workspace (paths, frontmatter, body). scope=all по умолчанию.",
           parameters: "query, scope?, fileType?, match?, limit?",
           http: "GET /api/search"
+        }
+      ]
+    },
+    {
+      id: "viz-maps",
+      title: "Визуализация (*.viz.md)",
+      tools: [
+        {
+          name: "viz_map_types_list",
+          legacyName: "viz_kind_list",
+          description: "Реестр видов карт и разделов UI (awn-system/types/viz/).",
+          parameters: "—",
+          http: "GET /api/viz/kinds"
+        },
+        {
+          name: "viz_maps_all_list",
+          legacyName: "viz_atlas_read",
+          description: "Скан workspace: все *.viz.md. Фильтры recordPath (viz-about), kind, section. Каталог в UI — «Атлас».",
+          parameters: "recordPath?, kind?, section?",
+          http: "GET /api/viz/maps (alias /api/viz/atlas)"
+        },
+        {
+          name: "viz_maps_for_record",
+          legacyName: "viz_maps_for_about",
+          description: "По одной записи: каждый kind — expectedPath и есть ли файл (как aside «ВИЗУАЛИЗАЦИЯ»).",
+          parameters: "recordPath",
+          http: "GET /api/viz/maps-for-record"
+        },
+        {
+          name: "viz_map_read",
+          description: "Прочитать карту: mapPath или recordPath + kind.",
+          parameters: "mapPath? | recordPath? + kind?",
+          http: "GET /api/viz/map"
+        },
+        {
+          name: "viz_map_write",
+          description: "Создать/обновить {stem}.{kind}.viz.md рядом с записью.",
+          parameters: "recordPath?, kind?, mapPath?, content?",
+          http: "POST /api/viz/map"
+        },
+        {
+          name: "viz_map_delete",
+          description: "Удалить файл карты (не запись-about).",
+          parameters: "mapPath? | recordPath? + kind?",
+          http: "DELETE /api/viz/map"
         }
       ]
     },

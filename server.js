@@ -511,6 +511,7 @@ const {
 } = require("./lib/api/slot-placement-guard");
 const { createContentSchemaApi } = require("./lib/api/content-schema-api");
 const { createVizMapsApi } = require("./lib/api/viz-maps-api");
+const { resolveRecordHasVizMaps } = require("./lib/viz/resolve-record-has-viz-maps");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./lib/api/ui-context-api");
 const {
   readIdleScreensaverBreaks,
@@ -7305,6 +7306,7 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
     fileEntry.relativePath
   );
   const fileAbsolute = path.join(folderAbsolute, fileEntry.relativePath);
+  const vizIndicatorOptions = { isAreaManifestFileName, isTopicManifestFileName };
   try {
     const raw = await fs.readFile(fileAbsolute, "utf-8");
     const { frontmatter } = splitNodeFrontmatter(raw);
@@ -7318,6 +7320,13 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       getYamlScalar(frontmatter, "awn-name") ||
       "";
     const title = resolveNodeDisplayName(awnName, slug);
+    const recordAwnId = parseAwnId(
+      getFrontmatterPropValue(props, "awn-id") || getYamlScalar(frontmatter, "awn-id")
+    );
+    const hasVizMaps = await resolveRecordHasVizMaps(folderAbsolute, fileEntry.relativePath, {
+      ...vizIndicatorOptions,
+      awnId: recordAwnId
+    });
     return {
       ...fileEntry,
       title,
@@ -7327,11 +7336,13 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       hasPreview: Boolean(previewMeta.hasPreview),
       previewUrl: previewMeta.previewUrl || null,
       previewFile: previewMeta.previewFile || null,
-      hasRecordMaterials
+      hasRecordMaterials,
+      hasVizMaps
     };
   } catch {
     const slug =
       getManifestSlugFromRel(fileEntry.relativePath) || fileEntry.name.replace(/\.md$/i, "");
+    const hasVizMaps = await resolveRecordHasVizMaps(folderAbsolute, fileEntry.relativePath, vizIndicatorOptions);
     return {
       ...fileEntry,
       title: slug,
@@ -7341,7 +7352,8 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       hasPreview: false,
       previewUrl: null,
       previewFile: null,
-      hasRecordMaterials
+      hasRecordMaterials,
+      hasVizMaps
     };
   }
 }
@@ -14778,6 +14790,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       status: enriched.status,
       tags: enriched.tags,
       hasRecordMaterials: Boolean(enriched.hasRecordMaterials),
+      hasVizMaps: Boolean(enriched.hasVizMaps),
       recordMaterialsFolderRef: enriched.hasRecordMaterials
         ? resolveRecordPartsFolderRefForRecordRel(enriched.relativePath, recordAwnId)
         : null,

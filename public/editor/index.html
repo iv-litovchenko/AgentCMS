@@ -6555,6 +6555,24 @@
                     </span>
                     <span class="doc-aside-icon-tab-label">Ссылки</span>
                   </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-viz"
+                    class="doc-aside-icon-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="viz"
+                    title="Карты визуализации (*.viz.md)"
+                  >
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6l9-4 9 4-9 4-9-4z" />
+                        <path d="M3 10l9 4 9-4" />
+                        <path d="M3 14l9 4 9-4" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Карты</span>
+                  </button>
                 </div>
                 <div id="doc-aside-mini-doc" class="doc-aside-mini-doc hidden" aria-live="polite"></div>
                 <div id="doc-aside-todo-sticker" class="doc-aside-todo-sticker hidden" aria-live="polite"></div>
@@ -6615,6 +6633,11 @@
               <div id="doc-aside-panel-links" class="doc-aside-panel doc-aside-panel--links hidden" role="tabpanel" aria-labelledby="doc-aside-tab-links">
                 <div class="doc-aside-panel-scroll">
                   <div id="doc-links-content" class="doc-links-content"></div>
+                </div>
+              </div>
+              <div id="doc-aside-panel-viz" class="doc-aside-panel doc-aside-panel--viz hidden" role="tabpanel" aria-labelledby="doc-aside-tab-viz">
+                <div class="doc-aside-panel-scroll">
+                  <div id="doc-viz-maps-content" class="doc-viz-maps-content" aria-label="Карты визуализации"></div>
                 </div>
               </div>
             </aside>
