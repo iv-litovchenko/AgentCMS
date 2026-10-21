@@ -347,7 +347,7 @@ Copyright © 2026 Agent CMS
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **🟡** 29 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 29 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -596,7 +596,7 @@ user-agent-cms
 │       ├── 🟢 record_binary_url_get
 │       └── 🟢 record_preview_get
 │
-├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 12
+├── 🧠 Факты, глоссарий, справочник, внешняя память (Facts, glossary, reference & external memory) · 16
 │   ├── Факты (Facts) · 4
 │   │   ├── 🟢 fact_create
 │   │   ├── 🟢 fact_update
@@ -607,11 +607,16 @@ user-agent-cms
 │   │   ├── 🟢 glossary_term_update
 │   │   ├── 🟢 glossary_terms_list
 │   │   └── 🟢 glossary_terms_search
-│   └── Справочник (Reference) · 4
-│       ├── 🟢 reference_entry_create
-│       ├── 🟢 reference_entry_update
-│       ├── 🟢 reference_entries_list
-│       └── 🟢 reference_entries_search
+│   ├── Справочник (Reference) · 4
+│   │   ├── 🟢 reference_entry_create
+│   │   ├── 🟢 reference_entry_update
+│   │   ├── 🟢 reference_entries_list
+│   │   └── 🟢 reference_entries_search
+│   └── Внешняя память (External memory) · 4
+│       ├── ⚪ external_memory_list
+│       ├── ⚪ external_memory_upsert
+│       ├── ⚪ external_memory_sync
+│       └── ⚪ external_memory_sync_status
 │
 ├── 📝 Аннотации (Annotations) · 11
 │   ├── Комментарии (Comments) · 6

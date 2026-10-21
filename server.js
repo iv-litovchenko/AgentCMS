@@ -15060,7 +15060,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — glossary_term_update MCP",
   workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — glossary_terms_list MCP",
   workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — glossary_terms_search MCP",
-  workspaceExternalMemoryList: "GET /api/agent/workspace-external-memory/list?provider= — external_memory_list MCP",
+  workspaceExternalMemoryList: "GET /api/agent/workspace-external-memory/list?platform= — external_memory_list MCP",
   workspaceExternalMemoryUpsert: "POST /api/agent/workspace-external-memory/upsert — external_memory_upsert MCP",
   workspaceExternalMemorySync: "POST /api/agent/workspace-external-memory/sync — external_memory_sync MCP",
   workspaceExternalMemorySyncStatus: "GET /api/agent/workspace-external-memory/sync-status — external_memory_sync_status MCP",
@@ -25362,15 +25362,21 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-external-memory/list") {
     try {
-      const provider = url.searchParams.get("provider") || "";
+      const platform =
+        url.searchParams.get("platform") ||
+        url.searchParams.get("source") ||
+        url.searchParams.get("provider") ||
+        "";
       const limitRaw = Number(url.searchParams.get("limit"));
-      const payload = await getWorkspaceExternalMemoryService().listProviderItems(provider, {
+      const payload = await getWorkspaceExternalMemoryService().listByPlatform(platform, {
         limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
       });
       return sendJson(res, 200, payload);
     } catch (error) {
       const message = String(error.message || error);
-      const status = /provider must be|Agent not selected/i.test(message) ? 400 : 500;
+      const status = /platform is required|platform обязателен|Invalid platform|Agent not selected/i.test(message)
+        ? 400
+        : 500;
       return sendJson(res, status, {
         error: status === 400 ? message : "Failed to list external memory",
         details: message
@@ -25385,7 +25391,9 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       const message = String(error.message || error);
-      const status = /required|provider must be/i.test(message) ? 400 : 500;
+      const status = /required|platform is required|platform обязателен|Invalid platform/i.test(message)
+        ? 400
+        : 500;
       return sendJson(res, status, {
         error: status === 400 ? message : "Failed to upsert external memory",
         details: message
@@ -25400,7 +25408,10 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       const message = String(error.message || error);
-      const status = /direction must be|provider must be|required/i.test(message) ? 400 : 500;
+      const status =
+        /direction must be|platform is required|platform обязателен|Invalid platform|required/i.test(message)
+          ? 400
+          : 500;
       return sendJson(res, status, {
         error: status === 400 ? message : "Failed to sync external memory",
         details: message

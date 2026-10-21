@@ -130886,10 +130886,12 @@ async function submitAwnDataScaffoldExternalMemory(agentId = activeWorkspaceId) 
     closeAwnDataCreateModal();
     const sections = Array.isArray(data.sectionsCreated) ? data.sectionsCreated : [];
     if (data.storeCreated) {
+      const archived = String(data.legacyArchivedTo || "").trim();
+      const archiveHint = archived ? ` Старая схема перенесена в ${archived}.` : "";
       showToast(
         sections.length
-          ? `Создана «Внешняя память», разделы: ${sections.join(", ")}`
-          : "Создана коллекция «Внешняя память»",
+          ? `Создана «Внешняя память», разделы: ${sections.join(", ")}.${archiveHint}`
+          : `Создана коллекция «Внешняя память».${archiveHint}`,
         "success"
       );
     } else {
