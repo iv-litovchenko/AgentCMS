@@ -1677,6 +1677,63 @@
                 </div>
               </div>
             </div>
+            <div class="header-locale-wrap">
+              <button
+                id="header-ui-locale-btn"
+                class="header-tool-btn header-tool-btn--locale header-ui-locale-btn"
+                type="button"
+                title="Язык интерфейса"
+                aria-label="Язык интерфейса"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="header-ui-locale-menu"
+              >
+                <span id="header-ui-locale-flag-mount" class="header-ui-locale-flag" aria-hidden="true"></span>
+                <span id="header-ui-locale-code" class="header-ui-locale-code" aria-hidden="true">RU</span>
+                <svg class="header-ui-locale-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M2.5 4.25L6 7.75L9.5 4.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <div
+                id="header-ui-locale-menu"
+                class="header-ui-locale-menu hidden"
+                role="menu"
+                aria-label="Язык интерфейса"
+              >
+                <div class="header-ui-locale-menu-head">
+                  <div class="header-ui-locale-menu-title">Язык интерфейса</div>
+                  <p class="header-ui-locale-menu-hint">Заготовка — полный перевод UI в разработке</p>
+                </div>
+                <button
+                  type="button"
+                  class="header-ui-locale-menu-item"
+                  role="menuitemradio"
+                  data-locale="en"
+                  aria-checked="false"
+                >
+                  <span class="header-ui-locale-menu-flag header-ui-locale-menu-flag--en" aria-hidden="true"></span>
+                  <span class="header-ui-locale-menu-copy">
+                    <span class="header-ui-locale-menu-label">English</span>
+                    <span class="header-ui-locale-menu-meta">United States</span>
+                  </span>
+                  <span class="header-ui-locale-menu-check" aria-hidden="true">✓</span>
+                </button>
+                <button
+                  type="button"
+                  class="header-ui-locale-menu-item"
+                  role="menuitemradio"
+                  data-locale="ru"
+                  aria-checked="true"
+                >
+                  <span class="header-ui-locale-menu-flag header-ui-locale-menu-flag--ru" aria-hidden="true"></span>
+                  <span class="header-ui-locale-menu-copy">
+                    <span class="header-ui-locale-menu-label">Русский</span>
+                    <span class="header-ui-locale-menu-meta">Russian</span>
+                  </span>
+                  <span class="header-ui-locale-menu-check" aria-hidden="true">✓</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>

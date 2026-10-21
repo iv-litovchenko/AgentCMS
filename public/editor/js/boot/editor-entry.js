@@ -34,6 +34,7 @@ import "../../../_resources/vendor/channel-preset-icons/map.js";
 
 import "../panels/discuss-panel.js";
 import "../app/privacy-mode.js";
+import "../app/header-ui-locale.js";
 import "../app/sensitive-input.js";
 import "../panels/page-picker-extract.js";
 import "../editor/page-snapshot.js";

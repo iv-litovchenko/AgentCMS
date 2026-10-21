@@ -13110,6 +13110,7 @@ function openHeaderProfileMenu() {
   closeWorkspaceNotificationsPopover();
   closeHeaderFocusPopover();
   closeHeaderWelcomePopover();
+  window.agentCmsCloseHeaderUiLocaleMenu?.();
   headerProfileMenuOpen = true;
   headerProfileMenuNode.classList.remove("hidden");
   syncHeaderProfileMenuState();

@@ -214,6 +214,7 @@
       editorPostMainPromise = (async () => {
         await loadScript("/editor/js/panels/discuss-panel.js?v=0.5.259");
         await loadScript("/editor/js/app/privacy-mode.js?v=5");
+        await loadScript("/editor/js/app/header-ui-locale.js?v=1");
         await loadScript("/editor/js/app/sensitive-input.js?v=3");
         await loadScript("/editor/js/panels/page-picker-extract.js?v=0.5.5");
         await loadScript("/editor/js/editor/page-snapshot.js?v=0.1.0");
