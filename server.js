@@ -6160,6 +6160,7 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/ops/maintenance",
   "/api/ops/server/action",
   "/api/ops/server/status",
+  "/api/ops/env-file",
   "/api/agent/mcp-ping"
 ]);
 
@@ -23036,6 +23037,45 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         ok: false,
         error: "Failed to read server process status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/env-file") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const { readProjectEnvFile } = require("./lib/ops/control-env-file");
+      const payload = readProjectEnvFile(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read .env",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/env-file") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 280_000);
+      const { writeProjectEnvFile } = require("./lib/ops/control-env-file");
+      const result = writeProjectEnvFile(getProjectRoot(), body?.content);
+      if (!result.ok) return sendJson(res, 400, result);
+      return sendJson(res, 200, {
+        ok: true,
+        filePath: result.filePath,
+        message: "Сохранено. Перезапустите MCP и при необходимости CMS (кнопки «Рестарт» / stack)."
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to write .env",
         details: String(error.message || error)
       });
     }
