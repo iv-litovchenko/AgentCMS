@@ -932,7 +932,106 @@ function bindEnvExpandToggle() {
   }
 }
 
+const PLATFORM_CARDS = [
+  {
+    id: "mac",
+    match: "darwin",
+    name: "macOS",
+    tagline: "Electron · welcome.command · HTTPS dev",
+    accent: "mac"
+  },
+  {
+    id: "linux",
+    match: "linux",
+    name: "Linux",
+    tagline: "VPS · браузер · npm start · Control :3288",
+    accent: "linux"
+  },
+  {
+    id: "windows",
+    match: "win32",
+    name: "Windows",
+    tagline: "Поддержка в разработке",
+    accent: "windows",
+    disabled: true
+  }
+];
+
+function platformCardIcon(id) {
+  if (id === "mac") {
+    return `<svg class="platform-card-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.13 1.84c-.03 1.63 1.14 2.45 1.19 2.48-.97 1.41-2.48 1.6-3.02 1.62-1.28.13-2.5-.76-3.15-.76-.67 0-1.68.74-2.77.72-1.42-.02-2.73-.83-3.46-2.11-1.48-2.56-.38-6.35 1.06-8.43.7-1.02 1.54-2.17 2.65-2.13 1.06.04 1.46.69 2.74.69 1.26 0 1.62-.69 2.73-.67 1.14.02 1.87 1.04 2.56 2.06.4.58.7 1.2.95 1.86-1.12.48-1.9 1.38-1.9 2.86.01 2.24 1.92 3.03 1.94 3.04zM12.03 7.5c-.12-2.17 1.77-3.22 1.85-3.27-1.01-1.48-2.58-1.68-3.14-1.7-1.33-.14-2.6.79-3.27.79-.68 0-1.73-.77-2.85-.75-1.47.02-2.82.85-3.57 2.16-1.53 2.65-.39 6.57 1.1 8.72.73 1.06 1.6 2.25 2.74 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.85.68 1.18-.03 1.93-1.08 2.65-2.14.84-1.23 1.19-2.43 1.21-2.49-.03-.01-2.32-.89-2.34-3.54z"/></svg>`;
+  }
+  if (id === "linux") {
+    return `<svg class="platform-card-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.5 2c-2.2 0-3.9 1.4-4.6 3.4-.5-.2-1-.3-1.5-.3-1.9 0-3.4 1.5-3.4 3.4 0 .6.2 1.2.5 1.7C2.4 12.1 1 14.5 1 17.2 1 20.3 3.2 22 6 22h12c2.8 0 5-1.7 5-4.8 0-2.7-1.4-5.1-3.5-6.5.3-.5.5-1.1.5-1.7 0-1.9-1.5-3.4-3.4-3.4-.5 0-1 .1-1.5.3C16.4 3.4 14.7 2 12.5 2zm-1 4.2c.8-.9 1.9-1.4 3-1.4 1.2 0 2.3.6 3.1 1.6l-1.2.8c-.5-.7-1.3-1.1-2.1-1.1-.7 0-1.4.3-1.9.8l-1-.7zm-3.8 1.1c.9 0 1.6.7 1.6 1.6s-.7 1.6-1.6 1.6-1.6-.7-1.6-1.6.7-1.6 1.6-1.6zm8.6 0c.9 0 1.6.7 1.6 1.6s-.7 1.6-1.6 1.6-1.6-.7-1.6-1.6.7-1.6 1.6-1.6zM6 19.5c-1.5 0-2.5-.9-2.5-2.2 0-2 1.4-4.2 3.5-5.5.9 1.5 2.4 2.5 4.2 2.7.3 1.5 1.5 2.5 3 2.5h.3c-1.2 1.5-2.8 2-4.5 2H6z"/></svg>`;
+  }
+  return `<svg class="platform-card-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.5h8v8H3v-8zm10 0h8v8h-8v-8zM3 15.5h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>`;
+}
+
+function resolveActivePlatformId(environment) {
+  const raw = String(environment?.host?.platform || "").toLowerCase();
+  if (raw === "darwin") return "mac";
+  if (raw === "linux") return "linux";
+  if (raw === "win32") return "windows";
+  return null;
+}
+
+function launcherModeLabel() {
+  const mode = document.documentElement.dataset.controlLauncher;
+  if (mode === "web") return "Launcher в браузере";
+  if (window.agentControl && mode !== "web") return "Launcher · Electron";
+  return "Agent CMS Control";
+}
+
+function renderPlatformCover(environment) {
+  const root = document.getElementById("platform-cover");
+  if (!root) return;
+
+  const activeId = resolveActivePlatformId(environment);
+  const host = environment?.host || {};
+  const label = host.platformLabel || "—";
+  const machine = host.computerName || host.hostname || "хост";
+  const arch = host.arch || "";
+  const modeLine = launcherModeLabel();
+
+  const cards = PLATFORM_CARDS.map((card) => {
+    const isActive = !card.disabled && card.id === activeId;
+    const isDisabled = Boolean(card.disabled);
+    const state = isDisabled ? "disabled" : isActive ? "active" : "idle";
+    const badge = isDisabled
+      ? `<span class="platform-card-badge platform-card-badge--soon">Скоро</span>`
+      : isActive
+        ? `<span class="platform-card-badge platform-card-badge--live">Эта система</span>`
+        : "";
+
+    return `
+      <article class="platform-card platform-card--${card.accent}" data-state="${state}" aria-disabled="${isDisabled ? "true" : "false"}">
+        <div class="platform-card-glow" aria-hidden="true"></div>
+        ${badge}
+        <div class="platform-card-icon-wrap">${platformCardIcon(card.id)}</div>
+        <h3 class="platform-card-name">${card.name}</h3>
+        <p class="platform-card-tagline">${card.tagline}</p>
+      </article>
+    `;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="platform-cover-inner">
+      <div class="platform-cover-head">
+        <div class="platform-cover-kicker">${modeLine}</div>
+        <h2 class="platform-cover-title">Платформа</h2>
+        <p class="platform-cover-sub">
+          <strong>${machine}</strong>
+          <span class="platform-cover-dot" aria-hidden="true">·</span>
+          <span>${label}${arch ? ` · ${arch}` : ""}</span>
+        </p>
+      </div>
+      <div class="platform-card-grid" role="list">${cards}</div>
+    </div>
+  `;
+}
+
 function renderEnvironment(environment) {
+  renderPlatformCover(environment);
   renderSetupChecklist();
   renderEnvironmentRows(environment);
 }

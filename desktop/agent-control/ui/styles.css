@@ -740,6 +740,197 @@ body.is-booting {
   --section-accent: var(--control);
 }
 
+/* ── Platform cover (Mac / Linux / Windows) ── */
+.platform-cover {
+  margin-bottom: 12px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 90% 80% at 10% 0%, rgba(79, 141, 253, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 95% 100%, rgba(20, 184, 166, 0.12) 0%, transparent 50%),
+    var(--panel);
+}
+
+.platform-cover-inner {
+  padding: 16px 16px 14px;
+}
+
+.platform-cover-head {
+  margin-bottom: 14px;
+  padding-left: 2px;
+}
+
+.platform-cover-kicker {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--control);
+  margin-bottom: 4px;
+}
+
+.platform-cover-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.platform-cover-sub {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.platform-cover-sub strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.platform-cover-dot {
+  margin: 0 0.35em;
+  opacity: 0.45;
+}
+
+.platform-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 14px 12px 12px;
+  min-height: 132px;
+  border: 1px solid rgba(120, 140, 180, 0.14);
+  background: rgba(8, 12, 24, 0.55);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.platform-card-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.platform-card--mac .platform-card-glow {
+  background: radial-gradient(ellipse 80% 70% at 50% 0%, rgba(148, 163, 184, 0.22), transparent 65%);
+}
+
+.platform-card--linux .platform-card-glow {
+  background: radial-gradient(ellipse 80% 70% at 50% 0%, rgba(251, 191, 36, 0.2), transparent 65%);
+}
+
+.platform-card--windows .platform-card-glow {
+  background: radial-gradient(ellipse 80% 70% at 50% 0%, rgba(96, 165, 250, 0.15), transparent 65%);
+}
+
+.platform-card[data-state="active"] {
+  border-color: color-mix(in srgb, var(--control) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--control) 25%, transparent),
+    0 12px 32px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.platform-card[data-state="active"] .platform-card-glow {
+  opacity: 1;
+}
+
+.platform-card--mac[data-state="active"] {
+  border-color: color-mix(in srgb, #94a3b8 50%, var(--control));
+}
+
+.platform-card--linux[data-state="active"] {
+  border-color: color-mix(in srgb, #fbbf24 45%, var(--control));
+}
+
+.platform-card[data-state="idle"] {
+  opacity: 0.72;
+}
+
+.platform-card[data-state="disabled"] {
+  opacity: 0.42;
+  filter: grayscale(0.35);
+  cursor: not-allowed;
+}
+
+.platform-card-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.platform-card-badge--live {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.platform-card-badge--soon {
+  color: var(--muted);
+  background: rgba(120, 140, 180, 0.1);
+  border-color: rgba(120, 140, 180, 0.22);
+}
+
+.platform-card-icon-wrap {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(120, 140, 180, 0.12);
+}
+
+.platform-card--mac[data-state="active"] .platform-card-icon-wrap {
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.platform-card--linux[data-state="active"] .platform-card-icon-wrap {
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.platform-card-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.platform-card-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.platform-card-tagline {
+  margin: 5px 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
 .section-block[data-section="apps"] {
   --section-accent: var(--cms);
 }
@@ -3144,5 +3335,9 @@ body.is-booting {
   .hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .platform-card-grid {
+    grid-template-columns: 1fr;
   }
 }
