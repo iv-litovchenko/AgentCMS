@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("agentControl", {
   renderQr: (text) => ipcRenderer.invoke("control:render-qr", text),
   getMaintenanceMode: () => ipcRenderer.invoke("control:get-maintenance-mode"),
   setMaintenanceMode: (enabled) => ipcRenderer.invoke("control:set-maintenance-mode", enabled),
+  appLockLogin: (login, password) =>
+    ipcRenderer.invoke("control:app-lock-login", { login, password }),
+  appLockLogout: () => ipcRenderer.invoke("control:app-lock-logout"),
   getMcpInstances: () => ipcRenderer.invoke("control:get-mcp-instances"),
   saveMcpInstances: (document) => ipcRenderer.invoke("control:save-mcp-instances", document),
   onLog: (callback) => {

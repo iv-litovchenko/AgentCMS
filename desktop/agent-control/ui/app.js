@@ -18,22 +18,55 @@ function needsAppLockLogin() {
   return Boolean(gate?.enabled && !gate?.sessionActive);
 }
 
-function renderAppLockGate() {
-  if (!needsAppLockLogin()) return "";
-  return `
-    <div class="app-lock-gate" id="app-lock-gate">
-      <div class="app-lock-gate-copy">
-        <strong>Вход Control</strong>
-        <span>Логин и пароль из <code>.env</code> (<code>APP_LOCK_*</code>) — для Старт/Стоп и ops.</span>
-      </div>
-      <form class="app-lock-gate-form" id="app-lock-form" autocomplete="on">
-        <input type="text" name="login" class="app-lock-input" placeholder="Логин" autocomplete="username" required />
-        <input type="password" name="password" class="app-lock-input" placeholder="Пароль" autocomplete="current-password" required />
-        <button type="submit" class="ghost-btn app-lock-submit">Войти</button>
-      </form>
-      <p class="app-lock-gate-error" id="app-lock-error" hidden></p>
-    </div>
-  `;
+function syncAppLockScreen() {
+  const screen = document.getElementById("app-lock-screen");
+  if (!screen) return;
+  const canLogin = Boolean(window.agentControl?.appLockLogin);
+  const show = canLogin && needsAppLockLogin();
+  screen.hidden = !show;
+  document.body.classList.toggle("app-lock-active", show);
+  syncAppLockLogoutButton();
+  if (show) {
+    window.requestAnimationFrame(() => {
+      const loginInput = screen.querySelector('input[name="login"]');
+      if (loginInput) loginInput.focus();
+    });
+  }
+}
+
+function syncAppLockLogoutButton() {
+  const button = document.getElementById("app-lock-logout");
+  if (!button) return;
+  const gate = bootstrap?.appLock;
+  const show =
+    Boolean(gate?.enabled && gate?.sessionActive) && Boolean(window.agentControl?.appLockLogout);
+  button.hidden = !show;
+}
+
+function bindAppLockLogout() {
+  const button = document.getElementById("app-lock-logout");
+  if (!button || button.dataset.bound || !window.agentControl?.appLockLogout) return;
+  button.dataset.bound = "1";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await window.agentControl.appLockLogout();
+      bootstrap.appLock = {
+        ...(bootstrap.appLock || {}),
+        enabled: true,
+        sessionActive: false,
+        canToggleMaintenance: false
+      };
+      appendLog("Сессия завершена.\n");
+      syncAppLockScreen();
+      await renderLayout();
+      syncServerUi(lastServer || bootstrap?.server);
+    } catch (error) {
+      appendLog(`Выход: ${error.message}\n`, "stderr");
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 let lastServer = null;
 let clockTimer = null;
@@ -1559,7 +1592,6 @@ function renderGuideStepServer() {
 
   const controlBlock = `
     <div class="server-controls">
-      ${renderAppLockGate()}
       <div class="server-deck${autostartSupported ? " server-deck--5" : ""}" role="group" aria-label="Управление сервером">
         ${autostartButton}
         ${serverButton("server-start-bg", "start-bg", isRunning || opsLocked)}
@@ -2005,8 +2037,8 @@ async function renderLayout() {
   actionsRoot.appendChild(renderAppsSection());
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
-  bindAppLockGate();
   await bindMaintenanceToggle();
+  syncAppLockScreen();
   syncMcpConfigPreview();
   void bindMcpInstancesControl();
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
@@ -2126,8 +2158,10 @@ function bindAppLockGate() {
         sessionActive: true,
         canToggleMaintenance: true
       };
-      appendLog("Вход в Control выполнен.\n");
+      appendLog("Вход выполнен.\n");
+      syncAppLockScreen();
       await renderLayout();
+      syncServerUi(lastServer || bootstrap?.server);
     } catch (error) {
       if (errEl) {
         errEl.textContent = String(error.message || "Неверный логин или пароль");
@@ -2376,6 +2410,9 @@ async function init() {
   await playSplash();
 
   bootstrap = await window.agentControl.getBootstrap();
+  bindAppLockGate();
+  bindAppLockLogout();
+  syncAppLockScreen();
   renderEnvironment(bootstrap.environment);
   await handleServerStatusUpdate(bootstrap.server, { skipNotify: true });
   await refreshMaintenanceModeState();

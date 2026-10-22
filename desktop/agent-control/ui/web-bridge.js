@@ -68,6 +68,12 @@
         })
       }),
 
+    appLockLogout: () =>
+      fetchJson("/api/app-lock/logout", {
+        method: "POST",
+        body: JSON.stringify({})
+      }),
+
     reloadUi: () => {
       window.location.reload();
       return Promise.resolve({ ok: true });
