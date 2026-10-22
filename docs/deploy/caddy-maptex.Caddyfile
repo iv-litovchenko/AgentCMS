@@ -1,14 +1,13 @@
 # Agent CMS на VPS — Let's Encrypt через Caddy
-# Скопировать: sudo cp docs/deploy/caddy-maptex.Caddyfile /etc/caddy/Caddyfile
-# Проверка: sudo caddy validate --config /etc/caddy/Caddyfile
-# Применить: sudo systemctl reload caddy
+#   cd /opt/agent-cms && sudo bash docs/deploy/install-caddy-maptex.sh
 #
-# DNS: maptex.ru → A → IP VPS (уже настроено в Beget)
-# На сервере CMS слушает только localhost:
-#   HOST=127.0.0.1 npm start   (или agent-cms-http-service.sh)
-#   AGENT_CMS_MCP_HTTP_HOST=127.0.0.1 npm run mcp:http
-#
-# Фаервол: 22, 80, 443 — да; 3000, 3288, 3490 — только localhost (не наружу)
+# DNS: maptex.ru → A → IP VPS
+# CMS: 127.0.0.1:3000   MCP: 127.0.0.1:3490
+# Если видите «Caddy works!» — это дефолтный конфиг, замените этим файлом.
+
+{
+	email admin@maptex.ru
+}
 
 maptex.ru {
 	# MCP для Claude / Cursor (Streamable HTTP)

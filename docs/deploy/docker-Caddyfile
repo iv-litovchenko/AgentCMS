@@ -1,0 +1,21 @@
+# Caddy внутри Docker Compose (см. docker-compose.caddy.yml)
+# Env MAPTEX_DOMAIN=maptex.ru
+
+{$MAPTEX_DOMAIN} {
+	handle /mcp* {
+		reverse_proxy mcp:3490
+	}
+	handle {
+		reverse_proxy cms:3000
+	}
+}
+
+# Локально без DNS:
+:80 {
+	handle /mcp* {
+		reverse_proxy mcp:3490
+	}
+	handle {
+		reverse_proxy cms:3000
+	}
+}
