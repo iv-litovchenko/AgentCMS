@@ -45,11 +45,19 @@
     return document.getElementById("workspace-main-stack");
   }
 
+  function syncFileHubBandLandingDisabled(disabled) {
+    if (!bandNode) return;
+    bandNode.classList.toggle("is-disabled", disabled);
+    bandNode.setAttribute("aria-disabled", disabled ? "true" : "false");
+    if (toggleBtn) toggleBtn.disabled = disabled;
+  }
+
   function syncFileHubBandMount() {
     if (!bandNode) return;
     const parent = resolveFileHubBandMountParent();
     if (!parent) {
       bandNode.hidden = true;
+      syncFileHubBandLandingDisabled(false);
       return;
     }
     bandNode.hidden = false;
@@ -61,6 +69,7 @@
     } else if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
+    syncFileHubBandLandingDisabled(parent.id === "app-landing-stack");
   }
 
   function init() {

@@ -83903,6 +83903,18 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none !important;
 }
 
+.context-buffer-band--global.is-disabled {
+  opacity: 0.48;
+  pointer-events: none;
+  filter: grayscale(0.3);
+  user-select: none;
+}
+
+.context-buffer-band--global.is-disabled .context-buffer-toggle,
+.context-buffer-band--global.is-disabled .context-buffer-action-btn {
+  cursor: not-allowed;
+}
+
 .context-buffer-band:not(.context-buffer-band--global) {
   flex-shrink: 0;
   margin-top: 0.5rem;
