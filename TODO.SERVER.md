@@ -14,7 +14,7 @@
 
 | Компонент | Как запускается | Зависимости |
 |-----------|-----------------|-------------|
-| **CMS (Editor)** | `npm run start` или `npm run start:https` | Node **18+**, `npm install` (native: `better-sqlite3`, `sharp`) |
+| **CMS (Editor)** | `npm run start` или `npm run start:https` | Node **22+** (`better-sqlite3@13`), `npm ci` (postinstall — см. README VPS); native: `sharp` |
 | **Voice** (опц.) | вместе с CMS при `VOICE_AUTOSTART≠0`, или `npm run voice:start` | тот же Node, прокси API → CMS |
 | **Commander** (опц.) | `npm run commander:start` | статика + локальный HTTP |
 | **MCP** | `npm run mcp` | **отдельный процесс**, ходит в CMS по **`AGENT_CMS_BASE_URL`** |

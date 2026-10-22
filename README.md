@@ -13,14 +13,15 @@
 - [Принципы](#-принципы-gb-principles)
 - [Стек](#-стек-gb-stack)
 - [Установка — первый старт и запуск, только macOS](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
-- [Лицензия](#-лицензия-gb-license)
-- [Ссылки](#-ссылки-gb-links)
+- [Установка на Linux (Ubuntu) — VPS / сервер](#-установка-на-linux-ubuntu--vps--сервер)
 - [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-- [Time tracker — идея MCP (черновик)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
-- [Transfer — идея MCP (черновик)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
+- [Time tracker — идея MCP (черновик)](TODO.TimeTracker.md)
+- [Transfer — идея MCP (черновик)](TODO.Transfer.md)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
+- [Лицензия](#-лицензия-gb-license)
+- [Ссылки](#-ссылки-gb-links)
 - [С чего начать?](#-с-чего-начать-gb-where-to-start)
 
 ---
@@ -36,14 +37,14 @@
 > - [Principles](#-принципы-gb-principles)
 > - [Stack](#-стек-gb-stack)
 > - [Install — first run and launch, macOS only](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
-> - [License](#-лицензия-gb-license)
-> - [Links](#-ссылки-gb-links)
 > - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-> - [Time tracker — MCP idea (draft)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
-> - [Transfer — MCP idea (draft)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
+> - [Time tracker — MCP idea (draft)](TODO.TimeTracker.md)
+> - [Transfer — MCP idea (draft)](TODO.Transfer.md)
 > - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
+> - [License](#-лицензия-gb-license)
+> - [Links](#-ссылки-gb-links)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
 
 ---
@@ -286,18 +287,109 @@ cd AgentCMS
 >
 > The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
 
-## 🇷🇺 Лицензия (🇬🇧 License)
+## 🇷🇺 Установка на Linux (Ubuntu) — VPS / сервер
 
-Copyright © 2026 Agent CMS
+🇷🇺 **[ru]**
 
-Исходный код распространяется под [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).
+Тестовый деплой на VPS (Timeweb и аналоги): **Editor по HTTP**, опционально **MCP HTTP** для Cursor. **Docker не обязателен** — ниже сначала **Node 22+**, затем опционально Docker. Desktop-приложения (Control, Electron) на сервер **не ставятся**. Подробнее про порты и prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
-## 🇷🇺 Ссылки (🇬🇧 Links)
+**Node.js 22 — обязательно** (вариант A без Docker). Пакет `better-sqlite3` требует **Node ≥ 22**; Node 20 даст `EBADENGINE` и риск сбоя сборки. Ставить только через NodeSource `setup_22.x` (см. блок команд ниже). Если уже установили 20: `apt purge -y nodejs` → заново `setup_22.x` → `npm ci` в `/opt/agent-cms`.
 
-- Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
-- GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
-- Telegram: [https://t.me/AgentCMS](https://t.me/AgentCMS) (@AgentCMS — про жизнь с ИИ и технологиями)
-- Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
+**Открыть порты** — и в **панели VPS** (Timeweb → сеть / firewall), и на сервере (**ufw**, если включён). **Сначала разрешите SSH (22), потом `ufw enable`**, иначе потеряете доступ (`Connection refused`).
+
+| Порт | Протокол | Зачем | Когда нужен |
+| --- | --- | --- | --- |
+| **22** | TCP | SSH, администрирование | Всегда |
+| **3000** | TCP | Agent CMS Editor (HTTP) | Браузер с Mac/интернета |
+| **3490** | TCP | MCP Streamable HTTP (`/mcp`) | Cursor / удалённый MCP |
+| **3088** | TCP | Voice (HTTP) | Только если включаете голос снаружи |
+| **443** | TCP | HTTPS | Prod, когда будет reverse proxy |
+
+**Рекомендуемые требования** (тест, один инстанс CMS + MCP):
+
+| | Минимум | Комфорт / prod-проба |
+| --- | --- | --- |
+| **ОС** | Ubuntu 22.04+ / Debian 12+ | То же; не Alpine на первом заходе (native-модули) |
+| **Node.js** | **22+** (обязательно для `better-sqlite3`; 20 — не ставить) | LTS через NodeSource |
+| **CPU** | 1 vCPU | 2 vCPU при активной индексации |
+| **RAM** | 2 GB | 4 GB |
+| **Диск** | 30 GB NVMe | 50 GB+ при больших workspaces |
+| **Сеть** | Публичный IPv4, исходящий интернет (git, npm; для Docker — Docker Hub) | Домен + HTTPS (443) |
+| **Порты** | 22, 3000; 3490 — если MCP снаружи | Только 443 наружу (reverse proxy) |
+| **Не ставить** | Electron, Control desktop, GUI | — |
+| **Каталог кода** | `/opt/agent-cms` (FHS: optional software) | Без Docker: `workspaces/` в репо; с Docker — ещё named volume |
+
+```bash
+# === Agent CMS на Ubuntu (VPS) — первый запуск ===
+# Подключение (IP и пароль — из панели хостинга):
+ssh root@ВАШ_IP
+
+# Обновление и базовые пакеты
+apt update && apt upgrade -y
+apt install -y git curl
+
+# Порты: в панели хостинга открыть 22, 3000, (3490 для MCP). На сервере — до ufw enable:
+# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
+
+# На 1–2 GB RAM при npm install / сборке Docker полезен swap (опционально):
+# fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+
+# Каталог на сервере (принято: /opt/<имя-приложения>)
+mkdir -p /opt/agent-cms
+cd /opt/agent-cms
+
+# Клонирование в текущую папку (или свой fork / private repo)
+git clone https://github.com/iv-litovchenko/AgentCMS.git .
+
+# Настройка окружения: скопировать и отредактировать пароли и MCP-token
+cp .env.example .env
+nano .env
+# Обязательно сменить: APP_LOCK_PASSWORD (не changeme)
+# Для доступа к MCP снаружи: AGENT_CMS_MCP_TOKEN=<длинная-случайная-строка>
+
+# --- Вариант A: без Docker (Node 22+) — если Docker не установлен ---
+# Если уже стоял Node 20: apt purge -y nodejs && apt autoremove -y
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs build-essential   # build-essential для sharp / better-sqlite3
+node -v   # ожидается v22.x
+
+# postinstall копирует vendor-иконки из devDependencies — не используйте npm ci --omit=dev
+npm ci
+# (как в Dockerfile после установки можно: npm prune --omit=dev — только если postinstall уже отработал)
+
+# Смена Node 20 → 22 в том же каталоге: purge nodejs → setup_22.x → npm ci заново
+
+# Editor (слушать все интерфейсы, порт 3000 по умолчанию)
+HOST=0.0.0.0 npm start
+# Держать процесс после выхода из SSH: tmux new -s cms → команда выше; отсоединиться: Ctrl+B, D
+
+# MCP HTTP — второй сеанс (tmux/SSH):
+# cd /opt/agent-cms
+# AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
+# Позже: systemd или pm2 — см. TODO.SERVER.md
+
+# --- Вариант B: Docker (опционально, если Engine уже стоит) ---
+# Установка: https://docs.docker.com/engine/install/ubuntu/
+# docker compose version
+# HOST/VOICE_HOST=0.0.0.0 заданы в docker-compose.yml
+# docker compose up -d --build
+# docker compose ps && docker compose logs -f cms
+
+# Фаервол: сначала разрешить SSH (22), потом enable — иначе потеряете SSH (Connection refused)
+# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
+# Если SSH уже refused: консоль/VNC в панели хостинга (Timeweb) → ufw allow 22 → ufw disable или reboot
+
+# Проверка в браузере:
+#   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD
+# Cursor (remote MCP, Bearer = AGENT_CMS_MCP_TOKEN):
+#   http://ВАШ_IP:3490/mcp
+# Коннекторы: docs/connectors/README.md
+
+# Дальше: создать/выбрать workspace в UI, подключить MCP с Mac, установить скиллы agent-cms (см. раздел «Скиллы» ниже).
+# Prod: домен + Caddy/nginx + Let's Encrypt, наружу только 443 — см. TODO.SERVER.md
+```
+
+---
 
 ## 🇷🇺 Скиллы для агентов (Claude / Cursor) (🇬🇧 Agent skills for Claude / Cursor)
 
@@ -697,114 +789,13 @@ user-agent-cms
     └── 🟢 batch_tools_invoke
 ```
 
-## 🇷🇺 Time tracker — идея MCP (черновик) (🇬🇧 Time tracker — MCP idea (draft))
-
-🇷🇺 **[ru]**
-
-**Зачем.** Личный **time tracker**: куда ушло время — не только **workspace** в Agent CMS, но и **жизнь вне экрана** (зал, прогулка, сон). Это не «сессия MCP» и не лента правок (`workspace_activity_list`). Отдельная группа tools с префиксом `time_tracker_*`. Сбор: **Jarvis** (голос «начал тренировку»), **редактор** (авто по открытому workspace), **ручная/голосовая запись** после факта.
-
-**Запись** — `{ startedAt, endedAt?, durationMinutes?, kind, category?, label?, workspaceId?, path?, source }`.  
-`kind`: `workspace` | `life` | `custom`. Хранение: `.agent-cms/state/time-tracker-log.json` (или database frame + `awn.field.duration`).
-
-| Tool | Смысл |
-|------|--------|
-| `time_tracker_activity_start_zzz` | Старт таймера (зал, проект, workspace) |
-| `time_tracker_activity_stop_zzz` | Стоп текущей активности |
-| `time_tracker_entry_log_zzz` | Запись без таймера: «был в зале 75 мин» |
-| `time_tracker_summary_zzz` | Отчёт: минуты и % по `workspaceId`, `category`, `label` |
-
-Примеры:
-
-```json
-// time_tracker_activity_start_zzz — «пошёл в зал»
-{ "kind": "life", "category": "sport", "label": "зал", "source": "jarvis" }
-
-// time_tracker_entry_log_zzz — после тренировки, без таймера
-{
-  "kind": "life",
-  "category": "sport",
-  "label": "зал",
-  "startedAt": "2026-10-21T18:00:00+03:00",
-  "durationMinutes": 75,
-  "source": "jarvis"
-}
-
-// time_tracker_activity_start_zzz — работа в песочнице (авто из UI)
-{
-  "kind": "workspace",
-  "workspaceId": "0-ws-test",
-  "path": "awn-topics/test-md-blokov/main/demo.md",
-  "source": "editor"
-}
-
-// time_tracker_summary_zzz
-{ "period": "today", "groupBy": "category" }
-// → [{ "category": "sport", "label": "зал", "minutes": 75 }, { "category": "workspace", "workspaceId": "0-ws-core", "minutes": 90, "percent": 55 }, …]
-```
-
-Орбита landing (mock «доли внимания») может читать только `kind: workspace` из `time_tracker_summary_zzz`. **Не путать** с `session_*` и `awn-runtime-heartbeat` (агент/cron).
-
----
-
-> 🇬🇧 **[en]**
->
-> Personal **time tracker** — CMS workspaces *and* off-screen life (gym, walk). Separate MCP group `time_tracker_*`, not session tools. Start/stop timer, log entries after the fact, summary by category or workspace. Examples above; orbit UI can use workspace slice of `time_tracker_summary_zzz` only.
-
-## 🇷🇺 Transfer — идея MCP (черновик) (🇬🇧 Transfer — MCP idea (draft))
-
-🇷🇺 **[ru]**
-
-**Зачем.** Перенос **между workspace**. Не путать с 🟢 `content_move` / `topic_move` (только внутри vault). Сначала ссылки записи, потом plan, потом перенос.
-
-**Ссылки записи** (текущий workspace):
-
-| Tool | Смысл |
-|------|--------|
-| `record_links_outgoing_get_zzz` | На кого/что ссылается: wikilinks, md-ссылки, картинки в теле |
-| `record_links_incoming_get_zzz` | Кто ссылается на эту запись |
-
-**Transfer:**
-
-| Tool | Смысл |
-|------|--------|
-| `transfer_record_plan_zzz` | Список зависимых записей/бинарников для переноса, конфликты slug в B |
-| `transfer_record_plan_execute_zzz` | Выполнить plan |
-| `transfer_record_zzz` | Одна текстовая запись (copy \| move), опционально `dryRun` |
-| `transfer_record_binary_zzz` | Один бинарник |
-
-**Поток:** `record_links_outgoing_get` → `transfer_record_plan` → `transfer_record_plan_execute` (или вручную по plan).
-
-```json
-// record_links_outgoing_get_zzz
-{ "path": "awn-topics/demo", "slot": "main", "ref": "note.md" }
-
-// transfer_record_plan_zzz
-{
-  "fromWorkspaceId": "0-ws-test",
-  "toWorkspaceId": "0-ws-core",
-  "source": { "path": "awn-topics/demo", "slot": "main", "ref": "note.md" },
-  "target": { "path": "awn-topics/imported", "slot": "main" },
-  "includeIncoming": false,
-  "dryRun": true
-}
-
-// transfer_record_plan_execute_zzz
-{ "planId": "…", "mode": "copy", "rewriteLinks": "same-vault-only" }
-```
-
----
-
-> 🇬🇧 **[en]**
->
-> Cross-workspace **transfer**: `record_links_outgoing_get_zzz` / `record_links_incoming_get_zzz`, then `transfer_record_plan_zzz` → `transfer_record_plan_execute_zzz` (or single `transfer_record_*`). In-vault: `content_move` / `topic_move`.
-
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
 🇷🇺 **[ru]**
 
 Те же файлы в корне репо — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
 
-См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
+См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 
 ---
 
@@ -812,7 +803,7 @@ user-agent-cms
 >
 > Same files at the repository root — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
 >
-> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md)
+> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 
 ## 🇷🇺 Мечта (🇬🇧 Vision)
 
@@ -837,6 +828,19 @@ user-agent-cms
 > Books and films already showed it: Dumbledore’s Pensieve, Tony Stark’s JARVIS. Not decoration — the wish for your own memory you can return to and a helper that understands it. Agent CMS is a step toward that platform on your disk; ahead are bolder interfaces than screen and keyboard: voice, movement, presence — so the link between human and machine has fewer barriers.
 >
 > **The vision in one task.** Build an **ideal digital memory** — not a chaos folder, but something you can reopen a month later and continue right away. A live example: you open a **channel or archive with 1000 messages** (Telegram, mail, feed) and tell the agent: *“Collect what matters for analysis — facts, decisions, agreements, links.”* The agent doesn’t “summarize the chat in the reply”; it **puts the result in the workspace**: inbox, themes and slots, fields and links. Then **indexes** kick in (words, meaning, fields, link graph) — search, compare, refine extracts, ask new questions **from disk**, not from a raw export. File it once — memory stays yours, on your machine, and grows with new channels and projects.
+
+## 🇷🇺 Лицензия (🇬🇧 License)
+
+Copyright © 2026 Agent CMS
+
+Исходный код распространяется под [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).
+
+## 🇷🇺 Ссылки (🇬🇧 Links)
+
+- Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
+- GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
+- Telegram: [https://t.me/AgentCMS](https://t.me/AgentCMS) (@AgentCMS — про жизнь с ИИ и технологиями)
+- Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
 ## 🇷🇺 С чего начать? (🇬🇧 Where to start?)
 
