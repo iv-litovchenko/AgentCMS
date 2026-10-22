@@ -14,12 +14,23 @@ shift || true
 case "$cmd" in
   start | start-direct | stop | restart)
     bash "$ROOT/scripts/$CMS_SCRIPT" "$cmd" "$@"
+    if [[ "$cmd" == "start" || "$cmd" == "start-direct" ]]; then
+      bash "$ROOT/scripts/agent-cms-mcp-http-service.sh" start-direct || true
+    fi
+    if [[ "$cmd" == "stop" ]]; then
+      bash "$ROOT/scripts/agent-cms-mcp-http-service.sh" stop || true
+    fi
+    if [[ "$cmd" == "restart" ]]; then
+      bash "$ROOT/scripts/agent-cms-mcp-http-service.sh" restart || true
+    fi
     ;;
   status)
     echo "--- cms ---"
     bash "$ROOT/scripts/$CMS_SCRIPT" status
     echo "--- control ---"
     bash "$ROOT/scripts/agent-cms-control-service.sh" status
+    echo "--- mcp http ---"
+    bash "$ROOT/scripts/agent-cms-mcp-http-service.sh" status
     ;;
   stop-all)
     bash "$ROOT/scripts/$CMS_SCRIPT" stop "$@" || true
