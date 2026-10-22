@@ -41017,7 +41017,14 @@ function isHubTopicSectionManifestPath(nodePath) {
 /** Hub manifest hosts for viz maps: ws, area, section, topic (navigation / manifest.md). */
 function isHubVizMapsHostManifestPath(nodePath) {
   const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  if (!normalized || !isNodeManifestPath(normalized)) return false;
+  if (!normalized) return false;
+
+  const menuIndex = normalizeMenuNodePath(currentMenuData?.indexPath || "");
+  if (menuIndex && normalized === menuIndex && isNodeManifestPath(menuIndex)) {
+    return true;
+  }
+
+  if (!isNodeManifestPath(normalized)) return false;
   if (isPartNodePath(normalized)) return false;
   if (isAgentSystemRootIndexPath(normalized)) return false;
   if (isSystemReferenceManifestPath(normalized)) return false;
@@ -41044,13 +41051,45 @@ function isHubVizMapsHostManifestPath(nodePath) {
 
 window.isHubVizMapsHostManifestPath = isHubVizMapsHostManifestPath;
 
+function resolveHubVizMapsManifestAboutPath(nodePath, manifestApiPath, propEntries = null) {
+  const entries = Array.isArray(propEntries)
+    ? propEntries
+    : typeof resolveNodeOverviewPropsEntries === "function"
+      ? resolveNodeOverviewPropsEntries()
+      : [];
+  const candidates = [
+    manifestApiPath,
+    resolveManifestPathForNodeApi(nodePath),
+    getOverviewNodeApiPath(nodePath),
+    getResolvedNodePath(nodePath),
+    nodePath,
+    getAgentWorkspaceRootManifestPath(),
+    normalizeMenuNodePath(currentMenuData?.indexPath || "")
+  ];
+  const seen = new Set();
+  for (const raw of candidates) {
+    const p = String(raw || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    if (!p || seen.has(p)) continue;
+    seen.add(p);
+    if (isHubVizMapsHostManifestPath(p) && isVizMapsAboutHostRelPath(p)) return p;
+  }
+  const awnType = normalizeAwnTypeName(getPropsEntryValueByKey(entries, "awn-type") || "");
+  if (awnType === normalizeAwnTypeName("awn.hub.topic.ws")) {
+    const root = String(getAgentWorkspaceRootManifestPath() || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim();
+    if (root && isVizMapsAboutHostRelPath(root)) return root;
+  }
+  return "";
+}
+
+window.resolveHubVizMapsManifestAboutPath = resolveHubVizMapsManifestAboutPath;
+
 function buildNodeManifestVizMapsOverviewContext(manifestNodePath, propEntries = []) {
-  const manifestRel =
-    resolveManifestPathForNodeApi(manifestNodePath) ||
-    String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  const relPath = String(manifestRel || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  if (!relPath || !isVizMapsAboutHostRelPath(relPath)) return null;
-  if (!isHubVizMapsHostManifestPath(relPath)) return null;
+  const manifestApi = resolveManifestPathForNodeApi(manifestNodePath);
+  const relPath = resolveHubVizMapsManifestAboutPath(manifestNodePath, manifestApi, propEntries);
+  if (!relPath) return null;
   const props = Array.isArray(propEntries) ? propEntries : [];
   const awnId = parseRecordMaterialsAwnIdValue(getPropsEntryValueByKey(props, "awn-id"));
   const entryKind = String(getPropsEntryValueByKey(props, "awn-type") || "").trim();
@@ -41068,6 +41107,10 @@ function shouldShowEntryOverviewVizMaps(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
   if (context.entryKind === "awn.media.asset") return false;
+
+  const props = Array.isArray(context.props) ? context.props : null;
+  const hubAbout = resolveHubVizMapsManifestAboutPath(context.relPath, context.relPath, props);
+  if (hubAbout) return true;
 
   const hostRel = normalizeEntryOverviewVizMapsAboutPath(context);
   if (!hostRel || !isVizMapsAboutHostRelPath(hostRel)) return false;
@@ -41087,7 +41130,10 @@ function shouldShowEntryOverviewVizMaps(context) {
 
 function normalizeEntryOverviewVizMapsAboutPath(context) {
   if (!context) return "";
+  const props = Array.isArray(context.props) ? context.props : null;
   const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const hubAbout = resolveHubVizMapsManifestAboutPath(relPath, relPath, props);
+  if (hubAbout) return hubAbout;
   if (relPath && isHubVizMapsHostManifestPath(relPath)) {
     return relPath;
   }
@@ -80099,7 +80145,7 @@ function resolveVizMapsUiContext(config) {
     const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
     if (activeAbout === about) return activeEntryOverviewContext;
   }
-  if (isHubVizMapsHostManifestPath(about)) {
+  if (isHubVizMapsHostManifestPath(about) || resolveHubVizMapsManifestAboutPath(about, about)) {
     const entries =
       typeof resolveNodeOverviewPropsEntries === "function" ? resolveNodeOverviewPropsEntries() : [];
     return buildNodeManifestVizMapsOverviewContext(about, entries);
@@ -97244,9 +97290,9 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav,
     });
     hubMain.appendChild(hero);
-    const vizManifestPath = manifestApiPath || nodePath;
-    if (isHubVizMapsHostManifestPath(vizManifestPath) || isHubVizMapsHostManifestPath(nodePath)) {
-      const vizContext = buildNodeManifestVizMapsOverviewContext(vizManifestPath, entries);
+    const vizManifestPath = resolveHubVizMapsManifestAboutPath(nodePath, manifestApiPath, entries);
+    if (vizManifestPath) {
+      const vizContext = buildNodeManifestVizMapsOverviewContext(nodePath, entries);
       if (vizContext) {
         const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
           onEditClick: () => {
@@ -97704,9 +97750,13 @@ async function renderNodeOverview() {
   appendNavigationHeroTags(hero, entries);
   fragment.appendChild(hero);
 
-  const overviewManifestPath = resolveManifestPathForNodeApi(nodePathResolved) || nodePathResolved;
-  if (isHubVizMapsHostManifestPath(overviewManifestPath)) {
-    const vizContext = buildNodeManifestVizMapsOverviewContext(overviewManifestPath, entries);
+  const overviewManifestPath = resolveHubVizMapsManifestAboutPath(
+    nodePathResolved,
+    resolveManifestPathForNodeApi(nodePathResolved),
+    entries
+  );
+  if (overviewManifestPath) {
+    const vizContext = buildNodeManifestVizMapsOverviewContext(nodePathResolved, entries);
     if (vizContext) {
       const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
         onEditClick: () => {
