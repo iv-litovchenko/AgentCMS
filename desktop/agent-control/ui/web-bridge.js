@@ -138,6 +138,8 @@
         };
       }
 
+      const mayDropConnection = mapped === "stop" || mapped === "restart";
+
       emitActionState({ actionId: id, running: true });
       emitLog({ text: `\n▶ ${id} (${mapped})\n`, stream: "stdout" });
       try {
@@ -149,12 +151,28 @@
         if (result.logTail) emitLog({ text: `${result.logTail}\n`, stream: "stdout" });
         if (result.output) emitLog({ text: `${result.output}\n`, stream: "stdout" });
         if (!result.ok && result.error) emitLog({ text: `${result.error}\n`, stream: "stderr" });
-        return { ok: Boolean(result.ok), error: result.error || null };
+        return {
+          ok: Boolean(result.ok),
+          error: result.error || null,
+          serverDisconnectExpected: mayDropConnection && result.ok
+        };
       } catch (error) {
         let msg = String(error.message || error);
         if (/app_lock_required/i.test(msg)) {
           msg =
             "app_lock_required — сначала войдите: Editor http://HOST:3000 (логин/пароль из .env APP_LOCK_*), затем снова «Старт» на :3288 (куки на тот же IP/домен).";
+          emitLog({ text: `${msg}\n`, stream: "stderr" });
+          return { ok: false, error: msg };
+        }
+        if (mayDropConnection && /failed to fetch|networkerror|load failed/i.test(msg)) {
+          emitLog({
+            text:
+              mapped === "restart"
+                ? "Соединение оборвалось — перезапуск идёт. Страница обновится, когда :3288 снова ответит.\n"
+                : "Соединение оборвалось — остановка, скорее всего, выполнена. Чтобы снова поднять CMS — «Старт» после reload или SSH: agent-cms-http-service.sh start\n",
+            stream: "stdout"
+          });
+          return { ok: true, serverDisconnectExpected: true };
         }
         emitLog({ text: `${msg}\n`, stream: "stderr" });
         return { ok: false, error: msg };
