@@ -34057,7 +34057,7 @@ async function startServer(options = {}) {
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
   const commanderAutostart = process.env.COMMANDER_AUTOSTART !== "0";
-  const controlAutostart = process.env.CONTROL_AUTOSTART !== "0";
+  const controlAutostart = process.env.CONTROL_AUTOSTART === "1";
 
   function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
     return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });

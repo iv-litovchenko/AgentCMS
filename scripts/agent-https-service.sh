@@ -72,7 +72,8 @@ start_direct() {
       echo "Agent CMS запущен в фоне (supervisor PID $(cat "$PID_FILE"))."
       print_https_urls
       echo "Лог: .run/agent-cms-https.log"
-      echo "Остановка: Agent CMS Control или commands/server-stop.command"
+      echo "Остановка CMS: bash scripts/agent-https-service.sh stop"
+      bash "$ROOT/scripts/agent-cms-control-service.sh" start-direct || true
       return 0
     fi
     if ! is_running; then

@@ -41,6 +41,7 @@ export TLS_KEY="$KEY"
 export TLS_CERT="$CERT"
 export DEV_CERT_PROVIDER="$(cat "$PROVIDER_FILE" 2>/dev/null || echo openssl)"
 export VOICE_REDIRECT_SHELL="${VOICE_REDIRECT_SHELL:-1}"
+export CONTROL_AUTOSTART="${CONTROL_AUTOSTART:-0}"
 NODE_BIN="$(command -v node || true)"
 if [[ -z "$NODE_BIN" ]]; then
   echo "node не найден в PATH" >&2

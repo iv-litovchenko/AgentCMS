@@ -7,7 +7,8 @@
   "license": "AGPL-3.0-or-later",
   "main": "desktop/agent-cms/main.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "CONTROL_AUTOSTART=0 node server.js",
+    "start:stack": "bash scripts/agent-cms-stack.sh start-direct",
     "start:https": "bash scripts/start-mobile-https.sh",
     "setup:certs": "bash scripts/setup-dev-certs.sh",
     "setup:desktop-shortcuts": "node scripts/create-desktop-shortcuts.js",
