@@ -73,4 +73,27 @@ export function registerContextBufferTools(reg, client) {
   for (const name of ["context_buffer_clear", "clear_context_buffer"]) {
     reg(name, "Deprecated alias for session_context_buffer_clear.", z.object({}), clearHandler);
   }
+
+  const clipboardItemSchema = z.object({
+    path: bufferRef.optional().describe("Workspace-relative path of the record/file"),
+    placement: z.record(z.unknown()).optional().describe("Same placement as content_read")
+  });
+  const clipboardPasteSchema = z.object({
+    target: z.record(z.unknown()).describe("Target placement (topic / slot / channel / …)")
+  });
+  const clipboardStubs = [
+    ["session_clipboard_copy_zzz", "put a record/file reference into the clipboard", clipboardItemSchema],
+    ["session_clipboard_cut_zzz", "like copy, but paste moves the source", clipboardItemSchema],
+    ["session_clipboard_paste_zzz", "copy or move the clipboard item into target placement", clipboardPasteSchema],
+    ["session_clipboard_read_zzz", "show what is in the clipboard", z.object({})],
+    ["session_clipboard_clear_zzz", "empty the clipboard", z.object({})]
+  ];
+  for (const [name, idea, schema] of clipboardStubs) {
+    reg(
+      name,
+      `Clipboard STUB (idea): ${idea}. Shared with Agent CMS UI. Not implemented — use content_move / content_create today.`,
+      schema,
+      async () => ({ ok: false, stub: true, tool: name, message: `Not implemented. Idea: ${idea}.` })
+    );
+  }
 }

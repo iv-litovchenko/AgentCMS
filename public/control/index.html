@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent CMS Control · Web</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-backdrop" aria-hidden="true">
+      <div class="backdrop-glow backdrop-glow--cms"></div>
+      <div class="backdrop-glow backdrop-glow--control"></div>
+    </div>
+
+    <div class="app">
+      <header class="hero panel">
+        <div class="hero-brand">
+          <img class="hero-icon" src="assets/favicon.svg" alt="" width="40" height="40" />
+          <div>
+            <h1>Agent CMS Control <span class="hero-badge">Web</span></h1>
+            <p class="hero-sub">Ops-пульт в браузере · порты и ссылки на этом хосте</p>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <span class="status-chip" id="summary-chip" data-state="unknown">
+            <span class="status-led" aria-hidden="true"></span>
+            <span class="status-value">Проверка…</span>
+          </span>
+          <button type="button" class="ghost-btn" id="refresh-btn">Обновить</button>
+        </div>
+      </header>
+
+      <section class="panel section-block">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Мониторинг</h2>
+            <p>Editor · Chat · Commander · Control · MCP</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="services-monitor" aria-label="Статусы сервисов"></div>
+        </div>
+      </section>
+
+      <section class="panel section-block">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Обслуживание</h2>
+            <p>Заглушка 503 для Editor, Chat и Commander</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="maintenance-card" id="maintenance-card" data-state="off">
+            <div class="maintenance-copy">
+              <strong>Режим обслуживания</strong>
+              <span id="maintenance-summary">сейчас выключен</span>
+            </div>
+            <label class="toggle-switch" title="maintenance-mode в platform.yml">
+              <input type="checkbox" id="maintenance-toggle" />
+              <span class="toggle-switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-block">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Быстрые ссылки</h2>
+            <p>Открыть в этой вкладке или новой</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="quick-links" id="quick-links"></div>
+        </div>
+      </section>
+
+      <footer class="app-footer" id="app-footer">Agent CMS Control · Web</footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

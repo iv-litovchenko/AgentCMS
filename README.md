@@ -17,6 +17,8 @@
 - [Ссылки](#-ссылки-gb-links)
 - [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+- [Time tracker — идея MCP (черновик)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
+- [Transfer — идея MCP (черновик)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
 - [С чего начать?](#-с-чего-начать-gb-where-to-start)
@@ -38,6 +40,8 @@
 > - [Links](#-ссылки-gb-links)
 > - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
+> - [Time tracker — MCP idea (draft)](#-time-tracker--идея-mcp-черновик-gb-time-tracker--mcp-idea-draft)
+> - [Transfer — MCP idea (draft)](#-transfer--идея-mcp-черновик-gb-transfer--mcp-idea-draft)
 > - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
@@ -310,6 +314,7 @@ Copyright © 2026 Agent CMS
 | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
 | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
 | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*` |
 
 **Как установить**
 
@@ -338,12 +343,13 @@ Copyright © 2026 Agent CMS
 > | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
 > | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
 > | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
+> | [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Viz maps `*.viz.md`, Atlas UI, `viz_map_*` |
 >
 > **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from the repo root; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **🟡** stub / идея · **🔴** на проверке · **Итого 🟢: 219** · **🟡** 14 · **🔴** 0
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -384,7 +390,7 @@ user-agent-cms
 │   ├── 🟢 workspace_feed_list
 │   └── 🟢 workspace_memory_audit
 │
-├── 🎬 Сессия (Session) · 17
+├── 🎬 Сессия (Session) · 22
 │   ├── 🟢 session_context_get
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui
 │   ├── 🟢 session_agent_profile_get
@@ -400,11 +406,33 @@ user-agent-cms
 │   ├── Todo (Todo) · 2
 │   │   ├── 🟢 session_todo_read
 │   │   └── 🟢 session_todo_write
-│   └── Буфер контекста (Context buffer) · 4
-│       ├── 🟢 session_context_buffer_read
-│       ├── 🟢 session_context_buffer_append
-│       ├── 🟢 session_context_buffer_remove
-│       └── 🟢 session_context_buffer_clear
+│   ├── Буфер контекста (Context buffer) · 4
+│   │   ├── 🟢 session_context_buffer_read
+│   │   ├── 🟢 session_context_buffer_append
+│   │   ├── 🟢 session_context_buffer_remove
+│   │   └── 🟢 session_context_buffer_clear
+│   ├── Буфер обмена (Clipboard) · 5
+│   │   ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
+│   │   ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит
+│   │   ├── 🟡 session_clipboard_paste_zzz — идея: вставить в target placement
+│   │   ├── 🟡 session_clipboard_read_zzz — идея: что сейчас в буфере
+│   │   └── 🟡 session_clipboard_clear_zzz — идея: очистить
+│
+├── ⏱ Time tracker (Трекер времени) · 4
+│   ├── 🟡 time_tracker_activity_start_zzz — идея: старт (workspace, тема, «зал», таймер)
+│   ├── 🟡 time_tracker_activity_stop_zzz — идея: стоп текущей активности
+│   ├── 🟡 time_tracker_entry_log_zzz — идея: запись задним числом или длительностью
+│   └── 🟡 time_tracker_summary_zzz — идея: отчёт за период (workspace, category, label)
+│
+├── 🔗 Record links (Ссылки записи) · 2
+│   ├── 🟡 record_links_outgoing_get_zzz — идея: на кого/что ссылается (wikilinks, md, assets)
+│   └── 🟡 record_links_incoming_get_zzz — идея: кто ссылается на эту запись
+│
+├── 🔀 Transfer (Между хранилищами) · 4
+│   ├── 🟡 transfer_record_zzz — идея: одна запись (.md, manifest, sidecar) A → B
+│   ├── 🟡 transfer_record_binary_zzz — идея: один бинарник (media, awn-storage) A → B
+│   ├── 🟡 transfer_record_plan_zzz — идея: plan зависимых записей/бинарников + конфликты
+│   └── 🟡 transfer_record_plan_execute_zzz — идея: выполнить plan (серия transfer_*)
 │
 ├── 📋 Запросы реестра (Registry queries) · 2
 │   ├── 🟢 registry_queries_list
@@ -425,6 +453,14 @@ user-agent-cms
 │   ├── 🟢 nav_index_toc_repositories_refresh
 │   ├── 🟢 nav_index_toc_media_libraries_read
 │   └── 🟢 nav_index_toc_media_libraries_refresh
+│
+├── 🎨 Визуализация — карты `*.viz.md` (Viz maps) · 6
+│   ├── 🟢 viz_map_types_list — реестр видов (mindmap, roadmap…; `awn-system/types/viz/`)
+│   ├── 🟢 viz_maps_all_list — все карты workspace (фильтр kind / recordPath / section; UI «Атлас»)
+│   ├── 🟢 viz_maps_for_record — карты по записи (ожидаемый путь + есть ли файл)
+│   ├── 🟢 viz_map_read — прочитать карту (mapPath или recordPath + kind)
+│   ├── 🟢 viz_map_write — создать/обновить (`recordPath`, `kind`, `content`; `{stem}.{kind}.viz.md`)
+│   └── 🟢 viz_map_delete — удалить карту
 │
 ├── 📚 Темы (Topics) · 23
 │   ├── 🟢 topics_list
@@ -451,7 +487,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 17
+├── 📄 Контент (Content) · 18
 │   ├── 🟢 contents_list
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
@@ -468,7 +504,8 @@ user-agent-cms
 │   ├── 🟢 content_move
 │   ├── 🟢 content_split
 │   ├── 🟢 content_merge
-│   └── 🟢 contents_slots_list
+│   ├── 🟢 contents_slots_list
+│   └── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
 │
 ├── 🗃 Базы (Databases) · 12
 │   ├── 🟢 databases_list
@@ -560,7 +597,7 @@ user-agent-cms
 │       ├── 🟢 record_binary_url_get
 │       └── 🟢 record_preview_get
 │
-├── 🧠 Факты, глоссарий, справочник (Facts, glossary & reference) · 12
+├── 🧠 Факты, глоссарий, справочник, внешняя память (Facts, glossary, reference & external memory) · 16
 │   ├── Факты (Facts) · 4
 │   │   ├── 🟢 fact_create
 │   │   ├── 🟢 fact_update
@@ -571,11 +608,16 @@ user-agent-cms
 │   │   ├── 🟢 glossary_term_update
 │   │   ├── 🟢 glossary_terms_list
 │   │   └── 🟢 glossary_terms_search
-│   └── Справочник (Reference) · 4
-│       ├── 🟢 reference_entry_create
-│       ├── 🟢 reference_entry_update
-│       ├── 🟢 reference_entries_list
-│       └── 🟢 reference_entries_search
+│   ├── Справочник (Reference) · 4
+│   │   ├── 🟢 reference_entry_create
+│   │   ├── 🟢 reference_entry_update
+│   │   ├── 🟢 reference_entries_list
+│   │   └── 🟢 reference_entries_search
+│   └── Внешняя память (External memory) · 4 · `0-contents/0-external-memory/`
+│       ├── ⚪ external_memory_list — `platform` опционален (фильтр раздела)
+│       ├── ⚪ external_memory_upsert — `platform` обязателен: slug клиента (не модель), агент сам: `cursor`, `claude-code`, `codex`, `claude-cli`, `chatgpt`, `claude`… → раздел `data/{platform}/`
+│       ├── ⚪ external_memory_sync — то же `platform`; pull/push, `exports/{platform}.md`
+│       └── ⚪ external_memory_sync_status — `sync-state.json` (map `platforms`)
 │
 ├── 📝 Аннотации (Annotations) · 11
 │   ├── Комментарии (Comments) · 6
@@ -632,6 +674,13 @@ user-agent-cms
 │   ├── 🟢 inbox_items_list
 │   └── 🟢 inbox_item_triage
 │
+├── 🗨️ Чаты (Chats · awn-dialogs/) · 5
+│   ├── 🟡 chat_runtimes_list_zzz — идея: runtime-папки (claude, codex, qwenpaw…); не `discussion_*`
+│   ├── 🟡 chat_sessions_list_zzz — идея: сессии (uuid) внутри runtime
+│   ├── 🟡 chat_history_zzz — идея: переписка; опора `readShellDialogHistory`, HTTP `GET /api/shell/dialogs/history`
+│   ├── 🟡 chat_archive_summary_zzz — идея: сводка архива (файлы, даты, объём; блок «Диалоги (чаты) с ИИ»)
+│   └── 🟡 chat_import_zzz — идея: выгрузка Claude Desktop / Codex → `awn-dialogs/<runtime>/<session>/`
+│
 ├── 💬 Обсуждение (Discussion) · 2
 │   ├── 🟢 discussion_read
 │   └── 🟢 discussion_append
@@ -647,6 +696,107 @@ user-agent-cms
 └── ⚡ Специальные (Special) · 1
     └── 🟢 batch_tools_invoke
 ```
+
+## 🇷🇺 Time tracker — идея MCP (черновик) (🇬🇧 Time tracker — MCP idea (draft))
+
+🇷🇺 **[ru]**
+
+**Зачем.** Личный **time tracker**: куда ушло время — не только **workspace** в Agent CMS, но и **жизнь вне экрана** (зал, прогулка, сон). Это не «сессия MCP» и не лента правок (`workspace_activity_list`). Отдельная группа tools с префиксом `time_tracker_*`. Сбор: **Jarvis** (голос «начал тренировку»), **редактор** (авто по открытому workspace), **ручная/голосовая запись** после факта.
+
+**Запись** — `{ startedAt, endedAt?, durationMinutes?, kind, category?, label?, workspaceId?, path?, source }`.  
+`kind`: `workspace` | `life` | `custom`. Хранение: `.agent-cms/state/time-tracker-log.json` (или database frame + `awn.field.duration`).
+
+| Tool | Смысл |
+|------|--------|
+| `time_tracker_activity_start_zzz` | Старт таймера (зал, проект, workspace) |
+| `time_tracker_activity_stop_zzz` | Стоп текущей активности |
+| `time_tracker_entry_log_zzz` | Запись без таймера: «был в зале 75 мин» |
+| `time_tracker_summary_zzz` | Отчёт: минуты и % по `workspaceId`, `category`, `label` |
+
+Примеры:
+
+```json
+// time_tracker_activity_start_zzz — «пошёл в зал»
+{ "kind": "life", "category": "sport", "label": "зал", "source": "jarvis" }
+
+// time_tracker_entry_log_zzz — после тренировки, без таймера
+{
+  "kind": "life",
+  "category": "sport",
+  "label": "зал",
+  "startedAt": "2026-10-21T18:00:00+03:00",
+  "durationMinutes": 75,
+  "source": "jarvis"
+}
+
+// time_tracker_activity_start_zzz — работа в песочнице (авто из UI)
+{
+  "kind": "workspace",
+  "workspaceId": "0-ws-test",
+  "path": "awn-topics/test-md-blokov/main/demo.md",
+  "source": "editor"
+}
+
+// time_tracker_summary_zzz
+{ "period": "today", "groupBy": "category" }
+// → [{ "category": "sport", "label": "зал", "minutes": 75 }, { "category": "workspace", "workspaceId": "0-ws-core", "minutes": 90, "percent": 55 }, …]
+```
+
+Орбита landing (mock «доли внимания») может читать только `kind: workspace` из `time_tracker_summary_zzz`. **Не путать** с `session_*` и `awn-runtime-heartbeat` (агент/cron).
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Personal **time tracker** — CMS workspaces *and* off-screen life (gym, walk). Separate MCP group `time_tracker_*`, not session tools. Start/stop timer, log entries after the fact, summary by category or workspace. Examples above; orbit UI can use workspace slice of `time_tracker_summary_zzz` only.
+
+## 🇷🇺 Transfer — идея MCP (черновик) (🇬🇧 Transfer — MCP idea (draft))
+
+🇷🇺 **[ru]**
+
+**Зачем.** Перенос **между workspace**. Не путать с 🟢 `content_move` / `topic_move` (только внутри vault). Сначала ссылки записи, потом plan, потом перенос.
+
+**Ссылки записи** (текущий workspace):
+
+| Tool | Смысл |
+|------|--------|
+| `record_links_outgoing_get_zzz` | На кого/что ссылается: wikilinks, md-ссылки, картинки в теле |
+| `record_links_incoming_get_zzz` | Кто ссылается на эту запись |
+
+**Transfer:**
+
+| Tool | Смысл |
+|------|--------|
+| `transfer_record_plan_zzz` | Список зависимых записей/бинарников для переноса, конфликты slug в B |
+| `transfer_record_plan_execute_zzz` | Выполнить plan |
+| `transfer_record_zzz` | Одна текстовая запись (copy \| move), опционально `dryRun` |
+| `transfer_record_binary_zzz` | Один бинарник |
+
+**Поток:** `record_links_outgoing_get` → `transfer_record_plan` → `transfer_record_plan_execute` (или вручную по plan).
+
+```json
+// record_links_outgoing_get_zzz
+{ "path": "awn-topics/demo", "slot": "main", "ref": "note.md" }
+
+// transfer_record_plan_zzz
+{
+  "fromWorkspaceId": "0-ws-test",
+  "toWorkspaceId": "0-ws-core",
+  "source": { "path": "awn-topics/demo", "slot": "main", "ref": "note.md" },
+  "target": { "path": "awn-topics/imported", "slot": "main" },
+  "includeIncoming": false,
+  "dryRun": true
+}
+
+// transfer_record_plan_execute_zzz
+{ "planId": "…", "mode": "copy", "rewriteLinks": "same-vault-only" }
+```
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Cross-workspace **transfer**: `record_links_outgoing_get_zzz` / `record_links_incoming_get_zzz`, then `transfer_record_plan_zzz` → `transfer_record_plan_execute_zzz` (or single `transfer_record_*`). In-vault: `content_move` / `topic_move`.
 
 ## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 

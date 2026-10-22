@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>04 — Overflow menu</title>
+    <link rel="stylesheet" href="../shared-page.css" />
+    <link rel="stylesheet" href="../dock-mock.css" />
+  </head>
+  <body class="layout-04">
+    <div class="demo-top">
+      <a href="../index.html">← Каталог ui-variant-16</a>
+      <h1>04 · Overflow «⋯»</h1>
+      <p>На виду: бренд, развернуть, pomodoro, скрин, поиск. Остальное (тoggles, CMS, закладки) — в меню.</p>
+      <span class="demo-tag">5 видимых контролов</span>
+    </div>
+    <article class="demo-stage">
+      <h2>Фон страницы</h2>
+      <p class="fake-text">Самый короткий dock для ежедневного чтения. Редкие toggles не занимают место в кapsule.</p>
+    </article>
+    <div class="dock-anchor asc-dock-mock">
+      <div class="m-capsule">
+        <div class="m-brand"><span class="m-brand-icon"></span></div>
+        <button type="button" class="m-btn m-btn--icon m-btn--accent">⊞</button>
+        <button type="button" class="m-btn m-btn--icon m-btn--pomo">🍅</button>
+        <button type="button" class="m-btn m-btn--icon-sm">📷</button>
+        <div class="m-search">
+          <span class="m-search-picker">Я</span>
+          <input class="m-search-input" placeholder="Поиск в вебе…" readonly />
+          <span class="m-search-go">→</span>
+        </div>
+        <button type="button" class="m-btn m-btn--icon m-tools-secondary" title="Ещё">⋯</button>
+      </div>
+      <div class="m-vault m-vault-row">
+        <span class="m-vault-avatar"></span>
+        <span class="m-vault-meta"><span class="m-vault-name">0-ws-core</span><span class="m-vault-hint">⋯ → crosshair, inspector, media, CMS, 🔖</span></span>
+      </div>
+    </div>
+  </body>
+</html>

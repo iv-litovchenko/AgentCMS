@@ -1,0 +1,14 @@
+[
+  {
+    "id": "jarvis-bridge",
+    "file": "http://127.0.0.1:5173/",
+    "label": "JARVIS Bridge",
+    "note": "JarvisAndBrains/jarvis · npm run dev"
+  },
+  {
+    "id": "holo-gestures",
+    "file": "brains/holo-gestures/holo.html",
+    "label": "HOLO Gestures",
+    "note": "JarvisAndBrains/holo-gestures"
+  }
+]

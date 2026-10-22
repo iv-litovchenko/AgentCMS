@@ -1677,6 +1677,63 @@
                 </div>
               </div>
             </div>
+            <div class="header-locale-wrap">
+              <button
+                id="header-ui-locale-btn"
+                class="header-tool-btn header-tool-btn--locale header-ui-locale-btn"
+                type="button"
+                title="Язык интерфейса"
+                aria-label="Язык интерфейса"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="header-ui-locale-menu"
+              >
+                <span id="header-ui-locale-flag-mount" class="header-ui-locale-flag" aria-hidden="true"></span>
+                <span id="header-ui-locale-code" class="header-ui-locale-code" aria-hidden="true">RU</span>
+                <svg class="header-ui-locale-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M2.5 4.25L6 7.75L9.5 4.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <div
+                id="header-ui-locale-menu"
+                class="header-ui-locale-menu hidden"
+                role="menu"
+                aria-label="Язык интерфейса"
+              >
+                <div class="header-ui-locale-menu-head">
+                  <div class="header-ui-locale-menu-title">Язык интерфейса</div>
+                  <p class="header-ui-locale-menu-hint">Заготовка — полный перевод UI в разработке</p>
+                </div>
+                <button
+                  type="button"
+                  class="header-ui-locale-menu-item"
+                  role="menuitemradio"
+                  data-locale="en"
+                  aria-checked="false"
+                >
+                  <span class="header-ui-locale-menu-flag header-ui-locale-menu-flag--en" aria-hidden="true"></span>
+                  <span class="header-ui-locale-menu-copy">
+                    <span class="header-ui-locale-menu-label">English</span>
+                    <span class="header-ui-locale-menu-meta">United States</span>
+                  </span>
+                  <span class="header-ui-locale-menu-check" aria-hidden="true">✓</span>
+                </button>
+                <button
+                  type="button"
+                  class="header-ui-locale-menu-item"
+                  role="menuitemradio"
+                  data-locale="ru"
+                  aria-checked="true"
+                >
+                  <span class="header-ui-locale-menu-flag header-ui-locale-menu-flag--ru" aria-hidden="true"></span>
+                  <span class="header-ui-locale-menu-copy">
+                    <span class="header-ui-locale-menu-label">Русский</span>
+                    <span class="header-ui-locale-menu-meta">Russian</span>
+                  </span>
+                  <span class="header-ui-locale-menu-check" aria-hidden="true">✓</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -3049,11 +3106,11 @@
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--awn-dialogs menu-static-accordion">
-                <summary class="menu-static-summary" title="Диалоги с ИИ — архив переписки Shell / Voice (awn-dialogs)">
+                <summary class="menu-static-summary" title="Диалоги (чаты) с ИИ — архив переписки Shell / Voice (awn-dialogs)">
                   <span class="menu-static-title menu-static-title--awn-dialogs">
                     <span aria-hidden="true">🟢</span>
                     <span class="menu-static-title-text">
-                      Диалоги с ИИ
+                      Диалоги (чаты) с ИИ
                       <span class="menu-static-subtitle">awn-dialogs · Shell / Voice</span>
                     </span>
                   </span>
@@ -4938,6 +4995,8 @@
               <button type="button" class="agent-rmm-mode is-active" data-rmm-mode="graph" role="tab">Граф связей</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="mindmap" role="tab">Интеллект-карта</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="roadmap" role="tab">Дорожная карта</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="atlas" role="tab">Атлас</button>
+              <button type="button" class="agent-rmm-mode" data-rmm-mode="atlas-kinds" role="tab">Виды карт</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="toc" role="tab">Оглавление</button>
               <button type="button" class="agent-rmm-mode" data-rmm-mode="kanban" role="tab">Канбан</button>
             </div>
@@ -4945,18 +5004,35 @@
         </div>
         <div id="agent-roadmap-map-content" class="agent-graph-content agent-rmm-content">
           <div id="agent-rmm-view-chrome" class="agent-rmm-view-chrome">
-            <label
-              class="agent-rmm-depth-label agent-rmm-depth-on-canvas"
-              for="agent-rmm-depth"
-              title="Заготовка: уровень детализации визуализации по markdown"
+            <div
+              class="agent-rmm-depth-on-canvas agent-rmm-view-chrome-filters agent-rmm-depth-label agent-rmm-view-chrome-settings"
+              title="Заготовка: фильтры карты workspace"
             >
-              <span class="agent-rmm-depth-label-text">Глубина</span>
-              <select id="agent-rmm-depth" aria-label="Глубина данных">
-                <option value="md-file">MD-файл</option>
-                <option value="md-headings">MD-файл + заголовки</option>
-                <option value="md-links">MD-файл + заголовки + ссылки и теги</option>
-              </select>
-            </label>
+              <span class="agent-rmm-depth-label-text">Настройки</span>
+              <div class="agent-rmm-view-chrome-settings-selects">
+                <select
+                  id="agent-rmm-depth-scope"
+                  aria-label="Ограничение глубины веток"
+                  title="Заготовка: какие узлы показывать на карте по типу"
+                >
+                  <optgroup label="Ограничение глубины веток">
+                    <option value="hubs-only">Только хабы</option>
+                    <option value="hubs-content">Хабы + контент</option>
+                  </optgroup>
+                </select>
+                <select
+                  id="agent-rmm-depth"
+                  aria-label="Ограничение глубины чтения"
+                  title="Заготовка: уровень детализации визуализации по markdown"
+                >
+                  <optgroup label="Ограничение глубины чтения">
+                    <option value="md-file">MD-файл</option>
+                    <option value="md-headings">MD-файл + заголовки</option>
+                    <option value="md-links">MD-файл + заголовки + ссылки и теги</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
           </div>
           <div id="agent-rmm-graph-chrome" class="agent-rmm-graph-chrome hidden" aria-hidden="true">
             <div class="agent-rmm-graph-chrome-top-center">
@@ -6479,6 +6555,24 @@
                     </span>
                     <span class="doc-aside-icon-tab-label">Ссылки</span>
                   </button>
+                  <button
+                    type="button"
+                    id="doc-aside-tab-viz"
+                    class="doc-aside-icon-tab"
+                    role="tab"
+                    aria-selected="false"
+                    data-doc-aside-tab="viz"
+                    title="Карты визуализации (*.viz.md)"
+                  >
+                    <span class="doc-aside-icon-tab-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6l9-4 9 4-9 4-9-4z" />
+                        <path d="M3 10l9 4 9-4" />
+                        <path d="M3 14l9 4 9-4" />
+                      </svg>
+                    </span>
+                    <span class="doc-aside-icon-tab-label">Карты</span>
+                  </button>
                 </div>
                 <div id="doc-aside-mini-doc" class="doc-aside-mini-doc hidden" aria-live="polite"></div>
                 <div id="doc-aside-todo-sticker" class="doc-aside-todo-sticker hidden" aria-live="polite"></div>
@@ -6541,6 +6635,11 @@
                   <div id="doc-links-content" class="doc-links-content"></div>
                 </div>
               </div>
+              <div id="doc-aside-panel-viz" class="doc-aside-panel doc-aside-panel--viz hidden" role="tabpanel" aria-labelledby="doc-aside-tab-viz">
+                <div class="doc-aside-panel-scroll">
+                  <div id="doc-viz-maps-content" class="doc-viz-maps-content" aria-label="Карты визуализации"></div>
+                </div>
+              </div>
             </aside>
           </section>
         </main>
@@ -6594,6 +6693,56 @@
           <div id="context-buffer-list" class="context-buffer-list" role="list"></div>
           <p class="context-buffer-caption">
             Drop из overview / меню / слотов · агент: <code>read_context_buffer</code>
+          </p>
+        </div>
+      </aside>
+
+      <aside
+        id="file-hub-band"
+        class="context-buffer-band context-buffer-band--global file-hub-band is-collapsed"
+        aria-label="Файлообменник — файлы туда‑сюда (заготовка, TODO)"
+      >
+        <div class="context-buffer-head">
+          <button
+            type="button"
+            id="file-hub-toggle-btn"
+            class="context-buffer-toggle"
+            aria-expanded="false"
+            aria-controls="file-hub-body"
+            title="Свернуть или развернуть «Файлообменник — файлы туда‑сюда»"
+          >
+            <span class="context-buffer-chevron sidebar-accent-band-chevron" aria-hidden="true"></span>
+            <span class="context-buffer-title file-hub-band-title">
+              <span class="file-hub-band-brand">📁 Файлообменник — файлы туда‑сюда</span>
+              <span class="stub-static-mark file-hub-band-todo-mark" title="Заготовка, функционал в разработке">TODO</span>
+            </span>
+            <span id="file-hub-count" class="context-buffer-count">0</span>
+          </button>
+          <div class="context-buffer-actions">
+            <button
+              type="button"
+              id="file-hub-refresh-btn"
+              class="context-buffer-action-btn context-buffer-action-btn--ghost"
+              title="Обновить очередь (скоро)"
+              disabled
+            >
+              ↻
+            </button>
+            <button
+              type="button"
+              id="file-hub-clear-btn"
+              class="context-buffer-action-btn context-buffer-action-btn--ghost"
+              title="Очистить очередь (скоро)"
+              disabled
+            >
+              Очистить
+            </button>
+          </div>
+        </div>
+        <div id="file-hub-body" class="context-buffer-body">
+          <div id="file-hub-list" class="context-buffer-list" role="list"></div>
+          <p class="context-buffer-caption context-buffer-caption--file-hub">
+            Файлы туда‑сюда · агент: <code>module_file_hub_outbound_list</code> / inbound (скоро)
           </p>
         </div>
       </aside>
@@ -7710,6 +7859,14 @@ awn-type: awn.page.ws
               title="Коллекция awn-databases/task-queue/ — очередь задач (слот task-queue в теме и канале)"
             >
               Очередь задач
+            </button>
+            <button
+              type="button"
+              class="create-node-action-btn awn-databases-create-group-preset-btn"
+              data-awn-data-group-preset="contents-external-memory"
+              title="Группа 0-contents/ и коллекция 0-external-memory (MCP external_memory_sync)"
+            >
+              Внешняя память
             </button>
           </div>
         </div>
@@ -9033,7 +9190,8 @@ awn-type: awn.page.ws
             "/editor/js/core/editor-system-files-runtime.js?v=1",
             "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
             "/editor/js/context-buffer/context-buffer-client.js?v=1",
-            "/editor/js/context-buffer/context-buffer-panel.js?v=1"
+            "/editor/js/context-buffer/context-buffer-panel.js?v=1",
+            "/editor/js/file-hub/file-hub-band-panel.js?v=1"
           ];
           loadScriptChain(preMain, 0, function () {
             startEditorMain("/editor/main.js?v=" + version);

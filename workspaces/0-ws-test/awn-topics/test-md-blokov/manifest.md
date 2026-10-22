@@ -50,6 +50,13 @@ awn-status: открыто
 
 ```
 
+```awn-marker-agent-note
+awn-create: 2026-10-21
+---
+Пометка агента в конспекте.
+
+```
+
 ```awn-marker-todo
 awn-status: открыто
 ---

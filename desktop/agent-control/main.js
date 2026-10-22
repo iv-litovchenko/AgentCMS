@@ -14,19 +14,12 @@ const { requireRepo } = require("./repo-resolve");
 const docsRegistry = requireRepo("lib/docs/docs-registry");
 const { enrichMcpDocsForClient } = requireRepo("lib/http/https-redirect");
 
-function buildAnonymizedMcpConfig(cmsBaseUrl, envExtra = {}) {
-  const env = {
-    AGENT_CMS_BASE_URL: cmsBaseUrl,
-    ...envExtra
-  };
-  if (!env.AGENT_CMS_TLS_INSECURE) delete env.AGENT_CMS_TLS_INSECURE;
-
+function buildAnonymizedMcpConfig() {
   return {
     mcpServers: {
       "agent-cms": {
         command: "node",
-        args: ["<ABS_PATH>/mcp-server/index.js"],
-        env
+        args: ["<ABS_PATH>/mcp-server/index.js"]
       }
     }
   };
@@ -54,23 +47,14 @@ function buildMcpConnectInfo(root) {
     docs = null;
   }
 
-  const envExtra = {};
-  if (docs?.cursorConfig?.env?.AGENT_CMS_TLS_INSECURE) {
-    envExtra.AGENT_CMS_TLS_INSECURE = "1";
-  }
-
-  const configJson = JSON.stringify(buildAnonymizedMcpConfig(cmsBaseUrl, envExtra), null, 2);
+  const configJson = JSON.stringify(buildAnonymizedMcpConfig(), null, 2);
 
   const configJsonCopy = JSON.stringify(
     {
       mcpServers: {
         "agent-cms": {
           command: "node",
-          args: [mcpServerPath],
-          env: {
-            AGENT_CMS_BASE_URL: cmsBaseUrl,
-            ...envExtra
-          }
+          args: [mcpServerPath]
         }
       }
     },
@@ -324,14 +308,18 @@ async function probeServerStatus() {
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
 
-  const [cmsPid, voicePid, commanderPid] = await Promise.all([
+  const [cmsPid, voicePid, commanderPid, controlHttpPid, mcpHttpPid] = await Promise.all([
     getPortPid(ports.editorHttps),
     getPortPid(ports.voiceHttps),
-    getPortPid(ports.commanderHttp)
+    getPortPid(ports.commanderHttp),
+    getPortPid(ports.controlHttp),
+    getPortPid(ports.mcpHttp)
   ]);
   const cms = Boolean(cmsPid);
   const voice = Boolean(voicePid);
   const commander = Boolean(commanderPid);
+  const controlHttp = Boolean(controlHttpPid);
+  const mcpHttp = Boolean(mcpHttpPid);
   const running = cms || voice;
   const autoStart = await probeLaunchAgentStatus();
   let mode = "off";
@@ -370,6 +358,8 @@ async function probeServerStatus() {
     cms,
     voice,
     commander,
+    controlHttp,
+    mcpHttp,
     supervisorAlive,
     supervisorPid,
     mode,
@@ -392,7 +382,9 @@ async function probeServerStatus() {
       cms: cms ? `https://localhost:${ports.editorHttps}` : null,
       voice: voice ? `https://localhost:${ports.voiceHttps}` : null,
       commanderHttp: commander ? `http://localhost:${ports.commanderHttp}/` : null,
-      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null
+      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null,
+      controlHttp: controlHttp ? `http://localhost:${ports.controlHttp}/` : null,
+      controlEditor: cms ? `https://localhost:${ports.editorHttps}/control/` : null
     }
   };
 }
@@ -429,10 +421,12 @@ async function forceStopServerPorts() {
   const ports = getServerPortsPayload();
   const portList = [
     ports.commanderHttp,
+    ports.controlHttp,
     ports.voiceHttps,
     ports.voiceHttp,
     ports.editorHttps,
-    ports.editorHttp
+    ports.editorHttp,
+    ports.mcpHttp
   ];
   const pids = new Set();
 
@@ -947,6 +941,28 @@ if (!gotLock) {
         return { ok: true, enabled: isPlatformMaintenanceMode(settings) };
       } catch (error) {
         return { ok: false, enabled: false, error: String(error?.message || error) };
+      }
+    });
+
+    ipcMain.handle("control:get-mcp-instances", async () => {
+      try {
+        const root = getProjectRoot();
+        const instancesStore = requireRepo("lib/instances/instances-store.js");
+        const { filePath, document, exists } = instancesStore.readInstances(root);
+        return { ok: true, filePath, exists, ...document };
+      } catch (error) {
+        return { ok: false, error: String(error?.message || error) };
+      }
+    });
+
+    ipcMain.handle("control:save-mcp-instances", async (_event, payload) => {
+      try {
+        const root = getProjectRoot();
+        const instancesStore = requireRepo("lib/instances/instances-store.js");
+        const { filePath, document } = instancesStore.writeInstances(root, payload || {});
+        return { ok: true, filePath, ...document };
+      } catch (error) {
+        return { ok: false, error: String(error?.message || error) };
       }
     });
 

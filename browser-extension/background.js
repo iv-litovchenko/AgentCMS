@@ -1092,6 +1092,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "COMPANION_FETCH_CMS_PREVIEW") {
+    const requestUrl = String(message.url || "").trim();
+    getSettings()
+      .then(async ({ cmsBaseUrl }) => {
+        const base = String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
+        const allowedOrigins = new Set(
+          [base, DEFAULT_CMS_BASE_URL, ...CMS_PROBE_CANDIDATES]
+            .map((item) => {
+              try {
+                return new URL(String(item || "").replace(/\/$/, "") + "/").origin;
+              } catch {
+                return "";
+              }
+            })
+            .filter(Boolean)
+        );
+        let target;
+        try {
+          target = new URL(requestUrl);
+        } catch {
+          return { ok: false, error: "Invalid URL" };
+        }
+        if (!allowedOrigins.has(target.origin) || target.pathname !== "/api/agents/workspace-preview") {
+          return { ok: false, error: "URL not allowed" };
+        }
+        try {
+          const res = await fetch(target.href, { credentials: "omit", redirect: "follow", cache: "no-store" });
+          if (!res.ok) {
+            return { ok: false, error: `HTTP ${res.status}` };
+          }
+          const buf = await res.arrayBuffer();
+          if (buf.byteLength > 2_500_000) {
+            return { ok: false, error: "Image too large" };
+          }
+          const mime = String(res.headers.get("content-type") || "image/jpeg").split(";")[0];
+          const bytes = new Uint8Array(buf);
+          let binary = "";
+          const chunk = 0x8000;
+          for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+          }
+          const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+          return { ok: true, dataUrl };
+        } catch (error) {
+          return { ok: false, error: error?.message || String(error) };
+        }
+      })
+      .then(sendResponse);
+    return true;
+  }
+
   if (message?.type === "COMPANION_FETCH_IMAGE_DATA_URL") {
     const url = String(message.url || "").trim();
     const allowed =

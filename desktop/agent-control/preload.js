@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld("agentControl", {
   renderQr: (text) => ipcRenderer.invoke("control:render-qr", text),
   getMaintenanceMode: () => ipcRenderer.invoke("control:get-maintenance-mode"),
   setMaintenanceMode: (enabled) => ipcRenderer.invoke("control:set-maintenance-mode", enabled),
+  getMcpInstances: () => ipcRenderer.invoke("control:get-mcp-instances"),
+  saveMcpInstances: (document) => ipcRenderer.invoke("control:save-mcp-instances", document),
   onLog: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on("control:log", handler);

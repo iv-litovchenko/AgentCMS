@@ -3,12 +3,13 @@ module.exports = {
   versionLabel: "Актуальная",
   title: "Agent CMS HTTP API",
   baseUrl: "/api",
-  generatedAt: "2026-06-30",
+  generatedAt: "2026-10-22",
   notes: [
     "Актуальная справка по server.js. В UI: select «0.0.2 — актуальная».",
     "JSON-ответы, UTF-8. ?version=0.0.2 по умолчанию; 0.0.1 и 0.0.0 — предыдущие снимки.",
     "Контекст агента ?agent=<id>: все маршруты, кроме /api/agents*, /api/docs*, /api/mcp-docs*, /api/user-docs*, /api/public/images.",
-    "path — путь к manifest.md темы/области (legacy _registration.md); file — .md в awn-storage/main/ или media/."
+    "path — путь к manifest.md темы/области (legacy _registration.md); file — .md в awn-storage/main/ или media/.",
+    "Карты визуализации: /api/viz/* — файлы *.viz.md (отдельно от legacy awn-viz-* в RMM canvas)."
   ],
   groups: [
     {
@@ -177,6 +178,60 @@ module.exports = {
           ],
           body: null,
           response: "{ query, scope, fileType?, results[], total }"
+        }
+      ]
+    },
+    {
+      id: "viz",
+      title: "Карты визуализации (*.viz.md)",
+      endpoints: [
+        {
+          method: "GET",
+          path: "/api/viz/kinds",
+          description: "Реестр видов (mindmap, roadmap, …) и разделов.",
+          query: [],
+          body: null,
+          response: "{ sections[], kinds[] }"
+        },
+        {
+          method: "GET",
+          path: "/api/viz/maps",
+          description: "Список всех карт в workspace (filesystem scan). Alias: /api/viz/atlas.",
+          query: ["recordPath?", "about?", "kind?", "section?"],
+          body: null,
+          response: "{ items[], kindCount }"
+        },
+        {
+          method: "GET",
+          path: "/api/viz/maps-for-record",
+          description: "Карты для одной записи по каждому kind. Alias: /api/viz/maps-for-about (?about=).",
+          query: ["recordPath? | about"],
+          body: null,
+          response: "{ about, kinds[], maps[] }"
+        },
+        {
+          method: "GET",
+          path: "/api/viz/map",
+          description: "Прочитать одну карту.",
+          query: ["path? | mapPath?", "recordPath?", "about?", "kind?"],
+          body: null,
+          response: "{ path, content, meta, exists }"
+        },
+        {
+          method: "POST",
+          path: "/api/viz/map",
+          description: "Создать или обновить карту (body: about|recordPath, kind, path?, content?).",
+          query: [],
+          body: "{ recordPath?, about?, kind?, path?, content? }",
+          response: "{ path, content, meta, exists }"
+        },
+        {
+          method: "DELETE",
+          path: "/api/viz/map",
+          description: "Удалить файл карты.",
+          query: ["path? | mapPath?", "recordPath?", "about?", "kind?"],
+          body: null,
+          response: "{ deleted, path }"
         }
       ]
     },

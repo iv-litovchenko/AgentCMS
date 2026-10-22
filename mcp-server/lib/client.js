@@ -49,6 +49,7 @@ export class AgentCmsClient {
     const cfg = getConfig();
     this.baseUrl = options.baseUrl || cfg.baseUrl;
     this.defaultAgent = options.agent ?? cfg.defaultAgent;
+    this.authToken = String(options.authToken || "").trim();
   }
 
   buildUrl(path, query = {}, { agentScope = true, agentId } = {}) {
@@ -79,6 +80,10 @@ export class AgentCmsClient {
         "X-Activity-Source": "mcp"
       }
     };
+    if (this.authToken) {
+      init.headers.Authorization = `Bearer ${this.authToken}`;
+      init.headers["X-Agent-Cms-Mcp-Token"] = this.authToken;
+    }
     if (body !== undefined) {
       init.headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(body);

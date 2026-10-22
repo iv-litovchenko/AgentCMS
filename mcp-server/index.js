@@ -4,14 +4,16 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
+import { getConfig, jsonText } from "./lib/client.js";
 import {
   normalizeWorkspaceScopedArgs,
-  resolveWorkspaceId,
-  runWithAgentId,
+  runWithWorkspaceScope,
   withAgentIdSchema,
   WORKSPACE_ID_SYNONYMS
 } from "./lib/agent-scope.js";
+import { InstanceRegistry } from "./lib/instance-registry.js";
+import { CmsRoutingClient } from "./lib/routing-client.js";
+import { parseWorkspaceRef } from "./lib/workspace-ref.js";
 import { registerPageTools } from "./lib/page-tools.js";
 import { registerSlotTools } from "./lib/slot-tools.js";
 import { registerContentTools } from "./lib/content-tools.js";
@@ -36,6 +38,7 @@ import { registerFileHubQueueTools } from "./lib/file-hub-queue-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerGlossaryTools } from "./lib/glossary-tools.js";
 import { registerReferenceTools } from "./lib/reference-tools.js";
+import { registerExternalMemoryTools } from "./lib/external-memory-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
 import { registerSettingsTools } from "./lib/settings-tools.js";
 import { registerPlatformTools } from "./lib/platform-tools.js";
@@ -47,6 +50,7 @@ import { registerAnnotationTools } from "./lib/annotation-tools.js";
 import { registerIntakeTools } from "./lib/intake-tools.js";
 import { registerNotificationTools } from "./lib/notification-tools.js";
 import { registerNavTools } from "./lib/nav-tools.js";
+import { registerVizMapTools } from "./lib/viz-map-tools.js";
 import { registerSessionTools } from "./lib/session-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
@@ -83,9 +87,43 @@ function wrap(handler, { formatResult } = {}) {
   };
 }
 
+async function listWorkspacesAcrossInstances(registry) {
+  const agents = [];
+  let defaultAgentId = null;
+  for (const inst of registry.listInstances()) {
+    try {
+      const instClient = await registry.getClient(inst.id);
+      const payload = await instClient.get("/api/agents", {}, { agentScope: false });
+      const list = Array.isArray(payload?.agents) ? payload.agents : [];
+      if (payload?.defaultAgentId && !defaultAgentId) {
+        defaultAgentId = `${inst.id}:${payload.defaultAgentId}`;
+      }
+      for (const agent of list) {
+        agents.push({
+          ...agent,
+          id: `${inst.id}:${agent.id}`,
+          workspaceId: agent.id,
+          instanceId: inst.id,
+          instanceLabel: inst.label || inst.id
+        });
+      }
+    } catch (error) {
+      agents.push({
+        id: `${inst.id}:`,
+        instanceId: inst.id,
+        instanceLabel: inst.label || inst.id,
+        offline: true,
+        error: error.message || String(error)
+      });
+    }
+  }
+  return { agents, defaultAgentId, instanceIds: registry.listInstances().map((i) => i.id) };
+}
+
 function createServer() {
   const cfg = getConfig();
-  const client = new AgentCmsClient(cfg);
+  const registry = new InstanceRegistry();
+  const client = new CmsRoutingClient(registry);
 
   const instructions = loadMcpServerInstructions();
   const server = new McpServer(
@@ -110,9 +148,12 @@ function createServer() {
         async (args) => {
           if (!agentScope) return fn(args);
           const scopedArgs = normalizeWorkspaceScopedArgs(args, cfg.defaultAgent);
-          const workspaceId = scopedArgs.workspaceId;
-          await assertWorkspaceMcpToolAllowed(client, workspaceId, name, scopedArgs);
-          return runWithAgentId(workspaceId, () => fn(scopedArgs));
+          const rawRef = String(
+            args.workspaceId || args.agentId || cfg.defaultAgent || ""
+          ).trim();
+          const ref = parseWorkspaceRef(rawRef);
+          await assertWorkspaceMcpToolAllowed(client, ref.workspaceId, name, scopedArgs);
+          return runWithWorkspaceScope(ref, () => fn(scopedArgs));
         },
         { formatResult }
       )
@@ -126,10 +167,10 @@ function createServer() {
 
   // ── Workspaces (no agentId) ─────────────────────────────────────────────────
 
-  const listWorkspacesHandler = () => client.get("/api/agents", {}, { agentScope: false });
+  const listWorkspacesHandler = () => listWorkspacesAcrossInstances(registry);
   const listWorkspacesSchema = z.object({});
   const listWorkspacesDescription =
-    "START NEW CHAT: list all workspaces (vaults / хранилища). Returns id, name, path, defaultAgentId. Pick workspaceId before session_context_get.";
+    "START NEW CHAT: list workspaces from all configured instances. id format: instanceId:workspaceId (e.g. local:0-ws-test, server:medcenter). Pass full id as workspaceId on later tools.";
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspaces_list",
@@ -160,6 +201,7 @@ function createServer() {
 
   registerNavTools(reg, client, pagePath);
   registerMapTools(reg, client, pagePath);
+  registerVizMapTools(reg, client);
   registerRecordTools(reg, client);
 
   registerSearchWorkspaceTools(reg, client);
@@ -183,6 +225,7 @@ function createServer() {
   registerFactsTools(reg, client);
   registerGlossaryTools(reg, client);
   registerReferenceTools(reg, client);
+  registerExternalMemoryTools(reg, client);
   registerJournalTools(reg, client);
 
   // ── awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*; records → *_content_*) ─

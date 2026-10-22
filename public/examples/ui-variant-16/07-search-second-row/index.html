@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>07 — Search second row</title>
+    <link rel="stylesheet" href="../shared-page.css" />
+    <link rel="stylesheet" href="../dock-mock.css" />
+  </head>
+  <body class="layout-07 is-search-open">
+    <div class="demo-top">
+      <a href="../index.html">← Каталог ui-variant-16</a>
+      <h1>07 · Search second row</h1>
+      <p>Первая строка — только действия; поиск раскрывается второй строкой внутри той же кapsule (mock: уже открыт).</p>
+      <span class="demo-tag">свёрнуто ~240px</span>
+    </div>
+    <article class="demo-stage">
+      <h2>Фон страницы</h2>
+      <p class="fake-text">Пока не ищете — нет длинного поля в кapsule. Клик 🔍 добавляет row с picker + input.</p>
+    </article>
+    <div class="dock-anchor asc-dock-mock">
+      <div class="m-capsule m-capsule--stack">
+        <div class="m-row">
+          <div class="m-brand"><span class="m-brand-icon"></span></div>
+          <button type="button" class="m-btn m-btn--icon m-btn--accent">⊞</button>
+          <button type="button" class="m-btn m-btn--icon m-btn--pomo">🍅</button>
+          <button type="button" class="m-btn m-btn--icon-sm">📷</button>
+          <span class="m-toggle-track"><span class="m-toggle-thumb"></span></span>
+          <span class="m-toggle-track"><span class="m-toggle-thumb"></span></span>
+          <span class="m-toggle-track is-on"><span class="m-toggle-thumb"></span></span>
+          <button type="button" class="m-btn m-btn--icon-sm">↗</button>
+          <button type="button" class="m-btn m-btn--icon m-btn--mark">🔖</button>
+          <button type="button" class="m-btn m-btn--icon m-search-trigger">🔍</button>
+        </div>
+        <div class="m-row m-search-row">
+          <div class="m-search" style="max-width: none; flex: 1">
+            <span class="m-search-picker">Яндекс</span>
+            <input class="m-search-input" placeholder="Запрос…" readonly value="agent cms toolbar compact" />
+            <span class="m-search-go">→</span>
+          </div>
+        </div>
+      </div>
+      <div class="m-vault m-vault-row">
+        <span class="m-vault-avatar"></span>
+        <span class="m-vault-meta"><span class="m-vault-name">0-ws-core</span><span class="m-vault-hint">онлайн</span></span>
+      </div>
+    </div>
+  </body>
+</html>

@@ -269,6 +269,53 @@
     return url.href;
   }
 
+  async function loadVaultPreviewIntoImg(img, thumbUrl) {
+    const url = String(thumbUrl || "").trim();
+    if (!img || !url) return false;
+    const token = Symbol("vaultPreview");
+    img.__ascVaultPreviewToken = token;
+    img.hidden = true;
+    img.removeAttribute("src");
+    const res = await sendRuntime({ type: "COMPANION_FETCH_CMS_PREVIEW", url });
+    if (img.__ascVaultPreviewToken !== token) return false;
+    if (!res?.ok || !res.dataUrl) return false;
+    await new Promise((resolve) => {
+      const onDone = () => {
+        img.removeEventListener("load", onDone);
+        img.removeEventListener("error", onFail);
+        resolve();
+      };
+      const onFail = () => {
+        if (img.__ascVaultPreviewToken !== token) {
+          onDone();
+          return;
+        }
+        img.hidden = true;
+        img.removeAttribute("src");
+        onDone();
+      };
+      img.addEventListener("load", () => {
+        if (img.__ascVaultPreviewToken !== token) return;
+        img.hidden = false;
+        onDone();
+      });
+      img.addEventListener("error", onFail);
+      img.src = res.dataUrl;
+      if (img.complete && img.naturalWidth > 0) {
+        img.hidden = false;
+        resolve();
+      }
+    });
+    return img.__ascVaultPreviewToken === token && !img.hidden;
+  }
+
+  function clearVaultPreviewImg(img) {
+    if (!img) return;
+    img.__ascVaultPreviewToken = null;
+    img.hidden = true;
+    img.removeAttribute("src");
+  }
+
   function createCompanionVaultDock() {
     const wrap = document.createElement("div");
     wrap.className = "asc-vault-dock";
@@ -408,18 +455,17 @@
 
       avatarFallback.textContent = offline && !agent ? "📡" : agentEmoji(agent);
       const thumb = agent ? buildAgentThumbUrl(cmsBaseUrl, agent) : null;
+      clearVaultPreviewImg(avatarImg);
+      avatarFallback.hidden = false;
+      avatar.classList.remove("asc-vault-avatar--has-preview");
+      avatar.classList.add("asc-vault-avatar--fallback");
       if (thumb) {
-        avatarImg.src = thumb;
-        avatarImg.hidden = false;
-        avatarFallback.hidden = true;
-        avatar.classList.add("asc-vault-avatar--has-preview");
-        avatar.classList.remove("asc-vault-avatar--fallback");
-      } else {
-        avatarImg.removeAttribute("src");
-        avatarImg.hidden = true;
-        avatarFallback.hidden = false;
-        avatar.classList.remove("asc-vault-avatar--has-preview");
-        avatar.classList.add("asc-vault-avatar--fallback");
+        void loadVaultPreviewIntoImg(avatarImg, thumb).then((loaded) => {
+          if (!loaded) return;
+          avatarFallback.hidden = true;
+          avatar.classList.add("asc-vault-avatar--has-preview");
+          avatar.classList.remove("asc-vault-avatar--fallback");
+        });
       }
       const inactiveVault =
         !offline &&
@@ -510,10 +556,17 @@
         optAvatar.className = "asc-vault-option-avatar";
         const thumb = buildAgentThumbUrl(cmsBaseUrl, agent);
         if (thumb) {
+          const fallback = document.createElement("span");
+          fallback.className = "asc-vault-option-avatar-fallback";
+          fallback.setAttribute("aria-hidden", "true");
+          fallback.textContent = agentEmoji(agent);
           const img = document.createElement("img");
-          img.src = thumb;
           img.alt = "";
-          optAvatar.append(img);
+          img.hidden = true;
+          optAvatar.append(fallback, img);
+          void loadVaultPreviewIntoImg(img, thumb).then((loaded) => {
+            if (loaded) fallback.hidden = true;
+          });
         } else {
           optAvatar.textContent = agentEmoji(agent);
         }
@@ -557,6 +610,9 @@
       const data = await sendRuntime({ type: "COMPANION_LIST_AGENTS" });
       agentsFetchOk = data?.ok === true;
       agentsFetchError = agentsFetchOk ? "" : String(data?.error || "").trim();
+      if (String(data?.cmsBaseUrl || "").trim()) {
+        cmsBaseUrl = String(data.cmsBaseUrl).replace(/\/$/, "");
+      }
       if (agentsFetchOk && Array.isArray(data.agents)) {
         agents = data.agents;
         agentsLastKnown = data.agents;

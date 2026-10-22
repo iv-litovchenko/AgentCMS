@@ -26,6 +26,7 @@
     idea: { icon: "★", label: "Идея", typeClass: "moe-ideya" },
     important: { icon: "!", label: "Важно", typeClass: "moe-vazhno" },
     note: { icon: "✎", label: "Заметка", typeClass: "moe-zametka" },
+    "agent-note": { icon: "◇", label: "Заметка агента", typeClass: "moe-agent-note" },
     todo: { icon: "✓", label: "Задача", typeClass: "moe-todo" },
     question: { icon: "?", label: "Вопрос", typeClass: "moe-vopros" },
     mistake: { icon: "✕", label: "Ошибка", typeClass: "moe-oshibka" },

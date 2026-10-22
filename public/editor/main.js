@@ -1258,15 +1258,23 @@ const agentRoadmapMapPaneNode = document.getElementById("agent-roadmap-map-pane"
 const agentRoadmapMapContentNode = document.getElementById("agent-roadmap-map-content");
 const agentRoadmapMapHostNode = document.getElementById("agent-rmm-host");
 const agentRoadmapMapDetailNode = document.getElementById("agent-rmm-detail");
+const agentRoadmapMapDepthScopeNode = document.getElementById("agent-rmm-depth-scope");
 const agentRoadmapMapDepthNode = document.getElementById("agent-rmm-depth");
 const agentRoadmapMapZoomNode = document.getElementById("agent-rmm-zoom");
+const AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY = "agentcms.agentRmmDepthScope.v1";
 const AGENT_RMM_MARKDOWN_DEPTH_STORAGE_KEY = "agentcms.agentRmmMarkdownDepth.v1";
+const AGENT_RMM_DEPTH_SCOPE_LABELS = {
+  "hubs-only": "Только хабы",
+  "hubs-content": "Хабы + контент"
+};
 const AGENT_RMM_MARKDOWN_DEPTH_LABELS = {
   "md-file": "MD-файл",
   "md-headings": "MD-файл + заголовки",
   "md-links": "MD-файл + заголовки + ссылки и теги"
 };
 let agentRoadmapMapSubview = "graph";
+/** @type {{ path?: string, about?: string, title?: string, kind?: string, kindLabel?: string } | null} */
+let agentRoadmapAtlasSelectedItem = null;
 
 function normalizeAgentRoadmapMapDepth(raw) {
   const value = String(raw || "").trim();
@@ -1293,6 +1301,47 @@ function persistAgentRoadmapMapDepth(depth) {
 }
 
 let agentRoadmapMapDepth = loadAgentRoadmapMapDepthFromStorage();
+
+function normalizeAgentRoadmapMapDepthScope(raw) {
+  const value = String(raw || "").trim();
+  if (value === "hubs-content" || value === "hubs+content" || value === "content") return "hubs-content";
+  if (value === "hubs-only" || value === "hubs") return "hubs-only";
+  return "hubs-only";
+}
+
+function loadAgentRoadmapMapDepthScopeFromStorage() {
+  try {
+    return normalizeAgentRoadmapMapDepthScope(localStorage.getItem(AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY));
+  } catch {
+    return "hubs-only";
+  }
+}
+
+function persistAgentRoadmapMapDepthScope(scope) {
+  try {
+    localStorage.setItem(AGENT_RMM_DEPTH_SCOPE_STORAGE_KEY, normalizeAgentRoadmapMapDepthScope(scope));
+  } catch {
+    /* ignore */
+  }
+}
+
+let agentRoadmapMapDepthScope = loadAgentRoadmapMapDepthScopeFromStorage();
+
+function getAgentRoadmapMapDepthScopeLabel(scope = agentRoadmapMapDepthScope) {
+  return (
+    AGENT_RMM_DEPTH_SCOPE_LABELS[normalizeAgentRoadmapMapDepthScope(scope)] ||
+    AGENT_RMM_DEPTH_SCOPE_LABELS["hubs-only"]
+  );
+}
+
+function syncAgentRoadmapMapDepthScopeSelectUi() {
+  if (!agentRoadmapMapDepthScopeNode) return;
+  const normalized = normalizeAgentRoadmapMapDepthScope(agentRoadmapMapDepthScope);
+  if (agentRoadmapMapDepthScopeNode.value !== normalized) {
+    agentRoadmapMapDepthScopeNode.value = normalized;
+  }
+  agentRoadmapMapDepthScopeNode.title = `Заготовка: ограничение глубины веток — ${getAgentRoadmapMapDepthScopeLabel(normalized)}`;
+}
 
 function getAgentRoadmapMapDepthLabel(depth = agentRoadmapMapDepth) {
   return AGENT_RMM_MARKDOWN_DEPTH_LABELS[normalizeAgentRoadmapMapDepth(depth)] || AGENT_RMM_MARKDOWN_DEPTH_LABELS["md-file"];
@@ -1321,10 +1370,7 @@ function syncAgentRoadmapMapDepthSelectUi() {
   if (agentRoadmapMapDepthNode.value !== normalized) {
     agentRoadmapMapDepthNode.value = normalized;
   }
-  const label = agentRoadmapMapDepthNode.closest("label");
-  if (label) {
-    label.title = `Заготовка: ${getAgentRoadmapMapDepthLabel(normalized)}`;
-  }
+  agentRoadmapMapDepthNode.title = `Заготовка: ограничение глубины чтения — ${getAgentRoadmapMapDepthLabel(normalized)}`;
 }
 let agentRoadmapMapRenderSeq = 0;
 let agentRoadmapMapViewportApi = null;
@@ -2026,10 +2072,12 @@ const docAsideTabPropsBtn = document.getElementById("doc-aside-tab-props");
 const docAsideTabOutlineBtn = document.getElementById("doc-aside-tab-outline");
 const docAsideTabBlocksBtn = document.getElementById("doc-aside-tab-blocks");
 const docAsideTabLinksBtn = document.getElementById("doc-aside-tab-links");
+const docAsideTabVizBtn = document.getElementById("doc-aside-tab-viz");
 const docAsidePanelPropsNode = document.getElementById("doc-aside-panel-props");
 const docAsidePanelOutlineNode = document.getElementById("doc-aside-panel-outline");
 const docAsidePanelBlocksNode = document.getElementById("doc-aside-panel-blocks");
 const docAsidePanelLinksNode = document.getElementById("doc-aside-panel-links");
+const docAsidePanelVizNode = document.getElementById("doc-aside-panel-viz");
 const docBlocksContentNode = document.getElementById("doc-blocks-content");
 const docLinksContentNode = document.getElementById("doc-links-content");
 let docLinksSearchQuery = "";
@@ -5127,6 +5175,10 @@ function buildApiUrl(apiPath, params = {}, workspaceId = activeWorkspaceId) {
     if (value != null && value !== "") search.set(key, String(value));
   }
   return `${apiPath}?${search.toString()}`;
+}
+
+if (typeof window !== "undefined") {
+  window.buildApiUrl = buildApiUrl;
 }
 
 function buildDocumentationApiUrl(apiPath, params = {}) {
@@ -13110,6 +13162,7 @@ function openHeaderProfileMenu() {
   closeWorkspaceNotificationsPopover();
   closeHeaderFocusPopover();
   closeHeaderWelcomePopover();
+  window.agentCmsCloseHeaderUiLocaleMenu?.();
   headerProfileMenuOpen = true;
   headerProfileMenuNode.classList.remove("hidden");
   syncHeaderProfileMenuState();
@@ -18038,6 +18091,7 @@ const AWN_CONTENTS_GROUP = "contents";
 const AWN_CONTENTS_FACTS_STORE = `${AWN_CONTENTS_GROUP}/facts`;
 const AWN_CONTENTS_GLOSSARY_STORE = `${AWN_CONTENTS_GROUP}/glossary`;
 const AWN_CONTENTS_REFERENCE_STORE = `${AWN_CONTENTS_GROUP}/reference`;
+const AWN_EXTERNAL_MEMORY_STORE = `${AWN_CONTENTS_GROUP}/external-memory`;
 const AWN_TASK_QUEUE_STORE = "task-queue";
 const LEGACY_AWN_AGENT_TASK_QUEUE_STORE = "agent-task-queue";
 const LEGACY_AWN_AGENT_QUEUE_STORE = "agent-queue";
@@ -18534,6 +18588,10 @@ const WORKSPACE_TOOL_MODULE_META = {
   [`awn-databases/${AWN_TASK_QUEUE_STORE}`]: {
     title: "Очередь задач",
     lead: "Коллекция task-queue — чекпоинты и задачи (слот task-queue в теме и канале)."
+  },
+  [`awn-databases/${AWN_EXTERNAL_MEMORY_STORE}`]: {
+    title: "Внешняя память",
+    lead: "0-contents/0-external-memory — разделы claude, cursor, chatgpt, other (external_memory_sync)."
   },
   [AWN_DIALOGS_FOLDER]: {
     title: "Диалоги с ИИ",
@@ -19308,9 +19366,15 @@ function isMarkdownStorageFilePath(filePath) {
   return /\.md$/i.test(base);
 }
 
+function isVizMapStorageFilePath(filePath) {
+  const base = String(filePath || "").replace(/\\/g, "/").split("/").pop() || "";
+  return /\.viz\.md$/i.test(base);
+}
+
 function isSlugExemptStorageFilePath(filePath) {
   const normalized = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!normalized) return false;
+  if (isVizMapStorageFilePath(normalized)) return true;
   if (isSectionReadmePath(normalized)) return true;
   if (isStorageSlotIndexRelativePath(normalized)) return true;
   const base = normalized.split("/").pop() || "";
@@ -24576,8 +24640,10 @@ function buildTopicSlotsTemplateConfirmMessage(label, toTemplate) {
     parts.push(TOPIC_SHARED_SLOT_SUBTITLE);
   } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
     parts.push("Типовые папки awn-storage (main, inbox, media…) снова будут в навигации.");
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_MINIMAL) {
+    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo, таблица…).");
   } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
-    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo…).");
+    parts.push("Останутся только инструкция для агента и слот TODO; блок инструкции будет всегда раскрыт.");
   }
   return parts.join("\n\n");
 }
@@ -27220,15 +27286,18 @@ const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
 const AWN_TOPIC_SLOTS_TEMPLATE_KEY = "awn-slots-template";
 const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
 const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_MINIMAL = "minimal";
 const TOPIC_SLOTS_TEMPLATE_NONE = "none";
 const TOPIC_SLOTS_TEMPLATE_LABELS = {
   [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
   [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
-  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум слотов (стандарт)",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов (только инструкция)"
 };
 const TOPIC_SLOTS_TEMPLATE_SELECT_ORDER = [
   TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
   TOPIC_SLOTS_TEMPLATE_STANDARD,
+  TOPIC_SLOTS_TEMPLATE_MINIMAL,
   TOPIC_SLOTS_TEMPLATE_NONE
 ];
 
@@ -27255,8 +27324,34 @@ function normalizeTopicSlotsTemplate(raw) {
   const value = String(raw || "")
     .trim()
     .toLowerCase();
-  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  if (
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  ) {
+    return value;
+  }
   return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsMinimalTemplate(template) {
+  return template === TOPIC_SLOTS_TEMPLATE_MINIMAL;
+}
+
+function isTopicSlotsInstructionTemplate(template) {
+  return template === TOPIC_SLOTS_TEMPLATE_NONE;
+}
+
+function topicSlotsTemplateSkipsExternal(template) {
+  return isTopicSlotsMinimalTemplate(template) || isTopicSlotsInstructionTemplate(template);
+}
+
+function topicSlotsTemplateSkipsMediaAssets(template, slotsDisabled = false) {
+  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
+}
+
+function topicSlotsTemplateUsesCompactNav(template, slotsDisabled = false) {
+  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
 }
 
 function getTopicSlotsTemplateFromEntries(entries) {
@@ -27295,8 +27390,8 @@ function isTopicSlotsFlexibleFromEntries(entries) {
   return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
-function isTopicSlotsNoneFromEntries(entries) {
-  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_NONE;
+function isTopicSlotsInstructionFromEntries(entries) {
+  return isTopicSlotsInstructionTemplate(getTopicSlotsTemplateFromEntries(entries));
 }
 
 function filterTopicFlexibleSingleFileSlotSpecs(specs, topicPath = getResolvedNodePath(activePath)) {
@@ -27371,7 +27466,11 @@ function isTopicSlotsLiteTemplateActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
   const template = getTopicSlotsTemplateForManifestPath(manifestPath);
-  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
+  return (
+    template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    template === TOPIC_SLOTS_TEMPLATE_NONE
+  );
 }
 
 function invalidateTopicSlotsDisabledCache(manifestPath = "") {
@@ -27389,10 +27488,10 @@ function isTopicSharedSlotActive(nodePath = activePath) {
   return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
-function isTopicSlotsNoneActive(nodePath = activePath) {
+function isTopicSlotsInstructionActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
-  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_NONE;
+  return isTopicSlotsInstructionTemplate(getTopicSlotsTemplateForManifestPath(manifestPath));
 }
 
 /** В режиме awn-slots-flexible типовые слоты (media, inbox…) не используются — только external / awn-storage/. */
@@ -27483,12 +27582,20 @@ async function shouldHideTopicStorageSlots(nodePath, entries = null) {
   if (isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath)) return false;
   if (entries?.length) {
     const template = getTopicSlotsTemplateFromEntries(entries);
-    if (template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE) {
+    if (
+      template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+      template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+      template === TOPIC_SLOTS_TEMPLATE_NONE
+    ) {
       return true;
     }
   }
   const template = await readTopicSlotsTemplateForPath(nodePath);
-  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
+  return (
+    template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    template === TOPIC_SLOTS_TEMPLATE_NONE
+  );
 }
 
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
@@ -34933,12 +35040,20 @@ function isRecordMaterialsAssetsPath(relPath) {
   return normalized === RECORD_MATERIALS_ASSETS_SUBPATH || normalized.startsWith(`${RECORD_MATERIALS_ASSETS_SUBPATH}/`);
 }
 const RECORD_MATERIALS_UI_LABEL = "Доп материалы";
+const RECORD_MATERIALS_CREATE_BTN_LABEL = "Создать доп материалы";
+const ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL = "Визуальные карты";
+const ENTRY_OVERVIEW_VIZ_MAPS_CREATE_BTN_LABEL = "Создать карту";
 const RECORD_MATERIALS_HERO_MARKER_CAPTION = "Доп материалы";
+const VIZ_MAPS_ICON_HTML =
+  '<svg class="viz-maps-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M3 6l9-4 9 4-9 4-9-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 10l9 4 9-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 14l9 4 9-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  "</svg>";
 const RECORD_MATERIALS_ICON_HTML =
   '<svg class="record-materials-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M12 3 3 7.5 12 12l9-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M3 12.5 12 17l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
-  '<path d="M3 17.5 12 22l9-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M3 7a2 2 0 0 1 2-2h4.5L11 7h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M8 11h8M8 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
   "</svg>";
 
 function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
@@ -34952,10 +35067,45 @@ function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record
   parent.append(iconWrap, label);
 }
 
+function appendVizMapsIconLabel(parent, labelText, { iconClass = "record-materials-icon" } = {}) {
+  if (!parent) return;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "record-materials-icon-wrap";
+  iconWrap.innerHTML = VIZ_MAPS_ICON_HTML.replace("viz-maps-icon", iconClass);
+  const label = document.createElement("span");
+  label.className = "record-materials-label";
+  label.textContent = labelText;
+  parent.append(iconWrap, label);
+}
+
 function createRecordMaterialsMarkerSvg() {
   const template = document.createElement("template");
   template.innerHTML = RECORD_MATERIALS_ICON_HTML;
   return template.content.firstElementChild;
+}
+
+function createVizMapsMarkerSvg() {
+  const template = document.createElement("template");
+  template.innerHTML = VIZ_MAPS_ICON_HTML;
+  return template.content.firstElementChild;
+}
+
+function injectNavigationMemoryTitleSvg(titleNode, createSvg, { svgClass = "record-materials-icon" } = {}) {
+  if (!titleNode || typeof createSvg !== "function") return;
+  const svg = createSvg();
+  if (!svg) return;
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "node-navigation-memory-title-icon node-navigation-memory-title-icon--svg";
+  const svgClasses = String(svgClass || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  svg.classList.add(...svgClasses, "node-navigation-memory-title-icon-svg");
+  iconWrap.appendChild(svg);
+  const label = titleNode.querySelector(".node-navigation-memory-title-label");
+  if (label) titleNode.insertBefore(iconWrap, label);
+  else titleNode.prepend(iconWrap);
+  titleNode.classList.add("node-navigation-memory-title--with-icon");
 }
 
 function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL } = {}) {
@@ -34970,8 +35120,21 @@ function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL
   return badge;
 }
 
+function createVizMapsIndicatorBadge({ title = ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL } = {}) {
+  const badge = document.createElement("span");
+  badge.className = "nav-book-toc-viz-maps-badge";
+  badge.innerHTML = VIZ_MAPS_ICON_HTML.replace("viz-maps-icon", "nav-book-toc-viz-maps-badge-icon");
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  return badge;
+}
+
 function navigationItemHasRecordMaterials(item) {
   return Boolean(item?.hasRecordMaterials);
+}
+
+function navigationItemHasVizMaps(item) {
+  return Boolean(item?.hasVizMaps);
 }
 const ATTACHMENTS_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|svg)$/i;
 const ATTACHMENT_UI_VARIANT_KEY = "agentcms.attachmentUiVariant.v1";
@@ -40797,6 +40960,101 @@ function shouldShowEntryOverviewRecordParts(context) {
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!relativePath || !isRecordStorageRelativePath(relativePath)) return false;
   return Boolean(getRecordSlugFromStorageRelativePath(relativePath));
+}
+
+function isVizMapsAboutHostRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized || !/\.md$/i.test(normalized)) return false;
+  if (/\.viz\.md$/i.test(normalized)) return false;
+
+  if (isNodeManifestPath(normalized)) {
+    if (isAgentRootIndexPath(normalized)) return false;
+    if (isAgentSystemRootIndexPath(normalized)) return false;
+    if (
+      new RegExp(
+        `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+        "i"
+      ).test(normalized)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (isMarkdownStorageFilePath(normalized)) return true;
+  if (isRecordStorageRelativePath(normalized)) return true;
+  return false;
+}
+
+window.isVizMapsAboutHostRelPath = isVizMapsAboutHostRelPath;
+
+function buildNodeManifestVizMapsOverviewContext(manifestNodePath, propEntries = []) {
+  const relPath = String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!relPath || !isVizMapsAboutHostRelPath(relPath)) return null;
+  if (!isTopicManifestPath(relPath) && !isAreaNodePath(relPath)) return null;
+  const props = Array.isArray(propEntries) ? propEntries : [];
+  const awnId = parseRecordMaterialsAwnIdValue(getPropsEntryValueByKey(props, "awn-id"));
+  const entryKind = String(getPropsEntryValueByKey(props, "awn-type") || "").trim();
+  return {
+    relPath,
+    relativePath: String(relPath.split("/").pop() || "manifest.md"),
+    memoryKind: "external",
+    entryKind,
+    props,
+    ...(awnId ? { awnId } : {})
+  };
+}
+
+function shouldShowEntryOverviewVizMaps(context) {
+  if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
+  if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
+  if (context.entryKind === "awn.media.asset") return false;
+
+  const hostRel = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!hostRel || !isVizMapsAboutHostRelPath(hostRel)) return false;
+
+  if (isEntryOverviewCategoryContext(context) && !/\/manifest\.md$/i.test(hostRel)) return false;
+
+  const hostIsNodeManifest = isNodeManifestPath(hostRel);
+  if (
+    context.memoryKind !== "external" &&
+    !isFlatEntryOverviewMemoryKind(context.memoryKind) &&
+    !hostIsNodeManifest
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeEntryOverviewVizMapsAboutPath(context) {
+  if (!context) return "";
+  const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relPath && isMarkdownStorageFilePath(relPath) && !isVizMapStorageFilePath(relPath)) {
+    return relPath;
+  }
+
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const manifestBase = getResolvedNodePath(activePath);
+  const memoryKind = String(context.memoryKind || "external").trim();
+  if (!manifestBase || !relativePath) return relativePath;
+
+  if (memoryKind === "external") {
+    return (
+      buildExternalMemoryFileRef(manifestBase, relativePath) ||
+      `${getExternalMemoryRootRel(manifestBase)}/${relativePath}`
+    ).replace(/\/+/g, "/");
+  }
+  if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    return `${getNodeStorageSubfolderPath(manifestBase, getFlatStorageSectionFolderName(memoryKind))}/${relativePath}`.replace(
+      /\/+/g,
+      "/"
+    );
+  }
+  if (isMediaLibrarySlotMemoryKind(memoryKind)) {
+    const subfolder = getMediaLibraryStorageSubfolder();
+    return `${getNodeStorageSubfolderPath(manifestBase, subfolder)}/${relativePath}`.replace(/\/+/g, "/");
+  }
+  return relativePath;
 }
 
 function resolvePropsRecordMaterialsContext() {
@@ -48385,7 +48643,7 @@ const PROPS_FIELD_META = {
   },
   "awn-slots-template": {
     label: "Шаблон слотов",
-    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; none — только однофайловые слоты"
+    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; minimal — однофайловые слоты; none — инструкция и todo"
   },
   "awn-slots-flexible": {
     label: "Гибкий слот (устар.)",
@@ -58253,7 +58511,9 @@ function isPropsFormReadOnly() {
 
 function getDocAsideTab() {
   const saved = readStorageItem(DOC_ASIDE_TAB_STORAGE_KEY);
-  if (saved === "outline" || saved === "blocks" || saved === "links" || saved === "props") return saved;
+  if (saved === "outline" || saved === "blocks" || saved === "links" || saved === "props" || saved === "viz") {
+    return saved;
+  }
   return "outline";
 }
 
@@ -58281,25 +58541,41 @@ function isDocAsideEditorToolsTabAvailable() {
   return canInsertDocContentBlocks();
 }
 
+function isDocAsideVizMapsTabAvailable() {
+  if (!isDocAsidePropsTabAvailable()) return false;
+  const path = getPropsContextPath();
+  if (typeof window.agentCmsVizMapsAsideAvailable === "function") {
+    return window.agentCmsVizMapsAsideAvailable(path);
+  }
+  return false;
+}
+
 function getDocAsideTabAvailability() {
   return {
     outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
     propsPanelAvailable: isDocAsidePropsTabAvailable(),
-    editorToolsPanelAvailable: isDocAsideEditorToolsTabAvailable()
+    editorToolsPanelAvailable: isDocAsideEditorToolsTabAvailable(),
+    vizMapsPanelAvailable: isDocAsideVizMapsTabAvailable()
   };
 }
 
 function resolveDocAsideTab(
   tab,
-  { outlineAvailable = true, propsAvailable = true, editorToolsAvailable = true } = {}
+  {
+    outlineAvailable = true,
+    propsAvailable = true,
+    editorToolsAvailable = true,
+    vizMapsAvailable = true
+  } = {}
 ) {
-  const order = ["outline", "props", "blocks", "links"];
+  const order = ["outline", "props", "blocks", "links", "viz"];
   const preferred = order.includes(tab) ? tab : "outline";
   const availability = {
     outline: outlineAvailable,
     props: propsAvailable,
     blocks: editorToolsAvailable,
-    links: editorToolsAvailable
+    links: editorToolsAvailable,
+    viz: vizMapsAvailable
   };
   if (availability[preferred]) return preferred;
   return order.find((id) => availability[id]) || "outline";
@@ -58321,7 +58597,8 @@ function setDocAsideTab(tab) {
   const next = resolveDocAsideTab(tab, {
     outlineAvailable: availability.outlinePanelAvailable,
     propsAvailable: availability.propsPanelAvailable,
-    editorToolsAvailable: availability.editorToolsPanelAvailable
+    editorToolsAvailable: availability.editorToolsPanelAvailable,
+    vizMapsAvailable: availability.vizMapsPanelAvailable
   });
   localStorage.setItem(DOC_ASIDE_TAB_STORAGE_KEY, next);
   syncDocAsideUi(availability);
@@ -59681,20 +59958,31 @@ function syncActiveNavigationHeroTodoSticker(entries = propsFormEntries) {
   if (body) body.textContent = text;
 }
 
+function renderDocVizMapsPanel() {
+  if (typeof window.agentCmsRenderVizMapsAside !== "function") return;
+  window.agentCmsRenderVizMapsAside({
+    readOnly: isPropsFormReadOnly(),
+    contextPath: getPropsContextPath()
+  });
+}
+
 function syncDocAsideUi({
   outlinePanelAvailable = isDocAsideOutlineTabAvailable(),
   propsPanelAvailable = isDocAsidePropsTabAvailable(),
   blocksPanelAvailable = canInsertDocContentBlocks(),
-  editorToolsPanelAvailable = blocksPanelAvailable
+  editorToolsPanelAvailable = blocksPanelAvailable,
+  vizMapsPanelAvailable = isDocAsideVizMapsTabAvailable()
 } = {}) {
   const asideEnabled = yamlPanelNode && !yamlPanelNode.classList.contains("hidden");
   const outlineAvailable = Boolean(outlinePanelAvailable);
   const propsAvailable = Boolean(propsPanelAvailable);
   const editorToolsAvailable = Boolean(editorToolsPanelAvailable);
+  const vizMapsAvailable = Boolean(vizMapsPanelAvailable);
   const effectiveTab = resolveDocAsideTab(getDocAsideTab(), {
     outlineAvailable,
     propsAvailable,
-    editorToolsAvailable
+    editorToolsAvailable,
+    vizMapsAvailable
   });
 
   syncDocAsideTabButton(
@@ -59713,12 +60001,18 @@ function syncDocAsideUi({
     editorToolsAvailable,
     "Ссылки доступны только при редактировании Markdown"
   );
+  syncDocAsideTabButton(
+    docAsideTabVizBtn,
+    vizMapsAvailable,
+    "Карты доступны для записей Markdown (не manifest / не *.viz.md)"
+  );
 
   for (const [tabId, btn] of [
     ["outline", docAsideTabOutlineBtn],
     ["props", docAsideTabPropsBtn],
     ["blocks", docAsideTabBlocksBtn],
-    ["links", docAsideTabLinksBtn]
+    ["links", docAsideTabLinksBtn],
+    ["viz", docAsideTabVizBtn]
   ]) {
     btn?.classList.toggle("active", effectiveTab === tabId);
     btn?.setAttribute("aria-selected", effectiveTab === tabId ? "true" : "false");
@@ -59728,6 +60022,7 @@ function syncDocAsideUi({
   docAsidePanelOutlineNode?.classList.toggle("hidden", effectiveTab !== "outline");
   docAsidePanelBlocksNode?.classList.toggle("hidden", effectiveTab !== "blocks");
   docAsidePanelLinksNode?.classList.toggle("hidden", effectiveTab !== "links");
+  docAsidePanelVizNode?.classList.toggle("hidden", effectiveTab !== "viz");
 
   yamlPanelNode?.classList.remove("is-collapsed");
 
@@ -59737,6 +60032,8 @@ function syncDocAsideUi({
     renderDocContentBlocks();
   } else if (effectiveTab === "links") {
     renderDocLinksLibrary();
+  } else if (effectiveTab === "viz") {
+    renderDocVizMapsPanel();
   }
 
   syncPropsPanelsUi();
@@ -60806,6 +61103,10 @@ function renderPropsForm() {
   }
 
   appendPropsAsideOrphanGroup(propsFormFieldsNode, orphanItems);
+
+  if (getDocAsideTab() === "viz" && isDocAsideVizMapsTabAvailable()) {
+    renderDocVizMapsPanel();
+  }
 
   if (!asideItems.length && !orphanItems.length) {
     const empty = document.createElement("p");
@@ -66885,6 +67186,94 @@ async function enableExternalFileEditor(filePath, content, options = {}) {
   }
 }
 
+function resolveVizMapTopicManifestPath(aboutRel, mapPath) {
+  const candidates = [
+    String(aboutRel || "").replace(/\\/g, "/").replace(/^\/+/, ""),
+    String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    const fromBundle = resolveTopicManifestFromBundlePath(candidate);
+    if (fromBundle && isTopicManifestPath(fromBundle)) return fromBundle;
+    const owner = resolveOwningManifestRelFromNodePath(candidate);
+    if (owner && isTopicManifestPath(owner)) return owner;
+  }
+  return "";
+}
+
+async function ensureVizMapTopicOpen(manifestPath) {
+  const target = normalizeMenuNodePath(manifestPath);
+  if (!target) return false;
+  const activeManifest = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+  if (activeManifest !== target) {
+    await openNodeFromMenu(getLabelFromPath(target), target, {
+      contentMode: "external",
+      skipRouteSync: true
+    });
+  }
+  return true;
+}
+
+function normalizeVizMapAboutRef(aboutRel) {
+  return String(aboutRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function isVizMapAboutCurrentEntryOverview(aboutRel) {
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) return false;
+  const current = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+  const target = normalizeVizMapAboutRef(aboutRel);
+  return Boolean(current && target && current === target);
+}
+
+if (typeof window !== "undefined") {
+  window.agentCmsOpenVizMap = async function agentCmsOpenVizMap(mapWorkspaceRel, aboutRel, options = {}) {
+    const mapPath = String(mapWorkspaceRel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!mapPath) {
+      showToast("Не удалось открыть карту — путь пустой", "error");
+      return;
+    }
+
+    if (
+      !options.navigateToMap &&
+      (options.stayOnPage || isVizMapAboutCurrentEntryOverview(aboutRel))
+    ) {
+      return;
+    }
+
+    const manifestPath = resolveVizMapTopicManifestPath(aboutRel, mapPath);
+
+    if (manifestPath) {
+      await ensureVizMapTopicOpen(manifestPath);
+      const extRoot = getExternalMemoryRootRel(manifestPath).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+      if (extRoot && (mapPath === extRoot || mapPath.startsWith(`${extRoot}/`))) {
+        const fileRel = mapPath === extRoot ? "" : mapPath.slice(extRoot.length + 1);
+        if (fileRel) {
+          await openExternalFile(fileRel);
+          syncAppRouteToUrl({ push: true });
+          return;
+        }
+      }
+    }
+
+    try {
+      if (await tryOpenMarkdownLinkByWorkspaceRel(mapPath, { skipRouteSync: true })) {
+        syncAppRouteToUrl({ push: true });
+        return;
+      }
+      await openWorkspaceFilePreviewByRelPath(mapPath, {
+        label: mapPath.split("/").pop() || "Карта",
+        nodePath: manifestPath || undefined
+      });
+      syncAppRouteToUrl({ push: true });
+      return;
+    } catch (error) {
+      const hint = manifestPath
+        ? "Файл не найден или путь legacy/colocated."
+        : "Укажите viz-about в карте или откройте тему записи.";
+      showToast(`Не удалось открыть карту: ${error?.message || hint}`, "error");
+    }
+  };
+}
+
 async function openExternalFile(filePath, options = {}) {
   if (!activePath) return;
   if (options.memoryEntryCloseTargetView != null) {
@@ -69942,7 +70331,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   if (options.showHeroInstruction) {
-    appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title);
+    appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title, {
+      slotsInstructionOnly: Boolean(options.slotsInstructionOnly)
+    });
   }
 
   return hero;
@@ -70948,7 +71339,7 @@ function appendNavigationHeroTags(hero, propEntries = []) {
   return tagsBar;
 }
 
-function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
+function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "", options = {}) {
   if (!hero) return null;
   const content = buildNavigationAgentInstructionContent(descriptionRaw, heroTitle);
   if (!content) return null;
@@ -70958,6 +71349,7 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
   bodySection.appendChild(content);
 
   const hasInstruction = getNodeDescriptionHasContent(descriptionRaw);
+  const slotsInstructionOnly = Boolean(options.slotsInstructionOnly);
 
   const titleNode = document.createDocumentFragment();
   titleNode.appendChild(createNodeSlotStatusLamp(hasInstruction));
@@ -70970,7 +71362,10 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
     OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID,
     titleNode,
     bodySection,
-    { defaultOpen: !hasInstruction, lockOpen: !hasInstruction }
+    {
+      defaultOpen: slotsInstructionOnly ? true : !hasInstruction,
+      lockOpen: slotsInstructionOnly || !hasInstruction
+    }
   );
   accordion.classList.add(
     "node-overview-props-fold",
@@ -71931,7 +72326,11 @@ function buildNodeMemorySlotStatuses({
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
-  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+  if (isTopicSlotsInstructionTemplate(slotsTemplate)) {
+    return hasTodo ? [{ id: "todo", label: "TODO", filled: true, modeId: "todo" }] : [];
+  }
+
+  if (isTopicSlotsMinimalTemplate(slotsTemplate)) {
     return [
       hasInternal ? { id: "internal", label: "Однофайловая", filled: true, modeId: "internal" } : null,
       hasTabular ? { id: "tabular", label: "Табличная", filled: true, modeId: "tabular" } : null,
@@ -72758,9 +73157,31 @@ function resolveAwnDataIndexWorkspacePath(entry = {}) {
   return `awn-databases/${raw}`.replace(/\/+/g, "/");
 }
 
+const TOPIC_SLOTS_TEMPLATE_INDEX_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные",
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+
+function formatTopicSlotsTemplateIndexLabel(template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return (
+    TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[normalized] ||
+    TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[TOPIC_SLOTS_TEMPLATE_STANDARD]
+  );
+}
+
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
-  return page?.slotsFlexible ? "гибкий" : "типовые";
+  if (page?.slotsTemplate) {
+    return formatTopicSlotsTemplateIndexLabel(page.slotsTemplate);
+  }
+  const fromProps = page?.properties?.["awn-slots-template"];
+  if (fromProps !== undefined && fromProps !== null && String(fromProps).trim() !== "") {
+    return formatTopicSlotsTemplateIndexLabel(fromProps);
+  }
+  return page?.slotsFlexible ? "Гибкий" : "Стандартные";
 }
 
 function resolveContentIndexEntrySlotLabel(slotKey) {
@@ -73230,6 +73651,11 @@ async function appendTopicSlotCounterStrip(
   let topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath, { propsEntries }));
   topicSlotCounters = filterHubWorkspaceSlotCounters(topicPath, topicSlotCounters, propsEntries);
   if (isStale()) return null;
+  const slotsTemplate = propsEntries?.length
+    ? getTopicSlotsTemplateFromEntries(propsEntries)
+    : await readTopicSlotsTemplateForPath(topicPath);
+  const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const counterLayout = instructionSlotsOnly ? "area-single" : "grid";
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     topicSlotCounters.map((slot) => ({
       ...slot,
@@ -73238,7 +73664,9 @@ async function appendTopicSlotCounterStrip(
     {
       entryOverview,
       activeSlotKey: getDataStorageSlotKeyForEntryView(),
-      topicPath
+      topicPath,
+      layout: counterLayout,
+      includeTopicIndexFooter: !instructionSlotsOnly
     }
   );
   if (strip) {
@@ -73891,7 +74319,7 @@ function createDocumentContextMeter(text) {
   return meter;
 }
 
-function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titleIcon = "") {
+function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titleIcon = "", titleIconClass = "") {
   const comment = String(titleComment || "").trim();
   const icon = String(titleIcon || "").trim();
   titleNode.replaceChildren();
@@ -73899,7 +74327,7 @@ function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "", titl
   titleNode.classList.toggle("node-navigation-memory-title--with-comment", Boolean(comment));
 
   if (icon) {
-    titleNode.appendChild(createNavigationMemoryTitleIcon(icon));
+    titleNode.appendChild(createNavigationMemoryTitleIcon(icon, { extraClass: titleIconClass }));
   }
 
   if (!comment) {
@@ -73931,9 +74359,11 @@ function resolveNavigationMemoryPanelIcon(viewModeId) {
   return spec?.icon || "";
 }
 
-function createNavigationMemoryTitleIcon(iconText) {
+function createNavigationMemoryTitleIcon(iconText, { extraClass = "" } = {}) {
   const icon = document.createElement("span");
   icon.className = "node-navigation-memory-title-icon";
+  const extra = String(extraClass || "").trim();
+  if (extra) icon.classList.add(extra);
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = String(iconText || "").trim();
   return icon;
@@ -73961,7 +74391,7 @@ function createNavigationSectionHead(title, options = {}) {
     });
   }
   const titleIcon = String(options.icon || (viewModeId ? resolveNavigationMemoryPanelIcon(viewModeId) : "")).trim();
-  fillNavigationMemoryTitleNode(titleNode, title, titleComment, titleIcon);
+  fillNavigationMemoryTitleNode(titleNode, title, titleComment, titleIcon, options.titleIconClass || "");
 
   const rule = document.createElement("span");
   rule.className = "node-navigation-memory-rule";
@@ -75281,7 +75711,11 @@ function renderNodeNavigationElementsNavAccordion({
 
   const title = document.createElement("span");
   title.className = "doc-links-accordion-title";
-  title.textContent = "Все доступные элементы — навигация";
+  title.append(document.createTextNode("Все доступные элементы — навигация "));
+  const titleLegacyNote = document.createElement("span");
+  titleLegacyNote.className = "doc-links-accordion-title-legacy";
+  titleLegacyNote.textContent = "(устаревшая идея)";
+  title.appendChild(titleLegacyNote);
 
   summaryMain.appendChild(title);
 
@@ -75691,7 +76125,11 @@ function createAttachmentsCountBadge(count, { extraClass = "", attachmentPaths =
   return badge;
 }
 
-function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false, attachmentPaths = null, hasUnread = false } = {}) {
+function populateNavBookTocLeaders(
+  leadersHost,
+  attachmentCount,
+  { hasMaterials = false, hasVizMaps = false, attachmentPaths = null, hasUnread = false } = {}
+) {
   if (!leadersHost) return;
   const count = Number(attachmentCount);
   const badges = [];
@@ -75706,6 +76144,10 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
     const materialsBadge = createRecordMaterialsIndicatorBadge();
     if (materialsBadge) badges.push(materialsBadge);
   }
+  if (hasVizMaps) {
+    const vizMapsBadge = createVizMapsIndicatorBadge();
+    if (vizMapsBadge) badges.push(vizMapsBadge);
+  }
   if (badges.length) {
     leadersHost.classList.add("has-nav-book-toc-link-indicators");
     leadersHost.classList.toggle("has-nav-book-toc-unread-badge", hasUnread);
@@ -75714,6 +76156,7 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
       badges.some((node) => node.classList.contains("nav-book-toc-attachments-badge"))
     );
     leadersHost.classList.toggle("has-nav-book-toc-materials-badge", hasMaterials);
+    leadersHost.classList.toggle("has-nav-book-toc-viz-maps-badge", hasVizMaps);
     leadersHost.replaceChildren(...badges);
     leadersHost.removeAttribute("aria-hidden");
     return;
@@ -75722,7 +76165,8 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
     "has-nav-book-toc-link-indicators",
     "has-nav-book-toc-unread-badge",
     "has-nav-book-toc-attachments-badge",
-    "has-nav-book-toc-materials-badge"
+    "has-nav-book-toc-materials-badge",
+    "has-nav-book-toc-viz-maps-badge"
   );
   leadersHost.replaceChildren();
   leadersHost.setAttribute("aria-hidden", "true");
@@ -76478,7 +76922,8 @@ function prepareNavigationExternalItems(files, folders = []) {
       createdAt: item.createdAt || null,
       updatedAt: item.updatedAt || null,
       hasRecordMaterials:
-        Boolean(item.hasRecordMaterials) || recordFileHasPartsFolder(path, partsFoldersByParent)
+        Boolean(item.hasRecordMaterials) || recordFileHasPartsFolder(path, partsFoldersByParent),
+      hasVizMaps: Boolean(item.hasVizMaps)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       addMemorySectionFolderPath(folderPaths, ancestor);
@@ -79138,12 +79583,15 @@ function createEntryOverviewRecordMaterialsCard(
   const head = createNavigationSectionHead(title, {
     badgeText,
     badgeModeId: "assets",
-    imageColumnsToggle: true
+    imageColumnsToggle: true,
+    icon: "📒",
+    titleIconClass: "node-navigation-memory-title-icon--materials-folder"
   });
   head.classList.add("node-navigation-memory-head--record-materials");
   head.classList.add("node-navigation-memory-head--actionable");
 
   const titleNode = head.querySelector(".node-navigation-memory-title");
+
   if (titleNode && materialsContext && workspaceFolderPath) {
     const titleButton = document.createElement("button");
     titleButton.type = "button";
@@ -79402,7 +79850,7 @@ async function renderEntryOverviewRecordPartsPart(context, workspaceFolderPath =
     const createBtn = document.createElement("button");
     createBtn.type = "button";
     createBtn.className = "node-entry-overview-record-parts-create-btn";
-    appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_UI_LABEL, {
+    appendRecordMaterialsIconLabel(createBtn, RECORD_MATERIALS_CREATE_BTN_LABEL, {
       iconClass: "record-materials-icon record-materials-icon--button"
     });
     const canCreateRecordMaterials = Boolean(getRecordMaterialsAwnIdFromContext(context));
@@ -79563,6 +80011,790 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
     mdEmpty.textContent = "Пока нет файлов для списка — добавьте материалы в папку.";
     body.appendChild(mdEmpty);
   }
+}
+
+let entryOverviewVizMapsCreatePopoverNode = null;
+let entryOverviewVizMapsCreatePopoverListNode = null;
+let entryOverviewVizMapsCreatePopoverAnchor = null;
+/** Popover config (about, context, card) — not JSON in dataset (DOM nodes + large props break parse). */
+let entryOverviewVizMapsCreatePendingConfig = null;
+
+function resolveVizMapsUiContext(config) {
+  if (config?.context?.relPath) return config.context;
+  const about = String(config?.about || "").trim();
+  if (!about) return activeEntryOverviewContext;
+  if (activeEntryOverviewContext) {
+    const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+    if (activeAbout === about) return activeEntryOverviewContext;
+  }
+  if (isTopicManifestPath(about) || isAreaNodePath(about)) {
+    const entries =
+      typeof resolveNodeOverviewPropsEntries === "function" ? resolveNodeOverviewPropsEntries() : [];
+    return buildNodeManifestVizMapsOverviewContext(about, entries);
+  }
+  return {
+    relPath: about,
+    relativePath: about.split("/").pop() || "manifest.md",
+    memoryKind: "external"
+  };
+}
+
+function ensureEntryOverviewVizMapsCreatePopover() {
+  if (entryOverviewVizMapsCreatePopoverNode) return;
+  const popover = document.createElement("div");
+  popover.id = "entry-overview-viz-maps-create-popover";
+  popover.className = "entry-overview-viz-maps-create-popover menu-context-menu hidden";
+  popover.setAttribute("role", "menu");
+  popover.setAttribute("aria-label", "Создать карту визуализации");
+
+  const title = document.createElement("div");
+  title.className = "entry-overview-viz-maps-create-popover-title";
+  title.textContent = "Вид карты";
+
+  const list = document.createElement("ul");
+  list.className = "menu-context-menu-list";
+  list.id = "entry-overview-viz-maps-create-popover-list";
+  list.setAttribute("role", "none");
+
+  popover.append(title, list);
+  document.body.appendChild(popover);
+  entryOverviewVizMapsCreatePopoverNode = popover;
+  entryOverviewVizMapsCreatePopoverListNode = list;
+
+  list.addEventListener("click", (event) => {
+    const btn = event.target.closest(".entry-overview-viz-maps-create-kind-btn");
+    if (!btn || btn.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const config = entryOverviewVizMapsCreatePendingConfig;
+    closeEntryOverviewVizMapsCreatePopover();
+    if (!config?.about) {
+      showToast("Не удалось создать карту: потерян контекст. Закройте меню и нажмите «+» снова.", "error");
+      return;
+    }
+    void handleEntryOverviewVizMapsCreatePick(config, btn.dataset);
+  });
+}
+
+function closeEntryOverviewVizMapsCreatePopover() {
+  entryOverviewVizMapsCreatePopoverNode?.classList.add("hidden");
+  entryOverviewVizMapsCreatePopoverNode?.removeAttribute("data-viz-create-config");
+  entryOverviewVizMapsCreatePendingConfig = null;
+  if (entryOverviewVizMapsCreatePopoverAnchor) {
+    entryOverviewVizMapsCreatePopoverAnchor.setAttribute("aria-expanded", "false");
+    entryOverviewVizMapsCreatePopoverAnchor = null;
+  }
+}
+
+function positionEntryOverviewVizMapsCreatePopover(anchor) {
+  if (!entryOverviewVizMapsCreatePopoverNode || !anchor) return;
+  entryOverviewVizMapsCreatePopoverNode.classList.remove("hidden");
+  const anchorRect = anchor.getBoundingClientRect();
+  const popoverRect = entryOverviewVizMapsCreatePopoverNode.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(8, anchorRect.right - popoverRect.width),
+    Math.max(8, window.innerWidth - popoverRect.width - 8)
+  );
+  const top = Math.min(
+    anchorRect.bottom + 4,
+    Math.max(8, window.innerHeight - popoverRect.height - 8)
+  );
+  entryOverviewVizMapsCreatePopoverNode.style.left = `${left}px`;
+  entryOverviewVizMapsCreatePopoverNode.style.top = `${top}px`;
+}
+
+async function populateEntryOverviewVizMapsCreatePopover(about) {
+  ensureEntryOverviewVizMapsCreatePopover();
+  const list = entryOverviewVizMapsCreatePopoverListNode;
+  if (!list) return false;
+  list.replaceChildren();
+  const loadingItem = document.createElement("li");
+  loadingItem.className = "menu-context-menu-item entry-overview-viz-maps-create-loading";
+  loadingItem.textContent = "Загрузка…";
+  list.appendChild(loadingItem);
+
+  let kindsPayload;
+  let mapsPayload;
+  try {
+    const [kindsRes, mapsRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/kinds")),
+      fetch(buildApiUrl("/api/viz/maps-for-about", { about }))
+    ]);
+    kindsPayload = await kindsRes.json();
+    mapsPayload = await mapsRes.json();
+    if (!kindsRes.ok) throw new Error(kindsPayload.error || kindsRes.statusText);
+    if (!mapsRes.ok) throw new Error(mapsPayload.error || mapsRes.statusText);
+  } catch (error) {
+    list.replaceChildren();
+    const errItem = document.createElement("li");
+    errItem.className = "menu-context-menu-item entry-overview-viz-maps-create-error";
+    errItem.textContent = error.message || "Ошибка загрузки";
+    list.appendChild(errItem);
+    return true;
+  }
+
+  const kinds = Array.isArray(kindsPayload.kinds) ? kindsPayload.kinds : [];
+  const mapsByKind = new Map(
+    (Array.isArray(mapsPayload.maps) ? mapsPayload.maps : [])
+      .filter((row) => row?.map?.path)
+      .map((row) => [row.kind, row])
+  );
+
+  list.replaceChildren();
+  if (!kinds.length) {
+    const empty = document.createElement("li");
+    empty.className = "menu-context-menu-item entry-overview-viz-maps-create-error";
+    empty.textContent = "Нет зарегистрированных видов";
+    list.appendChild(empty);
+    return true;
+  }
+
+  for (const kind of kinds) {
+    const existing = mapsByKind.get(kind.id);
+    const item = document.createElement("li");
+    item.className = "menu-context-menu-item";
+    item.setAttribute("role", "none");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-context-menu-btn entry-overview-viz-maps-create-kind-btn";
+    btn.setAttribute("role", "menuitem");
+    btn.dataset.vizKind = kind.id;
+    btn.dataset.hasMap = existing?.map?.path ? "1" : "0";
+    btn.dataset.mapPath = existing?.map?.path || "";
+    const icon = kind.icon || "🗺";
+    btn.textContent = `${icon} ${kind.label || kind.id}`;
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+  return true;
+}
+
+async function handleEntryOverviewVizMapsCreatePick(config, dataset) {
+  const about = String(config.about || "").trim();
+  const kind = String(dataset.vizKind || "").trim();
+  const card = config.card || null;
+  const context = resolveVizMapsUiContext(config);
+  if (!about || !kind) return;
+
+  if (dataset.hasMap === "1" && dataset.mapPath) {
+    const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+    if (body && context) {
+      await refreshEntryOverviewVizMapsBody(body, context);
+    }
+    showToast(`Карта «${kind}» уже в списке ниже`, "info");
+    return;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ about, kind })
+    });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
+    if (!response.ok) {
+      const hint = data.hint ? ` ${data.hint}` : "";
+      const details = data.details ? ` ${data.details}` : "";
+      throw new Error(`${data.error || response.statusText}.${hint}${details}`);
+    }
+    showToast(`Карта «${kind}» создана`, "success");
+    const body =
+      card?.querySelector(".node-entry-overview-viz-maps-body") ||
+      document.querySelector(
+        `.node-entry-overview-viz-maps-card[data-viz-maps-about="${CSS.escape(about)}"] .node-entry-overview-viz-maps-body`
+      );
+    if (body && context) {
+      const { count } = await refreshEntryOverviewVizMapsBody(body, context);
+      const vizCard = card || body.closest(".node-entry-overview-viz-maps-card");
+      syncEntryOverviewVizMapsCardBadge(vizCard, count);
+    }
+  } catch (error) {
+    showToast(error.message || "Не удалось создать карту", "error");
+  }
+}
+
+async function openEntryOverviewVizMapsCreatePopover(event, config) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeMenuContextMenu();
+  closeResourceContextMenu();
+  closeNavigationHubRailFolderCreatePopover();
+
+  const anchor = event.currentTarget;
+  const isSameAnchor =
+    entryOverviewVizMapsCreatePopoverAnchor === anchor &&
+    entryOverviewVizMapsCreatePopoverNode &&
+    !entryOverviewVizMapsCreatePopoverNode.classList.contains("hidden");
+  if (isSameAnchor) {
+    closeEntryOverviewVizMapsCreatePopover();
+    return;
+  }
+
+  closeEntryOverviewVizMapsCreatePopover();
+  if (!config?.about) return;
+  entryOverviewVizMapsCreatePendingConfig = {
+    about: config.about,
+    context: config.context || null,
+    card: config.card || null
+  };
+  await populateEntryOverviewVizMapsCreatePopover(config.about);
+  entryOverviewVizMapsCreatePopoverAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  positionEntryOverviewVizMapsCreatePopover(anchor);
+}
+
+let entryOverviewVizMapPreviewModalNode = null;
+let entryOverviewVizMapPreviewBodyNode = null;
+let entryOverviewVizMapPreviewTitleNode = null;
+let entryOverviewVizMapPreviewRenderSeq = 0;
+let entryOverviewVizMapPreviewEscapeHandler = null;
+
+function closeEntryOverviewVizMapPreviewModal() {
+  entryOverviewVizMapPreviewRenderSeq += 1;
+  entryOverviewVizMapPreviewModalNode?.classList.add("hidden");
+  if (entryOverviewVizMapPreviewEscapeHandler) {
+    document.removeEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+    entryOverviewVizMapPreviewEscapeHandler = null;
+  }
+}
+
+function ensureEntryOverviewVizMapPreviewModal() {
+  if (entryOverviewVizMapPreviewModalNode) return entryOverviewVizMapPreviewModalNode;
+
+  const overlay = document.createElement("div");
+  overlay.id = "entry-overview-viz-map-preview-modal";
+  overlay.className = "modal-overlay entry-overview-viz-map-preview-modal hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "entry-overview-viz-map-preview-title");
+
+  const card = document.createElement("div");
+  card.className = "modal-card entry-overview-viz-map-preview-card";
+
+  const head = document.createElement("div");
+  head.className = "entry-overview-viz-map-preview-head";
+
+  const title = document.createElement("h3");
+  title.id = "entry-overview-viz-map-preview-title";
+  title.className = "entry-overview-viz-map-preview-title";
+  title.textContent = "Карта";
+
+  const headActions = document.createElement("div");
+  headActions.className = "entry-overview-viz-map-preview-head-actions";
+
+  const openEditorBtn = document.createElement("button");
+  openEditorBtn.type = "button";
+  openEditorBtn.className = "node-overview-action-btn entry-overview-viz-map-preview-open-editor";
+  openEditorBtn.textContent = "В редакторе";
+  openEditorBtn.addEventListener("click", () => {
+    const mapPath = overlay.dataset.vizMapPath || "";
+    const about = overlay.dataset.vizMapAbout || "";
+    closeEntryOverviewVizMapPreviewModal();
+    if (mapPath) void window.agentCmsOpenVizMap?.(mapPath, about, { navigateToMap: true });
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className =
+    "node-overview-action-btn entry-overview-viz-map-preview-delete entry-overview-viz-map-delete-btn";
+  deleteBtn.textContent = "Удалить";
+  deleteBtn.addEventListener("click", () => {
+    void (async () => {
+      const mapPath = overlay.dataset.vizMapPath || "";
+      const aboutPath = overlay.dataset.vizMapAbout || "";
+      const kindId = overlay.dataset.vizMapKind || "";
+      const mapLabel = overlay.dataset.vizMapLabel || "";
+      const deleted = await deleteEntryOverviewVizMap({
+        mapPath,
+        about: aboutPath,
+        kind: kindId,
+        label: mapLabel
+      });
+      if (!deleted) return;
+      closeEntryOverviewVizMapPreviewModal();
+      const card = document.querySelector(
+        `.node-entry-overview-viz-maps-card[data-viz-maps-about="${CSS.escape(aboutPath)}"]`
+      );
+      const body = card?.querySelector(".node-entry-overview-viz-maps-body");
+      if (body) {
+        const context = resolveVizMapsUiContext({ about: aboutPath });
+        const { count } = await refreshEntryOverviewVizMapsBody(body, context);
+        syncEntryOverviewVizMapsCardBadge(card, count);
+      }
+    })();
+  });
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "node-overview-action-btn entry-overview-viz-map-preview-close";
+  closeBtn.setAttribute("aria-label", "Закрыть просмотр");
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => closeEntryOverviewVizMapPreviewModal());
+
+  headActions.append(openEditorBtn, deleteBtn, closeBtn);
+  head.append(title, headActions);
+
+  const body = document.createElement("div");
+  body.className = "entry-overview-viz-map-preview-body markdown-preview";
+  body.setAttribute("role", "document");
+
+  card.append(head, body);
+  overlay.appendChild(card);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeEntryOverviewVizMapPreviewModal();
+  });
+
+  document.body.appendChild(overlay);
+  entryOverviewVizMapPreviewModalNode = overlay;
+  entryOverviewVizMapPreviewBodyNode = body;
+  entryOverviewVizMapPreviewTitleNode = title;
+  return overlay;
+}
+
+function syncEntryOverviewVizMapsCardBadge(vizCard, count) {
+  if (!vizCard) return;
+  const badge = vizCard.querySelector(".node-navigation-memory-badge");
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = String(count);
+      badge.classList.remove("hidden");
+    } else {
+      badge.remove();
+    }
+  } else if (count > 0) {
+    const head = vizCard.querySelector(".node-navigation-memory-head");
+    if (head) {
+      const newBadge = document.createElement("span");
+      newBadge.className = "node-navigation-memory-badge node-navigation-memory-badge--viz";
+      newBadge.textContent = String(count);
+      head.appendChild(newBadge);
+    }
+  }
+}
+
+async function deleteEntryOverviewVizMap({ mapPath, kind = "", label = "" } = {}) {
+  const filePath = String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!filePath) return false;
+  const kindId = String(kind || "").trim();
+  const displayLabel = String(label || kindId || filePath.split("/").pop() || "карта").trim();
+  const confirmed = await askConfirm(
+    `Удалить карту «${displayLabel}»?\n\nФайл будет удалён с диска; запись-«хозяин» не затрагивается.`,
+    {
+      okLabel: "Удалить",
+      cancelLabel: "Отмена",
+      title: "Удалить карту",
+      hint: filePath,
+      icon: "🗺",
+      variant: "danger"
+    }
+  );
+  if (!confirmed) return false;
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: filePath }), { method: "DELETE" });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
+    if (!response.ok) {
+      throw new Error(data.error || response.statusText);
+    }
+    showToast(`Карта «${displayLabel}» удалена`, "success");
+    return true;
+  } catch (error) {
+    showToast(error.message || "Не удалось удалить карту", "error");
+    return false;
+  }
+}
+
+window.deleteEntryOverviewVizMap = deleteEntryOverviewVizMap;
+
+async function openEntryOverviewVizMapPreviewModal({ mapPath, about = "", label = "", kind = "" } = {}) {
+  const normalizedPath = String(mapPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalizedPath) return;
+
+  const overlay = ensureEntryOverviewVizMapPreviewModal();
+  const body = entryOverviewVizMapPreviewBodyNode;
+  const titleNode = entryOverviewVizMapPreviewTitleNode;
+  if (!body || !titleNode) return;
+
+  overlay.dataset.vizMapPath = normalizedPath;
+  overlay.dataset.vizMapAbout = String(about || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  overlay.dataset.vizMapKind = String(kind || "").trim();
+  overlay.dataset.vizMapLabel = String(label || kind || "").trim();
+
+  const displayLabel = String(label || kind || normalizedPath.split("/").pop() || "Карта").trim();
+  titleNode.textContent = displayLabel;
+
+  const renderSeq = ++entryOverviewVizMapPreviewRenderSeq;
+  overlay.classList.remove("hidden");
+
+  if (entryOverviewVizMapPreviewEscapeHandler) {
+    document.removeEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+  }
+  entryOverviewVizMapPreviewEscapeHandler = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeEntryOverviewVizMapPreviewModal();
+    }
+  };
+  document.addEventListener("keydown", entryOverviewVizMapPreviewEscapeHandler);
+
+  body.replaceChildren();
+  body.classList.add("is-loading");
+  const loading = document.createElement("p");
+  loading.className = "entry-overview-viz-map-preview-loading";
+  loading.textContent = "Загрузка карты…";
+  body.appendChild(loading);
+
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: normalizedPath }));
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Ответ сервера не JSON (${response.status}).`);
+    }
+    if (renderSeq !== entryOverviewVizMapPreviewRenderSeq) return;
+    if (!response.ok) throw new Error(data.error || response.statusText);
+
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const article = document.createElement("article");
+    article.className = "entry-overview-viz-map-preview-article markdown-body";
+    const inner = document.createElement("div");
+    inner.className = "entry-overview-viz-map-preview-inner";
+    const content = String(data.content || "");
+    if (typeof renderMarkdownToHtml === "function") {
+      inner.innerHTML = renderMarkdownToHtml(content, {
+        hideFrontmatter: true,
+        nodePath: normalizedPath
+      });
+      if (typeof hydrateMarkdownPreviewElement === "function") {
+        hydrateMarkdownPreviewElement(inner, normalizedPath);
+      }
+    } else {
+      inner.textContent = content;
+    }
+    article.appendChild(inner);
+    body.appendChild(article);
+  } catch (error) {
+    if (renderSeq !== entryOverviewVizMapPreviewRenderSeq) return;
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const err = document.createElement("p");
+    err.className = "entry-overview-viz-map-preview-error";
+    err.textContent = error.message || "Не удалось загрузить карту";
+    body.appendChild(err);
+  }
+}
+
+function createEntryOverviewVizMapListRow(row, about, { onListMutate = null } = {}) {
+  const map = row?.map;
+  if (!map?.path) return null;
+
+  const filePath = String(map.path || "").replace(/\\/g, "/");
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-viz-map-row-wrap";
+  wrap.setAttribute("role", "listitem");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-entry-overview-record-parts-asset-row node-entry-overview-viz-map-row";
+  btn.title = filePath;
+
+  const leading = document.createElement("span");
+  leading.className = "node-entry-overview-record-parts-asset-leading";
+  const icon = document.createElement("span");
+  icon.className = "node-entry-overview-viz-map-icon";
+  icon.textContent = row.icon || "🗺";
+  icon.setAttribute("aria-hidden", "true");
+  leading.appendChild(icon);
+
+  const meta = document.createElement("span");
+  meta.className = "node-entry-overview-record-parts-asset-meta";
+  const nameNode = document.createElement("span");
+  nameNode.className = "node-entry-overview-record-parts-asset-name";
+  nameNode.textContent = row.label || row.kind || "Карта";
+  const pathNode = document.createElement("span");
+  pathNode.className = "node-entry-overview-record-parts-asset-path";
+  pathNode.textContent = filePath.split("/").pop() || filePath;
+  meta.append(nameNode, pathNode);
+
+  const trailing = document.createElement("span");
+  trailing.className = "node-entry-overview-record-parts-asset-trailing";
+  const extNode = document.createElement("span");
+  extNode.className = "node-entry-overview-record-parts-asset-ext";
+  extNode.textContent = row.kind || "viz";
+  trailing.appendChild(extNode);
+
+  btn.append(leading, meta, trailing);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void window.agentCmsOpenVizMap?.(filePath, about, { navigateToMap: true });
+  });
+
+  const previewBtn = document.createElement("button");
+  previewBtn.type = "button";
+  previewBtn.className =
+    "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-map-preview-btn";
+  previewBtn.setAttribute("aria-label", `Просмотр: ${row.label || row.kind || "карта"}`);
+  previewBtn.title = "Просмотр во всплывающем окне";
+  previewBtn.textContent = "👁";
+  previewBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openEntryOverviewVizMapPreviewModal({
+      mapPath: filePath,
+      about,
+      label: row.label || row.kind,
+      kind: row.kind
+    });
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className =
+    "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-map-delete-btn";
+  deleteBtn.setAttribute("aria-label", `Удалить: ${row.label || row.kind || "карта"}`);
+  deleteBtn.title = "Удалить карту";
+  deleteBtn.textContent = "🗑";
+  deleteBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void (async () => {
+      deleteBtn.disabled = true;
+      try {
+        const deleted = await deleteEntryOverviewVizMap({
+          mapPath: filePath,
+          about,
+          kind: row.kind,
+          label: row.label || row.kind
+        });
+        if (deleted && typeof onListMutate === "function") await onListMutate();
+      } finally {
+        deleteBtn.disabled = false;
+      }
+    })();
+  });
+
+  wrap.append(btn, previewBtn, deleteBtn);
+  return wrap;
+}
+
+function createEntryOverviewVizMapsCard(
+  title,
+  contentNode,
+  { badgeText = null, aboutPath = "", context = null, onEditClick = null } = {}
+) {
+  const card = document.createElement("section");
+  card.className =
+    "node-navigation-memory-card node-navigation-memory-card--viz node-entry-overview-viz-maps-card";
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-memory-body";
+  body.appendChild(contentNode);
+
+  const head = createNavigationSectionHead(title, {
+    badgeText,
+    badgeModeId: "viz",
+    icon: "🗺"
+  });
+  head.classList.add("node-navigation-memory-head--record-viz-maps");
+  head.classList.add("node-navigation-memory-head--actionable");
+
+  const vizTitleNode = head.querySelector(".node-navigation-memory-title");
+  if (vizTitleNode) {
+    vizTitleNode
+      .querySelectorAll(".node-navigation-memory-title-icon--svg")
+      .forEach((node) => node.remove());
+    fillNavigationMemoryTitleNode(vizTitleNode, title, "", "🗺");
+  }
+
+  if (aboutPath) {
+    const actions = document.createElement("div");
+    actions.className = "node-entry-overview-viz-maps-head-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "node-navigation-memory-view-btn node-overview-action-btn";
+    editBtn.textContent = "Добавить";
+    editBtn.title = "Редактировать запись и открыть вкладку «Карты»";
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeEntryOverviewVizMapsCreatePopover();
+      const ctx = context || activeEntryOverviewContext;
+      if (typeof onEditClick === "function") {
+        onEditClick(ctx);
+        return;
+      }
+      if (ctx) void openEntryOverviewEdit(ctx).then(() => setDocAsideTab("viz"));
+    });
+
+    const plusBtn = document.createElement("button");
+    plusBtn.type = "button";
+    plusBtn.className =
+      "node-navigation-memory-view-btn node-overview-action-btn node-entry-overview-viz-maps-add-btn";
+    plusBtn.setAttribute("aria-expanded", "false");
+    plusBtn.setAttribute("aria-haspopup", "menu");
+    plusBtn.title = "Быстро: создать или открыть карту…";
+    plusBtn.innerHTML = '<span class="node-entry-overview-viz-maps-add-glyph" aria-hidden="true">+</span>';
+    plusBtn.addEventListener("click", (event) => {
+      void openEntryOverviewVizMapsCreatePopover(event, {
+        about: aboutPath,
+        context: context || activeEntryOverviewContext,
+        card
+      });
+    });
+
+    actions.append(editBtn, plusBtn);
+    head.appendChild(actions);
+  }
+
+  card.append(head, body);
+  if (aboutPath) card.dataset.vizMapsAbout = aboutPath;
+  return card;
+}
+
+async function refreshEntryOverviewVizMapsBody(body, context, helpers = {}) {
+  if (!body) return;
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!about) return;
+
+  body.classList.add("is-loading");
+  body.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "node-entry-overview-viz-maps-loading";
+  loading.textContent = "Загрузка карт…";
+  body.appendChild(loading);
+
+  let data;
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/maps-for-about", { about }));
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || response.statusText);
+  } catch (error) {
+    body.classList.remove("is-loading");
+    body.replaceChildren();
+    const err = document.createElement("div");
+    err.className = "node-entry-overview-record-parts-empty";
+    err.textContent = error.message || "Не удалось загрузить карты";
+    body.appendChild(err);
+    return { count: 0 };
+  }
+
+  body.classList.remove("is-loading");
+  body.replaceChildren();
+
+  const maps = (Array.isArray(data.maps) ? data.maps : []).filter((row) => row?.map?.path);
+  if (!maps.length) {
+    const empty = document.createElement("div");
+    empty.className = "node-entry-overview-record-parts-empty";
+    empty.textContent = "Пока нет карт *.viz.md — создайте через «+» или вкладку «Карты» при редактировании.";
+    body.appendChild(empty);
+    const actions = document.createElement("div");
+    actions.className = "node-entry-overview-record-parts-actions";
+    const createBtn = document.createElement("button");
+    createBtn.type = "button";
+    createBtn.className = "node-entry-overview-record-parts-create-btn";
+    appendVizMapsIconLabel(createBtn, ENTRY_OVERVIEW_VIZ_MAPS_CREATE_BTN_LABEL, {
+      iconClass: "record-materials-icon record-materials-icon--button"
+    });
+    createBtn.addEventListener("click", () => {
+      if (typeof helpers.onCreate === "function") helpers.onCreate();
+      else if (activeEntryOverviewContext) {
+        void openEntryOverviewEdit(activeEntryOverviewContext).then(() => setDocAsideTab("viz"));
+      }
+    });
+    actions.appendChild(createBtn);
+    body.appendChild(actions);
+    return { count: 0 };
+  }
+
+  const list = document.createElement("div");
+  list.className = "node-entry-overview-viz-maps-list";
+  list.setAttribute("role", "list");
+  for (const row of maps) {
+    const item = createEntryOverviewVizMapListRow(row, about, {
+      onListMutate: async () => {
+        const { count } = await refreshEntryOverviewVizMapsBody(body, context, helpers);
+        syncEntryOverviewVizMapsCardBadge(body.closest(".node-entry-overview-viz-maps-card"), count);
+      }
+    });
+    if (item) list.appendChild(item);
+  }
+  body.appendChild(list);
+  return { count: maps.length };
+}
+
+async function renderEntryOverviewVizMapsPart(context, { onEditClick = null } = {}) {
+  if (!shouldShowEntryOverviewVizMaps(context)) return null;
+
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  if (!about) return null;
+
+  const bodyWrap = document.createElement("div");
+  bodyWrap.className = "node-entry-overview-viz-maps";
+
+  const body = document.createElement("div");
+  body.className = "node-entry-overview-viz-maps-body";
+  bodyWrap.appendChild(body);
+
+  const openVizAsideAfterEdit = () => {
+    if (typeof onEditClick === "function") {
+      onEditClick(context);
+      return;
+    }
+    void openEntryOverviewEdit(context).then(() => setDocAsideTab("viz"));
+  };
+
+  const { count } = await refreshEntryOverviewVizMapsBody(body, context, {
+    onCreate: openVizAsideAfterEdit
+  });
+
+  const badgeText = count > 0 ? String(count) : null;
+  return createEntryOverviewVizMapsCard(ENTRY_OVERVIEW_VIZ_MAPS_UI_LABEL, bodyWrap, {
+    badgeText,
+    aboutPath: about,
+    context,
+    onEditClick: openVizAsideAfterEdit
+  });
+}
+
+async function appendEntryOverviewVizMapsPanel(
+  context,
+  mount,
+  isStale = () => false,
+  insertAfter = null
+) {
+  if (!shouldShowEntryOverviewVizMaps(context)) return null;
+
+  const about = normalizeEntryOverviewVizMapsAboutPath(context);
+  const contextKey = `${String(context?.memoryKind || "").trim()}:${about}`;
+  const panel = await renderEntryOverviewVizMapsPart(context);
+  if (!panel) return null;
+
+  const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
+  const activeKey = `${String(activeEntryOverviewContext?.memoryKind || "").trim()}:${activeAbout}`;
+  if (activeKey !== contextKey) return null;
+  if (typeof isStale === "function" && isStale()) return null;
+
+  if (insertAfter?.parentElement) {
+    insertAfter.insertAdjacentElement("afterend", panel);
+    return panel;
+  }
+
+  mount?.appendChild(panel);
+  return panel;
 }
 
 async function appendEntryOverviewRecordPartsPanel(
@@ -80628,10 +81860,14 @@ async function resolveNavigationPrefetchValue(prefetched, key, fetcher) {
 async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
+  const slotsTemplate = prefetched.propsEntries?.length
+    ? getTopicSlotsTemplateFromEntries(prefetched.propsEntries)
+    : await readTopicSlotsTemplateForPath(topicPath);
   const topicUsesFlexibleSlots = await shouldHideTopicStorageSlots(
     topicPath,
     prefetched.propsEntries || null
   );
+  const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
 
   let intake = topicIntakeCacheByPath.get(manifestPath) || null;
   if (!intake) {
@@ -80646,7 +81882,10 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   let overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
-  if (topicUsesFlexibleSlots) {
+  if (instructionSlotsOnly) {
+    overviewSpecs = overviewSpecs.filter((spec) => spec?.key === "todo-single");
+    if (!overviewSpecs.length) return [];
+  } else if (topicUsesFlexibleSlots) {
     overviewSpecs = overviewSpecs.filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
     if (!overviewSpecs.length) return [];
   }
@@ -84953,14 +86192,27 @@ async function renderEntryOverview() {
   }
   if (contentPanel) hubMain.appendChild(contentPanel);
 
+  let entryOverviewSectionInsertAfter = contentPanel || hero;
   if (showRecordParts) {
-    await appendEntryOverviewRecordPartsPanel(
+    const recordPartsPanel = await appendEntryOverviewRecordPartsPanel(
       materialsContext,
       hubMain,
       isStale,
-      contentPanel || hero,
+      entryOverviewSectionInsertAfter,
       recordPartsWorkspaceFolderPath
     );
+    if (recordPartsPanel) entryOverviewSectionInsertAfter = recordPartsPanel;
+    if (isStale()) return;
+  }
+
+  if (shouldShowEntryOverviewVizMaps(context)) {
+    const vizMapsPanel = await appendEntryOverviewVizMapsPanel(
+      context,
+      hubMain,
+      isStale,
+      entryOverviewSectionInsertAfter
+    );
+    if (vizMapsPanel) entryOverviewSectionInsertAfter = vizMapsPanel;
     if (isStale()) return;
   }
 
@@ -86114,6 +87366,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     const readMemoryKind = handlers.readMemoryKind || handlers.resourceContextMenuMemoryKind || "external";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item), {
       hasMaterials: navigationItemHasRecordMaterials(item),
+      hasVizMaps: navigationItemHasVizMaps(item),
       attachmentPaths: getNavigationItemAttachmentPaths(item),
       hasUnread: isNavigationTocItemUnread(readManifestPath, item, readMemoryKind)
     });
@@ -86288,32 +87541,30 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
   if (sharedSlotMode) {
     card.dataset.slotsFlexible = "1";
   }
-  card.append(
-    createNavigationSectionHead(externalTitle, {
-      viewModeId: "external",
-      openTitle: sharedSlotMode ? "Открыть awn-storage/ — общий гибкий слот" : null,
-      titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
-      badgeText: getNavigationMemoryBadgeText("external", externalData),
-      badgeModeId: "external",
-      sort: {
-        scope: "external",
-        onChange: () => refreshNavigationExternalTocSearch(card)
-      },
-      search: showSearch
-        ? {
-            enabled: true,
-            value: navigationExternalTocSearchQuery,
-            placeholder: "Поиск по записям...",
-            ariaLabel: "Поиск по записям многофайловой памяти",
-            onInput: (value) => {
-              navigationExternalTocSearchQuery = value;
-              refreshNavigationExternalTocSearch(card);
-            }
+  const externalHead = createNavigationSectionHead(externalTitle, {
+    viewModeId: "external",
+    openTitle: sharedSlotMode ? "Открыть awn-storage/ — общий гибкий слот" : null,
+    titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
+    badgeText: getNavigationMemoryBadgeText("external", externalData),
+    badgeModeId: "external",
+    sort: {
+      scope: "external",
+      onChange: () => refreshNavigationExternalTocSearch(card)
+    },
+    search: showSearch
+      ? {
+          enabled: true,
+          value: navigationExternalTocSearchQuery,
+          placeholder: "Поиск по записям...",
+          ariaLabel: "Поиск по записям многофайловой памяти",
+          onInput: (value) => {
+            navigationExternalTocSearchQuery = value;
+            refreshNavigationExternalTocSearch(card);
           }
-        : null
-    }),
-    body
-  );
+        }
+      : null
+  });
+  card.append(externalHead, body);
 
   if (mdItems.length || folderPaths.size > 0) {
     refreshNavigationExternalTocSearch(card);
@@ -95535,15 +96786,17 @@ function buildNodeNavigationMemoryPanelsWrap({
 }) {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
 
   if (!isInlineNavHub) {
     const panels = [
-      slotsNone ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
-      renderNavigationInternalPart(internalData, { nodePath }),
-      renderNavigationTabularPart(tabularData),
-      slotsDisabled || slotsNone ? null : renderNavigationMediaPart(mediaData),
-      slotsDisabled || slotsNone || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      skipExternal ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
+      instructionOnly ? null : renderNavigationInternalPart(internalData, { nodePath }),
+      instructionOnly ? null : renderNavigationTabularPart(tabularData),
+      skipMediaAssets ? null : renderNavigationMediaPart(mediaData),
+      skipMediaAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -95562,7 +96815,9 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -95577,14 +96832,12 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           Promise.resolve(null)
         ]
       : [
-          fetchInternalMemoryForNavigation(nodePath),
-          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
-          fetchTabularMemoryForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(null) : fetchInternalMemoryForNavigation(nodePath),
+          skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          slotsDisabled || slotsNone
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          slotsDisabled || slotsNone
+          skipMediaAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          skipMediaAssets
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
@@ -95724,7 +96977,10 @@ async function renderNodeNavigation() {
     slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   }
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const compactNav = topicSlotsTemplateUsesCompactNav(slotsTemplate, slotsDisabled);
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
@@ -95760,14 +97016,14 @@ async function renderNodeNavigation() {
             : Promise.resolve(null)
         ]
       : [
-          fetchInternalMemoryForNavigation(nodePath),
-          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
-          fetchTabularMemoryForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(null) : fetchInternalMemoryForNavigation(nodePath),
+          skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          slotsDisabled || slotsNone ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          slotsDisabled || slotsNone
+          skipMediaAssets ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          skipMediaAssets
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
@@ -95900,6 +97156,7 @@ async function renderNodeNavigation() {
       descriptionRaw: modeContentCache.description || "",
       typeLabel: topicTypeLabel,
       showHeroInstruction: true,
+      slotsInstructionOnly: instructionOnly,
       onEditClick: openDescriptionFromOverview,
       settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
       hideSharedSlot: isRepositoryManifestPath(nodePath),
@@ -95913,6 +97170,18 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav,
     });
     hubMain.appendChild(hero);
+    if (isTopicManifestPath(nodePath)) {
+      const vizContext = buildNodeManifestVizMapsOverviewContext(nodePath, entries);
+      if (vizContext) {
+        const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
+          onEditClick: () => {
+            openDescriptionFromOverview();
+            queueMicrotask(() => setDocAsideTab("viz"));
+          }
+        });
+        if (vizPanel && !isStale()) hubMain.appendChild(vizPanel);
+      }
+    }
   }
 
   await appendNodeOverviewTypeRegistryFold(hubMain, nodePath);
@@ -95962,7 +97231,7 @@ async function renderNodeNavigation() {
       externalData,
       mediaData
     });
-    if (slotsDisabled || slotsNone) {
+    if (compactNav) {
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
       if (!topicSlotCounters.length) {
@@ -96779,7 +98048,8 @@ function applyModeUi(options = {}) {
   syncDocAsideUi({
     outlinePanelAvailable: isDocAsideOutlineTabAvailable(),
     propsPanelAvailable: isDocAsidePropsTabAvailable(),
-    editorToolsPanelAvailable: canInsertDocContentBlocks()
+    editorToolsPanelAvailable: canInsertDocContentBlocks(),
+    vizMapsPanelAvailable: isDocAsideVizMapsTabAvailable()
   });
   if (showDocAside) syncPropsFormActionsUi();
   removeYamlPanelLabel();
@@ -104728,6 +105998,10 @@ function bindVoiceChatDragSourceObserver() {
   if (typeof MutationObserver === "undefined") return;
   const observer = new MutationObserver(() => enableVoiceChatDragSources(host));
   observer.observe(host, { childList: true, subtree: true });
+}
+
+function setupFileHubBandPanel() {
+  window.FileHubBandPanel?.init?.();
 }
 
 function setupContextBufferPanel() {
@@ -112784,6 +114058,7 @@ async function openWorkspaceInspectorPath(relPath) {
 }
 
 window.showToast = showToast;
+window.askConfirm = askConfirm;
 window.openWorkspaceInspectorPath = openWorkspaceInspectorPath;
 window.getEditorPlainTextForFind = () => {
   if (editorViewMode === "wysiwyg") {
@@ -113968,6 +115243,16 @@ function renderAgentRoadmapMapView() {
     return;
   }
 
+  if (agentRoadmapMapSubview === "atlas") {
+    void renderAgentRoadmapMapAtlasView(renderSeq);
+    return;
+  }
+
+  if (agentRoadmapMapSubview === "atlas-kinds") {
+    void renderAgentRoadmapMapAtlasKindsView(renderSeq);
+    return;
+  }
+
   if (!currentMenuData) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "Дерево агента ещё не загружено");
     return;
@@ -113986,7 +115271,265 @@ function renderAgentRoadmapMapView() {
     void renderAgentRoadmapMapMindmapView(renderSeq);
     return;
   }
+  if (agentRoadmapMapSubview === "roadmap") {
+    void renderAgentRoadmapMapRoadmapView(renderSeq);
+    return;
+  }
   void renderAgentRoadmapMapRoadmapView(renderSeq);
+}
+
+async function renderAgentRoadmapAtlasMapPreview(host, item, renderSeq) {
+  if (!host || !item?.path) return;
+  renderAgentRoadmapMapLoading(host, "Загрузка карты…");
+  const mapPath = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  try {
+    const response = await fetch(buildApiUrl("/api/viz/map", { path: mapPath }));
+    const data = await response.json();
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    if (!response.ok) throw new Error(data.error || response.statusText);
+
+    host.replaceChildren();
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll agent-rmm-atlas-preview-wrap";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Просмотр карты визуализации");
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "agent-rmm-atlas-preview-toolbar";
+
+    const backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "agent-rmm-atlas-preview-back";
+    backBtn.textContent = "← К списку";
+    backBtn.addEventListener("click", () => {
+      agentRoadmapAtlasSelectedItem = null;
+      renderAgentRoadmapMapView();
+    });
+
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "agent-rmm-atlas-preview-heading";
+    const titleNode = document.createElement("span");
+    titleNode.className = "agent-rmm-atlas-preview-title";
+    titleNode.textContent = item.title || mapPath.split("/").pop() || "Карта";
+    const metaNode = document.createElement("span");
+    metaNode.className = "agent-rmm-atlas-preview-meta";
+    metaNode.textContent = [item.kindLabel || item.kind, mapPath].filter(Boolean).join(" · ");
+    titleWrap.append(titleNode, metaNode);
+
+    const openEditBtn = document.createElement("button");
+    openEditBtn.type = "button";
+    openEditBtn.className = "agent-rmm-atlas-preview-open-editor";
+    openEditBtn.textContent = "В редакторе";
+    openEditBtn.title = "Открыть файл карты в редакторе темы";
+    openEditBtn.addEventListener("click", () => {
+      void window.agentCmsOpenVizMap?.(mapPath, item.about || "", { navigateToMap: true });
+    });
+
+    toolbar.append(backBtn, titleWrap, openEditBtn);
+
+    const article = document.createElement("article");
+    article.className = "agent-rmm-atlas-preview markdown-preview";
+    const body = document.createElement("div");
+    body.className = "markdown-body agent-rmm-atlas-preview-body";
+    const content = String(data.content || "");
+    if (typeof renderMarkdownToHtml === "function") {
+      body.innerHTML = renderMarkdownToHtml(content, { hideFrontmatter: true, nodePath: mapPath });
+      if (typeof hydrateMarkdownPreviewElement === "function") {
+        hydrateMarkdownPreviewElement(body, mapPath);
+      }
+    } else {
+      body.textContent = content;
+    }
+    article.appendChild(body);
+    wrap.append(toolbar, article);
+    host.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    host.replaceChildren();
+    renderListEmptyMessage(host, `Карта: ${error?.message || error}`);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "agent-rmm-atlas-preview-back";
+    retry.textContent = "← К списку";
+    retry.addEventListener("click", () => {
+      agentRoadmapAtlasSelectedItem = null;
+      renderAgentRoadmapMapView();
+    });
+    host.appendChild(retry);
+  }
+}
+
+async function renderAgentRoadmapMapAtlasView(renderSeq) {
+  if (!agentRoadmapMapHostNode) return;
+  if (agentRoadmapAtlasSelectedItem?.path) {
+    await renderAgentRoadmapAtlasMapPreview(
+      agentRoadmapMapHostNode,
+      agentRoadmapAtlasSelectedItem,
+      renderSeq
+    );
+    return;
+  }
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка атласа…");
+  try {
+    const [atlasRes, kindsRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/atlas")),
+      fetch(buildApiUrl("/api/viz/kinds"))
+    ]);
+    const atlas = await atlasRes.json();
+    const kindsPayload = kindsRes.ok ? await kindsRes.json() : { kinds: [] };
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+
+    const items = Array.isArray(atlas.items) ? atlas.items : [];
+    const kindIcons = new Map(
+      (Array.isArray(kindsPayload.kinds) ? kindsPayload.kinds : []).map((k) => [k.id, k.icon || "🗺"])
+    );
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Атлас карт визуализации");
+
+    const head = document.createElement("div");
+    head.className = "agent-rmm-atlas-head";
+    head.innerHTML = `<p class="agent-rmm-atlas-title">Атлас — все карты <code>*.viz.md</code></p><p class="agent-rmm-atlas-meta">${items.length} карт · отдельно от RMM и полей awn-viz-*</p>`;
+    wrap.appendChild(head);
+
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "agent-rmm-atlas-empty";
+      empty.textContent =
+        "Карт пока нет. Создайте в свойствах записи (Визуализация → *.viz.md) или через API POST /api/viz/map.";
+      wrap.appendChild(empty);
+      agentRoadmapMapHostNode.appendChild(wrap);
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "agent-rmm-atlas-list";
+    for (const item of items) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "agent-rmm-atlas-row";
+      const icon = kindIcons.get(item.kind) || "🗺";
+      const title = item.title || item.path?.split("/").pop() || "—";
+      row.innerHTML = `<span class="agent-rmm-atlas-row-icon" aria-hidden="true">${escapeHtml(icon)}</span><span class="agent-rmm-atlas-row-copy"><span class="agent-rmm-atlas-row-title">${escapeHtml(title)}</span><span class="agent-rmm-atlas-row-meta">${escapeHtml(item.kindLabel || item.kind || "")} · ${escapeHtml(item.path || "")}</span></span>`;
+      row.addEventListener("click", () => {
+        agentRoadmapAtlasSelectedItem = {
+          path: item.path,
+          about: item.about,
+          title,
+          kind: item.kind,
+          kindLabel: item.kindLabel
+        };
+        setAgentRoadmapMapDetail(title, item.path || "");
+        renderAgentRoadmapMapView();
+      });
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+    agentRoadmapMapHostNode.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+    renderListEmptyMessage(agentRoadmapMapHostNode, `Атлас: ${error?.message || error}`);
+  }
+}
+
+async function renderAgentRoadmapMapAtlasKindsView(renderSeq) {
+  if (!agentRoadmapMapHostNode) return;
+  renderAgentRoadmapMapLoading(agentRoadmapMapHostNode, "Загрузка реестра видов…");
+  try {
+    const [kindsRes, atlasRes] = await Promise.all([
+      fetch(buildApiUrl("/api/viz/kinds")),
+      fetch(buildApiUrl("/api/viz/atlas"))
+    ]);
+    const payload = kindsRes.ok ? await kindsRes.json() : { sections: [], kinds: [] };
+    const atlas = atlasRes.ok ? await atlasRes.json() : { items: [] };
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+
+    const sections = Array.isArray(payload.sections) ? payload.sections : [];
+    const kinds = Array.isArray(payload.kinds) ? payload.kinds : [];
+    const countByKind = new Map();
+    for (const item of Array.isArray(atlas.items) ? atlas.items : []) {
+      const k = String(item.kind || "").toLowerCase();
+      countByKind.set(k, (countByKind.get(k) || 0) + 1);
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "agent-rmm-atlas-scroll agent-rmm-atlas-kinds-scroll";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", "Виды карт визуализации");
+
+    const head = document.createElement("div");
+    head.className = "agent-rmm-atlas-head";
+    head.innerHTML =
+      `<p class="agent-rmm-atlas-title">Виды карт — реестр платформы</p>` +
+      `<p class="agent-rmm-atlas-meta">${kinds.length} видов · файлы <code>*.{kind}.viz.md</code> · раздел «Атлас» — экземпляры в workspace</p>`;
+    wrap.appendChild(head);
+
+    const kindsBySection = new Map();
+    for (const kind of kinds) {
+      const sid = String(kind.section || "knowledge").toLowerCase();
+      if (!kindsBySection.has(sid)) kindsBySection.set(sid, []);
+      kindsBySection.get(sid).push(kind);
+    }
+
+    const sectionOrder = sections.length
+      ? sections.map((s) => s.id)
+      : [...kindsBySection.keys()];
+
+    for (const sectionDef of sections.length ? sections : sectionOrder.map((id) => ({ id, label: id, icon: "" }))) {
+      const sid = sectionDef.id;
+      const sectionKinds = kindsBySection.get(sid) || [];
+      if (!sectionKinds.length) continue;
+
+      const block = document.createElement("section");
+      block.className = "agent-rmm-atlas-kinds-section";
+
+      const blockHead = document.createElement("h3");
+      blockHead.className = "agent-rmm-atlas-kinds-section-title";
+      const secIcon = sectionDef.icon ? `${sectionDef.icon} ` : "";
+      blockHead.textContent = `${secIcon}${sectionDef.label || sid}`;
+      block.appendChild(blockHead);
+
+      const grid = document.createElement("div");
+      grid.className = "agent-rmm-atlas-kinds-grid";
+
+      for (const kind of sectionKinds) {
+        const card = document.createElement("div");
+        card.className = "agent-rmm-atlas-kind-card";
+        const n = countByKind.get(kind.id) || 0;
+        const countLabel = n ? `${n} в атласе` : "пока нет карт";
+        card.innerHTML =
+          `<div class="agent-rmm-atlas-kind-card-head">` +
+          `<span class="agent-rmm-atlas-kind-icon" aria-hidden="true">${escapeHtml(kind.icon || "🗺")}</span>` +
+          `<span class="agent-rmm-atlas-kind-id"><code>${escapeHtml(kind.id)}</code></span>` +
+          `</div>` +
+          `<p class="agent-rmm-atlas-kind-label">${escapeHtml(kind.label || kind.id)}</p>` +
+          `<p class="agent-rmm-atlas-kind-desc">${escapeHtml(kind.description || "")}</p>` +
+          `<p class="agent-rmm-atlas-kind-meta">${escapeHtml(countLabel)} · <code>*.${escapeHtml(kind.id)}.viz.md</code></p>`;
+        grid.appendChild(card);
+      }
+
+      block.appendChild(grid);
+      wrap.appendChild(block);
+    }
+
+    if (!wrap.querySelector(".agent-rmm-atlas-kinds-section")) {
+      const empty = document.createElement("p");
+      empty.className = "agent-rmm-atlas-empty";
+      empty.textContent = "Реестр видов пуст. Проверьте awn-system/types/viz/.";
+      wrap.appendChild(empty);
+    }
+
+    agentRoadmapMapHostNode.appendChild(wrap);
+  } catch (error) {
+    if (renderSeq !== agentRoadmapMapRenderSeq) return;
+    agentRoadmapMapHostNode.replaceChildren();
+    renderListEmptyMessage(agentRoadmapMapHostNode, `Виды карт: ${error?.message || error}`);
+  }
 }
 
 const AGENT_RMM_PLACEHOLDER_ARIA_LABELS = {
@@ -114045,6 +115588,7 @@ async function renderAgentRoadmapMapLiveView(renderSeq) {
   if (renderSeq !== agentRoadmapMapRenderSeq) return;
 
   agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmDepthScope = agentRoadmapMapDepthScope;
   agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
 
   const graphHost = document.createElement("div");
@@ -114096,7 +115640,7 @@ function renderAgentRoadmapMapPlaceholderSubview(container) {
   );
   const hint = document.createElement("p");
   hint.className = "agent-rmm-depth-stub-hint";
-  hint.textContent = `Глубина: ${getAgentRoadmapMapDepthLabel()} — заготовка, логика представления позже.`;
+  hint.textContent = `Ограничение глубины веток: ${getAgentRoadmapMapDepthScopeLabel()}; ограничение глубины чтения: ${getAgentRoadmapMapDepthLabel()} — заготовка, логика представления позже.`;
   wrap.appendChild(hint);
   container.appendChild(wrap);
 }
@@ -114110,10 +115654,18 @@ function ensureAgentRoadmapMapUiBindings() {
       agentRoadmapMapPaneNode?.querySelectorAll("[data-rmm-mode]").forEach((b) => b.classList.remove("is-active"));
       btn.classList.add("is-active");
       agentRoadmapMapSubview = btn.dataset.rmmMode || "graph";
+      if (agentRoadmapMapSubview !== "atlas") agentRoadmapAtlasSelectedItem = null;
       if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
     });
   });
+  syncAgentRoadmapMapDepthScopeSelectUi();
   syncAgentRoadmapMapDepthSelectUi();
+  agentRoadmapMapDepthScopeNode?.addEventListener("change", () => {
+    agentRoadmapMapDepthScope = normalizeAgentRoadmapMapDepthScope(agentRoadmapMapDepthScopeNode.value);
+    persistAgentRoadmapMapDepthScope(agentRoadmapMapDepthScope);
+    syncAgentRoadmapMapDepthScopeSelectUi();
+    if (agentWorkspaceView === AGENT_ROADMAP_MAP_WORKSPACE_VIEW) renderAgentRoadmapMapView();
+  });
   agentRoadmapMapDepthNode?.addEventListener("change", () => {
     agentRoadmapMapDepth = normalizeAgentRoadmapMapDepth(agentRoadmapMapDepthNode.value);
     persistAgentRoadmapMapDepth(agentRoadmapMapDepth);
@@ -114535,6 +116087,7 @@ async function renderAgentRoadmapMapGraphView(renderSeq) {
     pageIndexPayload
   });
   agentRoadmapMapHostNode.replaceChildren();
+  agentRoadmapMapHostNode.dataset.rmmDepthScope = agentRoadmapMapDepthScope;
   agentRoadmapMapHostNode.dataset.rmmMarkdownDepth = agentRoadmapMapDepth;
   if (graph.nodes.length <= 1) {
     renderListEmptyMessage(agentRoadmapMapHostNode, "В workspace пока нет узлов для графа");
@@ -121131,6 +122684,19 @@ function syncAwnDataCreateGroupPresetsUi() {
     taskQueueBtn.title = exists
       ? "Коллекция awn-databases/task-queue/ уже создана"
       : "Коллекция task-queue — md с разделами, как слот «Очередь задач» в теме и канале";
+  }
+
+  const externalMemoryBtn = awnDataCreateGroupPresetsWrapNode.querySelector(
+    '[data-awn-data-group-preset="contents-external-memory"]'
+  );
+  if (externalMemoryBtn) {
+    const exists = isAwnContentsCollectionPresent(AWN_EXTERNAL_MEMORY_STORE, activeWorkspaceId);
+    externalMemoryBtn.disabled = exists;
+    externalMemoryBtn.classList.toggle("is-disabled", exists);
+    externalMemoryBtn.setAttribute("aria-disabled", exists ? "true" : "false");
+    externalMemoryBtn.title = exists
+      ? "Коллекция awn-databases/0-contents/0-external-memory уже создана"
+      : "Группа 0-contents/ и коллекция 0-external-memory (разделы claude, cursor…, MCP external_memory_sync)";
   }
 }
 
@@ -130634,6 +132200,46 @@ async function submitAwnDataScaffoldContents(agentId = activeWorkspaceId, { pres
   }
 }
 
+async function submitAwnDataScaffoldExternalMemory(agentId = activeWorkspaceId) {
+  if (!agentId) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  const presetBtn = awnDataCreateGroupPresetsWrapNode?.querySelector(
+    '[data-awn-data-group-preset="contents-external-memory"]'
+  );
+  if (presetBtn) presetBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-databases/scaffold-external-memory", {}, agentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.details || data.error || `HTTP ${response.status}`);
+    closeAwnDataCreateModal();
+    const sections = Array.isArray(data.sectionsCreated) ? data.sectionsCreated : [];
+    if (data.storeCreated) {
+      const archived = String(data.legacyArchivedTo || "").trim();
+      const archiveHint = archived ? ` Старая схема перенесена в ${archived}.` : "";
+      showToast(
+        sections.length
+          ? `Создана «Внешняя память», разделы: ${sections.join(", ")}.${archiveHint}`
+          : `Создана коллекция «Внешняя память».${archiveHint}`,
+        "success"
+      );
+    } else {
+      showToast("Коллекция «Внешняя память» уже существует", "success");
+    }
+    await refreshMenuAwnDataStores(agentId);
+    void openAwnDataViewPage(AWN_EXTERNAL_MEMORY_STORE, agentId);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    syncAwnDataCreateGroupPresetsUi();
+  }
+}
+
 async function submitAwnDataScaffoldTaskQueue(agentId = activeWorkspaceId) {
   if (!agentId) {
     showToast("Выберите агента", "error");
@@ -130721,6 +132327,7 @@ function setupAwnDataStoresUi() {
     if (preset === "contents-glossary") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "glossary" });
     if (preset === "contents-reference") void submitAwnDataScaffoldContents(activeWorkspaceId, { preset: "reference" });
     if (preset === "task-queue") void submitAwnDataScaffoldTaskQueue();
+    if (preset === "contents-external-memory") void submitAwnDataScaffoldExternalMemory();
   });
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("single"));
@@ -134330,6 +135937,7 @@ window.AgentCmsLinkDrag = {
 };
 setupVoiceChatContextDrag();
 setupContextBufferPanel();
+setupFileHubBandPanel();
 setupMenuNodeMoveDragDrop();
 setupMemoryListDragDrop();
 setupEditorMenuLinkDrop();
@@ -135018,6 +136626,10 @@ docAsideTabLinksBtn?.addEventListener("click", () => {
   if (docAsideTabLinksBtn.disabled) return;
   setDocAsideTab("links");
 });
+docAsideTabVizBtn?.addEventListener("click", () => {
+  if (docAsideTabVizBtn.disabled) return;
+  setDocAsideTab("viz");
+});
 
 docAsideMiniDocNode?.addEventListener("click", (event) => {
   const toggleBtn = event.target.closest(".doc-aside-mini-doc-head");
@@ -135528,6 +137140,14 @@ document.addEventListener("click", (event) => {
       !event.target.closest(".nav-book-toc-folder-create-btn")
     ) {
       closeNavigationHubRailFolderCreatePopover();
+    }
+  }
+  if (entryOverviewVizMapsCreatePopoverNode?.classList.contains("hidden") === false) {
+    if (
+      !event.target.closest("#entry-overview-viz-maps-create-popover") &&
+      !event.target.closest(".node-entry-overview-viz-maps-add-btn")
+    ) {
+      closeEntryOverviewVizMapsCreatePopover();
     }
   }
   if (awnDataGroupCreatePopoverNode?.classList.contains("hidden") === false) {

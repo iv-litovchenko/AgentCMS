@@ -1,6 +1,6 @@
 ---
 name: agent-cms-welcome
-description: Ввод в Agent CMS — зачем хранилище, старт через MCP, карта скиллов 0–6. Необязательный скилл: если не установлен, агент читает его через platform_doc_read. Используй, когда подключаешь MCP или человек спрашивает «что такое Agent CMS» и с чего начать.
+description: Ввод в Agent CMS — зачем хранилище, старт через MCP, карта скиллов 0–7. Необязательный скилл: если не установлен, агент читает его через platform_doc_read. Используй, когда подключаешь MCP или человек спрашивает «что такое Agent CMS» и с чего начать.
 ---
 
 # Agent CMS — welcome
@@ -37,6 +37,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 | Markdown | `GLOBAL-SKILL-4-MARKDOWN.md` | разметка при записи md |
 | Search | `GLOBAL-SKILL-5-SEARCH.md` | поиск, индексы, DQL |
 | Modules | `GLOBAL-SKILL-6-MODULES.md` | git и другие модули |
+| Viz maps | `GLOBAL-SKILL-7-VIZ-MAPS.md` | карты `*.viz.md`, «Атлас» в UI, `viz_map_*` |
 
 Через MCP можно прочитать текст скилла: `platform_doc_read({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы; список — `platform_docs_list`).
 

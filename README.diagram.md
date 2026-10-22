@@ -25,6 +25,7 @@ flowchart TD
     WS --> TOOLS["🛠️ Инструменты"]
     WS --> WS_SERVICES["🛎️ Сервисы workspace"]
     WS --> IDEAS["💡 Идеи"]
+    WS --> ATLAS_VIZ["🗺️ Атласы (карты визуализации)<br/>Атлас = экземпляры *.viz.md · Виды карт = реестр<br/>10 kinds · 6 разделов (🧠 🗺 ⚙️ ⏳ 👥 📍)"]
 
     WS_SERVICES --> WS_DISCUSS["💬 Discuss · digest · summarization"]
     WS_DISCUSS --> WS_TRASH["🗑️ Корзина"]
@@ -100,6 +101,7 @@ flowchart TD
     classDef accentChannelViews fill:#fca5a5,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
     classDef accentMedia fill:#06b6d4,stroke:#0e7490,stroke-width:2px,color:#ecfeff
     classDef accentScripts fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fffbeb
+    classDef accentVizAtlas fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#422006
     class TREE accentTree
     class DATA accentData
     class REPOS accentRepos
@@ -107,6 +109,7 @@ flowchart TD
     class CHANNEL_VIEWS accentChannelViews
     class MEDIATHEQUE accentMedia
     class SCRIPTS accentScripts
+    class ATLAS_VIZ accentVizAtlas
 
     click CMS href "https://agent-cms.ru/" "Открыть сайт Agent CMS"
     click WS_NOTIFY href "awn-topics/zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md" "Уведомления"
@@ -121,6 +124,7 @@ flowchart TD
     click IDEA7 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/6-acsess-dostupy-prava.md" "Права доступа и роли"
     click IDEA8 href "awn-topics/zadachi-plany-i-idei/awn-storage/main/7-ideya-hranit-sekretnye-dannye-paroli-i-karty.md" "Пароли и приватные данные"
     click C_SLOT href "awn-topics/zadachi-plany-i-idei/awn-storage/main/mindmapkarta-roudmapy.md" "Дорожная карта"
+    click ATLAS_VIZ href "awn-topics/zadachi-plany-i-idei/awn-storage/main/mindmap-intellektualnye-karty.md" "Атласы · карты визуализации"
     click FACT_BANK href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/bank-faktov-i-glossariy.md" "Банк фактов"
     click EXTRA_DIALOGS href "awn-topics/obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md" "Диалоги · дискуссия"
     click ANNOT_SIDECAR href "awn-topics/zadachi-plany-i-idei/awn-storage/main/drugie-idei/izobrazheniya-i-rabota-s-izobrazheniyami.md" "Sidecar"

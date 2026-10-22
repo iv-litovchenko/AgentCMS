@@ -69,7 +69,8 @@ Workspace — папка с md-файлами. Хабы:
 | `awn-index-exclude-record` / `-subtree` | Исключить запись / всё содержимое папки из поиска и индексов | — |
 | `awn-create` · `awn-update` · `awn-version` · `awn-owner` | Создан / изменён / версия / владелец | Системные, не писать |
 | `awn-viewed` · `awn-deadline` · `awn-auto-toc` | Заглушки — пока не заполняются и ни на что не влияют | Не опираться |
-| `awn-viz-graph` / `-mindmap` / `-roadmap` | Настройки узла на графе, карте знаний и roadmap | Только по просьбе |
+| 🔴 `awn-viz-graph` · `awn-viz-mindmap` · `awn-viz-roadmap` | **Не актуально (legacy)** — метаданные узла для RMM в canvas («Граф» / «Интеллект-карта» / «Дорожная карта»); новые карты — отдельные файлы `*.viz.md` (`viz-kind`, `viz-about`) | Агенту не заполнять; только если человек явно просит править legacy UI |
+| `viz-kind` · `viz-about` · `viz-title` | Живые карты: `assets/viz/{awn-id}/{kind}.viz.md` (как materials по `awn-id`); UI «**Атлас**» | Скилл `agent-cms-viz` (`GLOBAL-SKILL-7-VIZ-MAPS.md`). MCP: `viz_map_*`. HTTP: `/api/viz/*` |
 | `awn-location-*`, `awn-is-real-world-*` | Физическая локация, координаты, признак реального объекта/события (записи) | — |
 
 Префикс `awn-` — системные поля платформы; свои поля темы задаются в `schema` и могут быть без префикса. Поля типа ведут свои хабы (например `awn-code` / `awn-target-path` у short-link) — смотри схему типа.
@@ -132,7 +133,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_read`, `content_binary_write`, `content_binary_write_from_url`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
+Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_read`, `content_binary_write`, `content_binary_write_from_url`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). **`contents_list_reconcile`** (🔵) — пакетная сверка `{ id?, path? }[]` из памяти/cron с диском (краткий diff, без тел); затем точечный `content_read` / write. Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
@@ -247,6 +248,7 @@ Workspace — папка с md-файлами. Хабы:
 - **Факты:** `fact_create`, `fact_update`, `facts_list`, `facts_search`. `kind`: `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact`. Решение изменилось → новый факт с `supersedes`. Legacy: `workspace_fact_*`, `create_workspace_fact`, …
 - **Глоссарий:** `glossary_term_create` / `glossary_term_update` / `glossary_terms_list` / `glossary_terms_search`.
 - **Справочник:** `reference_entry_create` / `reference_entry_update` / `reference_entries_list` / `reference_entries_search`.
+- **Внешняя память** (`awn-databases/0-contents/0-external-memory/`): `external_memory_list` / `external_memory_upsert` / `external_memory_sync` / `external_memory_sync_status`. При **upsert/sync** ты **сам** передаёшь **`platform`** — slug **клиента/среды**, не модель: `cursor`, `claude-code`, `codex`, `claude-cli`, `chatgpt`… Под него создаётся раздел `awn-storage/data/{platform}/`. В **list** `platform` опционален (фильтр). Алиасы: `source`, устар. `provider`. Legacy: `list_external_memory`, …
 - **Дискуссия:** `discussion_read` / `discussion_append`.
 - **Аннотации · comment** (`awn.annotation.comment`, слот `comments/`): `annotation_comments_list`, `annotation_comment_append`, `annotation_comment_read`, `annotation_comment_update`, `annotation_comment_delete`, `annotation_comment_reaction_toggle`. `path` — manifest темы; к записи — `mode` (`description` | `external` | `media`) + `file`; ответ — `replyTo`.
 - **`NOTE.md` / `TODO.md`** в корне: `session_note_read` / `session_note_write`, `session_todo_read` / `session_todo_write` (по умолчанию append). Это не слоты `notes` и `todo-single`.

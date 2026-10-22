@@ -1,0 +1,25 @@
+{
+  "instances": [
+    {
+      "id": "local",
+      "kind": "local",
+      "auto": true,
+      "label": "local"
+    },
+    {
+      "id": "server",
+      "kind": "remote",
+      "label": "VPS",
+      "url": "https://cms.example.com",
+      "token": ""
+    },
+    {
+      "id": "marina-macbook",
+      "kind": "tunnel",
+      "label": "MacBook",
+      "deviceId": "marina-macbook",
+      "hubUrl": "https://cms.example.com",
+      "token": ""
+    }
+  ]
+}

@@ -19,6 +19,7 @@ import "../core/editor-system-files-runtime.js";
 import "../core/editor-shared-theme-presets-runtime.js";
 import "../context-buffer/context-buffer-client.js";
 import "../context-buffer/context-buffer-panel.js";
+import "../file-hub/file-hub-band-panel.js";
 import "../cms/awn-enum-options.js";
 import "../core/node-config-bundle.js";
 import "../core/topic-schema-slot-specs.js";
@@ -34,6 +35,7 @@ import "../../../_resources/vendor/channel-preset-icons/map.js";
 
 import "../panels/discuss-panel.js";
 import "../app/privacy-mode.js";
+import "../app/header-ui-locale.js";
 import "../app/sensitive-input.js";
 import "../panels/page-picker-extract.js";
 import "../editor/page-snapshot.js";
@@ -44,6 +46,7 @@ import "../app/header-slogan-rotator.js";
 import "../app/app-footer-voice-cmd.js";
 
 import "../panels/languagetool-panel.js";
+import "../panels/viz-maps-aside.js";
 import "../panels/file-find-bar.js";
 import "../editor/marker-blocks-preview.js";
 import "../panels/mcp-docs-primitives-help.js";

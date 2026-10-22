@@ -2,6 +2,7 @@ const MARKER_TYPES = [
   { type: "мое идея", slug: "moe-ideya", icon: "★", short: "Идея", block: "idea" },
   { type: "мое важно", slug: "moe-vazhno", icon: "!", short: "Важно", block: "important" },
   { type: "мое заметка", slug: "moe-zametka", icon: "✎", short: "Заметка", block: "note" },
+  { type: "заметка агента", slug: "moe-agent-note", icon: "◇", short: "Заметка агента", block: "agent-note" },
   { type: "мое стикер", slug: "moe-stiker", icon: "▤", short: "Стикер", block: "stiker" },
   { type: "мое todo", slug: "moe-todo", icon: "✓", short: "Задача", block: "todo" },
   { type: "мое вопрос", slug: "moe-vopros", icon: "?", short: "Вопрос", block: "question" },

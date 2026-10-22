@@ -27,6 +27,54 @@ function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
 
 const SERVER_POLL_MS = 8000;
 
+const SERVICE_MONITOR_DEFS = [
+  {
+    id: "editor",
+    title: "Agent CMS Editor",
+    shortName: "Editor",
+    accent: "cms",
+    icon: "cms.svg",
+    portKey: "editorHttps",
+    portLabel: "HTTPS"
+  },
+  {
+    id: "voice",
+    title: "Agent CMS Voice-Chat",
+    shortName: "Chat",
+    accent: "voice",
+    icon: "voice.svg",
+    portKey: "voiceHttps",
+    portLabel: "HTTPS"
+  },
+  {
+    id: "commander",
+    title: "Agent CMS Commander",
+    shortName: "Commander",
+    accent: "commander",
+    icon: "commander.svg",
+    portKey: "commanderHttp",
+    portLabel: "HTTP"
+  },
+  {
+    id: "control",
+    title: "Agent CMS Control (Web)",
+    shortName: "Control",
+    accent: "control",
+    icon: "control.svg",
+    portKey: "controlHttp",
+    portLabel: "HTTP"
+  },
+  {
+    id: "mcp",
+    title: "Agent CMS MCP",
+    shortName: "MCP",
+    accent: "mcp",
+    icon: "mcp.svg",
+    portKey: "mcpHttp",
+    portLabel: "HTTP"
+  }
+];
+
 /** Отображаемое имя Voice в Control (логика/порты без изменений). */
 const VOICE_UI_LABEL = "Voice-Chat";
 
@@ -339,6 +387,281 @@ function getDiskStatState() {
     diskTotal: disk?.totalLabel || "—",
     diskFree: disk?.freeLabel || "—"
   };
+}
+
+function getServiceMonitorOpenUrl(def, server, ports) {
+  const urls = server?.urls || {};
+  if (def.id === "editor") {
+    return urls.cms || (ports.editorHttps ? `https://localhost:${ports.editorHttps}/` : "");
+  }
+  if (def.id === "voice") {
+    return urls.voice || (ports.voiceHttps ? `https://localhost:${ports.voiceHttps}/` : "");
+  }
+  if (def.id === "commander") {
+    if (urls.commanderHttps) return urls.commanderHttps;
+    if (urls.commanderHttp) return urls.commanderHttp;
+    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/commander/`;
+    return ports.commanderHttp ? `http://localhost:${ports.commanderHttp}/` : "";
+  }
+  if (def.id === "control") {
+    if (urls.controlHttp) return urls.controlHttp;
+    if (server?.controlHttp && ports.controlHttp) return `http://localhost:${ports.controlHttp}/`;
+    if (urls.controlEditor) return urls.controlEditor;
+    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/control/`;
+    return "";
+  }
+  if (def.id === "mcp") {
+    if (server?.mcpHttp && ports.mcpHttp) return `http://localhost:${ports.mcpHttp}/health`;
+    if (server?.cms && ports.editorHttps) return getTestUrl("mcp");
+    return ports.mcpHttp ? `http://localhost:${ports.mcpHttp}/health` : "";
+  }
+  return "";
+}
+
+function getServiceMonitorRowState(def, server, ports) {
+  const port = ports[def.portKey];
+  const portText = port != null ? String(port) : "—";
+
+  if (def.id === "control") {
+    const dedicated = Boolean(server?.controlHttp);
+    if (dedicated) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: "HTTP localhost",
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    if (server?.cms) {
+      return {
+        state: "on",
+        label: "Через Editor",
+        detail: `/control/ · :${ports.editorHttps}`,
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    return {
+      state: "off",
+      label: "Не запущен",
+      detail: "порт свободен",
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
+
+  if (def.id === "mcp") {
+    const httpUp = Boolean(server?.mcpHttp);
+    const pingOk = mcpOk === true;
+    const pingFail = mcpOk === false;
+    if (server?.cms && mcpOk === null) {
+      return {
+        state: "pending",
+        label: "Проверка…",
+        detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    if (pingOk || httpUp) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: formatMcpMonitorDetail({ pingOk, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    if (server?.cms && pingFail) {
+      return {
+        state: "off",
+        label: "Не отвечает",
+        detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText }),
+        port: portText,
+        protocol: def.portLabel
+      };
+    }
+    return {
+      state: "off",
+      label: "Не запущен",
+      detail: "нужен запущенный сервер",
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
+
+  const flag = def.id === "editor" ? "cms" : def.id === "voice" ? "voice" : "commander";
+  const listening = Boolean(server?.[flag]);
+  if (listening) {
+    return {
+      state: "on",
+      label: "В сети",
+      detail: "localhost",
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
+  if (def.id === "commander" && server?.cms) {
+    return {
+      state: "on",
+      label: "Через Editor",
+      detail: `/commander/ · :${ports.editorHttps}`,
+      port: portText,
+      protocol: def.portLabel
+    };
+  }
+  return {
+    state: "off",
+    label: "Не запущен",
+    detail: "порт свободен",
+    port: portText,
+    protocol: def.portLabel
+  };
+}
+
+function formatMcpMonitorDetail({ pingOk, httpUp, portText }) {
+  const parts = [];
+  if (pingOk === true) parts.push("API OK");
+  else if (pingOk === false) parts.push("API нет");
+  else if (pingOk === null) parts.push("API …");
+  if (httpUp) parts.push(`HTTP :${portText}`);
+  return parts.join(" · ") || `HTTP :${portText}`;
+}
+
+function getServicesMonitorSummary(server, ports) {
+  let online = 0;
+  for (const def of SERVICE_MONITOR_DEFS) {
+    const { state } = getServiceMonitorRowState(def, server, ports);
+    if (state === "on") online += 1;
+  }
+  return { online, total: SERVICE_MONITOR_DEFS.length };
+}
+
+function formatMonitorProbedAt(server) {
+  const ts = Number(server?.probedAt);
+  if (!Number.isFinite(ts) || ts <= 0) return "";
+  try {
+    return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function renderServiceMonitorRackCard(def, server, ports) {
+  const row = getServiceMonitorRowState(def, server, ports);
+  const openUrl = getServiceMonitorOpenUrl(def, server, ports);
+  const canOpen = row.state === "on" && Boolean(openUrl);
+  const subline = row.detail ? `${row.protocol} · ${row.detail}` : row.protocol;
+  const openAttr = canOpen ? ` data-svc-open="${escapeAttr(openUrl)}"` : "";
+  const interactive = canOpen ? ` tabindex="0" role="link" aria-label="Открыть ${escapeAttr(def.shortName)}"` : "";
+
+  return `
+    <article
+      class="svc-rack-card${canOpen ? " svc-rack-card--link" : ""}"
+      data-service-id="${def.id}"
+      data-accent="${def.accent}"
+      data-state="${row.state}"
+      title="${escapeAttr(def.title)}${canOpen ? " · клик — открыть" : ""}"
+      ${openAttr}${interactive}
+    >
+      <div class="svc-rack-head">
+        <img class="svc-rack-icon" src="../assets/${def.icon}" alt="" width="28" height="28" />
+        <div class="svc-rack-head-text">
+          <strong class="svc-rack-name">${def.shortName}</strong>
+          <code class="svc-rack-port">:${row.port}</code>
+        </div>
+        ${canOpen ? `<span class="svc-rack-go" aria-hidden="true">↗</span>` : ""}
+      </div>
+      <p class="svc-rack-sub">${subline}</p>
+      <footer class="svc-rack-foot">
+        <span class="svc-rack-led" aria-hidden="true"></span>
+        <span class="svc-rack-status">${row.label}</span>
+      </footer>
+    </article>
+  `;
+}
+
+function renderServiceMonitorRackBar(server, ports) {
+  return SERVICE_MONITOR_DEFS.map((def) => {
+    const { state } = getServiceMonitorRowState(def, server, ports);
+    const on = state === "on" ? "1" : "0";
+    const pending = state === "pending" ? "1" : "0";
+    return `<span class="svc-rack-seg" data-accent="${def.accent}" data-on="${on}" data-pending="${pending}" title="${escapeAttr(def.shortName)}"></span>`;
+  }).join("");
+}
+
+function renderServicesMonitor() {
+  const root = document.getElementById("services-monitor");
+  if (!root) return;
+
+  const server = lastServer || bootstrap?.server;
+  const ports = getPorts();
+  const { online, total } = getServicesMonitorSummary(server, ports);
+  const probed = formatMonitorProbedAt(server);
+  const modeLabel = String(server?.modeLabel || "").trim();
+  const metaParts = [`${online}/${total} online`];
+  if (probed) metaParts.push(probed);
+  if (modeLabel) metaParts.push(modeLabel);
+
+  root.innerHTML = `
+    <div class="svc-rack">
+      <div class="svc-rack-bar" role="img" aria-label="${online} из ${total} сервисов в сети">${renderServiceMonitorRackBar(server, ports)}</div>
+      <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
+      <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
+      <details class="svc-rack-note">
+        <summary>Desktop Control · Web Control на сервере</summary>
+        <p>Этот пульт — <strong>desktop</strong> на Mac (без своего порта). Web Control: <code>http://host:3288/</code> (или <code>/control/</code> на Editor). Запуск: <code>npm start</code>, <code>docker compose up</code>, systemd.</p>
+      </details>
+    </div>
+  `;
+}
+
+async function refreshServicesMonitorManual() {
+  const button = document.getElementById("refresh-services-monitor");
+  const prev = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "…";
+  }
+  try {
+    const data = await window.agentControl.refreshStatus();
+    await handleServerStatusUpdate(data.server, { skipNotify: true });
+  } catch (error) {
+    appendLog(`Ошибка мониторинга: ${error.message}\n`, "stderr");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = prev || "Обновить";
+    }
+  }
+}
+
+function bindServicesMonitorActions() {
+  const button = document.getElementById("refresh-services-monitor");
+  if (button && !button.dataset.bound) {
+    button.dataset.bound = "1";
+    button.addEventListener("click", () => void refreshServicesMonitorManual());
+  }
+
+  const root = document.getElementById("services-monitor");
+  if (!root || root.dataset.actionsBound) return;
+  root.dataset.actionsBound = "1";
+
+  root.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-svc-open]");
+    if (target?.dataset.svcOpen) {
+      window.agentControl.openExternal(target.dataset.svcOpen);
+    }
+  });
+
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target.closest("[data-svc-open]");
+    if (!target?.dataset.svcOpen) return;
+    event.preventDefault();
+    window.agentControl.openExternal(target.dataset.svcOpen);
+  });
 }
 
 function renderSetupChecklist() {
@@ -677,6 +1000,7 @@ async function handleServerStatusUpdate(server, options = {}) {
 
   syncServerUi(server);
   renderSetupChecklist();
+  renderServicesMonitor();
 }
 
 async function pollServerStatus() {
@@ -828,7 +1152,9 @@ function getPorts() {
       editorHttp: 3000,
       voiceHttps: 3488,
       voiceHttp: 3088,
-      commanderHttp: 3188
+      commanderHttp: 3188,
+      controlHttp: 3288,
+      mcpHttp: 3490
     }
   );
 }
@@ -870,11 +1196,7 @@ function buildMcpConfigObject({ useAbsPath = false } = {}) {
     mcpServers: {
       "agent-cms": {
         command: "node",
-        args: [scriptPath],
-        env: {
-          AGENT_CMS_BASE_URL: getEffectiveCmsBaseUrl(),
-          ...getMcpTlsInsecureEnv()
-        }
+        args: [scriptPath]
       }
     }
   };
@@ -1156,9 +1478,24 @@ function renderGuideStepMcp() {
           <li>Запустите <strong>сервер</strong> (шаг 2)</li>
           <li><strong>Cursor:</strong> Settings → MCP или <code>.cursor/mcp.json</code></li>
           <li><strong>Claude Desktop:</strong> <code>claude_desktop_config.json</code></li>
-          <li>Вставьте JSON ниже; <code>&lt;ABS_PATH&gt;</code> — корень проекта на вашей машине</li>
+          <li>Вставьте JSON ниже (без URL — local и remote из <code>instances.json</code>)</li>
+          <li>Удалённые CMS: блок <strong>Инстансы MCP</strong> ниже или в Editor → MCP Server → Инстансы MCP</li>
           <li>Перезапустите MCP-клиент</li>
         </ol>
+        <div class="mcp-instances-control panel-inset" id="mcp-instances-control-root">
+          <p class="mcp-config-note">
+            Единственное место для URL и token удалённых CMS. Editor показывает список без секретов; MCP stdio читает этот файл с диска.
+          </p>
+          <h4>Инстансы MCP</h4>
+          <p class="mcp-config-note" id="mcp-instances-control-file"></p>
+          <div id="mcp-instances-control-list"></div>
+          <div class="guide-actions">
+            <button type="button" class="ghost-btn" id="mcp-instances-control-add">+ Remote</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-reload">Обновить</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-save">Сохранить</button>
+          </div>
+          <p class="mcp-config-note" id="mcp-instances-control-status" role="status"></p>
+        </div>
         <div class="mcp-config-box">
           <div class="cmd-row">
             <pre class="mcp-config-json" id="mcp-config-json" aria-label="Пример MCP-конфига"></pre>
@@ -1180,6 +1517,114 @@ function syncMcpConfigPreview() {
   if (!node) return;
 
   node.textContent = JSON.stringify(buildMcpConfigObject({ useAbsPath: true }), null, 2);
+}
+
+let mcpInstancesControlState = { instances: [] };
+
+function renderMcpInstancesControlRows() {
+  const list = document.getElementById("mcp-instances-control-list");
+  if (!list) return;
+  list.innerHTML = (mcpInstancesControlState.instances || [])
+    .map((inst, index) => {
+      const kind = inst.kind || "local";
+      const ro = kind === "local" && inst.id === "local";
+      return `
+        <fieldset class="mcp-instance-row" data-index="${index}">
+          <legend>${escapeAttr(inst.label || inst.id)}</legend>
+          <label>id <input name="id" value="${escapeAttr(inst.id || "")}" ${ro ? "readonly" : ""} /></label>
+          <label>kind
+            <select name="kind" ${ro ? "disabled" : ""}>
+              <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
+              <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
+              <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
+            </select>
+          </label>
+          <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" /></label>
+          <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" /></label>
+          <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" /></label>
+          <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" /></label>
+          ${ro ? "" : `<button type="button" class="ghost-btn mcp-instance-remove" data-index="${index}">Удалить</button>`}
+        </fieldset>`;
+    })
+    .join("");
+  list.querySelectorAll(".mcp-instance-remove").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mcpInstancesControlState.instances.splice(Number(btn.dataset.index), 1);
+      renderMcpInstancesControlRows();
+    });
+  });
+}
+
+function collectMcpInstancesControlForm() {
+  const list = document.getElementById("mcp-instances-control-list");
+  if (!list) return { instances: [] };
+  const instances = [];
+  list.querySelectorAll(".mcp-instance-row").forEach((row) => {
+    const get = (name) => row.querySelector(`[name="${name}"]`)?.value?.trim() || "";
+    const kind = get("kind") || "local";
+    const entry = { id: get("id"), kind, label: get("label") || get("id") };
+    if (kind === "local") entry.auto = true;
+    if (get("url")) entry.url = get("url");
+    if (get("token")) entry.token = get("token");
+    if (get("deviceId")) entry.deviceId = get("deviceId");
+    if (get("hubUrl")) entry.hubUrl = get("hubUrl");
+    instances.push(entry);
+  });
+  return { instances };
+}
+
+async function loadMcpInstancesControl() {
+  const status = document.getElementById("mcp-instances-control-status");
+  const fileNode = document.getElementById("mcp-instances-control-file");
+  if (!window.agentControl?.getMcpInstances) return;
+  if (status) status.textContent = "Загрузка…";
+  const data = await window.agentControl.getMcpInstances();
+  if (!data.ok) {
+    if (status) status.textContent = data.error || "Ошибка загрузки";
+    return;
+  }
+  mcpInstancesControlState = { instances: data.instances || [] };
+  renderMcpInstancesControlRows();
+  if (fileNode) fileNode.textContent = data.filePath || "";
+  if (status) status.textContent = "Готово";
+}
+
+async function bindMcpInstancesControl() {
+  const root = document.getElementById("mcp-instances-control-root");
+  if (!root || root.dataset.bound === "1") {
+    if (root) await loadMcpInstancesControl();
+    return;
+  }
+  root.dataset.bound = "1";
+  const add = document.getElementById("mcp-instances-control-add");
+  const reload = document.getElementById("mcp-instances-control-reload");
+  const save = document.getElementById("mcp-instances-control-save");
+  const status = document.getElementById("mcp-instances-control-status");
+  add?.addEventListener("click", () => {
+    mcpInstancesControlState.instances.push({
+      id: "server",
+      kind: "remote",
+      label: "VPS",
+      url: "https://",
+      token: ""
+    });
+    renderMcpInstancesControlRows();
+  });
+  reload?.addEventListener("click", () => loadMcpInstancesControl());
+  save?.addEventListener("click", async () => {
+    if (!window.agentControl?.saveMcpInstances) return;
+    if (status) status.textContent = "Сохранение…";
+    const payload = collectMcpInstancesControlForm();
+    const data = await window.agentControl.saveMcpInstances(payload);
+    if (!data.ok) {
+      if (status) status.textContent = data.error || "Ошибка";
+      return;
+    }
+    mcpInstancesControlState = { instances: data.instances || [] };
+    renderMcpInstancesControlRows();
+    if (status) status.textContent = "Сохранено. Перезапустите Claude Desktop.";
+  });
+  await loadMcpInstancesControl();
 }
 
 function escapePromptHtml(text) {
@@ -1294,7 +1739,8 @@ function getCardPorts(accent) {
     editorHttp: 3000,
     voiceHttps: 3488,
     voiceHttp: 3088,
-    commanderHttp: 3188
+    commanderHttp: 3188,
+    controlHttp: 3288
   };
 
   if (accent === "cms") {
@@ -1305,6 +1751,9 @@ function getCardPorts(accent) {
   }
   if (accent === "commander") {
     return { main: ports.commanderHttp, sub: "HTTP" };
+  }
+  if (accent === "control") {
+    return { main: ports.controlHttp, sub: "HTTP" };
   }
   return null;
 }
@@ -1398,6 +1847,7 @@ async function renderLayout() {
   bindActionHandlers();
   await bindMaintenanceToggle();
   syncMcpConfigPreview();
+  void bindMcpInstancesControl();
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
   syncServerUi(lastServer || bootstrap?.server);
   void refreshMobileVoiceQr();
@@ -1738,6 +2188,8 @@ async function init() {
   startServerPoll();
   bindEnvExpandToggle();
   bindSetupChecklistActions();
+  bindServicesMonitorActions();
+  renderServicesMonitor();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {
@@ -1778,6 +2230,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();
     await renderLayout();
+    renderServicesMonitor();
     renderAppFooter();
   } catch (error) {
     appendLog(`Ошибка обновления: ${error.message}\n`, "stderr");

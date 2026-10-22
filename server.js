@@ -22,6 +22,7 @@ const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
 const { startCommanderServer, stopCommanderServer } = require("./desktop/agent-commander/server");
+const { startControlServer, stopControlServer } = require("./lib/ops/control-server");
 const voiceChpu = require("./lib/voice/voice-chpu");
 const {
   isHttpsRedirectEnabled,
@@ -195,6 +196,9 @@ const {
 } = require("./lib/services/workspace-facts-service");
 const { createWorkspaceGlossaryService } = require("./lib/services/workspace-glossary-service");
 const { createWorkspaceReferenceService } = require("./lib/services/workspace-reference-service");
+const {
+  createWorkspaceExternalMemoryService
+} = require("./lib/services/workspace-external-memory-service");
 const {
   createWorkspaceJournalService,
   JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
@@ -474,13 +478,15 @@ const {
   ensureTaxonomiesGroupScaffold,
   ensureContentsGroupScaffold,
   ensureAgentTaskQueueStoreScaffold,
+  ensureExternalMemoryStoreScaffold,
   TASK_QUEUE_STORE_REL,
   AGENT_TASK_QUEUE_STORE_REL,
   TAXONOMIES_GROUP_REL,
   CONTENTS_GROUP_REL,
   FACTS_STORE_REL,
   GLOSSARY_STORE_REL,
-  REFERENCE_STORE_REL
+  REFERENCE_STORE_REL,
+  EXTERNAL_MEMORY_STORE_REL
 } = require("./lib/awn/awn-data-loader");
 const { loadSystemFileTemplatesFromPresets } = require("./lib/awn/awn-system-presets-loader");
 const {
@@ -498,11 +504,14 @@ const { getWorkspaceTaxonomiesPayload } = require("./lib/awn/awn-taxonomy-servic
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./lib/api/page-slots-api");
 const { buildHubWorkspaceOutsideStructureReport } = require("./lib/services/hub-outside-structure");
 const { createExistsApi } = require("./lib/api/exists-api");
+const { createContentReconcileApi } = require("./lib/api/content-reconcile-api");
 const {
   validateContentSlotAccess,
   slotKeyFromStorageFolder
 } = require("./lib/api/slot-placement-guard");
 const { createContentSchemaApi } = require("./lib/api/content-schema-api");
+const { createVizMapsApi } = require("./lib/api/viz-maps-api");
+const { resolveRecordHasVizMaps } = require("./lib/viz/resolve-record-has-viz-maps");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./lib/api/ui-context-api");
 const {
   readIdleScreensaverBreaks,
@@ -620,6 +629,7 @@ let httpServer = null;
 let httpsServer = null;
 let voiceServerInfo = null;
 let commanderServerInfo = null;
+let controlServerInfo = null;
 
 function getAppRoot() {
   return appRoot;
@@ -1122,6 +1132,30 @@ async function getAppLockStatus() {
   };
 }
 
+async function resolveOpsAppLockGate(req) {
+  const status = await getAppLockStatus();
+  const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
+  return {
+    enabled: status.enabled,
+    sessionActive,
+    canToggleMaintenance: !status.enabled || sessionActive
+  };
+}
+
+async function getOpsMaintenanceWriteDeniedResponse(req) {
+  const gate = await resolveOpsAppLockGate(req);
+  if (gate.canToggleMaintenance) return null;
+  return {
+    status: 403,
+    body: {
+      ok: false,
+      error: "app_lock_required",
+      message:
+        "Для изменения maintenance-mode нужна сессия app-lock (войдите в Editor или POST /api/app-lock/login)."
+    }
+  };
+}
+
 async function verifyAppLockCredentials(login, password) {
   const env = await readRootEnvFile();
   const expectedLogin = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
@@ -1214,12 +1248,16 @@ function getFingerprintScannerService() {
 }
 
 function sendJson(res, statusCode, payload, extraHeaders = null) {
+  if (res.headersSent || res.writableEnded) {
+    return false;
+  }
   const headers = { "Content-Type": "application/json; charset=utf-8" };
   if (extraHeaders && typeof extraHeaders === "object") {
     Object.assign(headers, extraHeaders);
   }
   res.writeHead(statusCode, headers);
   res.end(JSON.stringify(payload, null, 2));
+  return true;
 }
 
 const { rel: agentCmsRel } = require("./lib/paths/agent-cms");
@@ -2387,6 +2425,7 @@ let workspaceBrainService = null;
 let workspaceFactsService = null;
 let workspaceGlossaryService = null;
 let workspaceReferenceService = null;
+let workspaceExternalMemoryService = null;
 let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
@@ -2422,6 +2461,17 @@ function getWorkspaceReferenceService() {
     });
   }
   return workspaceReferenceService;
+}
+
+function getWorkspaceExternalMemoryService() {
+  if (!workspaceExternalMemoryService) {
+    workspaceExternalMemoryService = createWorkspaceExternalMemoryService({
+      getAgentRoot,
+      getProjectRoot,
+      onMemoryWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceExternalMemoryService;
 }
 
 function mapWorkspaceActivitySourceToJournalMeta(source) {
@@ -6104,7 +6154,10 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/agent/settings-schema",
   "/api/agent/settings/list",
   "/api/agent/settings/read",
-  "/api/agent/settings/write"
+  "/api/agent/settings/write",
+  "/api/ops/status",
+  "/api/ops/maintenance",
+  "/api/agent/mcp-ping"
 ]);
 
 async function resolveWorkspaceTextFileMaxBytes(options = {}) {
@@ -7253,6 +7306,7 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
     fileEntry.relativePath
   );
   const fileAbsolute = path.join(folderAbsolute, fileEntry.relativePath);
+  const vizIndicatorOptions = { isAreaManifestFileName, isTopicManifestFileName };
   try {
     const raw = await fs.readFile(fileAbsolute, "utf-8");
     const { frontmatter } = splitNodeFrontmatter(raw);
@@ -7266,6 +7320,13 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       getYamlScalar(frontmatter, "awn-name") ||
       "";
     const title = resolveNodeDisplayName(awnName, slug);
+    const recordAwnId = parseAwnId(
+      getFrontmatterPropValue(props, "awn-id") || getYamlScalar(frontmatter, "awn-id")
+    );
+    const hasVizMaps = await resolveRecordHasVizMaps(folderAbsolute, fileEntry.relativePath, {
+      ...vizIndicatorOptions,
+      awnId: recordAwnId
+    });
     return {
       ...fileEntry,
       title,
@@ -7275,11 +7336,13 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       hasPreview: Boolean(previewMeta.hasPreview),
       previewUrl: previewMeta.previewUrl || null,
       previewFile: previewMeta.previewFile || null,
-      hasRecordMaterials
+      hasRecordMaterials,
+      hasVizMaps
     };
   } catch {
     const slug =
       getManifestSlugFromRel(fileEntry.relativePath) || fileEntry.name.replace(/\.md$/i, "");
+    const hasVizMaps = await resolveRecordHasVizMaps(folderAbsolute, fileEntry.relativePath, vizIndicatorOptions);
     return {
       ...fileEntry,
       title: slug,
@@ -7289,7 +7352,8 @@ async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute
       hasPreview: false,
       previewUrl: null,
       previewFile: null,
-      hasRecordMaterials
+      hasRecordMaterials,
+      hasVizMaps
     };
   }
 }
@@ -12662,9 +12726,10 @@ async function buildAgentPageMap(options = {}) {
       properties: frontmatterPropsToObject(frontmatter)
     };
     if (kind === "topic") {
-      entry.slotsFlexible = await readTopicSlotsFlexible(normalized);
+      entry.slotsTemplate = await readTopicSlotsTemplate(normalized);
+      entry.slotsFlexible = entry.slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
       entry.slotsDisabled = entry.slotsFlexible;
-      if (includeSlots && !entry.slotsFlexible) {
+      if (includeSlots && entry.slotsTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
         entry.slots = await buildPageMapSlotSummaries(normalized);
       }
     }
@@ -13256,7 +13321,7 @@ async function buildAgentWorkspacePageIndex() {
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
       "Секции hub (0-agent-kit, 0-shared) — pinned вверху таблицы. " +
-      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Папки без manifest → list_folder (legacy get_topic_map deprecated).",
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: Гибкий | Стандартные | Минимум | Без слотов (awn-slots-template). Папки без manifest → list_folder (legacy get_topic_map deprecated).",
     whenToUse: {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
@@ -14118,7 +14183,10 @@ async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
 
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
-  return page?.slotsFlexible ? "гибкий" : "типовые";
+  if (page?.slotsTemplate) {
+    return formatTopicSlotsTemplateIndexLabel(page.slotsTemplate);
+  }
+  return page?.slotsFlexible ? "Гибкий" : "Стандартные";
 }
 
 const CONTENT_INDEX_IMPORTANCE_LEGEND =
@@ -14726,6 +14794,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       status: enriched.status,
       tags: enriched.tags,
       hasRecordMaterials: Boolean(enriched.hasRecordMaterials),
+      hasVizMaps: Boolean(enriched.hasVizMaps),
       recordMaterialsFolderRef: enriched.hasRecordMaterials
         ? resolveRecordPartsFolderRefForRecordRel(enriched.relativePath, recordAwnId)
         : null,
@@ -14885,6 +14954,8 @@ const SESSION_CONTEXT_API_MAP = {
   // Kept here for grep and parity with docs/mcp-0.0.2.js; expose via GET /api/docs if needed.
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
+  opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
+  opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -14908,6 +14979,8 @@ const SESSION_CONTEXT_API_MAP = {
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
   workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
   workspaceIdResolve: "GET /api/workspace-id/resolve?id= — awn-id → path (MCP: record_id_resolve)",
+  contentReconcile:
+    "POST /api/content/reconcile — сверка списка id/path из памяти агента с диском (MCP: contents_list_reconcile; body: items[], includeMeta?)",
   workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (MCP: record_id_assign; body: path, force?)",
   workspaceSlugGenerate:
     "GET|POST /api/workspace-slug/generate — record_slug_generate MCP (text, preset?, slug?, stripExtension?)",
@@ -14982,7 +15055,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP topic_get; PUT /api/agent/topic — topic_update",
   topicSlotsTemplate:
-    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|none)",
+    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|minimal|none)",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -15004,6 +15077,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceGlossaryUpdate: "POST /api/agent/workspace-glossary/update — glossary_term_update MCP",
   workspaceGlossaryList: "GET /api/agent/workspace-glossary/list — glossary_terms_list MCP",
   workspaceGlossarySearch: "GET /api/agent/workspace-glossary/search?q= — glossary_terms_search MCP",
+  workspaceExternalMemoryList: "GET /api/agent/workspace-external-memory/list?platform= — external_memory_list MCP",
+  workspaceExternalMemoryUpsert: "POST /api/agent/workspace-external-memory/upsert — external_memory_upsert MCP",
+  workspaceExternalMemorySync: "POST /api/agent/workspace-external-memory/sync — external_memory_sync MCP",
+  workspaceExternalMemorySyncStatus: "GET /api/agent/workspace-external-memory/sync-status — external_memory_sync_status MCP",
   workspaceReferenceCreate: "POST /api/agent/workspace-reference/create — reference_entry_create MCP",
   workspaceReferenceUpdate: "POST /api/agent/workspace-reference/update — reference_entry_update MCP",
   workspaceReferenceList: "GET /api/agent/workspace-reference/list — reference_entries_list MCP",
@@ -15710,13 +15787,20 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
 
 const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
 const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_MINIMAL = "minimal";
 const TOPIC_SLOTS_TEMPLATE_NONE = "none";
 
 function normalizeTopicSlotsTemplate(raw) {
   const value = String(raw || "")
     .trim()
     .toLowerCase();
-  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  if (
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  ) {
+    return value;
+  }
   return TOPIC_SLOTS_TEMPLATE_STANDARD;
 }
 
@@ -15763,8 +15847,22 @@ async function readTopicSlotsDisabled(manifestRelPath) {
 const TOPIC_SLOTS_TEMPLATE_LABELS = {
   [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
   [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум слотов (стандарт)",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов (только инструкция)"
+};
+
+/** Подписи колонки «Слоты» в index.md — как в селекте шаблона (короткая форма). */
+const TOPIC_SLOTS_TEMPLATE_INDEX_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные",
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум",
   [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
 };
+
+function formatTopicSlotsTemplateIndexLabel(template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[normalized] || TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[TOPIC_SLOTS_TEMPLATE_STANDARD];
+}
 
 function isAllowedTopicSlotsTemplateValue(raw) {
   const value = String(raw || "")
@@ -15773,6 +15871,7 @@ function isAllowedTopicSlotsTemplateValue(raw) {
   return (
     value === TOPIC_SLOTS_TEMPLATE_STANDARD ||
     value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
     value === TOPIC_SLOTS_TEMPLATE_NONE
   );
 }
@@ -15795,7 +15894,7 @@ function buildAgentTopicSlotsTemplatePayload(manifestRel, template) {
     slotsFlexible: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
     slotsDisabled: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
     hint:
-      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; none — single-file slots only."
+      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; minimal — single-file slots; none — agent instruction + todo only."
   };
 }
 
@@ -15829,7 +15928,12 @@ async function setAgentTopicSlotsTemplate(inputPath, template) {
     return {
       error: "Invalid template",
       status: 400,
-      allowed: [TOPIC_SLOTS_TEMPLATE_STANDARD, TOPIC_SLOTS_TEMPLATE_FLEXIBLE, TOPIC_SLOTS_TEMPLATE_NONE]
+      allowed: [
+        TOPIC_SLOTS_TEMPLATE_STANDARD,
+        TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+        TOPIC_SLOTS_TEMPLATE_MINIMAL,
+        TOPIC_SLOTS_TEMPLATE_NONE
+      ]
     };
   }
   const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());
@@ -18909,6 +19013,10 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return false;
 
+  // Web Control (/control) — ops-пульт остаётся доступен в maintenance.
+  if (normalized === "/control" || normalized.startsWith("/control/")) return false;
+  if (String(safePath || "").startsWith("control/")) return false;
+
   if (safePath === "index.html" || normalized === "/") return true;
   if (isSpaAppRoute(reqPath)) return true;
   if (isVoiceShellSpaRoute(reqPath)) return true;
@@ -19016,6 +19124,13 @@ function resolvePublicStaticCacheControl(diskPath) {
 }
 
 async function serveStatic(reqPath, res, req) {
+  const staticPathNorm = String(reqPath || "/").replace(/\/+$/, "") || "/";
+  if (staticPathNorm === "/control") {
+    res.writeHead(301, { Location: "/control/" });
+    res.end();
+    return;
+  }
+
   let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
@@ -21352,6 +21467,34 @@ function getExistsApi() {
 }
 
 let contentSchemaApi = null;
+let contentReconcileApi = null;
+let vizMapsApi = null;
+
+function getContentReconcileApi() {
+  if (!contentReconcileApi) {
+    contentReconcileApi = createContentReconcileApi({
+      resolveId: (id) => getWorkspaceIdService().resolveId(id),
+      parseAwnId,
+      resolveRecordContext: resolveApiIndexableRecordContext,
+      statNodeFileMeta
+    });
+  }
+  return contentReconcileApi;
+}
+
+function getVizMapsApi() {
+  if (!vizMapsApi) {
+    vizMapsApi = createVizMapsApi({
+      sendJson,
+      getAgentRoot,
+      getProjectRoot,
+      normalizeWorkspacePath,
+      writeWorkspaceTextFileWithHistory,
+      resolveManifestRelForHistory: (relPath) => resolveNodeManifestRelForScopedApi(relPath) || relPath
+    });
+  }
+  return vizMapsApi;
+}
 
 function getContentSchemaApi() {
   if (!contentSchemaApi) {
@@ -21373,6 +21516,11 @@ async function handleApiForAgent(req, res, url) {
   const maintenanceResponse = await getMaintenanceModeResponse(url);
   if (maintenanceResponse) {
     return sendJson(res, maintenanceResponse.status, maintenanceResponse.body);
+  }
+
+  if (url.pathname.startsWith("/api/viz/")) {
+    const handled = await getVizMapsApi().handle(req, res, url);
+    if (handled) return;
   }
 
   if (await shellHandlers.tryHandleShellApi(req, res, url, {
@@ -22688,6 +22836,49 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  {
+    const tunnelHandled = await require("./lib/tunnel/http-handlers.js").handleTunnelHttp(
+      req,
+      res,
+      url,
+      sendJson
+    );
+    if (tunnelHandled) return;
+  }
+
+  if (url.pathname === "/api/platform/mcp-instances") {
+    const instancesStore = require("./lib/instances/instances-store.js");
+    const projectRoot = getProjectRoot();
+    if (req.method === "GET") {
+      try {
+        const { filePath, document, exists } = instancesStore.readInstances(projectRoot);
+        const instances = (document.instances || []).map((entry) => {
+          const row = { ...entry };
+          if (row.token) {
+            row.hasToken = true;
+            delete row.token;
+          }
+          return row;
+        });
+        let tunnelDevices = [];
+        try {
+          tunnelDevices = require("./lib/tunnel/registry.js").listOnlineDeviceIds();
+        } catch {
+          tunnelDevices = [];
+        }
+        return sendJson(res, 200, { filePath, exists, instances, tunnelDevices });
+      } catch (error) {
+        return sendJson(res, 500, { error: String(error.message || error) });
+      }
+    }
+    if (req.method === "POST") {
+      return sendJson(res, 403, {
+        error: "MCP instances are configured in Agent CMS Control (Electron), not via Editor."
+      });
+    }
+    return sendJson(res, 405, { error: "Method not allowed" });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/mcp-ping") {
     try {
       return sendJson(res, 200, buildAgentMcpPing());
@@ -22727,6 +22918,70 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build platform health",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/status") {
+    try {
+      const { buildOpsStatus } = require("./lib/ops/ops-status");
+      let packageVersion = null;
+      try {
+        packageVersion = require("./package.json").version || null;
+      } catch {
+        packageVersion = null;
+      }
+      const payload = await buildOpsStatus({
+        projectRoot: getProjectRoot(),
+        hostHeader: String(req.headers?.host || ""),
+        getPlatformSettings,
+        buildAgentMcpPing,
+        packageVersion
+      });
+      payload.appLock = await resolveOpsAppLockGate(req);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build ops status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/maintenance") {
+    try {
+      const settings = await getPlatformSettings(getProjectRoot());
+      return sendJson(res, 200, {
+        ok: true,
+        enabled: isPlatformMaintenanceMode(settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read maintenance-mode",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/maintenance") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+
+      const payload = await readJsonBody(req);
+      const next = Boolean(payload?.enabled);
+      await patchPlatformSettings({ "maintenance-mode": next }, getProjectRoot());
+      const settings = await getPlatformSettings(getProjectRoot());
+      return sendJson(res, 200, {
+        ok: true,
+        enabled: isPlatformMaintenanceMode(settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to save maintenance-mode",
         details: String(error.message || error)
       });
     }
@@ -23089,6 +23344,21 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to read content meta",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/content/reconcile") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getContentReconcileApi().reconcile(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = error?.code === "EINVAL" ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to reconcile content records",
+        details: message
       });
     }
   }
@@ -25134,6 +25404,77 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-external-memory/list") {
+    try {
+      const platform =
+        url.searchParams.get("platform") ||
+        url.searchParams.get("source") ||
+        url.searchParams.get("provider") ||
+        "";
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceExternalMemoryService().listByPlatform(platform, {
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /platform is required|platform обязателен|Invalid platform|Agent not selected/i.test(message)
+        ? 400
+        : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to list external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-external-memory/upsert") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceExternalMemoryService().upsertMemoryEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|platform is required|platform обязателен|Invalid platform/i.test(message)
+        ? 400
+        : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to upsert external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-external-memory/sync") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceExternalMemoryService().syncExternalMemory(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status =
+        /direction must be|platform is required|platform обязателен|Invalid platform|required/i.test(message)
+          ? 400
+          : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to sync external memory",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-external-memory/sync-status") {
+    try {
+      const payload = await getWorkspaceExternalMemoryService().syncStatus();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read external memory sync status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/workspace-reference/create") {
     try {
       const body = await readJsonBody(req);
@@ -26967,6 +27308,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to scaffold contents group",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-databases/scaffold-external-memory") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = ensureExternalMemoryStoreScaffold(agentRoot, getProjectRoot());
+      return sendJson(res, 201, {
+        ok: true,
+        storeRel: EXTERNAL_MEMORY_STORE_REL,
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to scaffold external memory group",
         details: String(error.message || error)
       });
     }
@@ -33625,6 +33984,7 @@ async function startServer(options = {}) {
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
   const commanderAutostart = process.env.COMMANDER_AUTOSTART !== "0";
+  const controlAutostart = process.env.CONTROL_AUTOSTART !== "0";
 
   function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
     return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });
@@ -33650,6 +34010,16 @@ async function startServer(options = {}) {
     return commanderServerInfo;
   }
 
+  async function maybeStartControlServer(cmsApiUrl) {
+    if (!controlAutostart) return null;
+    controlServerInfo = await startControlServer({
+      root: options.root || __dirname,
+      host: process.env.CONTROL_HOST || host || "127.0.0.1",
+      cmsApiUrl
+    });
+    return controlServerInfo;
+  }
+
   function commanderHttpsViaEditorUrl(httpsBase) {
     const base = String(httpsBase || "").trim().replace(/\/+$/, "");
     return base ? `${base}/commander/` : null;
@@ -33664,6 +34034,7 @@ async function startServer(options = {}) {
     const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort: null, boundTlsPort });
     const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
     const commanderInfo = await maybeStartCommanderServer();
+    const controlInfo = await maybeStartControlServer(cmsApiUrl);
     const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
     const editorHttps = lanIp ? `https://${lanIp}:${boundTlsPort}` : url;
     return {
@@ -33681,6 +34052,7 @@ async function startServer(options = {}) {
       voiceHttpsUrl: voiceInfo?.httpsUrl || null,
       commanderHttpUrl: commanderInfo?.url || null,
       commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttps),
+      controlHttpUrl: controlInfo?.url || null,
       mobileUrl: voiceUrl || (lanIp ? `https://${lanIp}:${boundTlsPort}/` : `${url}/`),
       stop: stopServer
     };
@@ -33715,9 +34087,18 @@ async function startServer(options = {}) {
     httpUrl = `http://${hostname}:${boundPort}`;
   }
 
+  try {
+    const { attachAgentCmsTunnel } = require("./lib/tunnel/registry.js");
+    if (httpServer) attachAgentCmsTunnel(httpServer);
+    if (httpsServer) attachAgentCmsTunnel(httpsServer);
+  } catch (error) {
+    console.warn("Agent CMS tunnel disabled:", error?.message || error);
+  }
+
   const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
   const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
   const commanderInfo = await maybeStartCommanderServer();
+  const controlInfo = await maybeStartControlServer(cmsApiUrl);
   const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
   const editorHttpsResolved = lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl;
 
@@ -33736,6 +34117,7 @@ async function startServer(options = {}) {
     voiceHttpsUrl: voiceInfo?.httpsUrl || null,
     commanderHttpUrl: commanderInfo?.url || null,
     commanderHttpsUrl: commanderHttpsViaEditorUrl(editorHttpsResolved),
+    controlHttpUrl: controlInfo?.url || null,
     mobileUrl:
       voiceUrl ||
       (httpsUrl
@@ -33752,8 +34134,10 @@ async function startServer(options = {}) {
 async function stopServer() {
   await stopVoiceServer().catch(() => null);
   await stopCommanderServer().catch(() => null);
+  await stopControlServer().catch(() => null);
   voiceServerInfo = null;
   commanderServerInfo = null;
+  controlServerInfo = null;
   try {
     require("./agent-shell/runtime-cli-session").shutdownCliSessionPool();
   } catch {
@@ -33827,6 +34211,7 @@ if (require.main === module) {
       else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
       if (info.commanderHttpUrl) console.log(`Agent CMS Commander HTTP  at ${info.commanderHttpUrl}`);
       if (info.commanderHttpsUrl) console.log(`Agent CMS Commander HTTPS at ${info.commanderHttpsUrl}`);
+      if (info.controlHttpUrl) console.log(`Agent CMS Web Control HTTP at ${info.controlHttpUrl}`);
       console.log(`Voice UI:         ${info.mobileUrl}`);
       console.log("");
       if (info.voiceHttpsUrl || info.httpsUrl) {
