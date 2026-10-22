@@ -2152,12 +2152,16 @@ function bindAppLockGate() {
     }
     try {
       await window.agentControl.appLockLogin(login, password);
-      bootstrap.appLock = {
-        ...(bootstrap.appLock || {}),
-        enabled: true,
-        sessionActive: true,
-        canToggleMaintenance: true
-      };
+      if (window.agentControl.getBootstrap) {
+        bootstrap = await window.agentControl.getBootstrap();
+      } else {
+        bootstrap.appLock = {
+          ...(bootstrap.appLock || {}),
+          enabled: true,
+          sessionActive: true,
+          canToggleMaintenance: true
+        };
+      }
       appendLog("Вход выполнен.\n");
       syncAppLockScreen();
       await renderLayout();
