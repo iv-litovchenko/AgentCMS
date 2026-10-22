@@ -19112,12 +19112,13 @@ function resolvePublicStaticCacheControl(diskPath) {
 }
 
 async function serveStatic(reqPath, res, req) {
-  const staticPathNorm = String(reqPath || "/").replace(/\/+$/, "") || "/";
-  if (staticPathNorm === "/control") {
+  const rawPath = String(reqPath || "/");
+  if (rawPath === "/control") {
     res.writeHead(301, { Location: "/control/" });
     res.end();
     return;
   }
+  const staticPathNorm = rawPath.replace(/\/+$/, "") || "/";
 
   let normalizedPath = resolveShellStaticPath(rewritePublicRequestPath(reqPath));
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {

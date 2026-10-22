@@ -1,5 +1,9 @@
-# Caddy внутри Docker Compose (см. docker-compose.caddy.yml)
-# Env MAPTEX_DOMAIN=maptex.ru
+# Caddy внутри Docker Compose (docker-compose.prod.yml / docker-compose.caddy.yml)
+# Env: MAPTEX_DOMAIN, CADDY_EMAIL
+
+{
+	email {$CADDY_EMAIL}
+}
 
 {$MAPTEX_DOMAIN} {
 	handle /mcp* {

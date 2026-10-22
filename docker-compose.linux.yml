@@ -1,0 +1,123 @@
+# Linux VPS — CMS + MCP + Control + Caddy (80/443)
+#   docker compose -f docker-compose.linux.yml up -d --build
+
+name: agent-cms
+
+x-agent-cms-image: &agent-cms-image
+  build: .
+  image: agent-cms-app:${AGENT_CMS_IMAGE_TAG:-local}
+  env_file:
+    - .env
+  restart: unless-stopped
+  networks:
+    - agent-cms
+
+networks:
+  agent-cms:
+    name: agent-cms
+
+services:
+  cms:
+    <<: *agent-cms-image
+    command: ["cms"]
+    expose:
+      - "3000"
+      - "3088"
+    environment:
+      HOST: "0.0.0.0"
+      VOICE_HOST: "0.0.0.0"
+      PORT: "3000"
+      VOICE_PORT: "3088"
+      AGENT_CMS_HTTP_TO_HTTPS: "0"
+      CONTROL_AUTOSTART: "0"
+      VOICE_AUTOSTART: "${VOICE_AUTOSTART:-1}"
+      APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
+      APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
+    volumes:
+      - cms-workspaces:/app/workspaces
+      - cms-global:/app/.agent-cms-global
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/agent/mcp-ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  mcp:
+    <<: *agent-cms-image
+    command: ["mcp"]
+    depends_on:
+      cms:
+        condition: service_healthy
+    expose:
+      - "3490"
+    environment:
+      AGENT_CMS_MCP_HTTP_HOST: "0.0.0.0"
+      AGENT_CMS_MCP_HTTP_PORT: "3490"
+      AGENT_CMS_MCP_BEHIND_PROXY: "1"
+      AGENT_CMS_BASE_URL: "http://cms:3000"
+      AGENT_CMS_MCP_TOKEN: "${AGENT_CMS_MCP_TOKEN:-}"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3490/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  control:
+    <<: *agent-cms-image
+    command: ["control"]
+    depends_on:
+      cms:
+        condition: service_started
+      mcp:
+        condition: service_healthy
+    expose:
+      - "3288"
+    environment:
+      CONTROL_HOST: "0.0.0.0"
+      CONTROL_AUTOSTART: "0"
+      CMS_API_URL: "http://cms:3000"
+      AGENT_CMS_BASE_URL: "http://cms:3000"
+      AGENT_CMS_DOCKER_OPS: "1"
+      AGENT_CMS_COMPOSE_FILE: "/app/docker-compose.linux.yml"
+      AGENT_CMS_COMPOSE_SERVICE: "cms"
+      COMPOSE_PROJECT_NAME: "agent-cms"
+      APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
+      APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.linux.yml:/app/docker-compose.linux.yml:ro
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks:
+      - agent-cms
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      MAPTEX_DOMAIN: "${MAPTEX_DOMAIN:-localhost}"
+      CADDY_EMAIL: "${CADDY_EMAIL:-admin@example.com}"
+    volumes:
+      - ./docs/deploy/docker-Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      cms:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+
+volumes:
+  cms-workspaces:
+  cms-global:
+  caddy-data:
+  caddy-config:
