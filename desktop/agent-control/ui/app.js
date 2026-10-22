@@ -37,10 +37,15 @@ function syncAppLockScreen() {
 function syncAppLockLogoutButton() {
   const button = document.getElementById("app-lock-logout");
   if (!button) return;
+  if (!window.agentControl?.appLockLogout) {
+    button.hidden = true;
+    return;
+  }
   const gate = bootstrap?.appLock;
-  const show =
-    Boolean(gate?.enabled && gate?.sessionActive) && Boolean(window.agentControl?.appLockLogout);
-  button.hidden = !show;
+  const enabled = Boolean(gate?.enabled);
+  const loggedIn = enabled && !needsAppLockLogin();
+  button.hidden = !loggedIn;
+  button.disabled = !loggedIn;
 }
 
 function bindAppLockLogout() {
@@ -445,31 +450,94 @@ function getDiskStatState() {
   };
 }
 
+/** Electron на Mac — localhost; Launcher в браузере (VPS/LAN) — хост из адресной строки. */
+function isWebLauncher() {
+  return document.documentElement.dataset.controlLauncher === "web";
+}
+
+function getClientLinkHost() {
+  if (!isWebLauncher()) return "localhost";
+  return window.location.hostname || "localhost";
+}
+
+function preferHttpServiceLinks() {
+  return isWebLauncher() && window.location.protocol === "http:";
+}
+
+function rewriteUrlHostForClient(url) {
+  const host = getClientLinkHost();
+  if (!url || host === "localhost") return url || "";
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = host;
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+function buildServiceUrl(scheme, port, path = "/") {
+  const host = getClientLinkHost();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${scheme}://${host}:${port}${normalizedPath}`;
+}
+
 function getServiceMonitorOpenUrl(def, server, ports) {
   const urls = server?.urls || {};
+  const host = getClientLinkHost();
+  const httpFirst = preferHttpServiceLinks();
+
   if (def.id === "editor") {
-    return urls.cms || (ports.editorHttps ? `https://localhost:${ports.editorHttps}/` : "");
+    if (httpFirst && server?.cms && ports.editorHttp) {
+      return buildServiceUrl("http", ports.editorHttp, "/");
+    }
+    if (urls.cms) return rewriteUrlHostForClient(urls.cms);
+    if (ports.editorHttps) return buildServiceUrl("https", ports.editorHttps, "/");
+    if (ports.editorHttp) return buildServiceUrl("http", ports.editorHttp, "/");
+    return "";
   }
   if (def.id === "voice") {
-    return urls.voice || (ports.voiceHttps ? `https://localhost:${ports.voiceHttps}/` : "");
+    if (httpFirst && server?.voice && ports.voiceHttp) {
+      return buildServiceUrl("http", ports.voiceHttp, "/");
+    }
+    if (urls.voice) return rewriteUrlHostForClient(urls.voice);
+    if (ports.voiceHttps) return buildServiceUrl("https", ports.voiceHttps, "/");
+    return "";
   }
   if (def.id === "commander") {
-    if (urls.commanderHttps) return urls.commanderHttps;
-    if (urls.commanderHttp) return urls.commanderHttp;
-    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/commander/`;
-    return ports.commanderHttp ? `http://localhost:${ports.commanderHttp}/` : "";
+    if (httpFirst && server?.commander && ports.commanderHttp) {
+      return buildServiceUrl("http", ports.commanderHttp, "/");
+    }
+    if (urls.commanderHttps) return rewriteUrlHostForClient(urls.commanderHttps);
+    if (urls.commanderHttp) return rewriteUrlHostForClient(urls.commanderHttp);
+    if (server?.cms && ports.editorHttps) {
+      return buildServiceUrl("https", ports.editorHttps, "/commander/");
+    }
+    return ports.commanderHttp ? buildServiceUrl("http", ports.commanderHttp, "/") : "";
   }
   if (def.id === "control") {
-    if (urls.controlHttp) return urls.controlHttp;
-    if (server?.controlHttp && ports.controlHttp) return `http://localhost:${ports.controlHttp}/`;
-    if (urls.controlEditor) return urls.controlEditor;
-    if (server?.cms && ports.editorHttps) return `https://localhost:${ports.editorHttps}/control/`;
+    if (isWebLauncher() && ports.controlHttp) {
+      const port =
+        window.location.port ||
+        (window.location.protocol === "https:" ? "443" : String(ports.controlHttp));
+      return `${window.location.protocol}//${host}:${port}/`;
+    }
+    if (urls.controlHttp) return rewriteUrlHostForClient(urls.controlHttp);
+    if (server?.controlHttp && ports.controlHttp) {
+      return buildServiceUrl("http", ports.controlHttp, "/");
+    }
+    if (urls.controlEditor) return rewriteUrlHostForClient(urls.controlEditor);
+    if (server?.cms && ports.editorHttps) {
+      return buildServiceUrl("https", ports.editorHttps, "/control/");
+    }
     return "";
   }
   if (def.id === "mcp") {
-    if (server?.mcpHttp && ports.mcpHttp) return `http://localhost:${ports.mcpHttp}/health`;
+    if (server?.mcpHttp && ports.mcpHttp) {
+      return buildServiceUrl("http", ports.mcpHttp, "/health");
+    }
     if (server?.cms && ports.editorHttps) return getTestUrl("mcp");
-    return ports.mcpHttp ? `http://localhost:${ports.mcpHttp}/health` : "";
+    return ports.mcpHttp ? buildServiceUrl("http", ports.mcpHttp, "/health") : "";
   }
   return "";
 }
@@ -1264,10 +1332,10 @@ const SERVER_RESTART_ICON = `
   </svg>
 `;
 
-function serverButton(actionId, tone, disabled = false) {
+function serverButton(actionId, tone, disabled = false, hintOverride) {
   const disabledAttr = disabled ? " disabled" : "";
   const title = SERVER_BTN_TITLES[actionId] || "Запуск";
-  const hint = SERVER_BTN_HINTS[actionId] || "";
+  const hint = hintOverride ?? SERVER_BTN_HINTS[actionId] ?? "";
   const icon =
     tone === "stop" ? SERVER_STOP_ICON : tone === "restart" ? SERVER_RESTART_ICON : SERVER_PLAY_ICON;
   const iconClass =
@@ -1300,9 +1368,16 @@ function serverButton(actionId, tone, disabled = false) {
   `;
 }
 
-function setupButton(actionId, title, hint) {
+function isDesktopShortcutsSupported() {
+  const raw = String(bootstrap?.environment?.host?.platform || "").toLowerCase();
+  return raw === "darwin" || raw === "win32";
+}
+
+function setupButton(actionId, title, hint, disabled = false) {
+  const disabledAttr = disabled ? " disabled" : "";
+  const titleAttr = disabled ? ' title="Только macOS и Windows"' : "";
   return `
-    <button type="button" class="setup-btn" data-action="${actionId}">
+    <button type="button" class="setup-btn" data-action="${actionId}"${disabledAttr}${titleAttr}>
       <span class="setup-btn-spinner" aria-hidden="true"></span>
       <strong class="setup-btn-title">${title}</strong>
       <span class="setup-btn-hint">${hint}</span>
@@ -1337,14 +1412,17 @@ function getPorts() {
 
 function getEffectiveCmsBaseUrl() {
   const server = lastServer || bootstrap?.server;
+  const ports = getPorts();
   const fromProbe = String(server?.urls?.cms || "").trim();
-  if (server?.cms && fromProbe) return fromProbe;
+  if (server?.cms && fromProbe) return rewriteUrlHostForClient(fromProbe.replace(/\/+$/, ""));
 
   const mcpUrl = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim();
-  if (mcpUrl) return mcpUrl;
+  if (mcpUrl) return rewriteUrlHostForClient(mcpUrl.replace(/\/+$/, ""));
 
-  const ports = getPorts();
-  return `https://localhost:${ports.editorHttps}`;
+  if (preferHttpServiceLinks() && ports.editorHttp) {
+    return buildServiceUrl("http", ports.editorHttp, "/").replace(/\/+$/, "");
+  }
+  return buildServiceUrl("https", ports.editorHttps, "/").replace(/\/+$/, "");
 }
 
 function getMcpTlsInsecureEnv() {
@@ -1379,12 +1457,12 @@ function buildMcpConfigObject({ useAbsPath = false } = {}) {
 }
 
 function getTestUrl(kind) {
-  const ports = getPorts();
   const testPath =
     kind === "mcp"
       ? bootstrap?.mcpTest?.path || "/api/agent/mcp-ping"
       : bootstrap?.serverTest?.path || "/";
-  return `https://localhost:${ports.editorHttps}${testPath}`;
+  const base = getEffectiveCmsBaseUrl();
+  return `${base}${testPath.startsWith("/") ? testPath : `/${testPath}`}`;
 }
 
 function getCurlCommand(kind) {
@@ -1416,13 +1494,19 @@ function renderGuideStepSetup() {
   const actions = (bootstrap?.actions || []).filter((entry) => ids.includes(entry.id));
 
   const cards = actions
-    .map((action) =>
-      setupButton(
+    .map((action) => {
+      const shortcutsOnly =
+        action.id === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported();
+      const hint = shortcutsOnly
+        ? "Только macOS и Windows — на Linux/VPS не нужно."
+        : action.description || "";
+      return setupButton(
         action.id,
         SETUP_SHORT_TITLES[action.id] || action.title,
-        action.description || ""
-      )
-    )
+        hint,
+        shortcutsOnly
+      );
+    })
     .join("");
 
   return `
@@ -1525,13 +1609,14 @@ async function refreshMobileVoiceQr() {
 function renderGuideStepServer() {
   const server = lastServer || bootstrap?.server;
   const isRunning = Boolean(server?.running);
+  const opsLocked = needsAppLockLogin();
   const ports = getPorts();
-  const cmsHttps = `https://localhost:${ports.editorHttps}`;
-  const cmsHttp = `http://localhost:${ports.editorHttp}`;
-  const voiceHttps = `https://localhost:${ports.voiceHttps}`;
-  const voiceHttp = `http://localhost:${ports.voiceHttp}`;
-  const commanderHttp = `http://localhost:${ports.commanderHttp}/`;
-  const commanderHttps = `https://localhost:${ports.editorHttps}/commander/`;
+  const cmsHttps = buildServiceUrl("https", ports.editorHttps, "/");
+  const cmsHttp = buildServiceUrl("http", ports.editorHttp, "/");
+  const voiceHttps = buildServiceUrl("https", ports.voiceHttps, "/");
+  const voiceHttp = buildServiceUrl("http", ports.voiceHttp, "/");
+  const commanderHttp = buildServiceUrl("http", ports.commanderHttp, "/");
+  const commanderHttps = buildServiceUrl("https", ports.editorHttps, "/commander/");
   const commanderOpenUrl = isRunning ? commanderHttps : commanderHttp;
   const linkDisabled = isRunning ? "" : " disabled";
   const browserLinks = `
@@ -1581,23 +1666,32 @@ function renderGuideStepServer() {
   const maintenanceDisabled = maintenanceModeBusy;
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
   const autoStart = server?.autoStart;
-  const autostartSupported = autoStart?.supported !== false;
+  const autostartSupported = autoStart?.supported !== false && !isWebLauncher();
   const autostartOn = Boolean(autoStart?.enabled);
   const autostartActionId = autostartOn ? "server-autostart-disable" : "server-autostart-enable";
   const autostartTone = autostartOn ? "autostart-on" : "autostart";
   const autostartButton = autostartSupported
     ? serverButton(autostartActionId, autostartTone, false)
     : "";
-  const opsLocked = needsAppLockLogin();
+  const startBgHint = isWebLauncher()
+    ? "Linux/VPS: тот же стек, что npm start"
+    : SERVER_BTN_HINTS["server-start-bg"];
+  const deckButtons = [
+    autostartButton,
+    serverButton("server-start-bg", "start-bg", isRunning || opsLocked, startBgHint),
+    !isWebLauncher() ? serverButton("server-start-attached", "start", isRunning || opsLocked) : "",
+    serverButton("server-stop", "stop", !isRunning || opsLocked),
+    isControlActionAvailable("server-restart")
+      ? serverButton("server-restart", "restart", !isRunning || opsLocked)
+      : ""
+  ].filter(Boolean);
+  const deckCount = deckButtons.length;
+  const deckSizeClass = deckCount >= 5 ? " server-deck--5" : "";
 
   const controlBlock = `
     <div class="server-controls">
-      <div class="server-deck${autostartSupported ? " server-deck--5" : ""}" role="group" aria-label="Управление сервером">
-        ${autostartButton}
-        ${serverButton("server-start-bg", "start-bg", isRunning || opsLocked)}
-        ${serverButton("server-start-attached", "start", isRunning || opsLocked)}
-        ${serverButton("server-stop", "stop", !isRunning || opsLocked)}
-        ${isControlActionAvailable("server-restart") ? serverButton("server-restart", "restart", !isRunning || opsLocked) : ""}
+      <div class="server-deck${deckSizeClass}" role="group" aria-label="Управление сервером">
+        ${deckButtons.join("")}
       </div>
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
         <div class="maintenance-toggle-copy">
@@ -1639,7 +1733,7 @@ function renderGuideStepServer() {
 
 function renderGuideStepMcp() {
   const mcp = bootstrap?.mcpConnect || {};
-  const cmsBaseUrl = mcp.cmsBaseUrl || `https://localhost:${getPorts().editorHttps}`;
+  const cmsBaseUrl = getEffectiveCmsBaseUrl();
   const mcpServerPath = mcp.mcpServerPath || `${bootstrap?.projectRoot || ""}/mcp-server/index.js`;
   const docsUrl = mcp.docsUrl || `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`;
 
@@ -1848,7 +1942,7 @@ function renderGuideStepChrome() {
   const ext = bootstrap?.chromeExtension || {};
   const folderPath = ext.folderPath || `${bootstrap?.projectRoot || ""}/browser-extension`;
   const folderName = ext.folderName || "browser-extension";
-  const cmsUrl = ext.cmsUrl || `https://localhost:${getPorts().editorHttps}`;
+  const cmsUrl = ext.cmsUrl || getEffectiveCmsBaseUrl();
 
   return `
     <article class="guide-step">
@@ -2151,7 +2245,10 @@ function bindAppLockGate() {
       errEl.textContent = "";
     }
     try {
-      await window.agentControl.appLockLogin(login, password);
+      const loginResult = await window.agentControl.appLockLogin(login, password);
+      if (loginResult && loginResult.ok === false) {
+        throw new Error(loginResult.error || "Неверный логин или пароль");
+      }
       if (window.agentControl.getBootstrap) {
         bootstrap = await window.agentControl.getBootstrap();
       } else {
@@ -2358,7 +2455,9 @@ function updateRunningButtons() {
   actionsRoot.querySelectorAll(".setup-btn").forEach((button) => {
     const actionId = button.dataset.action;
     const isRunning = isActionRunning(actionId);
-    button.disabled = isRunning;
+    const platformBlocked =
+      actionId === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported();
+    button.disabled = isRunning || platformBlocked;
     button.classList.toggle("is-running", isRunning);
     const title = button.querySelector(".setup-btn-title");
     if (!title) return;
@@ -2421,6 +2520,7 @@ async function init() {
   await handleServerStatusUpdate(bootstrap.server, { skipNotify: true });
   await refreshMaintenanceModeState();
   await renderLayout();
+  syncAppLockLogoutButton();
   renderAppFooter();
   startFlipClock();
   updateFlipRuntime(bootstrap?.server?.runtimeTodayMinutes ?? 0, false);
@@ -2467,9 +2567,11 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.appLock) bootstrap.appLock = data.appLock;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
+    syncAppLockLogoutButton();
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();
     await renderLayout();
+    syncAppLockLogoutButton();
     renderServicesMonitor();
     renderAppFooter();
   } catch (error) {

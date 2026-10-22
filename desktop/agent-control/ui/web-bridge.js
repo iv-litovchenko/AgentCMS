@@ -147,6 +147,7 @@
         });
         if (result.message) emitLog({ text: `${result.message}\n`, stream: "stdout" });
         if (result.logTail) emitLog({ text: `${result.logTail}\n`, stream: "stdout" });
+        if (result.output) emitLog({ text: `${result.output}\n`, stream: "stdout" });
         if (!result.ok && result.error) emitLog({ text: `${result.error}\n`, stream: "stderr" });
         return { ok: Boolean(result.ok), error: result.error || null };
       } catch (error) {
