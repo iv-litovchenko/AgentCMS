@@ -400,20 +400,18 @@ HOST=0.0.0.0 npm start
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
-🇷🇺 **[ru]**
-
 Исходники — **`GLOBAL-SKILL-*.md`** в [корне репозитория на GitHub](https://github.com/iv-litovchenko/AgentCMS). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
 | Файл | Скилл | Зачем |
 | --- | --- | --- |
-| [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов |
-| [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools |
-| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭) |
-| [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила |
-| [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
-| [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
-| [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
-| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*` |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов<br><sub>Intro, MCP start, skill map</sub> |
+| [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools<br><sub>Workspace and MCP tools</sub> |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭)<br><sub>Reply style (🗄️ / 🌐 / 💭)</sub> |
+| [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила<br><sub>Global rules</sub> |
+| [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md<br><sub>Markdown in records</sub> |
+| [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL<br><sub>Search, indexes, DQL</sub> |
+| [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули<br><sub>Git and modules</sub> |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*`<br><sub>Viz maps `*.viz.md`, Atlas, `viz_map_*`</sub> |
 
 **Как установить**
 
@@ -429,20 +427,7 @@ HOST=0.0.0.0 npm start
 
 > 🇬🇧 **[en]**
 >
-> Sources: **`GLOBAL-SKILL-*.md`** at the [GitHub repo root](https://github.com/iv-litovchenko/AgentCMS).
->
-> | File | Skill | Purpose |
-> | --- | --- | --- |
-> | [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Intro, MCP start, skill map |
-> | [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Workspace and MCP tools |
-> | [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Reply style (🗄️ / 🌐 / 💭) |
-> | [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Global rules |
-> | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
-> | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
-> | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
-> | [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Viz maps `*.viz.md`, Atlas, `viz_map_*` |
->
-> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; then copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub. Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `read_platform_doc`. Refresh after `git pull`.
+> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub. Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `read_platform_doc`. Refresh after `git pull`.
 
 ## 🇷🇺 Подключение MCP (🇬🇧 MCP connection)
 
