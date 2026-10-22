@@ -387,7 +387,8 @@ HOST=0.0.0.0 npm start
 # Если SSH уже refused: консоль/VNC в панели хостинга (Timeweb) → ufw allow 22 → ufw disable или reboot
 
 # Проверка в браузере:
-#   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD
+#   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD (нужен для кнопок ops)
+#   http://ВАШ_IP:3288   — Web Control: мониторинг, Старт/Стоп/Restart, npm ci
 # Cursor (remote MCP, Bearer = AGENT_CMS_MCP_TOKEN):
 #   http://ВАШ_IP:3490/mcp
 # Коннекторы: docs/connectors/README.md

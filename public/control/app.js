@@ -3,6 +3,7 @@ const POLL_MS = 8000;
 let lastStatus = null;
 let pollTimer = null;
 let maintenanceBusy = false;
+let serverActionBusy = false;
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -85,7 +86,7 @@ function renderMonitor(status) {
       <div class="svc-rack-grid">${services.map(renderCard).join("")}</div>
       <details class="svc-rack-note">
         <summary>Это Web Control на порту Editor</summary>
-        <p>${escapeAttr(status?.note || "Ops-пульт в браузере. Desktop Control (.app) — только на Mac рядом с репозиторием.")}</p>
+        <p>${escapeAttr(status?.note || "Ops-пульт в браузере: мониторинг, maintenance, старт/стоп сервера (как Launcher). Desktop .app — расширенная установка на Mac.")}</p>
       </details>
     </div>
   `;
@@ -161,12 +162,62 @@ function applyFooter(status) {
   footer.textContent = version ? `Agent CMS Control · Web · v${version}` : "Agent CMS Control · Web";
 }
 
+function applyServerProcess(status) {
+  const line = document.getElementById("server-process-line");
+  const actions = document.getElementById("server-actions");
+  if (!line) return;
+
+  const proc = status?.serverProcess;
+  const gate = status?.appLock;
+  const canControl = gate?.canToggleMaintenance !== false;
+
+  if (proc?.state) {
+    line.textContent = `Статус процесса: ${proc.state}${proc.script ? ` · ${proc.script}` : ""}`;
+  } else {
+    line.textContent = "Статус процесса: —";
+  }
+
+  if (actions) {
+    for (const btn of actions.querySelectorAll("button[data-action]")) {
+      btn.disabled = !canControl || serverActionBusy;
+    }
+  }
+}
+
+function showServerLog(text) {
+  const el = document.getElementById("server-action-log");
+  if (!el) return;
+  const value = String(text || "").trim();
+  if (!value) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = value;
+}
+
+async function postServerAction(action) {
+  const response = await fetch("/api/ops/server/action", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ action })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && !data.ok) {
+    throw new Error(data.message || data.error || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
 function renderAll(status) {
   lastStatus = status;
   renderMonitor(status);
   renderQuickLinks(status);
   applySummaryChip(status);
   applyMaintenanceUi(Boolean(status?.maintenance), status?.appLock);
+  applyServerProcess(status);
   applyFooter(status);
 }
 
@@ -220,6 +271,42 @@ async function setMaintenance(enabled) {
 function bindUi() {
   document.getElementById("refresh-btn")?.addEventListener("click", () => {
     void refreshStatus({ manual: true });
+  });
+
+  document.getElementById("server-actions")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn || serverActionBusy) return;
+    const action = btn.getAttribute("data-action");
+    if (!action) return;
+
+    if (action === "stop" || action === "restart") {
+      const ok = window.confirm(
+        action === "stop"
+          ? "Остановить Agent CMS на этом хосте?"
+          : "Перезапустить Agent CMS? Соединение может оборваться."
+      );
+      if (!ok) return;
+    }
+
+    serverActionBusy = true;
+    applyServerProcess(lastStatus || {});
+    showServerLog(`→ ${action}…`);
+
+    void postServerAction(action)
+      .then((data) => {
+        const parts = [data.message, data.output, data.logPath ? `log: ${data.logPath}` : ""].filter(Boolean);
+        showServerLog(parts.join("\n\n") || JSON.stringify(data, null, 2));
+        if (action !== "stop") {
+          setTimeout(() => void refreshStatus(), action === "install-npm" ? 2000 : 1500);
+        }
+      })
+      .catch((error) => {
+        showServerLog(String(error.message || error));
+      })
+      .finally(() => {
+        serverActionBusy = false;
+        if (lastStatus) applyServerProcess(lastStatus);
+      });
   });
 
   const toggle = document.getElementById("maintenance-toggle");

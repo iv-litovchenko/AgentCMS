@@ -6157,6 +6157,8 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/agent/settings/write",
   "/api/ops/status",
   "/api/ops/maintenance",
+  "/api/ops/server/action",
+  "/api/ops/server/status",
   "/api/agent/mcp-ping"
 ]);
 
@@ -14956,6 +14958,8 @@ const SESSION_CONTEXT_API_MAP = {
   mcpPing: "GET /api/agent/mcp-ping — utility_mcp_ping MCP (health check)",
   opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
   opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
+  opsServerAction:
+    "POST /api/ops/server/action — Web Control: start|stop|restart|install-npm (app-lock session). GET /api/ops/server/status",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -22940,6 +22944,12 @@ async function handleApiForAgent(req, res, url) {
         packageVersion
       });
       payload.appLock = await resolveOpsAppLockGate(req);
+      try {
+        const { getServerProcessStatus } = require("./lib/ops/ops-server-control");
+        payload.serverProcess = getServerProcessStatus(getProjectRoot());
+      } catch {
+        payload.serverProcess = null;
+      }
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -22982,6 +22992,43 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         ok: false,
         error: "Failed to save maintenance-mode",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/server/status") {
+    try {
+      const { getServerProcessStatus } = require("./lib/ops/ops-server-control");
+      const gate = await resolveOpsAppLockGate(req);
+      return sendJson(res, 200, {
+        ok: true,
+        appLock: gate,
+        process: getServerProcessStatus(getProjectRoot())
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read server process status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/server/action") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+
+      const payload = await readJsonBody(req);
+      const { runServerAction } = require("./lib/ops/ops-server-control");
+      const result = runServerAction(getProjectRoot(), payload?.action);
+      const httpStatus = result.status || (result.ok ? 200 : 500);
+      return sendJson(res, httpStatus, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to run server action",
         details: String(error.message || error)
       });
     }

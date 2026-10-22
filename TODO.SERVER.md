@@ -69,7 +69,7 @@ Voice:      HTTP 3088   HTTPS 3488
 Commander:  HTTP 3188
 Web Control: HTTP 3288  (`npm run control:start` или CONTROL_AUTOSTART=1) · также /control/ на Editor
 MCP stdio:  (без порта) · MCP HTTP: 3490 → `/mcp`
-Ops API: GET /api/ops/status · POST maintenance (app-lock, если в `.env`)
+Ops API: GET /api/ops/status · POST maintenance · **POST /api/ops/server/action** (`start` | `stop` | `restart` | `install-npm`, app-lock) · GET /api/ops/server/status. Linux/VPS: `scripts/agent-cms-http-service.sh`; Mac HTTPS: `agent-https-service.sh`.
 ```
 
 Скрипт экспорта: `node lib/config/agent-cms-ports.js`
