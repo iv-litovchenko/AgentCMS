@@ -27346,8 +27346,21 @@ function topicSlotsTemplateSkipsExternal(template) {
   return isTopicSlotsMinimalTemplate(template) || isTopicSlotsInstructionTemplate(template);
 }
 
+function topicSlotsTemplateSkipsMediaSlot(template, slotsDisabled = false) {
+  if (slotsDisabled) return true;
+  if (isTopicSlotsInstructionTemplate(template)) return false;
+  return isTopicSlotsMinimalTemplate(template);
+}
+
+function topicSlotsTemplateSkipsAssetsSlot(template, slotsDisabled = false) {
+  if (slotsDisabled) return true;
+  if (isTopicSlotsInstructionTemplate(template)) return false;
+  return isTopicSlotsMinimalTemplate(template);
+}
+
+/** @deprecated use topicSlotsTemplateSkipsMediaSlot / topicSlotsTemplateSkipsAssetsSlot */
 function topicSlotsTemplateSkipsMediaAssets(template, slotsDisabled = false) {
-  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
+  return topicSlotsTemplateSkipsMediaSlot(template, slotsDisabled);
 }
 
 function topicSlotsTemplateUsesCompactNav(template, slotsDisabled = false) {
@@ -40968,7 +40981,6 @@ function isVizMapsAboutHostRelPath(relPath) {
   if (/\.viz\.md$/i.test(normalized)) return false;
 
   if (isNodeManifestPath(normalized)) {
-    if (isAgentRootIndexPath(normalized)) return false;
     if (isAgentSystemRootIndexPath(normalized)) return false;
     if (
       new RegExp(
@@ -40988,10 +41000,96 @@ function isVizMapsAboutHostRelPath(relPath) {
 
 window.isVizMapsAboutHostRelPath = isVizMapsAboutHostRelPath;
 
+function isHubTopicSectionManifestPath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || ""));
+  if (!isNodeManifestPath(normalized)) return false;
+  const declared = getDeclaredManifestTreeType(normalized);
+  if (declared === "section") return true;
+  const dir = normalized.replace(/\/manifest\.md$/i, "").toLowerCase();
+  return (
+    dir === "awn-topics/0-agent-kit" ||
+    dir === "awn-topics/0-shared" ||
+    dir.endsWith("/0-agent-kit") ||
+    dir.endsWith("/0-shared")
+  );
+}
+
+/** Hub manifest hosts for viz maps: ws, area, section, topic (navigation / manifest.md). */
+function isHubVizMapsHostManifestPath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return false;
+
+  const menuIndex = normalizeMenuNodePath(currentMenuData?.indexPath || "");
+  if (menuIndex && normalized === menuIndex && isNodeManifestPath(menuIndex)) {
+    return true;
+  }
+
+  if (!isNodeManifestPath(normalized)) return false;
+  if (isPartNodePath(normalized)) return false;
+  if (isAgentSystemRootIndexPath(normalized)) return false;
+  if (isSystemReferenceManifestPath(normalized)) return false;
+  if (
+    new RegExp(
+      `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+      "i"
+    ).test(normalized)
+  ) {
+    return false;
+  }
+  if (isAgentRootIndexPath(normalized) || isWorkspaceRootNodePath(normalized)) return true;
+  if (
+    /^manifest\.md$/i.test(normalized) &&
+    countManifestFolderDepthFromWorkspaceRoot(normalized) === 0
+  ) {
+    return true;
+  }
+  if (isAreaNodePath(normalized)) return true;
+  if (isTopicManifestPath(normalized)) return true;
+  if (isHubTopicSectionManifestPath(normalized)) return true;
+  return false;
+}
+
+window.isHubVizMapsHostManifestPath = isHubVizMapsHostManifestPath;
+
+function resolveHubVizMapsManifestAboutPath(nodePath, manifestApiPath, propEntries = null) {
+  const entries = Array.isArray(propEntries)
+    ? propEntries
+    : typeof resolveNodeOverviewPropsEntries === "function"
+      ? resolveNodeOverviewPropsEntries()
+      : [];
+  const candidates = [
+    manifestApiPath,
+    resolveManifestPathForNodeApi(nodePath),
+    getOverviewNodeApiPath(nodePath),
+    getResolvedNodePath(nodePath),
+    nodePath,
+    getAgentWorkspaceRootManifestPath(),
+    normalizeMenuNodePath(currentMenuData?.indexPath || "")
+  ];
+  const seen = new Set();
+  for (const raw of candidates) {
+    const p = String(raw || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+    if (!p || seen.has(p)) continue;
+    seen.add(p);
+    if (isHubVizMapsHostManifestPath(p) && isVizMapsAboutHostRelPath(p)) return p;
+  }
+  const awnType = normalizeAwnTypeName(getPropsEntryValueByKey(entries, "awn-type") || "");
+  if (awnType === normalizeAwnTypeName("awn.hub.topic.ws")) {
+    const root = String(getAgentWorkspaceRootManifestPath() || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .trim();
+    if (root && isVizMapsAboutHostRelPath(root)) return root;
+  }
+  return "";
+}
+
+window.resolveHubVizMapsManifestAboutPath = resolveHubVizMapsManifestAboutPath;
+
 function buildNodeManifestVizMapsOverviewContext(manifestNodePath, propEntries = []) {
-  const relPath = String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
-  if (!relPath || !isVizMapsAboutHostRelPath(relPath)) return null;
-  if (!isTopicManifestPath(relPath) && !isAreaNodePath(relPath)) return null;
+  const manifestApi = resolveManifestPathForNodeApi(manifestNodePath);
+  const relPath = resolveHubVizMapsManifestAboutPath(manifestNodePath, manifestApi, propEntries);
+  if (!relPath) return null;
   const props = Array.isArray(propEntries) ? propEntries : [];
   const awnId = parseRecordMaterialsAwnIdValue(getPropsEntryValueByKey(props, "awn-id"));
   const entryKind = String(getPropsEntryValueByKey(props, "awn-type") || "").trim();
@@ -41009,6 +41107,10 @@ function shouldShowEntryOverviewVizMaps(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (isBundleEntryOverviewMemoryKind(context.memoryKind)) return false;
   if (context.entryKind === "awn.media.asset") return false;
+
+  const props = Array.isArray(context.props) ? context.props : null;
+  const hubAbout = resolveHubVizMapsManifestAboutPath(context.relPath, context.relPath, props);
+  if (hubAbout) return true;
 
   const hostRel = normalizeEntryOverviewVizMapsAboutPath(context);
   if (!hostRel || !isVizMapsAboutHostRelPath(hostRel)) return false;
@@ -41028,7 +41130,13 @@ function shouldShowEntryOverviewVizMaps(context) {
 
 function normalizeEntryOverviewVizMapsAboutPath(context) {
   if (!context) return "";
+  const props = Array.isArray(context.props) ? context.props : null;
   const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const hubAbout = resolveHubVizMapsManifestAboutPath(relPath, relPath, props);
+  if (hubAbout) return hubAbout;
+  if (relPath && isHubVizMapsHostManifestPath(relPath)) {
+    return relPath;
+  }
   if (relPath && isMarkdownStorageFilePath(relPath) && !isVizMapStorageFilePath(relPath)) {
     return relPath;
   }
@@ -72295,6 +72403,7 @@ function buildNodeMemorySlotStatuses({
   externalData = null,
   tabularData = null,
   mediaData = null,
+  assetsData = null,
   todoData = null,
   memorySummary = null
 } = {}) {
@@ -72324,10 +72433,15 @@ function buildNodeMemorySlotStatuses({
   );
   const hasTabular = tabularRows > 0;
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
+  const hasAssets = Boolean(assetsData?.exists && Number(assetsData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
   if (isTopicSlotsInstructionTemplate(slotsTemplate)) {
-    return hasTodo ? [{ id: "todo", label: "TODO", filled: true, modeId: "todo" }] : [];
+    return [
+      { id: "media", label: "Медиа", filled: hasMedia, modeId: "media" },
+      { id: "assets", label: "Активы", filled: hasAssets, modeId: "assets" },
+      { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
+    ];
   }
 
   if (isTopicSlotsMinimalTemplate(slotsTemplate)) {
@@ -73592,6 +73706,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
   wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
   if (layout === "area-single") {
     wrap.classList.add("node-navigation-workspace-counters--area-single");
+  } else if (layout === "instruction-dual") {
+    wrap.classList.add("node-navigation-workspace-counters--instruction-dual");
   }
   wrap.setAttribute("aria-label", "Слоты памяти и разделы workspace");
   if (resolvedTopicPath) {
@@ -73607,6 +73723,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
   list.className = "node-navigation-workspace-counter-list";
   if (layout === "area-single") {
     list.classList.add("node-navigation-workspace-counter-list--area-single");
+  } else if (layout === "instruction-dual") {
+    list.classList.add("node-navigation-workspace-counter-list--instruction-dual");
   }
 
   const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
@@ -73655,7 +73773,7 @@ async function appendTopicSlotCounterStrip(
     ? getTopicSlotsTemplateFromEntries(propsEntries)
     : await readTopicSlotsTemplateForPath(topicPath);
   const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const counterLayout = instructionSlotsOnly ? "area-single" : "grid";
+  const counterLayout = instructionSlotsOnly ? "instruction-dual" : "grid";
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     topicSlotCounters.map((slot) => ({
       ...slot,
@@ -80027,7 +80145,7 @@ function resolveVizMapsUiContext(config) {
     const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
     if (activeAbout === about) return activeEntryOverviewContext;
   }
-  if (isTopicManifestPath(about) || isAreaNodePath(about)) {
+  if (isHubVizMapsHostManifestPath(about) || resolveHubVizMapsManifestAboutPath(about, about)) {
     const entries =
       typeof resolveNodeOverviewPropsEntries === "function" ? resolveNodeOverviewPropsEntries() : [];
     return buildNodeManifestVizMapsOverviewContext(about, entries);
@@ -81883,7 +82001,9 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
   if (instructionSlotsOnly) {
-    overviewSpecs = overviewSpecs.filter((spec) => spec?.key === "todo-single");
+    overviewSpecs = overviewSpecs.filter(
+      (spec) => spec?.key === "todo-single" || spec?.key === "media" || spec?.key === "assets"
+    );
     if (!overviewSpecs.length) return [];
   } else if (topicUsesFlexibleSlots) {
     overviewSpecs = overviewSpecs.filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
@@ -96788,15 +96908,16 @@ function buildNodeNavigationMemoryPanelsWrap({
   panelsWrap.className = "node-navigation-panels";
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
 
   if (!isInlineNavHub) {
     const panels = [
       skipExternal ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
       instructionOnly ? null : renderNavigationInternalPart(internalData, { nodePath }),
       instructionOnly ? null : renderNavigationTabularPart(tabularData),
-      skipMediaAssets ? null : renderNavigationMediaPart(mediaData),
-      skipMediaAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      skipMedia ? null : renderNavigationMediaPart(mediaData),
+      skipAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -96817,7 +96938,8 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -96836,10 +96958,8 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          skipMediaAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          skipMediaAssets
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          skipMedia ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          skipAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
   return {
@@ -96979,7 +97099,8 @@ async function renderNodeNavigation() {
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
   const compactNav = topicSlotsTemplateUsesCompactNav(slotsTemplate, slotsDisabled);
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
@@ -97022,10 +97143,8 @@ async function renderNodeNavigation() {
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          skipMediaAssets ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          skipMediaAssets
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
+          skipMedia ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          skipAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
           manifestApiPath && !isWorkspaceRootNodePath(nodePath)
             ? fetchPageOutsideSlotsReport(manifestApiPath).catch(() => null)
@@ -97058,6 +97177,7 @@ async function renderNodeNavigation() {
     externalData,
     tabularData,
     mediaData,
+    assetsData,
     todoData
   });
 
@@ -97170,7 +97290,8 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav,
     });
     hubMain.appendChild(hero);
-    if (isTopicManifestPath(nodePath)) {
+    const vizManifestPath = resolveHubVizMapsManifestAboutPath(nodePath, manifestApiPath, entries);
+    if (vizManifestPath) {
       const vizContext = buildNodeManifestVizMapsOverviewContext(nodePath, entries);
       if (vizContext) {
         const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
@@ -97628,6 +97749,24 @@ async function renderNodeOverview() {
   appendNavigationHeroProps(hero, entries, { configSettingsEntries, nodePath: nodePathResolved });
   appendNavigationHeroTags(hero, entries);
   fragment.appendChild(hero);
+
+  const overviewManifestPath = resolveHubVizMapsManifestAboutPath(
+    nodePathResolved,
+    resolveManifestPathForNodeApi(nodePathResolved),
+    entries
+  );
+  if (overviewManifestPath) {
+    const vizContext = buildNodeManifestVizMapsOverviewContext(nodePathResolved, entries);
+    if (vizContext) {
+      const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
+        onEditClick: () => {
+          openDescriptionFromOverview();
+          queueMicrotask(() => setDocAsideTab("viz"));
+        }
+      });
+      if (vizPanel && !isStale()) fragment.appendChild(vizPanel);
+    }
+  }
 
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
   if (isStale()) return;
