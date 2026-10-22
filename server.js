@@ -12726,9 +12726,10 @@ async function buildAgentPageMap(options = {}) {
       properties: frontmatterPropsToObject(frontmatter)
     };
     if (kind === "topic") {
-      entry.slotsFlexible = await readTopicSlotsFlexible(normalized);
+      entry.slotsTemplate = await readTopicSlotsTemplate(normalized);
+      entry.slotsFlexible = entry.slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
       entry.slotsDisabled = entry.slotsFlexible;
-      if (includeSlots && !entry.slotsFlexible) {
+      if (includeSlots && entry.slotsTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
         entry.slots = await buildPageMapSlotSummaries(normalized);
       }
     }
@@ -13320,7 +13321,7 @@ async function buildAgentWorkspacePageIndex() {
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
       "Секции hub (0-agent-kit, 0-shared) — pinned вверху таблицы. " +
-      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Папки без manifest → list_folder (legacy get_topic_map deprecated).",
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: Гибкий | Стандартные | Минимум | Без слотов (awn-slots-template). Папки без manifest → list_folder (legacy get_topic_map deprecated).",
     whenToUse: {
       read_topic_index_toc:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
@@ -14182,7 +14183,10 @@ async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
 
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
-  return page?.slotsFlexible ? "гибкий" : "типовые";
+  if (page?.slotsTemplate) {
+    return formatTopicSlotsTemplateIndexLabel(page.slotsTemplate);
+  }
+  return page?.slotsFlexible ? "Гибкий" : "Стандартные";
 }
 
 const CONTENT_INDEX_IMPORTANCE_LEGEND =
@@ -15846,6 +15850,19 @@ const TOPIC_SLOTS_TEMPLATE_LABELS = {
   [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум слотов (стандарт)",
   [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов (только инструкция)"
 };
+
+/** Подписи колонки «Слоты» в index.md — как в селекте шаблона (короткая форма). */
+const TOPIC_SLOTS_TEMPLATE_INDEX_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные",
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+
+function formatTopicSlotsTemplateIndexLabel(template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[normalized] || TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[TOPIC_SLOTS_TEMPLATE_STANDARD];
+}
 
 function isAllowedTopicSlotsTemplateValue(raw) {
   const value = String(raw || "")

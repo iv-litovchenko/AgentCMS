@@ -73157,9 +73157,31 @@ function resolveAwnDataIndexWorkspacePath(entry = {}) {
   return `awn-databases/${raw}`.replace(/\/+/g, "/");
 }
 
+const TOPIC_SLOTS_TEMPLATE_INDEX_LABELS = {
+  [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий",
+  [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные",
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+};
+
+function formatTopicSlotsTemplateIndexLabel(template) {
+  const normalized = normalizeTopicSlotsTemplate(template);
+  return (
+    TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[normalized] ||
+    TOPIC_SLOTS_TEMPLATE_INDEX_LABELS[TOPIC_SLOTS_TEMPLATE_STANDARD]
+  );
+}
+
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
-  return page?.slotsFlexible ? "гибкий" : "типовые";
+  if (page?.slotsTemplate) {
+    return formatTopicSlotsTemplateIndexLabel(page.slotsTemplate);
+  }
+  const fromProps = page?.properties?.["awn-slots-template"];
+  if (fromProps !== undefined && fromProps !== null && String(fromProps).trim() !== "") {
+    return formatTopicSlotsTemplateIndexLabel(fromProps);
+  }
+  return page?.slotsFlexible ? "Гибкий" : "Стандартные";
 }
 
 function resolveContentIndexEntrySlotLabel(slotKey) {

@@ -1,0 +1,79 @@
+# Оглавление workspace
+
+| ID | Статус | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |
+| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| — | 🟢 Открыта | awn.hub.topic.section | — | `awn-topics/0-agent-kit/manifest.md` | Служебные темы и компоненты | — | 537 B | 26 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.section | — | `awn-topics/0-shared/manifest.md` | Общие темы и ресурсы | — | 523 B | 26 | 0 | 0 | — |
+| — | 🔴 Закрыта | awn.hub.topic | типовые | `aja-test-oblasti-2031/aja-test-temy-2031/manifest.md` | Ая тест темы 2031 | Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном. | 2.5 KB | 58 | 0 | 0 | Схемы |
+| — | 🟡 Черновик | awn.hub.topic.area | — | `aja-test-oblasti-2031/manifest.md` | Ая тест области 2031 | Тестовая область Agent CMS для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты путают Хэллоуин и Рождество? — Потому что OCT 31 == DEC 25. | 2.2 KB | 47 | 0 | 0 | Схемы, Настройки |
+| — | 🔴 Закрыта | awn.hub.topic | типовые | `aja-test-oblasti-2049/aja-test-temy-2049-2/manifest.md` | Ая тест темы 2049-2 | Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки. | 2.9 KB | 60 | 1 | 0 | Схемы, Настройки |
+| — | 🟡 Черновик | awn.hub.topic.area | — | `aja-test-oblasti-2049/manifest.md` | Ая тест области 2049 | Тестовая область Agent CMS 2049 для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты такие аккуратные? — Потому что в их мире каждая точка с запятой может стать точкой невозврата. | 2.5 KB | 50 | 0 | 0 | Схемы, Настройки |
+| — | — | awn.hub.topic | типовые | `awn-topics/0-agent-kit/0-agent/manifest.md` | Агент | — | 175 B | 10 | 0 | 0 | — |
+| — | — | awn.hub.topic | типовые | `awn-topics/0-agent-kit/0-devices/manifest.md` | Управление ПК, устройствами, различный софт | — | 357 B | 10 | 0 | 0 | — |
+| — | — | awn.hub.topic | типовые | `awn-topics/0-agent-kit/0-user/manifest.md` | Пользователь | — | 236 B | 10 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/444/555/666` | 666 | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/0-agent-kit/444/555/manifest.md` | 555 | — | 693 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/0-agent-kit/444/manifest.md` | 444 | — | 693 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/0-agent-kit/ierarhi-1-o/ierarhi-3-n/manifest.md` | ierarhi-3 н | — | 699 B | 35 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/0-agent-kit/ierarhi-1-o/manifest.md` | ierarhi-1-о | — | 704 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-12` | ierarhi-12 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/ierarziya-3` | ierarziya-3 | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/manifest.md` | ierarhi-2 | — | 699 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/tema-1` | tema-1 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/tema-1/tema-1` | tema-1 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/tema2` | tema2 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/0-agent-kit/ierarhi-12/ierarhi-2/tema2/tema2` | tema2 | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/0-agent-kit/ierarhi-12/manifest.md` | ierarhi-12 | — | 700 B | 35 | 0 | 0 | — |
+| — | — | awn.hub.topic | типовые | `awn-topics/0-agent-kit/real-world-and-space/manifest.md` | Объекты реального мира, места и пространства | — | 341 B | 10 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/0-agent-kit/test/manifest.md` | Тест | — | 592 B | 31 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/0-shared/0-downloads/manifest.md` | Загрузки из браузера | — | 834 B | 39 | 3 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/0-shared/0-inbox/manifest.md` | Входящие | — | 1.1 KB | 65 | 2 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/009/manifest.md` | 9 | шошщощш | 612 B | 30 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777` | 777 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777/222` | 222 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/777/333` | 333 | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/777/777/manifest.md` | 777 | — | 693 B | 35 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/8777` | 8777 | — | — | — | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/Папка` | Папка | — | — | — | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/finansy/manifest.md` | Финансы | ауцауцауц | 703 B | 34 | 0 | 0 | — |
+| 4 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/html-i-css-2/manifest.md` | HTML и CSS 2 | — | 725 B | 38 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/dom-i-byt/manifest.md` | Дом и быт | — | 540 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/druzya-i-obshchenie/manifest.md` | Друзья и общение | — | 554 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/hobbi-i-uvlecheniya/manifest.md` | Хобби и увлечения | — | 556 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/knigi-i-obuchenie/manifest.md` | Книги и обучение | — | 554 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/lichnye-tseli/manifest.md` | Личные цели | — | 545 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/lichnaya-zhizn/manifest.md` | Личная жизнь | — | 552 B | 28 | 10 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/pitanie-i-retsepty/manifest.md` | Питание и рецепты | — | 556 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/podkast-golos-nedeli/manifest.md` | Подкаст «Голос недели» | Личный подкаст: короткие эпизоды раз в неделю на разные темы | 1.6 KB | 43 | 1 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/privychki-i-samorazvitie/manifest.md` | Привычки и саморазвитие | — | 568 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/puteshestviya/manifest.md` | Путешествия | — | 546 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/semya-i-blizkie/manifest.md` | Семья и близкие | — | 552 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/tema-bez-slotov/manifest.md` | Тема без слотов | — | 569 B | 29 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/lichnaya-zhizn/zdorove-i-sport/manifest.md` | Здоровье и спорт | — | 554 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `awn-topics/manifest.md` | Контейнер | — | 501 B | 26 | 0 | 0 | — |
+| — | — | папка | — | `awn-topics/media-test-gugl-disk` | media-test-gugl-disk | — | — | — | 0 | 0 | — |
+| 7 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/moi-vklady/manifest.md` | Мои вклады | — | 570 B | 30 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/novay-tema-test-id/manifest.md` | Новай тема тест ID | — | 718 B | 35 | 0 | 0 | — |
+| 34 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/php/manifest.md` | PHP | Описание | 2.3 KB | 66 | 0 | 0 | — |
+| 40 | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/tema-bez-slotov/manifest.md` | Тема без слотов | 888 | 820 B | 42 | 0 | 0 | Схемы |
+| 9 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/temma-so-slotami/manifest.md` | Темма со слотами | — | 581 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-1000-soobscheniy/manifest.md` | Тест 1000 сообщений | — | 556 B | 28 | 4 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-formatov-faylov/manifest.md` | Тест форматов файлов | — | 631 B | 30 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-md-blokov/manifest.md` | Тест md-блоков | — | 1.6 KB | 94 | 0 | 0 | — |
+| 39 | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test-vseh-svoystvo/manifest.md` | Тест всех свойство | — | 4.2 KB | 147 | 0 | 0 | Схемы, Настройки |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `awn-topics/test/manifest.md` | Тест | — | 1014 B | 57 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | гибкий | `awn-topics/tevt-diagramm/manifest.md` | Тевт диаграмм | — | 711 B | 35 | 0 | 0 | — |
+| 6 | 🟢 Открыта | awn.hub.topic.area | — | `codex-test/manifest.md` | codex test | — | 549 B | 29 | 0 | 0 | — |
+| 33 | 🟢 Открыта | awn.hub.topic | типовые | `codex-test/test/manifest.md` | test | — | 537 B | 29 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/analitika/manifest.md` | Аналитика | — | 542 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/grafik/manifest.md` | График | — | 536 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/kalendar/manifest.md` | Календарь | — | 542 B | 28 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/klienty/manifest.md` | Клиенты | — | 538 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic.area | — | `crm-studio/manifest.md` | CRM Studio 1 | — | 562 B | 37 | 0 | 0 | — |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/mastera/manifest.md` | Мастера | — | 538 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/uslugi/manifest.md` | Услуги | — | 536 B | 28 | 0 | 0 | Схемы |
+| — | 🟢 Открыта | awn.hub.topic | типовые | `crm-studio/zapisi/manifest.md` | Записи | — | 536 B | 28 | 0 | 0 | Схемы |
+| 41 | 🟢 Открыта | awn.hub.topic.ws | — | `manifest.md` | [Memory CMS] Песочница и тесты | Описчание | 843 B | 44 | 0 | 0 | Схемы, Настройки |
+
+* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.
+* **Строк** — число строк в теле документа (manifest.md). Если больше 0 — есть инструкция/промпт для агента: как работать с этой темой, что важно знать, договорённости. Пустое тело — 0.
