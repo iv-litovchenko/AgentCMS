@@ -12,6 +12,29 @@ const runningActions = new Set();
 function isControlActionAvailable(actionId) {
   return Array.isArray(bootstrap?.actions) && bootstrap.actions.some((entry) => entry.id === actionId);
 }
+
+function needsAppLockLogin() {
+  const gate = bootstrap?.appLock;
+  return Boolean(gate?.enabled && !gate?.sessionActive);
+}
+
+function renderAppLockGate() {
+  if (!needsAppLockLogin()) return "";
+  return `
+    <div class="app-lock-gate" id="app-lock-gate">
+      <div class="app-lock-gate-copy">
+        <strong>Вход Control</strong>
+        <span>Логин и пароль из <code>.env</code> (<code>APP_LOCK_*</code>) — для Старт/Стоп и ops.</span>
+      </div>
+      <form class="app-lock-gate-form" id="app-lock-form" autocomplete="on">
+        <input type="text" name="login" class="app-lock-input" placeholder="Логин" autocomplete="username" required />
+        <input type="password" name="password" class="app-lock-input" placeholder="Пароль" autocomplete="current-password" required />
+        <button type="submit" class="ghost-btn app-lock-submit">Войти</button>
+      </form>
+      <p class="app-lock-gate-error" id="app-lock-error" hidden></p>
+    </div>
+  `;
+}
 let lastServer = null;
 let clockTimer = null;
 let serverPollTimer = null;
@@ -1054,17 +1077,19 @@ function syncServerUi(server) {
     runningActions.has("server-start-attached") ||
     runningActions.has("server-stop") ||
     runningActions.has("server-restart");
+  const opsLocked = needsAppLockLogin();
 
   document
     .querySelectorAll('[data-action="server-start-bg"], [data-action="server-start-attached"]')
     .forEach((button) => {
-      button.disabled = isRunning || serverActionBusy || runningActions.has(button.dataset.action);
+      button.disabled =
+        opsLocked || isRunning || serverActionBusy || runningActions.has(button.dataset.action);
     });
   document.querySelectorAll('[data-action="server-stop"]').forEach((button) => {
-    button.disabled = !isRunning || serverActionBusy;
+    button.disabled = opsLocked || !isRunning || serverActionBusy;
   });
   document.querySelectorAll('[data-action="server-restart"]').forEach((button) => {
-    button.disabled = !isRunning || serverActionBusy;
+    button.disabled = opsLocked || !isRunning || serverActionBusy;
   });
 
   const autostartOn = Boolean(server?.autoStart?.enabled);
@@ -1530,15 +1555,17 @@ function renderGuideStepServer() {
   const autostartButton = autostartSupported
     ? serverButton(autostartActionId, autostartTone, false)
     : "";
+  const opsLocked = needsAppLockLogin();
 
   const controlBlock = `
     <div class="server-controls">
+      ${renderAppLockGate()}
       <div class="server-deck${autostartSupported ? " server-deck--5" : ""}" role="group" aria-label="Управление сервером">
         ${autostartButton}
-        ${serverButton("server-start-bg", "start-bg", isRunning)}
-        ${serverButton("server-start-attached", "start", isRunning)}
-        ${serverButton("server-stop", "stop", !isRunning)}
-        ${isControlActionAvailable("server-restart") ? serverButton("server-restart", "restart", !isRunning) : ""}
+        ${serverButton("server-start-bg", "start-bg", isRunning || opsLocked)}
+        ${serverButton("server-start-attached", "start", isRunning || opsLocked)}
+        ${serverButton("server-stop", "stop", !isRunning || opsLocked)}
+        ${isControlActionAvailable("server-restart") ? serverButton("server-restart", "restart", !isRunning || opsLocked) : ""}
       </div>
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
         <div class="maintenance-toggle-copy">
@@ -1978,6 +2005,7 @@ async function renderLayout() {
   actionsRoot.appendChild(renderAppsSection());
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
+  bindAppLockGate();
   await bindMaintenanceToggle();
   syncMcpConfigPreview();
   void bindMcpInstancesControl();
@@ -2072,6 +2100,43 @@ async function refreshMaintenanceModeState() {
   } catch {
     maintenanceModeEnabled = false;
   }
+}
+
+function bindAppLockGate() {
+  const form = document.getElementById("app-lock-form");
+  if (!form || form.dataset.bound || !window.agentControl?.appLockLogin) return;
+  form.dataset.bound = "1";
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const errEl = document.getElementById("app-lock-error");
+    const submit = form.querySelector(".app-lock-submit");
+    const login = String(form.login?.value || "").trim();
+    const password = String(form.password?.value || "");
+    if (submit) submit.disabled = true;
+    if (errEl) {
+      errEl.hidden = true;
+      errEl.textContent = "";
+    }
+    try {
+      await window.agentControl.appLockLogin(login, password);
+      bootstrap.appLock = {
+        ...(bootstrap.appLock || {}),
+        enabled: true,
+        sessionActive: true,
+        canToggleMaintenance: true
+      };
+      appendLog("Вход в Control выполнен.\n");
+      await renderLayout();
+    } catch (error) {
+      if (errEl) {
+        errEl.textContent = String(error.message || "Неверный логин или пароль");
+        errEl.hidden = false;
+      }
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  });
 }
 
 async function bindMaintenanceToggle() {
@@ -2359,6 +2424,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     }
     if (data.mobileConnect) bootstrap.mobileConnect = data.mobileConnect;
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
+    if (data.appLock) bootstrap.appLock = data.appLock;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();

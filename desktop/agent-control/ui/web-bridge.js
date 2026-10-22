@@ -53,9 +53,20 @@
         mobileConnect: payload.mobileConnect,
         server: payload.server,
         mcpConnect: payload.mcpConnect,
-        setupFlags: payload.setupFlags
+        setupFlags: payload.setupFlags,
+        appLock: payload.appLock
       };
     },
+
+    appLockLogin: (login, password) =>
+      fetchJson("/api/app-lock/login", {
+        method: "POST",
+        body: JSON.stringify({
+          login: String(login || "").trim(),
+          password: String(password || ""),
+          remember: true
+        })
+      }),
 
     reloadUi: () => {
       window.location.reload();

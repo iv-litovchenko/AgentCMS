@@ -22939,7 +22939,8 @@ async function handleApiForAgent(req, res, url) {
           mobileConnect: payload.mobileConnect,
           server: payload.server,
           mcpConnect: payload.mcpConnect,
-          setupFlags: payload.setupFlags
+          setupFlags: payload.setupFlags,
+          appLock: await resolveOpsAppLockGate(req)
         });
       }
       payload.appLock = await resolveOpsAppLockGate(req);

@@ -2309,6 +2309,57 @@ body.is-booting {
   gap: 8px;
 }
 
+.app-lock-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(20, 184, 166, 0.28);
+  background: rgba(8, 16, 32, 0.55);
+}
+
+.app-lock-gate-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.app-lock-gate-copy strong {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.app-lock-gate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.app-lock-input {
+  flex: 1 1 100px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 140, 180, 0.25);
+  background: rgba(4, 8, 18, 0.65);
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+.app-lock-submit {
+  flex: 0 0 auto;
+}
+
+.app-lock-gate-error {
+  margin: 0;
+  font-size: 0.68rem;
+  color: #f87171;
+}
+
 .maintenance-toggle-card {
   display: flex;
   align-items: center;
