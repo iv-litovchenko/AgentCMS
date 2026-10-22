@@ -1674,12 +1674,15 @@ function renderGuideStepServer() {
     ? serverButton(autostartActionId, autostartTone, false)
     : "";
   const startBgHint = isWebLauncher()
-    ? "Linux/VPS: тот же стек, что npm start"
+    ? "Фоновый start-direct (npm start)"
     : SERVER_BTN_HINTS["server-start-bg"];
+  const startAttachedHint = isWebLauncher()
+    ? "Тот же запуск, пока вкладка открыта"
+    : SERVER_BTN_HINTS["server-start-attached"];
   const deckButtons = [
     autostartButton,
     serverButton("server-start-bg", "start-bg", isRunning || opsLocked, startBgHint),
-    !isWebLauncher() ? serverButton("server-start-attached", "start", isRunning || opsLocked) : "",
+    serverButton("server-start-attached", "start", isRunning || opsLocked, startAttachedHint),
     serverButton("server-stop", "stop", !isRunning || opsLocked),
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
@@ -2372,6 +2375,21 @@ function bindActionHandlers() {
   });
 }
 
+function waitForControlServerReload(maxWaitMs = 120000) {
+  const started = Date.now();
+  const poll = () => {
+    fetch("/api/ops/bootstrap?lite=1", { credentials: "same-origin", cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("not ready");
+        window.location.reload();
+      })
+      .catch(() => {
+        if (Date.now() - started < maxWaitMs) window.setTimeout(poll, 3000);
+      });
+  };
+  window.setTimeout(poll, 4000);
+}
+
 async function runAction(actionId) {
   if (!actionId || runningActions.has(actionId)) return;
   if (actionId === "server-stop" || actionId === "server-restart") suppressServerDownNotify = true;
@@ -2380,7 +2398,31 @@ async function runAction(actionId) {
   try {
     const result = await window.agentControl.runAction(actionId);
     if (result?.error) appendLog(`${result.error}\n`, "stderr");
-    const status = await window.agentControl.refreshStatus();
+
+    if (result?.serverDisconnectExpected) {
+      if (actionId === "server-restart" && isWebLauncher()) {
+        waitForControlServerReload();
+      } else if (actionId === "server-stop") {
+        lastServer = { ...(lastServer || bootstrap?.server || {}), running: false };
+        syncServerUi(lastServer);
+      }
+      return;
+    }
+
+    let status;
+    try {
+      status = await window.agentControl.refreshStatus();
+    } catch (error) {
+      if (
+        isWebLauncher() &&
+        (actionId === "server-stop" || actionId === "server-restart") &&
+        /failed to fetch|networkerror|load failed/i.test(String(error.message || error))
+      ) {
+        if (actionId === "server-restart") waitForControlServerReload();
+        return;
+      }
+      throw error;
+    }
     await handleServerStatusUpdate(status.server, {
       skipNotify: actionId === "server-stop" || actionId === "server-restart"
     });
