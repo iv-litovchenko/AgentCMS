@@ -323,6 +323,9 @@ cd AgentCMS
 
 Editor по HTTP, опционально MCP HTTP. **Docker не обязателен** (вариант A — Node **22+**). Требования и [порты](#-порты-по-умолчанию-gb-default-ports) — выше. **`npm ci`** без `--omit=dev`. Node 20 → `apt purge -y nodejs`, затем `setup_22.x` и `npm ci` заново. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
+> [!CAUTION]
+> **Установка на VPS:** на типичном тарифе **1–2 vCPU / 2 GB RAM** команда **`npm ci`** (сборка native-модулей и postinstall) в среднем занимает **от 15 до 30 минут**, иногда дольше. Терминал может «висеть» на одном символе — не прерывайте, если в `top` виден `node` / `gcc`. Если в конце **`Killed`** — не хватило памяти: добавьте **swap 2 GB** и запустите `npm ci` снова.
+
 ```bash
 # === Agent CMS на Ubuntu (VPS) — первый запуск ===
 # Подключение (IP и пароль — из панели хостинга):
@@ -397,21 +400,24 @@ HOST=0.0.0.0 npm start
 > 🇬🇧 **[en]**
 >
 > VPS: Node **22+**, `npm ci`, `HOST=0.0.0.0 npm start`. Requirements and ports above. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+>
+> > [!CAUTION]
+> > On a typical **1–2 vCPU / 2 GB RAM** VPS, **`npm ci`** usually takes **15–30 minutes** (sometimes longer). A frozen spinner is normal while `node`/`gcc` work in `top`. **`Killed`** means OOM — add **2 GB swap** and retry.
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
 Исходники — **`GLOBAL-SKILL-*.md`** в [корне репозитория на GitHub](https://github.com/iv-litovchenko/AgentCMS). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
-| Файл | Скилл | Зачем |
+| 🇷🇺 Файл · 🇬🇧 File | 🇷🇺 Скилл · 🇬🇧 Skill | 🇷🇺 Зачем · 🇬🇧 Purpose |
 | --- | --- | --- |
-| [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов<br><sub>Intro, MCP start, skill map</sub> |
-| [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools<br><sub>Workspace and MCP tools</sub> |
-| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭)<br><sub>Reply style (🗄️ / 🌐 / 💭)</sub> |
-| [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила<br><sub>Global rules</sub> |
-| [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md<br><sub>Markdown in records</sub> |
-| [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL<br><sub>Search, indexes, DQL</sub> |
-| [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули<br><sub>Git and modules</sub> |
-| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*`<br><sub>Viz maps `*.viz.md`, Atlas, `viz_map_*`</sub> |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | 🇷🇺 Ввод, старт MCP, карта скиллов<br>🇬🇧 Intro, MCP start, skill map |
+| [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) | `agent-cms` | 🇷🇺 Хранилище и MCP tools<br>🇬🇧 Workspace and MCP tools |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | 🇷🇺 Стиль ответов (🗄️ / 🌐 / 💭)<br>🇬🇧 Reply style (🗄️ / 🌐 / 💭) |
+| [GLOBAL-SKILL-3-RULES.md](GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | 🇷🇺 Глобальные правила<br>🇬🇧 Global rules |
+| [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | 🇷🇺 Разметка в md<br>🇬🇧 Markdown in records |
+| [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | 🇷🇺 Поиск, индексы, DQL<br>🇬🇧 Search, indexes, DQL |
+| [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | 🇷🇺 Git и модули<br>🇬🇧 Git and modules |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | 🇷🇺 Карты `*.viz.md`, «Атлас», `viz_map_*`<br>🇬🇧 Viz maps `*.viz.md`, Atlas, `viz_map_*` |
 
 **Как установить**
 
