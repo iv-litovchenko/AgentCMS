@@ -6,6 +6,7 @@
 
   const SERVER_ACTION_MAP = {
     "server-start-bg": "start",
+    "server-start-attached": "start",
     "server-stop": "stop",
     "server-restart": "restart",
     "install-deps": "install-npm"
