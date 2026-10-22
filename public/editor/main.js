@@ -40981,7 +40981,6 @@ function isVizMapsAboutHostRelPath(relPath) {
   if (/\.viz\.md$/i.test(normalized)) return false;
 
   if (isNodeManifestPath(normalized)) {
-    if (isAgentRootIndexPath(normalized)) return false;
     if (isAgentSystemRootIndexPath(normalized)) return false;
     if (
       new RegExp(
@@ -41001,10 +41000,57 @@ function isVizMapsAboutHostRelPath(relPath) {
 
 window.isVizMapsAboutHostRelPath = isVizMapsAboutHostRelPath;
 
+function isHubTopicSectionManifestPath(nodePath) {
+  const normalized = normalizeMenuNodePath(String(nodePath || ""));
+  if (!isNodeManifestPath(normalized)) return false;
+  const declared = getDeclaredManifestTreeType(normalized);
+  if (declared === "section") return true;
+  const dir = normalized.replace(/\/manifest\.md$/i, "").toLowerCase();
+  return (
+    dir === "awn-topics/0-agent-kit" ||
+    dir === "awn-topics/0-shared" ||
+    dir.endsWith("/0-agent-kit") ||
+    dir.endsWith("/0-shared")
+  );
+}
+
+/** Hub manifest hosts for viz maps: ws, area, section, topic (navigation / manifest.md). */
+function isHubVizMapsHostManifestPath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized || !isNodeManifestPath(normalized)) return false;
+  if (isPartNodePath(normalized)) return false;
+  if (isAgentSystemRootIndexPath(normalized)) return false;
+  if (isSystemReferenceManifestPath(normalized)) return false;
+  if (
+    new RegExp(
+      `^awn-repositories/${REPOSITORY_CATALOG_SLUG_PATTERN}/manifest\\.md$`,
+      "i"
+    ).test(normalized)
+  ) {
+    return false;
+  }
+  if (isAgentRootIndexPath(normalized) || isWorkspaceRootNodePath(normalized)) return true;
+  if (
+    /^manifest\.md$/i.test(normalized) &&
+    countManifestFolderDepthFromWorkspaceRoot(normalized) === 0
+  ) {
+    return true;
+  }
+  if (isAreaNodePath(normalized)) return true;
+  if (isTopicManifestPath(normalized)) return true;
+  if (isHubTopicSectionManifestPath(normalized)) return true;
+  return false;
+}
+
+window.isHubVizMapsHostManifestPath = isHubVizMapsHostManifestPath;
+
 function buildNodeManifestVizMapsOverviewContext(manifestNodePath, propEntries = []) {
-  const relPath = String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  const manifestRel =
+    resolveManifestPathForNodeApi(manifestNodePath) ||
+    String(manifestNodePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  const relPath = String(manifestRel || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!relPath || !isVizMapsAboutHostRelPath(relPath)) return null;
-  if (!isTopicManifestPath(relPath) && !isAreaNodePath(relPath)) return null;
+  if (!isHubVizMapsHostManifestPath(relPath)) return null;
   const props = Array.isArray(propEntries) ? propEntries : [];
   const awnId = parseRecordMaterialsAwnIdValue(getPropsEntryValueByKey(props, "awn-id"));
   const entryKind = String(getPropsEntryValueByKey(props, "awn-type") || "").trim();
@@ -41042,6 +41088,9 @@ function shouldShowEntryOverviewVizMaps(context) {
 function normalizeEntryOverviewVizMapsAboutPath(context) {
   if (!context) return "";
   const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relPath && isHubVizMapsHostManifestPath(relPath)) {
+    return relPath;
+  }
   if (relPath && isMarkdownStorageFilePath(relPath) && !isVizMapStorageFilePath(relPath)) {
     return relPath;
   }
@@ -80050,7 +80099,7 @@ function resolveVizMapsUiContext(config) {
     const activeAbout = normalizeEntryOverviewVizMapsAboutPath(activeEntryOverviewContext);
     if (activeAbout === about) return activeEntryOverviewContext;
   }
-  if (isTopicManifestPath(about) || isAreaNodePath(about)) {
+  if (isHubVizMapsHostManifestPath(about)) {
     const entries =
       typeof resolveNodeOverviewPropsEntries === "function" ? resolveNodeOverviewPropsEntries() : [];
     return buildNodeManifestVizMapsOverviewContext(about, entries);
@@ -97195,8 +97244,9 @@ async function renderNodeNavigation() {
       entryOverviewNav: topicSiblingNav,
     });
     hubMain.appendChild(hero);
-    if (isTopicManifestPath(nodePath)) {
-      const vizContext = buildNodeManifestVizMapsOverviewContext(nodePath, entries);
+    const vizManifestPath = manifestApiPath || nodePath;
+    if (isHubVizMapsHostManifestPath(vizManifestPath) || isHubVizMapsHostManifestPath(nodePath)) {
+      const vizContext = buildNodeManifestVizMapsOverviewContext(vizManifestPath, entries);
       if (vizContext) {
         const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
           onEditClick: () => {
@@ -97653,6 +97703,20 @@ async function renderNodeOverview() {
   appendNavigationHeroProps(hero, entries, { configSettingsEntries, nodePath: nodePathResolved });
   appendNavigationHeroTags(hero, entries);
   fragment.appendChild(hero);
+
+  const overviewManifestPath = resolveManifestPathForNodeApi(nodePathResolved) || nodePathResolved;
+  if (isHubVizMapsHostManifestPath(overviewManifestPath)) {
+    const vizContext = buildNodeManifestVizMapsOverviewContext(overviewManifestPath, entries);
+    if (vizContext) {
+      const vizPanel = await renderEntryOverviewVizMapsPart(vizContext, {
+        onEditClick: () => {
+          openDescriptionFromOverview();
+          queueMicrotask(() => setDocAsideTab("viz"));
+        }
+      });
+      if (vizPanel && !isStale()) fragment.appendChild(vizPanel);
+    }
+  }
 
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
   if (isStale()) return;
