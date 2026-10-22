@@ -13,8 +13,13 @@ contextBridge.exposeInMainWorld("agentControl", {
   renderQr: (text) => ipcRenderer.invoke("control:render-qr", text),
   getMaintenanceMode: () => ipcRenderer.invoke("control:get-maintenance-mode"),
   setMaintenanceMode: (enabled) => ipcRenderer.invoke("control:set-maintenance-mode", enabled),
-  appLockLogin: (login, password) =>
-    ipcRenderer.invoke("control:app-lock-login", { login, password }),
+  appLockLogin: async (login, password) => {
+    const result = await ipcRenderer.invoke("control:app-lock-login", { login, password });
+    if (!result?.ok) {
+      throw new Error(result?.error || "Неверный логин или пароль");
+    }
+    return result;
+  },
   appLockLogout: () => ipcRenderer.invoke("control:app-lock-logout"),
   getMcpInstances: () => ipcRenderer.invoke("control:get-mcp-instances"),
   saveMcpInstances: (document) => ipcRenderer.invoke("control:save-mcp-instances", document),

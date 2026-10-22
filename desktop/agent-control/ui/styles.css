@@ -860,84 +860,94 @@ body.is-booting {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px 16px;
-  align-items: start;
-  justify-items: center;
+  gap: 10px;
+  align-items: stretch;
 }
 
 .platform-pick {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  max-width: 100%;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 108px;
+  padding: 14px 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #ffffff 0%, #eef2f7 100%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
   transition:
     opacity 0.25s ease,
     transform 0.25s ease,
-    filter 0.25s ease;
+    filter 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.platform-pick--mac {
+  background: linear-gradient(160deg, #ffffff 0%, #e2e8f0 100%);
+}
+
+.platform-pick--linux {
+  background: linear-gradient(160deg, #fffef9 0%, #fde68a 55%, #fef3c7 100%);
+}
+
+.platform-pick--windows {
+  background: linear-gradient(160deg, #ffffff 0%, #dbeafe 100%);
 }
 
 .platform-pick-icon {
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(165deg, #ffffff 0%, #e8edf5 100%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
   transition:
     box-shadow 0.25s ease,
     transform 0.25s ease;
 }
 
-.platform-pick--linux .platform-pick-icon {
-  background: linear-gradient(165deg, #fffef9 0%, #fde68a 100%);
-}
-
-.platform-pick--windows .platform-pick-icon {
-  background: linear-gradient(165deg, #ffffff 0%, #dbeafe 100%);
-}
-
 .platform-pick-icon-img {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: block;
   object-fit: contain;
-  border-radius: 50%;
 }
 
 .platform-pick-name {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
   text-align: center;
 }
 
-.platform-pick[data-state="active"] .platform-pick-icon {
-  transform: scale(1.06);
+.platform-pick[data-state="active"] {
+  transform: translateY(-2px);
   box-shadow:
-    0 0 0 3px var(--control),
-    0 0 22px rgba(20, 184, 166, 0.45),
-    0 8px 20px rgba(0, 0, 0, 0.35);
+    0 0 0 2px var(--control),
+    0 0 24px rgba(20, 184, 166, 0.35),
+    0 14px 32px rgba(0, 0, 0, 0.32);
 }
 
-.platform-pick[data-state="active"] .platform-pick-name {
-  color: var(--text);
-  font-weight: 700;
+.platform-pick[data-state="active"] .platform-pick-icon {
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
 }
 
 .platform-pick[data-state="idle"] {
-  opacity: 0.48;
+  opacity: 0.5;
+  filter: saturate(0.85);
 }
 
 .platform-pick[data-state="disabled"] {
-  opacity: 0.32;
-  filter: grayscale(0.5);
+  opacity: 0.38;
+  filter: grayscale(0.45);
   cursor: not-allowed;
 }
 
@@ -1037,6 +1047,13 @@ body.is-booting {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.hero-actions #app-lock-logout:not([hidden]) {
+  flex-shrink: 0;
+  margin-left: 2px;
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fecaca;
 }
 
 .status-chip {
