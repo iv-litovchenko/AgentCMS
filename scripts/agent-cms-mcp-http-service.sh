@@ -17,6 +17,18 @@ export AGENT_CMS_BASE_URL="${AGENT_CMS_BASE_URL:-http://127.0.0.1:${AGENT_CMS_ED
 
 mkdir -p "$RUN_DIR"
 
+load_root_env() {
+  if [[ ! -f "$ROOT/.env" ]]; then
+    return 0
+  fi
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+}
+
+load_root_env
+
 port_open() {
   (echo >/dev/tcp/127.0.0.1/"$1") 2>/dev/null
 }

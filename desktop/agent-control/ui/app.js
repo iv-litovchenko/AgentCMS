@@ -26,12 +26,88 @@ function syncAppLockScreen() {
   screen.hidden = !show;
   document.body.classList.toggle("app-lock-active", show);
   syncAppLockLogoutButton();
+  syncEnvFileEditorAccess();
   if (show) {
     window.requestAnimationFrame(() => {
       const loginInput = screen.querySelector('input[name="login"]');
       if (loginInput) loginInput.focus();
     });
   }
+}
+
+function syncEnvFileEditorAccess() {
+  const editor = document.getElementById("env-file-editor");
+  const saveBtn = document.getElementById("env-file-save");
+  const reloadBtn = document.getElementById("env-file-reload");
+  const hint = document.getElementById("env-file-lock-hint");
+  const canUse = Boolean(window.agentControl?.getEnvFile);
+  const locked = canUse && needsAppLockLogin();
+  if (editor) editor.disabled = !canUse || locked;
+  if (saveBtn) saveBtn.disabled = !canUse || locked;
+  if (reloadBtn) reloadBtn.disabled = !canUse;
+  if (hint) hint.hidden = !locked;
+}
+
+async function loadEnvFileEditor() {
+  const editor = document.getElementById("env-file-editor");
+  const meta = document.getElementById("env-file-meta");
+  const status = document.getElementById("env-file-status");
+  if (!editor || !window.agentControl?.getEnvFile) return;
+  syncEnvFileEditorAccess();
+  if (needsAppLockLogin()) {
+    if (status) status.textContent = "";
+    return;
+  }
+  if (status) status.textContent = "Загрузка…";
+  try {
+    const data = await window.agentControl.getEnvFile();
+    if (!data.ok) {
+      if (status) status.textContent = data.error || "Не удалось прочитать .env";
+      return;
+    }
+    editor.value = data.content ?? "";
+    if (meta) {
+      const pathLabel = data.filePath || ".env";
+      meta.textContent = data.exists
+        ? pathLabel
+        : `${pathLabel} (будет создан при сохранении)`;
+    }
+    if (status) status.textContent = data.message || "Загружено";
+  } catch (error) {
+    if (status) status.textContent = String(error.message || error);
+  }
+}
+
+function bindEnvFileEditor() {
+  const saveBtn = document.getElementById("env-file-save");
+  const reloadBtn = document.getElementById("env-file-reload");
+  const editor = document.getElementById("env-file-editor");
+  const status = document.getElementById("env-file-status");
+  if (!saveBtn || !reloadBtn || !editor || saveBtn.dataset.bound) return;
+  if (!window.agentControl?.getEnvFile || !window.agentControl?.saveEnvFile) {
+    document.querySelector('[data-section="env-file"]')?.setAttribute("hidden", "");
+    return;
+  }
+  saveBtn.dataset.bound = "1";
+
+  reloadBtn.addEventListener("click", () => loadEnvFileEditor());
+  saveBtn.addEventListener("click", async () => {
+    if (needsAppLockLogin()) return;
+    saveBtn.disabled = true;
+    if (status) status.textContent = "Сохранение…";
+    try {
+      const result = await window.agentControl.saveEnvFile(editor.value);
+      if (!result.ok) throw new Error(result.error || "save_failed");
+      if (status) status.textContent = result.message || "Сохранено";
+      appendLog(`\n■ .env сохранён\n${result.message || ""}\n`);
+      await loadEnvFileEditor();
+    } catch (error) {
+      if (status) status.textContent = String(error.message || error);
+      appendLog(`Ошибка .env: ${error.message}\n`, "stderr");
+    } finally {
+      syncEnvFileEditorAccess();
+    }
+  });
 }
 
 function syncAppLockLogoutButton() {
@@ -65,6 +141,8 @@ function bindAppLockLogout() {
       appendLog("Сессия завершена.\n");
       syncAppLockScreen();
       await renderLayout();
+      const editor = document.getElementById("env-file-editor");
+      if (editor) editor.value = "";
       syncServerUi(lastServer || bootstrap?.server);
     } catch (error) {
       appendLog(`Выход: ${error.message}\n`, "stderr");
@@ -2265,6 +2343,7 @@ function bindAppLockGate() {
       appendLog("Вход выполнен.\n");
       syncAppLockScreen();
       await renderLayout();
+      await loadEnvFileEditor();
       syncServerUi(lastServer || bootstrap?.server);
     } catch (error) {
       if (errEl) {
@@ -2571,6 +2650,8 @@ async function init() {
   bindSetupChecklistActions();
   bindServicesMonitorActions();
   renderServicesMonitor();
+  bindEnvFileEditor();
+  await loadEnvFileEditor();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {

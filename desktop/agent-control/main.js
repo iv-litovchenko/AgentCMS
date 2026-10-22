@@ -734,6 +734,30 @@ if (!gotLock) {
       return { ok: true };
     });
 
+    ipcMain.handle("control:get-env-file", async () => {
+      const gate = resolveControlAppLockGate();
+      if (gate.enabled && !gate.sessionActive) {
+        return { ok: false, error: "app_lock_required" };
+      }
+      const { readProjectEnvFile } = requireRepo("lib/ops/control-env-file.js");
+      return readProjectEnvFile(getProjectRoot());
+    });
+
+    ipcMain.handle("control:save-env-file", async (_event, content) => {
+      const gate = resolveControlAppLockGate();
+      if (gate.enabled && !gate.sessionActive) {
+        return { ok: false, error: "app_lock_required" };
+      }
+      const { writeProjectEnvFile } = requireRepo("lib/ops/control-env-file.js");
+      const result = writeProjectEnvFile(getProjectRoot(), content);
+      if (!result.ok) return result;
+      return {
+        ok: true,
+        filePath: result.filePath,
+        message: "Сохранено. Перезапустите MCP и при необходимости CMS."
+      };
+    });
+
     ipcMain.handle("control:reload-ui", () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.reload();

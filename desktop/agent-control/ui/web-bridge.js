@@ -74,6 +74,14 @@
         body: JSON.stringify({})
       }),
 
+    getEnvFile: () => fetchJson("/api/ops/env-file"),
+
+    saveEnvFile: (content) =>
+      fetchJson("/api/ops/env-file", {
+        method: "POST",
+        body: JSON.stringify({ content: String(content ?? "") })
+      }),
+
     reloadUi: () => {
       window.location.reload();
       return Promise.resolve({ ok: true });
