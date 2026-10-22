@@ -276,7 +276,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 | **Editor (CMS)** | 3000 | 3443 | `AGENT_CMS_EDITOR_HTTP_PORT` |
 | **Voice** | 3088 | 3488 | `AGENT_CMS_VOICE_HTTP_PORT` |
 | **Commander** | 3188 | — | `AGENT_CMS_COMMANDER_HTTP_PORT` |
-| **Control (веб)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
+| **Control (Launcher)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
 | **MCP HTTP** | 3490 | — | `AGENT_CMS_MCP_HTTP_PORT` → `…/mcp` |
 
 **VPS — открыть наружу (панель + ufw):** **22** (SSH); **3000** (Editor); **3490** (MCP); позже **443** за proxy. **Сначала `ufw allow 22`, потом `ufw enable`.**
@@ -366,7 +366,9 @@ npm ci
 
 # Смена Node 20 → 22 в том же каталоге: purge nodejs → setup_22.x → npm ci заново
 
-# Editor (слушать все интерфейсы, порт 3000 по умолчанию)
+# Editor + Control Launcher (3288). Для LAN/VPS:
+# HOST=0.0.0.0 CONTROL_HOST=0.0.0.0 npm start
+# Локально на сервере: bash welcome.command — откроет тот же Launcher в браузере
 HOST=0.0.0.0 npm start
 # Держать процесс после выхода из SSH: tmux new -s cms → команда выше; отсоединиться: Ctrl+B, D
 
@@ -388,7 +390,7 @@ HOST=0.0.0.0 npm start
 
 # Проверка в браузере:
 #   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD (нужен для кнопок ops)
-#   http://ВАШ_IP:3288   — Web Control: мониторинг, Старт/Стоп/Restart, npm ci
+#   http://ВАШ_IP:3288   — Agent CMS Control (Launcher), тот же UI что welcome.command на Mac
 # Cursor (remote MCP, Bearer = AGENT_CMS_MCP_TOKEN):
 #   http://ВАШ_IP:3490/mcp
 # Коннекторы: docs/connectors/README.md

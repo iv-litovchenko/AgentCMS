@@ -11,85 +11,14 @@ const fs = require("fs");
 const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
 const { requireRepo } = require("./repo-resolve");
-const docsRegistry = requireRepo("lib/docs/docs-registry");
-const { enrichMcpDocsForClient } = requireRepo("lib/http/https-redirect");
+const {
+  probeServerStatus: probeServerStatusCore,
+  probeLaunchAgentStatus
+} = requireRepo("lib/ops/control-server-probe");
+const { buildControlBootstrap } = requireRepo("lib/ops/control-bootstrap");
 
-function buildAnonymizedMcpConfig() {
-  return {
-    mcpServers: {
-      "agent-cms": {
-        command: "node",
-        args: ["<ABS_PATH>/mcp-server/index.js"]
-      }
-    }
-  };
-}
-
-function buildProjectSetupFlags(root) {
-  return {
-    depsOk: fs.existsSync(path.join(root, "node_modules")),
-    certsOk: fs.existsSync(path.join(root, ".dev-certs", "cert.pem"))
-  };
-}
-
-function buildMcpConnectInfo(root) {
-  const { getServerPortsPayload } = loadActionsModule();
-  const SERVER_PORTS = getServerPortsPayload();
-  const cmsBaseUrl = `https://localhost:${SERVER_PORTS.editorHttps}`;
-  const mcpServerPath = path.join(root, "mcp-server", "index.js");
-
-  let docs = null;
-  try {
-    docs = enrichMcpDocsForClient(docsRegistry.getMcpDocs("0.0.2"), `localhost:${SERVER_PORTS.editorHttps}`, {
-      projectRoot: root
-    });
-  } catch {
-    docs = null;
-  }
-
-  const configJson = JSON.stringify(buildAnonymizedMcpConfig(), null, 2);
-
-  const configJsonCopy = JSON.stringify(
-    {
-      mcpServers: {
-        "agent-cms": {
-          command: "node",
-          args: [mcpServerPath]
-        }
-      }
-    },
-    null,
-    2
-  );
-
-  return {
-    cmsBaseUrl,
-    mcpServerPath,
-    configJson,
-    configJsonCopy,
-    docsUrl: `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`
-  };
-}
-
-function buildMobileConnectInfo(environment) {
-  const { getServerPortsPayload } = loadActionsModule();
-  const SERVER_PORTS = getServerPortsPayload();
-  const lanIp = String(environment?.host?.lanIp || "").trim();
-  const voiceHttpsPort = SERVER_PORTS.voiceHttps;
-  const voiceHttpPort = SERVER_PORTS.voiceHttp;
-  const voiceUrl = lanIp ? `https://${lanIp}:${voiceHttpsPort}/` : null;
-  const mkcertCaUrl = lanIp ? `http://${lanIp}:${voiceHttpPort}/dev/mkcert-root-ca.pem` : null;
-
-  return {
-    lanIp: lanIp || null,
-    voiceUrl,
-    mkcertCaUrl,
-    usesLoopback: !lanIp,
-    hotspotHint:
-      lanIp && /^172\.20\.10\./.test(lanIp)
-        ? "Mac на точке доступа iPhone — откройте этот адрес на телефоне."
-        : null
-  };
+async function probeServerStatus() {
+  return probeServerStatusCore(getProjectRoot(), { attachedServerProcess });
 }
 
 function loadQrCode() {
@@ -99,10 +28,8 @@ function loadQrCode() {
     return null;
   }
 }
-const { buildSystemEnvironment } = requireRepo("lib/runtime/system-environment");
 const { getPlatformSettings, patchPlatformSettings } = requireRepo("lib/config/settings-store");
 const { isPlatformMaintenanceMode } = requireRepo("lib/workspace/workspace-agent-settings");
-const { tickServerRuntime } = requireRepo("lib/runtime/server-runtime-tracker");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const LAUNCH_AGENT_LABEL = "com.agentcms.https";
@@ -185,207 +112,6 @@ function enrichPath(env = process.env) {
   return {
     ...env,
     PATH: `/opt/homebrew/bin:/usr/local/bin:${env.PATH || ""}`
-  };
-}
-
-function parsePsElapsedSec(stdout) {
-  const raw = String(stdout || "").trim();
-  if (!raw) return null;
-
-  if (/^\d+$/.test(raw)) {
-    const sec = Number(raw);
-    return Number.isFinite(sec) && sec >= 0 ? sec : null;
-  }
-
-  const dayMatch = raw.match(/^(\d+)-(\d+):(\d{2}):(\d{2})$/);
-  if (dayMatch) {
-    const [, days, hours, minutes, seconds] = dayMatch.map(Number);
-    return days * 86400 + hours * 3600 + minutes * 60 + seconds;
-  }
-
-  const parts = raw.split(":").map(Number);
-  if (parts.some((value) => !Number.isFinite(value))) return null;
-
-  if (parts.length === 3) {
-    const [hours, minutes, seconds] = parts;
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-  if (parts.length === 2) {
-    const [minutes, seconds] = parts;
-    return minutes * 60 + seconds;
-  }
-
-  return null;
-}
-
-function getLaunchAgentPlistPath() {
-  const os = require("os");
-  return path.join(os.homedir(), "Library", "LaunchAgents", `${LAUNCH_AGENT_LABEL}.plist`);
-}
-
-function getLaunchAgentTarget() {
-  const os = require("os");
-  const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().uid;
-  return `gui/${uid}/${LAUNCH_AGENT_LABEL}`;
-}
-
-async function probeLaunchAgentStatus() {
-  if (process.platform !== "darwin") {
-    return { supported: false, enabled: false, loaded: false, plistExists: false, plistPath: null };
-  }
-
-  const { execFile } = require("child_process");
-  const plistPath = getLaunchAgentPlistPath();
-  const plistExists = fs.existsSync(plistPath);
-  const target = getLaunchAgentTarget();
-
-  const loaded = await new Promise((resolve) => {
-    execFile("launchctl", ["print", target], { timeout: 2500 }, (error) => {
-      resolve(!error);
-    });
-  });
-
-  return {
-    supported: true,
-    enabled: plistExists,
-    loaded,
-    plistExists,
-    plistPath
-  };
-}
-
-async function probeServerStatus() {
-  const root = getProjectRoot();
-  const { getServerPortsPayload } = loadActionsModule();
-  const ports = getServerPortsPayload();
-  const pidFile = path.join(root, ".run", "agent-cms-https.pid");
-  let supervisorPid = null;
-  let supervisorAlive = false;
-
-  if (fs.existsSync(pidFile)) {
-    supervisorPid = Number(fs.readFileSync(pidFile, "utf8").trim()) || null;
-    if (supervisorPid) {
-      try {
-        process.kill(supervisorPid, 0);
-        supervisorAlive = true;
-      } catch {
-        supervisorAlive = false;
-      }
-    }
-  }
-
-  const { execFile } = require("child_process");
-
-  const getPortPid = (port) =>
-    new Promise((resolve) => {
-      execFile("lsof", ["-ti", `:${port}`], { timeout: 2000 }, (error, stdout) => {
-        const pid = Number(String(stdout || "").trim().split("\n")[0]);
-        resolve(Number.isFinite(pid) && pid > 0 ? pid : null);
-      });
-    });
-
-  const getProcessUptimeSec = (pid) =>
-    new Promise((resolve) => {
-      if (!pid) {
-        resolve(null);
-        return;
-      }
-
-      const readElapsed = (field, next) => {
-        execFile("ps", ["-p", String(pid), "-o", `${field}=`], { timeout: 2000 }, (error, stdout) => {
-          const sec = parsePsElapsedSec(stdout);
-          if (sec != null) {
-            resolve(sec);
-            return;
-          }
-          if (next) next();
-          else resolve(null);
-        });
-      };
-
-      readElapsed("etimes", () => readElapsed("etime"));
-    });
-
-  const checkPort = async (port) => Boolean(await getPortPid(port));
-
-  const [cmsPid, voicePid, commanderPid, controlHttpPid, mcpHttpPid] = await Promise.all([
-    getPortPid(ports.editorHttps),
-    getPortPid(ports.voiceHttps),
-    getPortPid(ports.commanderHttp),
-    getPortPid(ports.controlHttp),
-    getPortPid(ports.mcpHttp)
-  ]);
-  const cms = Boolean(cmsPid);
-  const voice = Boolean(voicePid);
-  const commander = Boolean(commanderPid);
-  const controlHttp = Boolean(controlHttpPid);
-  const mcpHttp = Boolean(mcpHttpPid);
-  const running = cms || voice;
-  const autoStart = await probeLaunchAgentStatus();
-  let mode = "off";
-
-  if (running) {
-    if (attachedServerProcess) mode = "attached";
-    else if (autoStart.loaded) mode = "autostart";
-    else if (supervisorAlive) mode = "background";
-    else mode = "running";
-  }
-
-  let uptimeSec = null;
-  if (running) {
-    const pidCandidates = [cmsPid, voicePid, commanderPid, supervisorAlive ? supervisorPid : null].filter(
-      Boolean
-    );
-    for (const pid of pidCandidates) {
-      const elapsed = await getProcessUptimeSec(pid);
-      if (elapsed != null) {
-        uptimeSec = uptimeSec == null ? elapsed : Math.max(uptimeSec, elapsed);
-      }
-    }
-  }
-
-  const probedAt = Date.now();
-  const startedAt = uptimeSec != null ? probedAt - uptimeSec * 1000 : null;
-  let runtimeTodayMinutes = 0;
-  try {
-    runtimeTodayMinutes = tickServerRuntime(root, running, probedAt);
-  } catch {
-    runtimeTodayMinutes = 0;
-  }
-
-  return {
-    running,
-    cms,
-    voice,
-    commander,
-    controlHttp,
-    mcpHttp,
-    supervisorAlive,
-    supervisorPid,
-    mode,
-    uptimeSec,
-    startedAt,
-    probedAt,
-    runtimeTodayMinutes,
-    autoStart,
-    modeLabel:
-      mode === "attached"
-        ? "пока Control открыт"
-        : mode === "autostart"
-          ? "автостарт"
-          : mode === "background"
-            ? "в фоне"
-            : running
-              ? "работает"
-              : "остановлен",
-    urls: {
-      cms: cms ? `https://localhost:${ports.editorHttps}` : null,
-      voice: voice ? `https://localhost:${ports.voiceHttps}` : null,
-      commanderHttp: commander ? `http://localhost:${ports.commanderHttp}/` : null,
-      commanderHttps: cms ? `https://localhost:${ports.editorHttps}/commander/` : null,
-      controlHttp: controlHttp ? `http://localhost:${ports.controlHttp}/` : null,
-      controlEditor: cms ? `https://localhost:${ports.editorHttps}/control/` : null
-    }
   };
 }
 
@@ -891,44 +617,12 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
-    ipcMain.handle("control:get-bootstrap", async () => {
-      const root = getProjectRoot();
-      const {
-        ACTIONS,
-        APP_PRODUCTS,
-        COMMANDER_SELF,
-        CONTROL_SELF,
-        SETUP_ACTIONS,
-        getServerPortsPayload,
-        getChromeExtensionConfig,
-        SERVER_TEST,
-        MCP_TEST
-      } = loadActionsModule();
-      const serverPorts = getServerPortsPayload();
-      const chromeExtension = getChromeExtensionConfig();
-      const environment = await buildSystemEnvironment(root).catch(() => null);
-      const server = await probeServerStatus();
-      return {
-        projectRoot: root,
-        actions: ACTIONS,
-        appProducts: APP_PRODUCTS,
-        commanderSelf: COMMANDER_SELF,
-        controlSelf: CONTROL_SELF,
-        setupActionIds: SETUP_ACTIONS,
-        serverPorts,
-        serverTest: SERVER_TEST,
-        mcpTest: MCP_TEST,
-        mcpConnect: buildMcpConnectInfo(root),
-        chromeExtension: {
-          ...chromeExtension,
-          folderPath: path.join(root, chromeExtension.folderName)
-        },
-        environment,
-        mobileConnect: buildMobileConnectInfo(environment),
-        server,
-        setupFlags: buildProjectSetupFlags(root)
-      };
-    });
+    ipcMain.handle("control:get-bootstrap", async () =>
+      buildControlBootstrap(getProjectRoot(), {
+        attachedServerProcess,
+        launcherMode: "electron"
+      })
+    );
 
     ipcMain.handle("control:refresh-status", async () => ({
       server: await probeServerStatus()
@@ -979,15 +673,16 @@ if (!gotLock) {
     });
 
     ipcMain.handle("control:refresh-bootstrap", async () => {
-      const root = getProjectRoot();
-      const environment = await buildSystemEnvironment(root).catch(() => null);
-      const server = await probeServerStatus();
+      const payload = await buildControlBootstrap(getProjectRoot(), {
+        attachedServerProcess,
+        launcherMode: "electron"
+      });
       return {
-        environment,
-        mobileConnect: buildMobileConnectInfo(environment),
-        server,
-        mcpConnect: buildMcpConnectInfo(root),
-        setupFlags: buildProjectSetupFlags(root)
+        environment: payload.environment,
+        mobileConnect: payload.mobileConnect,
+        server: payload.server,
+        mcpConnect: payload.mcpConnect,
+        setupFlags: payload.setupFlags
       };
     });
 
