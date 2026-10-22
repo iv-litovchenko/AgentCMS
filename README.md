@@ -12,12 +12,13 @@
 - [Как устроено — основные термины](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
 - [Принципы](#-принципы-gb-principles)
 - [Стек](#-стек-gb-stack)
-- [Установка — первый старт и запуск, только macOS](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
-- [Установка на Linux (Ubuntu) — VPS / сервер](#-установка-на-linux-ubuntu--vps--сервер)
-- [Скиллы для агентов (Claude / Cursor)](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
+- [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
+- [Порты по умолчанию](#-порты-по-умолчанию-gb-default-ports)
+- [Установка — macOS](#-установка--macos-gb-install--macos)
+- [Установка — Ubuntu VPS / сервер](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+- [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
+- [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-- [Time tracker — идея MCP (черновик)](TODO.TimeTracker.md)
-- [Transfer — идея MCP (черновик)](TODO.Transfer.md)
 - [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 - [Мечта](#-мечта-gb-vision)
 - [Лицензия](#-лицензия-gb-license)
@@ -36,11 +37,13 @@
 > - [How it works — key terms](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
 > - [Principles](#-принципы-gb-principles)
 > - [Stack](#-стек-gb-stack)
-> - [Install — first run and launch, macOS only](#-установка-первый-старт-и-запуск-только-macos-gb-install-first-run-and-launch-macos-only)
-> - [Agent skills for Claude / Cursor](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor)
+> - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
+> - [Default ports](#-порты-по-умолчанию-gb-default-ports)
+> - [Install — macOS](#-установка--macos-gb-install--macos)
+> - [Install — Ubuntu VPS / server](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+> - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
+> - [MCP connection](#-подключение-mcp-gb-mcp-connection)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-> - [Time tracker — MCP idea (draft)](TODO.TimeTracker.md)
-> - [Transfer — MCP idea (draft)](TODO.Transfer.md)
 > - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
 > - [Vision](#-мечта-gb-vision)
 > - [License](#-лицензия-gb-license)
@@ -52,6 +55,8 @@
 ## 🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов (🇬🇧 Cross-platform digital memory for you and your AI agents)
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
+
+![Agent CMS — graph visualization and atlas / Agent CMS — граф связей и атлас](docs/images/0.png)
 
 🇷🇺 **[ru]**
 
@@ -239,7 +244,50 @@
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
-## 🇷🇺 Установка — первый старт и запуск, только macOS (🇬🇧 Install — first run and launch, macOS only)
+## 🇷🇺 Рекомендуемые требования (🇬🇧 Recommended requirements)
+
+🇷🇺 **[ru]**
+
+| | **macOS (локально)** | **Ubuntu VPS / сервер** |
+| --- | --- | --- |
+| **ОС** | macOS (Apple Silicon / Intel) | Ubuntu 22.04+ / Debian 12+; не Alpine на первом заходе |
+| **Node.js** | через **`install.command`** (22+) | **22+** обязательно (NodeSource `setup_22.x`); Node 20 — не использовать |
+| **RAM** | 8 GB+ комфортно | мин. **2 GB**; комфорт **4 GB** |
+| **Диск** | место под репо и workspaces | **30 GB+** NVMe; код в **`/opt/agent-cms`** |
+| **Сеть** | localhost / LAN | публичный IPv4; открыть порты (см. ниже) |
+| **Не на сервере** | — | Electron, Control desktop, GUI |
+
+Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
+
+---
+
+> 🇬🇧 **[en]**
+>
+> macOS: **`install.command`**. VPS: **Node 22+**, **2 GB+** RAM, **`/opt/agent-cms`**, open firewall ports. No Electron on the server. Prod: [TODO.SERVER.md](TODO.SERVER.md).
+
+## 🇷🇺 Порты по умолчанию (🇬🇧 Default ports)
+
+🇷🇺 **[ru]**
+
+Меняются в `.env` (`AGENT_CMS_*_HTTP_PORT`, legacy `PORT` / `VOICE_PORT`). Канон: `lib/config/agent-cms-ports.js`.
+
+| Сервис | HTTP | HTTPS | Переменная (пример) |
+| --- | ---: | ---: | --- |
+| **Editor (CMS)** | 3000 | 3443 | `AGENT_CMS_EDITOR_HTTP_PORT` |
+| **Voice** | 3088 | 3488 | `AGENT_CMS_VOICE_HTTP_PORT` |
+| **Commander** | 3188 | — | `AGENT_CMS_COMMANDER_HTTP_PORT` |
+| **Control (веб)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
+| **MCP HTTP** | 3490 | — | `AGENT_CMS_MCP_HTTP_PORT` → `…/mcp` |
+
+**VPS — открыть наружу (панель + ufw):** **22** (SSH); **3000** (Editor); **3490** (MCP); позже **443** за proxy. **Сначала `ufw allow 22`, потом `ufw enable`.**
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Defaults in `.env` / `agent-cms-ports.js`. VPS: open **22**, **3000**, **3490**; allow **22** before `ufw enable`.
+
+## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
 ![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
 
@@ -250,19 +298,12 @@ git clone https://github.com/iv-litovchenko/AgentCMS.git
 cd AgentCMS
 ```
 
-1. Склонируйте репозиторий на Рабочий стол или в любую папку: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
-2. Откройте скопированную папку в Finder.
-3. В файле `.env` (любой текстовый редактор) укажите логин и пароль входа (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); при необходимости измените порты Agent CMS и Voice.
-4. Запустите **`install.command`** в корне (двойной клик) — зависимости, HTTPS-сертификаты и прочая подготовка.
-5. Запустите **`welcome.command`** — откроется **Agent CMS Control**. При необходимости в Control: **Ярлыки** на Desktop (и повтор **Установить зависимости**, если что-то меняли вручную).
-6. Запустите сервер — кнопка **Старт**.
-7. Откройте CMS: кнопка в Control или ссылка вида `https://localhost:3443` (HTTPS-порт из `.env`).
-8. В **Agent CMS Control** прочитайте инструкцию по подключению хранилища к локальной нейросети (**Claude Desktop**, **Codex Desktop** и т.п. через MCP). Конфиг MCP: [docs/connectors/README.md](docs/connectors/README.md).
-9. **Установите скиллы Agent CMS** в клиенте (см. раздел [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) ниже) — минимум **base (1)** — `agent-cms`; **welcome (0)** — `agent-cms-welcome` по желанию. Одного MCP мало: в Claude Desktop поле `instructions` часто не попадает в контекст модели.
-10. **Создайте первое хранилище** — новый workspace или готовый `agent-cms-test` для пробы; при необходимости настройте `AGENTS.md`.
-11. **Освойтесь в нём** — пообщайтесь с агентом через MCP, разложите первые заметки по темам и слотам, наполните хранилище своими записями.
-
-На главной CMS показывается [README.diagram.md](README.diagram.md), полный README — в репозитории.
+1. Склонируйте репозиторий (Desktop или любая папка).
+2. В **`.env`** — `APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`; порты — [по умолчанию](#-порты-по-умолчанию-gb-default-ports).
+3. **`install.command`** (двойной клик) — зависимости, HTTPS.
+4. **`welcome.command`** → **Agent CMS Control** → при необходимости **Ярлыки**.
+5. **Старт** в Control → Editor: `https://localhost:3443`.
+6. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection) → workspace в UI.
 
 ---
 
@@ -273,51 +314,14 @@ cd AgentCMS
 > cd AgentCMS
 > ```
 >
-> 1. Clone the repo to Desktop or any folder: `git clone https://github.com/iv-litovchenko/AgentCMS.git`
-> 2. Open the folder in Finder.
-> 3. In `.env` (any text editor), set login and password (`APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`); change Agent CMS and Voice ports if needed.
-> 4. Run **`install.command`** in the project root (double-click) — dependencies, HTTPS certs, and setup.
-> 5. Run **`welcome.command`** — **Agent CMS Control** opens. In Control if needed: **Shortcuts** on Desktop (re-run **Install dependencies** only if you changed the environment manually).
-> 6. Start the server — **Start**.
-> 7. Open CMS: button in Control or `https://localhost:3443` (HTTPS port from `.env`).
-> 8. In **Agent CMS Control**, read how to connect the workspace to a local model (**Claude Desktop**, **Codex Desktop**, etc. via MCP). MCP config: [docs/connectors/README.md](docs/connectors/README.md).
-> 9. **Install Agent CMS skills** in your client (see [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) below) — at least **base (1)** — `agent-cms`; **welcome (0)** — `agent-cms-welcome` is optional. MCP alone is not enough: Claude Desktop often does not inject MCP `instructions` into the model context.
-> 10. **Create your first workspace** — new or try `agent-cms-test`; configure `AGENTS.md` if needed.
-> 11. **Get comfortable** — talk to the agent via MCP, file first notes into themes and slots, fill the workspace with your records.
->
-> The CMS home page shows [README.diagram.md](README.diagram.md); the full README is in the repo.
+> 1. Clone → `.env` → **`install.command`** → **`welcome.command`** → **Start** → `https://localhost:3443`.
+> 2. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
-## 🇷🇺 Установка на Linux (Ubuntu) — VPS / сервер
+## 🇷🇺 Установка — Ubuntu VPS / сервер (🇬🇧 Install — Ubuntu VPS / server)
 
 🇷🇺 **[ru]**
 
-Тестовый деплой на VPS (Timeweb и аналоги): **Editor по HTTP**, опционально **MCP HTTP** для Cursor. **Docker не обязателен** — ниже сначала **Node 22+**, затем опционально Docker. Desktop-приложения (Control, Electron) на сервер **не ставятся**. Подробнее про порты и prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
-
-**Node.js 22 — обязательно** (вариант A без Docker). Пакет `better-sqlite3` требует **Node ≥ 22**; Node 20 даст `EBADENGINE` и риск сбоя сборки. Ставить только через NodeSource `setup_22.x` (см. блок команд ниже). Если уже установили 20: `apt purge -y nodejs` → заново `setup_22.x` → `npm ci` в `/opt/agent-cms`.
-
-**Открыть порты** — и в **панели VPS** (Timeweb → сеть / firewall), и на сервере (**ufw**, если включён). **Сначала разрешите SSH (22), потом `ufw enable`**, иначе потеряете доступ (`Connection refused`).
-
-| Порт | Протокол | Зачем | Когда нужен |
-| --- | --- | --- | --- |
-| **22** | TCP | SSH, администрирование | Всегда |
-| **3000** | TCP | Agent CMS Editor (HTTP) | Браузер с Mac/интернета |
-| **3490** | TCP | MCP Streamable HTTP (`/mcp`) | Cursor / удалённый MCP |
-| **3088** | TCP | Voice (HTTP) | Только если включаете голос снаружи |
-| **443** | TCP | HTTPS | Prod, когда будет reverse proxy |
-
-**Рекомендуемые требования** (тест, один инстанс CMS + MCP):
-
-| | Минимум | Комфорт / prod-проба |
-| --- | --- | --- |
-| **ОС** | Ubuntu 22.04+ / Debian 12+ | То же; не Alpine на первом заходе (native-модули) |
-| **Node.js** | **22+** (обязательно для `better-sqlite3`; 20 — не ставить) | LTS через NodeSource |
-| **CPU** | 1 vCPU | 2 vCPU при активной индексации |
-| **RAM** | 2 GB | 4 GB |
-| **Диск** | 30 GB NVMe | 50 GB+ при больших workspaces |
-| **Сеть** | Публичный IPv4, исходящий интернет (git, npm; для Docker — Docker Hub) | Домен + HTTPS (443) |
-| **Порты** | 22, 3000; 3490 — если MCP снаружи | Только 443 наружу (reverse proxy) |
-| **Не ставить** | Electron, Control desktop, GUI | — |
-| **Каталог кода** | `/opt/agent-cms` (FHS: optional software) | Без Docker: `workspaces/` в репо; с Docker — ещё named volume |
+Editor по HTTP, опционально MCP HTTP. **Docker не обязателен** (вариант A — Node **22+**). Требования и [порты](#-порты-по-умолчанию-gb-default-ports) — выше. **`npm ci`** без `--omit=dev`. Node 20 → `apt purge -y nodejs`, затем `setup_22.x` и `npm ci` заново. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ```bash
 # === Agent CMS на Ubuntu (VPS) — первый запуск ===
@@ -385,17 +389,20 @@ HOST=0.0.0.0 npm start
 #   http://ВАШ_IP:3490/mcp
 # Коннекторы: docs/connectors/README.md
 
-# Дальше: создать/выбрать workspace в UI, подключить MCP с Mac, установить скиллы agent-cms (см. раздел «Скиллы» ниже).
-# Prod: домен + Caddy/nginx + Let's Encrypt, наружу только 443 — см. TODO.SERVER.md
+# Prod: TODO.SERVER.md
 ```
 
 ---
 
-## 🇷🇺 Скиллы для агентов (Claude / Cursor) (🇬🇧 Agent skills for Claude / Cursor)
+> 🇬🇧 **[en]**
+>
+> VPS: Node **22+**, `npm ci`, `HOST=0.0.0.0 npm start`. Requirements and ports above. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+
+## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
 🇷🇺 **[ru]**
 
-Исходники скиллов — **`GLOBAL-SKILL-*.md` в корне репозитория**. Каждый файл — markdown с YAML frontmatter (`name`, `description`).
+Исходники — **`GLOBAL-SKILL-*.md`** в [корне репозитория на GitHub](https://github.com/iv-litovchenko/AgentCMS). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
 | Файл | Скилл | Зачем |
 | --- | --- | --- |
@@ -410,13 +417,11 @@ HOST=0.0.0.0 npm start
 
 **Как установить**
 
-1. Подключите MCP **agent-cms** (шаг 8 установки выше).
-2. **Cursor** — для каждого скилла создайте папку с `SKILL.md` и скопируйте **целиком** текст соответствующего `GLOBAL-SKILL-*.md`:
-   - в проекте: `.cursor/skills/<name>/SKILL.md` (имя папки = поле `name`, напр. `agent-cms`, `agent-cms-welcome`);
-   - или личные скиллы в Cursor Agent Store / `~/.cursor/skills/<name>/SKILL.md`.
-3. **Claude Desktop** — **Settings → Capabilities → Skills** (или skills в проекте): добавьте файлы из корня репо или zip с тем же содержимым. Минимум: **1** (`agent-cms`); **0** (`agent-cms-welcome`) — по желанию.
-4. Рекомендуется установить скиллы **2** (стиль) и **3** (правила) в клиенте — они **не** входят в `get_session_context`.
-5. **Без установки** (запасной путь): `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })` и т.д.
+1. Сначала [подключите MCP](#-подключение-mcp-gb-mcp-connection).
+2. **Cursor / Codex / Claude Code** — для каждого скилла: `.cursor/skills/<name>/SKILL.md` с **полным** текстом `GLOBAL-SKILL-*.md` (имя папки = поле `name`) или попросите агента поставить скиллы из GitHub.
+3. **Claude Desktop** — **Settings → Capabilities → Skills**: файлы из корня репо. Минимум **`agent-cms`**; **`agent-cms-welcome`** — по желанию.
+4. Рекомендуется также **`agent-cms-response-style`** и **`agent-cms-rules`** — они **не** входят в `get_session_context`.
+5. **Без установки:** `list_platform_docs` → `read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`.
 
 После `git pull` обновите копии в клиенте и перезапустите MCP.
 
@@ -424,7 +429,7 @@ HOST=0.0.0.0 npm start
 
 > 🇬🇧 **[en]**
 >
-> Skill sources: **`GLOBAL-SKILL-*.md` at the repository root**. Each file is markdown with YAML frontmatter (`name`, `description`).
+> Sources: **`GLOBAL-SKILL-*.md`** at the [GitHub repo root](https://github.com/iv-litovchenko/AgentCMS).
 >
 > | File | Skill | Purpose |
 > | --- | --- | --- |
@@ -435,9 +440,50 @@ HOST=0.0.0.0 npm start
 > | [GLOBAL-SKILL-4-MARKDOWN.md](GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Markdown in records |
 > | [GLOBAL-SKILL-5-SEARCH.md](GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Search, indexes, DQL |
 > | [GLOBAL-SKILL-6-MODULES.md](GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git and modules |
-> | [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Viz maps `*.viz.md`, Atlas UI, `viz_map_*` |
+> | [GLOBAL-SKILL-7-VIZ-MAPS.md](GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Viz maps `*.viz.md`, Atlas, `viz_map_*` |
 >
-> **Install:** (1) Connect MCP **agent-cms**. (2) **Cursor** — `.cursor/skills/<name>/SKILL.md` with full content of each `GLOBAL-SKILL-*.md` (`<name>` = frontmatter `name`). (3) **Claude Desktop** — add skills from the repo root; minimum **1** (`agent-cms`), **0** (`agent-cms-welcome`) optional; ideally **2** + **3** too. (4) Fallback: `read_platform_doc`. Refresh copies after `git pull` and restart MCP.
+> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; then copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub. Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `read_platform_doc`. Refresh after `git pull`.
+
+## 🇷🇺 Подключение MCP (🇬🇧 MCP connection)
+
+🇷🇺 **[ru]**
+
+Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](TODO.MCP-INSTANCES.md).
+
+**Claude Desktop (Mac, stdio — локальный CMS):**
+
+```json
+{
+  "mcpServers": {
+    "agent-cms": {
+      "command": "node",
+      "args": ["/Users/ВАШ_ПОЛЬЗОВАТЕЛЬ/Desktop/AgentCMS/mcp-server/index.js"]
+    }
+  }
+}
+```
+
+Путь к `mcp-server/index.js` — свой. Перезапуск Claude Desktop после сохранения.
+
+**Cursor (HTTP — локально или VPS):**
+
+```json
+{
+  "mcpServers": {
+    "agent-cms": {
+      "url": "http://localhost:3490/mcp"
+    }
+  }
+}
+```
+
+На VPS: `http://ВАШ_IP:3490/mcp`, в `.env` задайте **`AGENT_CMS_MCP_TOKEN`**, в Cursor — Bearer token. Запуск MCP на сервере: `AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http`.
+
+---
+
+> 🇬🇧 **[en]**
+>
+> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `http://localhost:3490/mcp` or VPS URL + token. See [docs/connectors/README.md](docs/connectors/README.md).
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
@@ -793,7 +839,7 @@ user-agent-cms
 
 🇷🇺 **[ru]**
 
-Те же файлы в корне репо — для RAG, always-context и локального дообучения. Установка в клиент — в разделе [«Скиллы для агентов»](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) выше.
+Файлы **`GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others).
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 
@@ -801,7 +847,7 @@ user-agent-cms
 
 > 🇬🇧 **[en]**
 >
-> Same files at the repository root — for RAG, always-context, and local fine-tuning. Client install — [Agent skills](#-скиллы-для-агентов-claude--cursor--gb-agent-skills-for-claude--cursor) above.
+> **`GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (CMS home), full README on [GitHub](https://github.com/iv-litovchenko/AgentCMS). [Agent skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) above.
 >
 > See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 
