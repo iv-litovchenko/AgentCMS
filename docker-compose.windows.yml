@@ -1,0 +1,11 @@
+# Windows — заготовка
+#
+# Рекомендуется: WSL2 + Docker Desktop, дальше как на Mac:
+#   wsl
+#   cd /mnt/c/path/to/agent-cms
+#   docker compose -f docker-compose.mac.yml up -d --build
+#
+# Нативный Windows без WSL для этого стека не поддерживаем.
+#
+# name: agent-cms
+# services: {}

@@ -1,46 +1,24 @@
-# Agent CMS — Docker
+# Docker — только 3 файла
 
-## Быстрый старт
+| Файл | Где |
+|------|-----|
+| `docker-compose.mac.yml` | Mac, WSL |
+| `docker-compose.linux.yml` | VPS |
+| `docker-compose.windows.yml` | заготовка (→ WSL + mac) |
 
-```bash
-cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN
-docker compose up -d --build
-```
-
-| Сервис | URL |
-|--------|-----|
-| Editor | http://localhost:3000 |
-| Control | http://localhost:3288 |
-| MCP | http://localhost:3490/mcp |
-
-Данные: volumes `cms-workspaces`, `cms-global`.
-
-## HTTPS (maptex.ru)
+## Linux VPS
 
 ```bash
-export MAPTEX_DOMAIN=maptex.ru
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, MAPTEX_DOMAIN, CADDY_EMAIL
+docker compose -f docker-compose.linux.yml up -d --build
 ```
 
-Порты **80/443** на хосте. DNS → IP сервера.
-
-## Зависимости в образе
-
-- Node **22**
-- **build**: make, g++, pkg-config (native npm-модули)
-- **runtime**: bash, curl, git, lsof, ffmpeg, Python 3 (+ venv/pip для опционального STT)
-- **Control**: Docker CLI + Compose plugin (управление контейнером `cms` через `/var/run/docker.sock`)
-
-## Control и два процесса
-
-- **cms** — `server.js` (`CONTROL_AUTOSTART=0`)
-- **control** — `control-server.js` (:3288), кнопки старт/стоп → `docker compose start|stop|restart cms`
-
-## Полезные команды
+## Mac
 
 ```bash
-docker compose ps
-docker compose logs -f cms
-docker compose restart cms
-docker compose down
+docker compose -f docker-compose.mac.yml up -d --build
 ```
+
+`npm run docker:mac` · `npm run docker:linux`
+
+Перенос: volumes + `.env` → новый сервер → `linux.yml up`.
