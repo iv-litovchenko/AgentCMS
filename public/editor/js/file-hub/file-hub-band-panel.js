@@ -13,7 +13,7 @@
     }
   }
 
-  function syncFileHubBandCollapsed(collapsed = isFileHubBandCollapsed()) {
+  function applyFileHubBandCollapsed(collapsed) {
     if (!bandNode) return;
     bandNode.classList.toggle("is-collapsed", collapsed);
     toggleBtn?.setAttribute("aria-expanded", collapsed ? "false" : "true");
@@ -21,6 +21,18 @@
       "title",
       collapsed ? "Развернуть файлообменник" : "Свернуть файлообменник"
     );
+  }
+
+  function syncFileHubBandCollapsed(collapsed = isFileHubBandCollapsed()) {
+    applyFileHubBandCollapsed(collapsed);
+  }
+
+  function syncFileHubBandCollapsedForMount(onLanding) {
+    if (onLanding) {
+      applyFileHubBandCollapsed(true);
+      return;
+    }
+    syncFileHubBandCollapsed();
   }
 
   function setFileHubBandCollapsed(collapsed) {
@@ -58,6 +70,7 @@
     if (!parent) {
       bandNode.hidden = true;
       syncFileHubBandLandingDisabled(false);
+      syncFileHubBandCollapsedForMount(false);
       return;
     }
     bandNode.hidden = false;
@@ -69,7 +82,9 @@
     } else if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
-    syncFileHubBandLandingDisabled(parent.id === "app-landing-stack");
+    const onLanding = parent.id === "app-landing-stack";
+    syncFileHubBandLandingDisabled(onLanding);
+    syncFileHubBandCollapsedForMount(onLanding);
   }
 
   function init() {

@@ -25,7 +25,7 @@
     }
   }
 
-  function syncContextBufferBandCollapsed(collapsed = isContextBufferBandCollapsed()) {
+  function applyContextBufferBandCollapsed(collapsed) {
     if (!bandNode) return;
     bandNode.classList.toggle("is-collapsed", collapsed);
     toggleBtn?.setAttribute("aria-expanded", collapsed ? "false" : "true");
@@ -33,6 +33,18 @@
       "title",
       collapsed ? "Развернуть буфер контекста" : "Свернуть буфер контекста"
     );
+  }
+
+  function syncContextBufferBandCollapsed(collapsed = isContextBufferBandCollapsed()) {
+    applyContextBufferBandCollapsed(collapsed);
+  }
+
+  function syncContextBufferBandCollapsedForMount(onLanding) {
+    if (onLanding) {
+      applyContextBufferBandCollapsed(true);
+      return;
+    }
+    syncContextBufferBandCollapsed();
   }
 
   function setContextBufferBandCollapsed(collapsed) {
@@ -268,13 +280,16 @@
     if (!parent) {
       bandNode.hidden = true;
       syncContextBufferBandLandingDisabled(false);
+      syncContextBufferBandCollapsedForMount(false);
       return;
     }
     bandNode.hidden = false;
     if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
-    syncContextBufferBandLandingDisabled(parent.id === "app-landing-stack");
+    const onLanding = parent.id === "app-landing-stack";
+    syncContextBufferBandLandingDisabled(onLanding);
+    syncContextBufferBandCollapsedForMount(onLanding);
     global.FileHubBandPanel?.syncMount?.();
   }
 
