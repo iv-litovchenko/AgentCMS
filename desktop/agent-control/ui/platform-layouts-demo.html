@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>10 вариантов · карточки платформ</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body.demo-page {
+        padding: 20px 16px 48px;
+        max-width: 920px;
+        margin: 0 auto;
+      }
+      .demo-intro {
+        margin-bottom: 24px;
+      }
+      .demo-intro h1 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+      }
+      .demo-intro p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+      .demo-intro code {
+        color: var(--control);
+      }
+      .demo-variant {
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(120, 140, 180, 0.12);
+      }
+      .demo-variant:last-child {
+        border-bottom: none;
+      }
+      .demo-variant-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .demo-variant-num {
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: var(--control);
+      }
+      .demo-variant-head h2 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .demo-variant-head p {
+        margin: 0;
+        font-size: 0.68rem;
+        color: var(--muted);
+      }
+      .demo-frame {
+        padding: 10px 0;
+      }
+
+      /* shared mock card bits for demos */
+      .mock-card {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        padding: 7px 9px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .mock-card img {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      .mock-card--mac {
+        background: linear-gradient(155deg, #fff 0%, #eef2f7 55%, #e2e8f0 100%);
+      }
+      .mock-card--linux {
+        background: linear-gradient(155deg, #fffdf8 0%, #fef3c7 42%, #fde68a 100%);
+        opacity: 0.55;
+      }
+      .mock-card--win {
+        background: linear-gradient(155deg, #fff 0%, #eff6ff 50%, #dbeafe 100%);
+        opacity: 0.4;
+      }
+      .mock-card--active {
+        box-shadow: 0 0 0 2px var(--control), 0 2px 10px rgba(0, 0, 0, 0.22);
+        opacity: 1;
+      }
+      .mock-sub {
+        font-size: 0.58rem;
+        font-weight: 500;
+        color: #64748b;
+        margin-top: 1px;
+      }
+      .mock-badge {
+        margin-left: auto;
+        font-size: 0.52rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 999px;
+        color: #047857;
+        background: #ecfdf5;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+      }
+
+      /* 1 current */
+      .layout-1 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .layout-1 .mock-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .layout-1 .mock-card .mock-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      /* 2 vertical stack */
+      .layout-2 {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-width: 420px;
+      }
+
+      /* 3 segmented */
+      .layout-3 {
+        display: flex;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(120, 140, 180, 0.2);
+        background: rgba(8, 12, 24, 0.5);
+      }
+      .layout-3 button {
+        flex: 1;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        padding: 10px 8px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: default;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .layout-3 button img {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+      }
+      .layout-3 button.is-on {
+        background: rgba(20, 184, 166, 0.15);
+        color: var(--text);
+        box-shadow: inset 0 -2px 0 var(--control);
+      }
+
+      /* 4 horizontal scroll */
+      .layout-4 {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scroll-snap-type: x mandatory;
+      }
+      .layout-4 .mock-card {
+        min-width: 200px;
+        scroll-snap-align: start;
+      }
+
+      /* 5 icon strip */
+      .layout-5 {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        padding: 8px;
+        border-radius: 14px;
+        background: rgba(8, 12, 24, 0.35);
+      }
+      .layout-5 .icon-only {
+        position: relative;
+        border: none;
+        padding: 0;
+        background: none;
+        cursor: default;
+      }
+      .layout-5 .icon-only img {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        opacity: 0.45;
+      }
+      .layout-5 .icon-only.is-on img {
+        opacity: 1;
+        box-shadow: 0 0 0 2px var(--control);
+      }
+      .layout-5 .icon-only span {
+        position: absolute;
+        bottom: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.55rem;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .layout-5 .icon-only.is-on span {
+        color: var(--control);
+        font-weight: 700;
+      }
+
+      /* 6 pyramid 2+1 */
+      .layout-6 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        max-width: 480px;
+      }
+      .layout-6 .mock-card:last-child {
+        grid-column: 1 / -1;
+        max-width: 50%;
+        justify-self: center;
+      }
+
+      /* 7 full-width rows */
+      .layout-7 {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .layout-7 .mock-card {
+        width: 100%;
+      }
+
+      /* 8 inline one line */
+      .layout-8 {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .layout-8 .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px 4px 4px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        opacity: 0.5;
+      }
+      .layout-8 .pill img {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+      }
+      .layout-8 .pill.is-on {
+        opacity: 1;
+        background: linear-gradient(155deg, #fff 0%, #eef2f7 100%);
+        color: #0f172a;
+        border-color: var(--control);
+      }
+
+      /* 9 hero + mini */
+      .layout-9 .hero-card {
+        padding: 12px 14px;
+        border-radius: 14px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(155deg, #fff 0%, #eef2f7 100%);
+        border: 2px solid var(--control);
+        color: #0f172a;
+      }
+      .layout-9 .hero-card img {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+      }
+      .layout-9 .minis {
+        display: flex;
+        gap: 6px;
+      }
+      .layout-9 .minis .mock-card {
+        flex: 1;
+        justify-content: center;
+        padding: 6px;
+        font-size: 0.65rem;
+      }
+      .layout-9 .minis .mock-card img {
+        width: 28px;
+        height: 28px;
+      }
+
+      /* 10 tabs under monitor */
+      .layout-10 {
+        border-top: 1px solid rgba(120, 140, 180, 0.15);
+        padding-top: 8px;
+      }
+      .layout-10 .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(120, 140, 180, 0.2);
+      }
+      .layout-10 .tab {
+        padding: 8px 6px;
+        text-align: center;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: var(--muted);
+        background: rgba(0, 0, 0, 0.2);
+        border-right: 1px solid rgba(120, 140, 180, 0.12);
+      }
+      .layout-10 .tab:last-child {
+        border-right: none;
+      }
+      .layout-10 .tab.is-on {
+        color: #0f172a;
+        background: linear-gradient(155deg, #fff 0%, #eef2f7 100%);
+      }
+      .layout-10 .tab img {
+        display: block;
+        margin: 0 auto 4px;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+      }
+    </style>
+  </head>
+  <body class="demo-page">
+    <div class="app-backdrop" aria-hidden="true">
+      <div class="backdrop-stars"></div>
+      <div class="backdrop-grid"></div>
+    </div>
+
+    <div class="demo-intro">
+      <h1>10 вариантов раскладки · macOS / Linux / Windows</h1>
+      <p>
+        Макет macOS активен (пример). Открыть:
+        <code>http://127.0.0.1:3288/platform-layouts-demo.html</code>
+        (нужен <code>npm start</code>) или двойной клик по файлу в
+        <code>desktop/agent-control/ui/platform-layouts-demo.html</code>
+      </p>
+    </div>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">01</span>
+        <div>
+          <h2>Три колонки (как сейчас)</h2>
+          <p>Компактная сетка под hero — минимум высоты.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-1">
+        <div class="mock-card mock-card--mac mock-card--active">
+          <div class="mock-row">
+            <img src="assets/platform-macos.svg" alt="" />
+            <div>
+              macOS
+              <div class="mock-sub">MacBook Pro — MacBook · macOS x64</div>
+            </div>
+            <span class="mock-badge">Здесь</span>
+          </div>
+        </div>
+        <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+        <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Windows</div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">02</span>
+        <div>
+          <h2>Вертикальный список</h2>
+          <p>Удобно на узком окне; каждая ОС — полная строка.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-2">
+        <div class="mock-card mock-card--mac mock-card--active">
+          <img src="assets/platform-macos.svg" alt="" />
+          <div>
+            macOS
+            <div class="mock-sub">MacBook Pro — MacBook · macOS x64</div>
+          </div>
+          <span class="mock-badge">Здесь</span>
+        </div>
+        <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+        <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Windows · Скоро</div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">03</span>
+        <div>
+          <h2>Сегментированный переключатель</h2>
+          <p>Без «карточек» — только выбор ОС; подпись хоста отдельной строкой.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-3">
+        <button type="button" class="is-on"><img src="assets/platform-macos.svg" alt="" />macOS</button>
+        <button type="button"><img src="assets/platform-linux.svg" alt="" />Linux</button>
+        <button type="button"><img src="assets/platform-windows.svg" alt="" />Win</button>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">04</span>
+        <div>
+          <h2>Горизонтальный скролл</h2>
+          <p>Широкие карточки, свайп на мобильном.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-4">
+        <div class="mock-card mock-card--mac mock-card--active">
+          <img src="assets/platform-macos.svg" alt="" />
+          <div>
+            macOS
+            <div class="mock-sub">Текущий хост</div>
+          </div>
+        </div>
+        <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+        <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Windows</div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">05</span>
+        <div>
+          <h2>Только иконки</h2>
+          <p>Максимально низко; названия под иконками.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-5">
+        <div class="icon-only is-on">
+          <img src="assets/platform-macos.svg" alt="" /><span>macOS</span>
+        </div>
+        <div class="icon-only"><img src="assets/platform-linux.svg" alt="" /><span>Linux</span></div>
+        <div class="icon-only"><img src="assets/platform-windows.svg" alt="" /><span>Win</span></div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">06</span>
+        <div>
+          <h2>Пирамида 2 + 1</h2>
+          <p>Mac и Linux сверху, Windows (скоро) по центру снизу.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-6">
+        <div class="mock-card mock-card--mac mock-card--active"><img src="assets/platform-macos.svg" alt="" /> macOS</div>
+        <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+        <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Windows</div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">07</span>
+        <div>
+          <h2>Полная ширина — три полоски</h2>
+          <p>Как пункты меню; хорошо читается подпись хоста.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-7">
+        <div class="mock-card mock-card--mac mock-card--active">
+          <img src="assets/platform-macos.svg" alt="" />
+          <div>
+            macOS
+            <div class="mock-sub">MacBook Pro — MacBook · macOS x64</div>
+          </div>
+          <span class="mock-badge">Здесь</span>
+        </div>
+        <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+        <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Windows</div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">08</span>
+        <div>
+          <h2>Pills в одну строку</h2>
+          <p>Минимум места: «Платформа:» + три капсулы.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-8">
+        <span>Платформа:</span>
+        <span class="pill is-on"><img src="assets/platform-macos.svg" alt="" /> macOS</span>
+        <span class="pill"><img src="assets/platform-linux.svg" alt="" /> Linux</span>
+        <span class="pill"><img src="assets/platform-windows.svg" alt="" /> Win</span>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">09</span>
+        <div>
+          <h2>Hero + мини</h2>
+          <p>Активная ОС крупно; остальные — маленькие плитки.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-9">
+        <div class="hero-card">
+          <img src="assets/platform-macos.svg" alt="" />
+          <div>
+            <strong>macOS</strong>
+            <div class="mock-sub">MacBook Pro — MacBook · macOS x64</div>
+          </div>
+        </div>
+        <div class="minis">
+          <div class="mock-card mock-card--linux"><img src="assets/platform-linux.svg" alt="" /> Linux</div>
+          <div class="mock-card mock-card--win"><img src="assets/platform-windows.svg" alt="" /> Win</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-num">10</span>
+        <div>
+          <h2>Вкладки под мониторингом</h2>
+          <p>ОС не отдельный блок — полоска между hero и «Система» / monitor.</p>
+        </div>
+      </div>
+      <div class="demo-frame layout-10">
+        <div class="tabs">
+          <div class="tab is-on"><img src="assets/platform-macos.svg" alt="" />macOS</div>
+          <div class="tab"><img src="assets/platform-linux.svg" alt="" />Linux</div>
+          <div class="tab"><img src="assets/platform-windows.svg" alt="" />Win</div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

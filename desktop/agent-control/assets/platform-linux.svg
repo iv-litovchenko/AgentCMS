@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Linux">
+  <defs>
+    <linearGradient id="plat-linux-bg" x1="12%" y1="0%" x2="88%" y2="100%">
+      <stop offset="0%" stop-color="#fff7d6" />
+      <stop offset="46%" stop-color="#f5b429" />
+      <stop offset="100%" stop-color="#c2410c" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#plat-linux-bg)" />
+  <g fill="#171411">
+    <ellipse cx="17.6" cy="41.2" rx="4.2" ry="8.6" transform="rotate(-28 17.6 41.2)" />
+    <ellipse cx="46.4" cy="41.2" rx="4.2" ry="8.6" transform="rotate(28 46.4 41.2)" />
+    <ellipse cx="32" cy="41" rx="13.2" ry="14.6" />
+    <circle cx="32" cy="23.2" r="12.1" />
+  </g>
+  <ellipse cx="23.8" cy="53.6" rx="6.4" ry="3.2" fill="#ea580c" />
+  <ellipse cx="40.2" cy="53.6" rx="6.4" ry="3.2" fill="#ea580c" />
+  <path
+    fill="#fff6dc"
+    d="M32 17.2c-4.8 0-8.3 3.6-8.3 8.2 0 3.2 1.7 5.6 3.8 7.2-4.6 2.6-6.4 9.2-5.2 14.6 1.2 5.2 5.2 8.2 9.7 8.2s8.5-3 9.7-8.2c1.2-5.4-.6-12-5.2-14.6 2.1-1.6 3.8-4 3.8-7.2 0-4.6-3.5-8.2-8.3-8.2z"
+  />
+  <ellipse cx="27.15" cy="23.15" rx="2.7" ry="3.2" fill="#fff" />
+  <ellipse cx="36.85" cy="23.15" rx="2.7" ry="3.2" fill="#fff" />
+  <circle cx="27.45" cy="23.5" r="1.4" fill="#171411" />
+  <circle cx="36.55" cy="23.5" r="1.4" fill="#171411" />
+  <path fill="#f59e0b" d="M27.8 27.1 32 25.7l4.2 1.4L32 32.4z" />
+</svg>

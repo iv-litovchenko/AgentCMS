@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="macOS">
+  <defs>
+    <linearGradient id="plat-mac-bg" x1="12%" y1="0%" x2="88%" y2="100%">
+      <stop offset="0%" stop-color="#8b95a5" />
+      <stop offset="42%" stop-color="#3a4250" />
+      <stop offset="100%" stop-color="#0c1018" />
+    </linearGradient>
+    <mask id="plat-mac-glyph" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000" />
+      <ellipse cx="31.6" cy="38.6" rx="14.5" ry="16.8" fill="#fff" />
+      <circle cx="48.8" cy="29.4" r="8.2" fill="#000" />
+      <ellipse cx="41.6" cy="15.6" rx="6.9" ry="3.4" transform="rotate(-54 41.6 15.6)" fill="#fff" />
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#plat-mac-bg)" />
+  <rect width="64" height="64" fill="#f4f7fb" mask="url(#plat-mac-glyph)" />
+</svg>
