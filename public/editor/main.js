@@ -27353,7 +27353,9 @@ function topicSlotsTemplateSkipsMediaSlot(template, slotsDisabled = false) {
 }
 
 function topicSlotsTemplateSkipsAssetsSlot(template, slotsDisabled = false) {
-  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
+  if (slotsDisabled) return true;
+  if (isTopicSlotsInstructionTemplate(template)) return false;
+  return isTopicSlotsMinimalTemplate(template);
 }
 
 /** @deprecated use topicSlotsTemplateSkipsMediaSlot / topicSlotsTemplateSkipsAssetsSlot */
@@ -72306,6 +72308,7 @@ function buildNodeMemorySlotStatuses({
   externalData = null,
   tabularData = null,
   mediaData = null,
+  assetsData = null,
   todoData = null,
   memorySummary = null
 } = {}) {
@@ -72335,11 +72338,13 @@ function buildNodeMemorySlotStatuses({
   );
   const hasTabular = tabularRows > 0;
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
+  const hasAssets = Boolean(assetsData?.exists && Number(assetsData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
   if (isTopicSlotsInstructionTemplate(slotsTemplate)) {
     return [
       { id: "media", label: "Медиа", filled: hasMedia, modeId: "media" },
+      { id: "assets", label: "Активы", filled: hasAssets, modeId: "assets" },
       { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
     ];
   }
@@ -81902,7 +81907,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   );
   if (instructionSlotsOnly) {
     overviewSpecs = overviewSpecs.filter(
-      (spec) => spec?.key === "todo-single" || spec?.key === "media"
+      (spec) => spec?.key === "todo-single" || spec?.key === "media" || spec?.key === "assets"
     );
     if (!overviewSpecs.length) return [];
   } else if (topicUsesFlexibleSlots) {
@@ -97077,6 +97082,7 @@ async function renderNodeNavigation() {
     externalData,
     tabularData,
     mediaData,
+    assetsData,
     todoData
   });
 
