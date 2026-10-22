@@ -18,14 +18,34 @@ import { createServer } from "./index.js";
 const host = String(process.env.AGENT_CMS_MCP_HTTP_HOST || "127.0.0.1").trim() || "127.0.0.1";
 const port = Number(process.env.AGENT_CMS_MCP_HTTP_PORT || 3490);
 const mcpToken = String(process.env.AGENT_CMS_MCP_TOKEN || "").trim();
-const allowedHosts = String(process.env.AGENT_CMS_MCP_ALLOWED_HOSTS || "")
-  .split(",")
-  .map((h) => h.trim())
-  .filter(Boolean);
+
+function resolveAllowedHosts() {
+  const list = String(process.env.AGENT_CMS_MCP_ALLOWED_HOSTS || "")
+    .split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
+  for (const key of ["AGENT_CMS_MCP_PUBLIC_URL", "AGENT_CMS_PUBLIC_URL", "AGENT_CMS_EDITOR_HTTPS_URL"]) {
+    const raw = String(process.env[key] || "").trim();
+    if (!raw) continue;
+    try {
+      list.push(new URL(raw).hostname);
+    } catch {
+      // ignore
+    }
+  }
+  const extras = String(process.env.AGENT_CMS_PUBLIC_HOST || "")
+    .split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
+  list.push(...extras, "127.0.0.1", "localhost", "[::1]");
+  return [...new Set(list.filter(Boolean))];
+}
+
+const allowedHosts = resolveAllowedHosts();
 
 const app = createMcpExpressApp({
   host,
-  ...(allowedHosts.length ? { allowedHosts } : {})
+  allowedHosts
 });
 
 app.get("/health", (_req, res) => {
@@ -48,7 +68,16 @@ function requireMcpToken(req, res, next) {
 /** @type {Record<string, StreamableHTTPServerTransport>} */
 const transports = {};
 
-app.all("/mcp", requireMcpToken, async (req, res) => {
+app.get("/mcp", (_req, res) => {
+  res.json({
+    ok: true,
+    service: "agent-cms-mcp",
+    transport: "streamable-http",
+    auth: mcpToken ? "bearer" : "none"
+  });
+});
+
+app.post("/mcp", requireMcpToken, async (req, res) => {
   try {
     const sessionId = req.headers["mcp-session-id"];
     let transport;
@@ -114,5 +143,6 @@ app.listen(port, host, () => {
   const base = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
   console.log(`Agent CMS MCP (Streamable HTTP) at ${base}/mcp`);
   if (mcpToken) console.log("MCP token auth: enabled");
+  console.log(`Allowed Host headers: ${allowedHosts.join(", ")}`);
   console.log(`CMS API: ${process.env.AGENT_CMS_BASE_URL || "http://localhost:3000"}`);
 });

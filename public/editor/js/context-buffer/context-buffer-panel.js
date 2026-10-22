@@ -25,7 +25,7 @@
     }
   }
 
-  function syncContextBufferBandCollapsed(collapsed = isContextBufferBandCollapsed()) {
+  function applyContextBufferBandCollapsed(collapsed) {
     if (!bandNode) return;
     bandNode.classList.toggle("is-collapsed", collapsed);
     toggleBtn?.setAttribute("aria-expanded", collapsed ? "false" : "true");
@@ -33,6 +33,18 @@
       "title",
       collapsed ? "Развернуть буфер контекста" : "Свернуть буфер контекста"
     );
+  }
+
+  function syncContextBufferBandCollapsed(collapsed = isContextBufferBandCollapsed()) {
+    applyContextBufferBandCollapsed(collapsed);
+  }
+
+  function syncContextBufferBandCollapsedForMount(onLanding) {
+    if (onLanding) {
+      applyContextBufferBandCollapsed(true);
+      return;
+    }
+    syncContextBufferBandCollapsed();
   }
 
   function setContextBufferBandCollapsed(collapsed) {
@@ -253,17 +265,31 @@
     return document.getElementById("workspace-main-stack");
   }
 
+  function syncContextBufferBandLandingDisabled(disabled) {
+    if (!bandNode) return;
+    bandNode.classList.toggle("is-disabled", disabled);
+    bandNode.setAttribute("aria-disabled", disabled ? "true" : "false");
+    for (const btn of bandNode.querySelectorAll("button")) {
+      btn.disabled = disabled;
+    }
+  }
+
   function syncContextBufferMount() {
     if (!bandNode) return;
     const parent = resolveContextBufferMountParent();
     if (!parent) {
       bandNode.hidden = true;
+      syncContextBufferBandLandingDisabled(false);
+      syncContextBufferBandCollapsedForMount(false);
       return;
     }
     bandNode.hidden = false;
     if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
+    const onLanding = parent.id === "app-landing-stack";
+    syncContextBufferBandLandingDisabled(onLanding);
+    syncContextBufferBandCollapsedForMount(onLanding);
     global.FileHubBandPanel?.syncMount?.();
   }
 

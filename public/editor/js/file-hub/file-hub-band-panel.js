@@ -13,7 +13,7 @@
     }
   }
 
-  function syncFileHubBandCollapsed(collapsed = isFileHubBandCollapsed()) {
+  function applyFileHubBandCollapsed(collapsed) {
     if (!bandNode) return;
     bandNode.classList.toggle("is-collapsed", collapsed);
     toggleBtn?.setAttribute("aria-expanded", collapsed ? "false" : "true");
@@ -21,6 +21,18 @@
       "title",
       collapsed ? "Развернуть файлообменник" : "Свернуть файлообменник"
     );
+  }
+
+  function syncFileHubBandCollapsed(collapsed = isFileHubBandCollapsed()) {
+    applyFileHubBandCollapsed(collapsed);
+  }
+
+  function syncFileHubBandCollapsedForMount(onLanding) {
+    if (onLanding) {
+      applyFileHubBandCollapsed(true);
+      return;
+    }
+    syncFileHubBandCollapsed();
   }
 
   function setFileHubBandCollapsed(collapsed) {
@@ -45,11 +57,20 @@
     return document.getElementById("workspace-main-stack");
   }
 
+  function syncFileHubBandLandingDisabled(disabled) {
+    if (!bandNode) return;
+    bandNode.classList.toggle("is-disabled", disabled);
+    bandNode.setAttribute("aria-disabled", disabled ? "true" : "false");
+    if (toggleBtn) toggleBtn.disabled = disabled;
+  }
+
   function syncFileHubBandMount() {
     if (!bandNode) return;
     const parent = resolveFileHubBandMountParent();
     if (!parent) {
       bandNode.hidden = true;
+      syncFileHubBandLandingDisabled(false);
+      syncFileHubBandCollapsedForMount(false);
       return;
     }
     bandNode.hidden = false;
@@ -61,6 +82,9 @@
     } else if (bandNode.parentElement !== parent) {
       parent.appendChild(bandNode);
     }
+    const onLanding = parent.id === "app-landing-stack";
+    syncFileHubBandLandingDisabled(onLanding);
+    syncFileHubBandCollapsedForMount(onLanding);
   }
 
   function init() {
