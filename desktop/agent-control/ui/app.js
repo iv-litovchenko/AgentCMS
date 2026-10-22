@@ -57,7 +57,7 @@ const SERVICE_MONITOR_DEFS = [
   },
   {
     id: "control",
-    title: "Agent CMS Control (Web)",
+    title: "Agent CMS Control",
     shortName: "Control",
     accent: "control",
     icon: "control.svg",
@@ -566,7 +566,7 @@ function renderServiceMonitorRackCard(def, server, ports) {
       ${openAttr}${interactive}
     >
       <div class="svc-rack-head">
-        <img class="svc-rack-icon" src="../assets/${def.icon}" alt="" width="28" height="28" />
+        <img class="svc-rack-icon" src="assets/${def.icon}" alt="" width="28" height="28" />
         <div class="svc-rack-head-text">
           <strong class="svc-rack-name">${def.shortName}</strong>
           <code class="svc-rack-port">:${row.port}</code>
@@ -610,8 +610,8 @@ function renderServicesMonitor() {
       <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
-        <summary>Desktop Control · Web Control на сервере</summary>
-        <p>Этот пульт — <strong>desktop</strong> на Mac (без своего порта). Web Control: <code>http://host:3288/</code> (или <code>/control/</code> на Editor). Запуск: <code>npm start</code>, <code>docker compose up</code>, systemd.</p>
+        <summary>Launcher · Mac и Linux</summary>
+        <p>Один UI: Electron на Mac (<code>welcome.command</code>) или браузер на Linux/VPS — <code>http://host:3288/</code> (поднимается с <code>npm start</code>). На Mac можно открыть тот же URL.</p>
       </details>
     </div>
   `;
@@ -1774,7 +1774,7 @@ function renderCardPort(accent) {
 
 function launchTile(app, actionsHtml) {
   const icon = app.icon
-    ? `<img class="launch-icon" src="../assets/${app.icon}" alt="" width="44" height="44" />`
+    ? `<img class="launch-icon" src="assets/${app.icon}" alt="" width="44" height="44" />`
     : "";
 
   return `

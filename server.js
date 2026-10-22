@@ -6156,6 +6156,7 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/agent/settings/read",
   "/api/agent/settings/write",
   "/api/ops/status",
+  "/api/ops/bootstrap",
   "/api/ops/maintenance",
   "/api/ops/server/action",
   "/api/ops/server/status",
@@ -22922,6 +22923,30 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build platform health",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/bootstrap") {
+    try {
+      const { buildControlBootstrap } = require("./lib/ops/control-bootstrap");
+      const lite = String(url.searchParams.get("lite") || "").trim() === "1";
+      const payload = await buildControlBootstrap(getProjectRoot(), { launcherMode: "web" });
+      if (lite) {
+        return sendJson(res, 200, {
+          environment: payload.environment,
+          mobileConnect: payload.mobileConnect,
+          server: payload.server,
+          mcpConnect: payload.mcpConnect,
+          setupFlags: payload.setupFlags
+        });
+      }
+      payload.appLock = await resolveOpsAppLockGate(req);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build control bootstrap",
         details: String(error.message || error)
       });
     }
