@@ -184,7 +184,7 @@
       <div class="app-lock-screen-card panel">
         <img class="app-lock-screen-icon" src="assets/favicon.svg" alt="" width="48" height="48" />
         <h2 id="app-lock-title" class="app-lock-screen-title">Agent CMS Control</h2>
-        <p class="app-lock-screen-sub">Логин и пароль из <code>.env</code> (<code>APP_LOCK_*</code>). Шаблон: <code>admin</code> / <code>changeme</code> — если не меняли.</p>
+        <p class="app-lock-screen-sub">Логин и пароль — только из <code>APP_LOCK_LOGIN</code> и <code>APP_LOCK_PASSWORD</code> в <code>.env</code> на сервере (не пароль от SSH). <span id="app-lock-login-hint" hidden></span></p>
         <form class="app-lock-screen-form" id="app-lock-form" autocomplete="on">
           <label class="app-lock-field">
             <span>Логин</span>

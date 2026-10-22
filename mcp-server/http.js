@@ -7,9 +7,12 @@
  *   AGENT_CMS_MCP_HTTP_PORT  (default 3490)
  *   AGENT_CMS_MCP_TOKEN      optional Bearer / X-Agent-Cms-Mcp-Token
  *   AGENT_CMS_BASE_URL       CMS API (default http://localhost:3000)
+ *   AGENT_CMS_MCP_BEHIND_PROXY  1 = за Caddy/nginx (Host: maptex.ru), без DNS-rebind check
+ *   AGENT_CMS_MCP_ALLOWED_HOSTS maptex.ru,localhost,127.0.0.1 (если BEHIND_PROXY=0)
  */
 
 import { randomUUID } from "node:crypto";
+import express from "express";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
@@ -43,10 +46,26 @@ function resolveAllowedHosts() {
 
 const allowedHosts = resolveAllowedHosts();
 
-const app = createMcpExpressApp({
-  host,
-  allowedHosts
-});
+function isBehindProxy() {
+  const flag = String(process.env.AGENT_CMS_MCP_BEHIND_PROXY || "").trim();
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  return host === "127.0.0.1" || host === "localhost";
+}
+
+function createHttpApp() {
+  if (isBehindProxy()) {
+    const app = express();
+    app.use(express.json({ limit: "4mb" }));
+    return app;
+  }
+  return createMcpExpressApp({
+    host,
+    allowedHosts
+  });
+}
+
+const app = createHttpApp();
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "agent-cms-mcp", transport: "streamable-http" });
@@ -143,6 +162,7 @@ app.listen(port, host, () => {
   const base = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}`;
   console.log(`Agent CMS MCP (Streamable HTTP) at ${base}/mcp`);
   if (mcpToken) console.log("MCP token auth: enabled");
-  console.log(`Allowed Host headers: ${allowedHosts.join(", ")}`);
+  if (isBehindProxy()) console.log("MCP behind reverse proxy (Host check relaxed)");
+  else console.log(`Allowed Host headers: ${allowedHosts.join(", ")}`);
   console.log(`CMS API: ${process.env.AGENT_CMS_BASE_URL || "http://localhost:3000"}`);
 });
