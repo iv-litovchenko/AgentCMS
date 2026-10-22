@@ -933,31 +933,9 @@ function bindEnvExpandToggle() {
 }
 
 const PLATFORM_CARDS = [
-  {
-    id: "mac",
-    match: "darwin",
-    name: "macOS",
-    accent: "mac",
-    hint: "Локальная разработка",
-    chips: ["Electron", "HTTPS dev", "welcome.command"]
-  },
-  {
-    id: "linux",
-    match: "linux",
-    name: "Linux",
-    accent: "linux",
-    hint: "VPS и сервер",
-    chips: ["Browser :3288", "npm start"]
-  },
-  {
-    id: "windows",
-    match: "win32",
-    name: "Windows",
-    accent: "windows",
-    hint: "В roadmap",
-    chips: ["Скоро"],
-    disabled: true
-  }
+  { id: "mac", match: "darwin", name: "macOS", accent: "mac" },
+  { id: "linux", match: "linux", name: "Linux", accent: "linux" },
+  { id: "windows", match: "win32", name: "Windows", accent: "windows", disabled: true }
 ];
 
 const PLATFORM_ICON_FILES = {
@@ -966,20 +944,9 @@ const PLATFORM_ICON_FILES = {
   windows: "platform-windows.svg"
 };
 
-function platformCardIcon(id) {
+function platformPickIcon(id) {
   const file = PLATFORM_ICON_FILES[id] || PLATFORM_ICON_FILES.windows;
-  return `<img class="platform-card-icon" src="assets/${file}" alt="" width="52" height="52" decoding="async" />`;
-}
-
-function renderPlatformChips(chips = []) {
-  return chips.map((chip) => `<li class="platform-chip">${escapePlatformText(chip)}</li>`).join("");
-}
-
-function platformRailIndex(activeId) {
-  if (activeId === "mac") return 0;
-  if (activeId === "linux") return 1;
-  if (activeId === "windows") return 2;
-  return 1;
+  return `<img class="platform-pick-icon-img" src="assets/${file}" alt="" width="36" height="36" decoding="async" />`;
 }
 
 function buildPlatformHostChipLines(host) {
@@ -1023,37 +990,24 @@ function renderPlatformCover(environment) {
   const activeId = resolveActivePlatformId(environment);
   const host = environment?.host || {};
   const hostLines = buildPlatformHostChipLines(host);
-  const railIndex = platformRailIndex(activeId);
   const modeLine = launcherModeLabel();
 
   const cards = PLATFORM_CARDS.map((card) => {
     const isActive = !card.disabled && card.id === activeId;
     const isDisabled = Boolean(card.disabled);
     const state = isDisabled ? "disabled" : isActive ? "active" : "idle";
-    const foot = isDisabled
-      ? `<span class="platform-card-foot platform-card-foot--soon">Недоступно</span>`
-      : isActive
-        ? `<span class="platform-card-foot platform-card-foot--live"><span class="platform-card-badge-dot" aria-hidden="true"></span>Текущий хост</span>`
-        : `<span class="platform-card-foot platform-card-foot--idle">${escapePlatformText(card.hint)}</span>`;
 
     return `
       <article
-        class="platform-card platform-card--${card.accent}"
+        class="platform-pick platform-pick--${card.accent}"
         data-state="${state}"
         aria-disabled="${isDisabled ? "true" : "false"}"
+        aria-label="${escapePlatformText(card.name)}${isDisabled ? ", недоступно" : isActive ? ", текущий хост" : ""}"
         ${isActive ? 'aria-current="true"' : ""}
         role="listitem"
       >
-        <div class="platform-card-bg" aria-hidden="true">
-          <span class="platform-card-watermark">${escapePlatformText(card.name)}</span>
-          <div class="platform-card-orb"></div>
-        </div>
-        <div class="platform-card-body">
-          <div class="platform-card-icon-ring">${platformCardIcon(card.id)}</div>
-          <h3 class="platform-card-name">${card.name}</h3>
-          <ul class="platform-chip-list">${renderPlatformChips(card.chips)}</ul>
-        </div>
-        ${foot}
+        <div class="platform-pick-icon">${platformPickIcon(card.id)}</div>
+        <span class="platform-pick-name">${escapePlatformText(card.name)}</span>
       </article>
     `;
   }).join("");
@@ -1073,12 +1027,7 @@ function renderPlatformCover(environment) {
         </div>
       </header>
       <div class="platform-stage">
-        <div class="platform-rail" style="--rail-index: ${railIndex}" aria-hidden="true">
-          <div class="platform-rail-line"></div>
-          <div class="platform-rail-nodes"><span></span><span></span><span></span></div>
-          <div class="platform-rail-beacon"></div>
-        </div>
-        <div class="platform-card-grid" role="list">${cards}</div>
+        <div class="platform-pick-grid" role="list">${cards}</div>
       </div>
     </div>
   `;
