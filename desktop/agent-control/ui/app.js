@@ -18,6 +18,24 @@ function needsAppLockLogin() {
   return Boolean(gate?.enabled && !gate?.sessionActive);
 }
 
+async function refreshAppLockLoginHint() {
+  const hint = document.getElementById("app-lock-login-hint");
+  if (!hint || !needsAppLockLogin()) return;
+  try {
+    const response = await fetch("/api/app-lock/status", { credentials: "same-origin", cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.configured || !data.login) return;
+    hint.textContent = `Ожидаемый логин: ${data.login}.`;
+    hint.hidden = false;
+    const loginInput = document.querySelector("#app-lock-form input[name='login']");
+    if (loginInput && !String(loginInput.value || "").trim()) {
+      loginInput.value = data.login;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function syncAppLockScreen() {
   const screen = document.getElementById("app-lock-screen");
   if (!screen) return;
@@ -28,6 +46,7 @@ function syncAppLockScreen() {
   syncAppLockLogoutButton();
   syncEnvFileEditorAccess();
   if (show) {
+    void refreshAppLockLoginHint();
     window.requestAnimationFrame(() => {
       const loginInput = screen.querySelector('input[name="login"]');
       if (loginInput) loginInput.focus();
@@ -2332,6 +2351,11 @@ function bindAppLockGate() {
       }
       if (window.agentControl.getBootstrap) {
         bootstrap = await window.agentControl.getBootstrap();
+        if (needsAppLockLogin()) {
+          throw new Error(
+            "Пароль принят, но сессия не сохранилась. Открывайте Control по тому же адресу (http/https), без смешения IP и домена; отключите блокировку cookies для этого сайта."
+          );
+        }
       } else {
         bootstrap.appLock = {
           ...(bootstrap.appLock || {}),

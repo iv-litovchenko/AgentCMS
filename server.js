@@ -1090,25 +1090,7 @@ const NODE_PREVIEW_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif"];
 const APP_LOCK_LOGIN_KEY = "APP_LOCK_LOGIN";
 const APP_LOCK_PASSWORD_KEY = "APP_LOCK_PASSWORD";
 
-function parseRootEnvFileContent(content) {
-  const result = {};
-  for (const line of String(content || "").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex <= 0) continue;
-    const key = trimmed.slice(0, eqIndex).trim();
-    let value = trimmed.slice(eqIndex + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    result[key] = value;
-  }
-  return result;
-}
+const { parseRootEnvFileContent } = require("./lib/config/agent-cms-ports");
 
 async function readRootEnvFile() {
   const envPath = path.join(getProjectRoot(), ".env");
