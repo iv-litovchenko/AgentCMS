@@ -15051,7 +15051,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   topicHub: "GET /api/agent/topic?path=<manifest.md> — MCP topic_get; PUT /api/agent/topic — topic_update",
   topicSlotsTemplate:
-    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|none)",
+    "GET /api/agent/topic-slots-template?path= — MCP topic_slots_template_get; PUT — topic_slots_template_set (standard|flexible|minimal|none)",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
@@ -15783,13 +15783,20 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
 
 const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
 const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_MINIMAL = "minimal";
 const TOPIC_SLOTS_TEMPLATE_NONE = "none";
 
 function normalizeTopicSlotsTemplate(raw) {
   const value = String(raw || "")
     .trim()
     .toLowerCase();
-  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  if (
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  ) {
+    return value;
+  }
   return TOPIC_SLOTS_TEMPLATE_STANDARD;
 }
 
@@ -15836,7 +15843,8 @@ async function readTopicSlotsDisabled(manifestRelPath) {
 const TOPIC_SLOTS_TEMPLATE_LABELS = {
   [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
   [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
-  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум слотов (стандарт)",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов (только инструкция)"
 };
 
 function isAllowedTopicSlotsTemplateValue(raw) {
@@ -15846,6 +15854,7 @@ function isAllowedTopicSlotsTemplateValue(raw) {
   return (
     value === TOPIC_SLOTS_TEMPLATE_STANDARD ||
     value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
     value === TOPIC_SLOTS_TEMPLATE_NONE
   );
 }
@@ -15868,7 +15877,7 @@ function buildAgentTopicSlotsTemplatePayload(manifestRel, template) {
     slotsFlexible: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
     slotsDisabled: normalized === TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
     hint:
-      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; none — single-file slots only."
+      "standard — typed awn-storage slots in UI; flexible — whole awn-storage/ except assets/, history/, comments/; minimal — single-file slots; none — agent instruction + todo only."
   };
 }
 
@@ -15902,7 +15911,12 @@ async function setAgentTopicSlotsTemplate(inputPath, template) {
     return {
       error: "Invalid template",
       status: 400,
-      allowed: [TOPIC_SLOTS_TEMPLATE_STANDARD, TOPIC_SLOTS_TEMPLATE_FLEXIBLE, TOPIC_SLOTS_TEMPLATE_NONE]
+      allowed: [
+        TOPIC_SLOTS_TEMPLATE_STANDARD,
+        TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
+        TOPIC_SLOTS_TEMPLATE_MINIMAL,
+        TOPIC_SLOTS_TEMPLATE_NONE
+      ]
     };
   }
   const manifestRel = await resolveCanonicalManifestRelPath(String(inputPath || "").trim());

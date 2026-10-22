@@ -37,7 +37,7 @@ fields:
     title: "{A2!} Шаблон слотов"
     description: >
       standard — типовые слоты awn-storage; flexible — весь awn-storage/ (кроме assets/, history/, comments/);
-      none — только однофайловые слоты (main.md, todo, карты…)
+      minimal — однофайловые слоты (main.md, todo, таблица…); none — только инструкция и todo
     default: standard
     placement: aside-body
     group: nav
@@ -47,5 +47,7 @@ fields:
         name: Гибкий слот
       - key: standard
         name: Стандартные слоты
+      - key: minimal
+        name: Минимум слотов (стандарт)
       - key: none
-        name: Без слотов
+        name: Без слотов (только инструкция)

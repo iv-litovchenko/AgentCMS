@@ -1,13 +1,14 @@
 ---
+awn-slots-flexible: false
 awn-status: open
 awn-quality: 4
 awn-importance: 0
 awn-emoji: ""
 awn-sort: 0
-awn-note-todo-sticker: ""
+awn-summary: ""
 awn-main: false
 awn-focus: false
-awn-slots-flexible: false
+awn-slots-template: none
 awn-runtime-load-always: false
 awn-runtime-heartbeat: false
 awn-runtime-cron: false
@@ -16,9 +17,8 @@ awn-runtime-commands: false
 awn-index-exclude-record: false
 awn-index-exclude-subtree: false
 awn-auto-toc: false
-awn-summary: ""
 awn-tags: []
-awn-taxonomy: {}
+awn-taxonomy: "{}"
 awn-viz-graph:
   enabled: true
   pin: false
@@ -35,11 +35,12 @@ awn-type: awn.hub.topic
 awn-create: "2026-09-27T13:22"
 awn-owner: ""
 awn-description: ""
-awn-name: Тест
+awn-name: "Тест"
+awn-note-todo-sticker: ""
 awn-preview: ""
 awn-web-url: ""
-awn-update: 2026-09-28T18:52:22.991Z
-awn-version: 3
+awn-update: 2026-10-21T23:59:26.725Z
+awn-version: 7
 ---
 
 упкупку

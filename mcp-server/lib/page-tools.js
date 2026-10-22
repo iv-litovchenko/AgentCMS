@@ -53,13 +53,13 @@ export function registerPageTools({ reg, client, pagePath }) {
     handler: ({ path }) => client.get("/api/agent/topic", { path })
   });
 
-  const topicSlotsTemplateSchema = z.enum(["standard", "flexible", "none"]);
+  const topicSlotsTemplateSchema = z.enum(["standard", "flexible", "minimal", "none"]);
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topic_slots_template_get",
     legacy: "get_topic_slots_template",
     description:
-      "Read awn-slots-template for a topic/area manifest (standard | flexible | none). Legacy awn-slots-flexible is normalized. Response includes slotsFlexible for compat.",
+      "Read awn-slots-template for a topic/area manifest (standard | flexible | minimal | none). Legacy awn-slots-flexible is normalized. Response includes slotsFlexible for compat.",
     schema: z.object({ path: pagePath }),
     handler: ({ path }) => client.get("/api/agent/topic-slots-template", { path })
   });
@@ -68,7 +68,7 @@ export function registerPageTools({ reg, client, pagePath }) {
     canonical: "topic_slots_template_set",
     legacy: "set_topic_slots_template",
     description:
-      "Set awn-slots-template on manifest.md. Removes legacy awn-slots-flexible / awn-slots-disabled. standard = typed slots; flexible = whole awn-storage/ except assets/, history/, comments/; none = single-file slots only.",
+      "Set awn-slots-template on manifest.md. Removes legacy awn-slots-flexible / awn-slots-disabled. standard = typed slots; flexible = whole awn-storage/ except assets/, history/, comments/; minimal = single-file slots; none = instruction + todo only.",
     schema: z.object({
       path: pagePath,
       template: topicSlotsTemplateSchema

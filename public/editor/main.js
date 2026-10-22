@@ -24640,8 +24640,10 @@ function buildTopicSlotsTemplateConfirmMessage(label, toTemplate) {
     parts.push(TOPIC_SHARED_SLOT_SUBTITLE);
   } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_STANDARD) {
     parts.push("Типовые папки awn-storage (main, inbox, media…) снова будут в навигации.");
+  } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_MINIMAL) {
+    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo, таблица…).");
   } else if (toTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
-    parts.push("Многофайловые панели скроются; останутся однофайловые слоты (main.md, todo…).");
+    parts.push("Останутся только инструкция для агента и слот TODO; блок инструкции будет всегда раскрыт.");
   }
   return parts.join("\n\n");
 }
@@ -27284,15 +27286,18 @@ const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
 const AWN_TOPIC_SLOTS_TEMPLATE_KEY = "awn-slots-template";
 const TOPIC_SLOTS_TEMPLATE_STANDARD = "standard";
 const TOPIC_SLOTS_TEMPLATE_FLEXIBLE = "flexible";
+const TOPIC_SLOTS_TEMPLATE_MINIMAL = "minimal";
 const TOPIC_SLOTS_TEMPLATE_NONE = "none";
 const TOPIC_SLOTS_TEMPLATE_LABELS = {
   [TOPIC_SLOTS_TEMPLATE_FLEXIBLE]: "Гибкий слот",
   [TOPIC_SLOTS_TEMPLATE_STANDARD]: "Стандартные слоты",
-  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов"
+  [TOPIC_SLOTS_TEMPLATE_MINIMAL]: "Минимум слотов (стандарт)",
+  [TOPIC_SLOTS_TEMPLATE_NONE]: "Без слотов (только инструкция)"
 };
 const TOPIC_SLOTS_TEMPLATE_SELECT_ORDER = [
   TOPIC_SLOTS_TEMPLATE_FLEXIBLE,
   TOPIC_SLOTS_TEMPLATE_STANDARD,
+  TOPIC_SLOTS_TEMPLATE_MINIMAL,
   TOPIC_SLOTS_TEMPLATE_NONE
 ];
 
@@ -27319,8 +27324,34 @@ function normalizeTopicSlotsTemplate(raw) {
   const value = String(raw || "")
     .trim()
     .toLowerCase();
-  if (value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || value === TOPIC_SLOTS_TEMPLATE_NONE) return value;
+  if (
+    value === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    value === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    value === TOPIC_SLOTS_TEMPLATE_NONE
+  ) {
+    return value;
+  }
   return TOPIC_SLOTS_TEMPLATE_STANDARD;
+}
+
+function isTopicSlotsMinimalTemplate(template) {
+  return template === TOPIC_SLOTS_TEMPLATE_MINIMAL;
+}
+
+function isTopicSlotsInstructionTemplate(template) {
+  return template === TOPIC_SLOTS_TEMPLATE_NONE;
+}
+
+function topicSlotsTemplateSkipsExternal(template) {
+  return isTopicSlotsMinimalTemplate(template) || isTopicSlotsInstructionTemplate(template);
+}
+
+function topicSlotsTemplateSkipsMediaAssets(template, slotsDisabled = false) {
+  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
+}
+
+function topicSlotsTemplateUsesCompactNav(template, slotsDisabled = false) {
+  return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
 }
 
 function getTopicSlotsTemplateFromEntries(entries) {
@@ -27359,8 +27390,8 @@ function isTopicSlotsFlexibleFromEntries(entries) {
   return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
-function isTopicSlotsNoneFromEntries(entries) {
-  return getTopicSlotsTemplateFromEntries(entries) === TOPIC_SLOTS_TEMPLATE_NONE;
+function isTopicSlotsInstructionFromEntries(entries) {
+  return isTopicSlotsInstructionTemplate(getTopicSlotsTemplateFromEntries(entries));
 }
 
 function filterTopicFlexibleSingleFileSlotSpecs(specs, topicPath = getResolvedNodePath(activePath)) {
@@ -27435,7 +27466,11 @@ function isTopicSlotsLiteTemplateActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
   const template = getTopicSlotsTemplateForManifestPath(manifestPath);
-  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
+  return (
+    template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    template === TOPIC_SLOTS_TEMPLATE_NONE
+  );
 }
 
 function invalidateTopicSlotsDisabledCache(manifestPath = "") {
@@ -27453,10 +27488,10 @@ function isTopicSharedSlotActive(nodePath = activePath) {
   return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
 }
 
-function isTopicSlotsNoneActive(nodePath = activePath) {
+function isTopicSlotsInstructionActive(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
   if (!manifestPath) return false;
-  return getTopicSlotsTemplateForManifestPath(manifestPath) === TOPIC_SLOTS_TEMPLATE_NONE;
+  return isTopicSlotsInstructionTemplate(getTopicSlotsTemplateForManifestPath(manifestPath));
 }
 
 /** В режиме awn-slots-flexible типовые слоты (media, inbox…) не используются — только external / awn-storage/. */
@@ -27547,12 +27582,20 @@ async function shouldHideTopicStorageSlots(nodePath, entries = null) {
   if (isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath)) return false;
   if (entries?.length) {
     const template = getTopicSlotsTemplateFromEntries(entries);
-    if (template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE) {
+    if (
+      template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+      template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+      template === TOPIC_SLOTS_TEMPLATE_NONE
+    ) {
       return true;
     }
   }
   const template = await readTopicSlotsTemplateForPath(nodePath);
-  return template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE || template === TOPIC_SLOTS_TEMPLATE_NONE;
+  return (
+    template === TOPIC_SLOTS_TEMPLATE_FLEXIBLE ||
+    template === TOPIC_SLOTS_TEMPLATE_MINIMAL ||
+    template === TOPIC_SLOTS_TEMPLATE_NONE
+  );
 }
 
 function shouldUseNavigationSplitRailLayout(nodePath = getResolvedNodePath(activePath)) {
@@ -48600,7 +48643,7 @@ const PROPS_FIELD_META = {
   },
   "awn-slots-template": {
     label: "Шаблон слотов",
-    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; none — только однофайловые слоты"
+    hint: "standard — типовые слоты; flexible — весь awn-storage/ кроме assets/, history/, comments/; minimal — однофайловые слоты; none — инструкция и todo"
   },
   "awn-slots-flexible": {
     label: "Гибкий слот (устар.)",
@@ -70288,7 +70331,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   if (options.showHeroInstruction) {
-    appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title);
+    appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title, {
+      slotsInstructionOnly: Boolean(options.slotsInstructionOnly)
+    });
   }
 
   return hero;
@@ -71294,7 +71339,7 @@ function appendNavigationHeroTags(hero, propEntries = []) {
   return tagsBar;
 }
 
-function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
+function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "", options = {}) {
   if (!hero) return null;
   const content = buildNavigationAgentInstructionContent(descriptionRaw, heroTitle);
   if (!content) return null;
@@ -71304,6 +71349,7 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
   bodySection.appendChild(content);
 
   const hasInstruction = getNodeDescriptionHasContent(descriptionRaw);
+  const slotsInstructionOnly = Boolean(options.slotsInstructionOnly);
 
   const titleNode = document.createDocumentFragment();
   titleNode.appendChild(createNodeSlotStatusLamp(hasInstruction));
@@ -71316,7 +71362,10 @@ function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = 
     OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID,
     titleNode,
     bodySection,
-    { defaultOpen: !hasInstruction, lockOpen: !hasInstruction }
+    {
+      defaultOpen: slotsInstructionOnly ? true : !hasInstruction,
+      lockOpen: slotsInstructionOnly || !hasInstruction
+    }
   );
   accordion.classList.add(
     "node-overview-props-fold",
@@ -72277,7 +72326,11 @@ function buildNodeMemorySlotStatuses({
   const hasMedia = Boolean(mediaData?.exists && Number(mediaData.files) > 0);
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
-  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE) {
+  if (isTopicSlotsInstructionTemplate(slotsTemplate)) {
+    return hasTodo ? [{ id: "todo", label: "TODO", filled: true, modeId: "todo" }] : [];
+  }
+
+  if (isTopicSlotsMinimalTemplate(slotsTemplate)) {
     return [
       hasInternal ? { id: "internal", label: "Однофайловая", filled: true, modeId: "internal" } : null,
       hasTabular ? { id: "tabular", label: "Табличная", filled: true, modeId: "tabular" } : null,
@@ -73576,6 +73629,11 @@ async function appendTopicSlotCounterStrip(
   let topicSlotCounters = slots ?? (await buildEntryOverviewDataSlotCounters(topicPath, { propsEntries }));
   topicSlotCounters = filterHubWorkspaceSlotCounters(topicPath, topicSlotCounters, propsEntries);
   if (isStale()) return null;
+  const slotsTemplate = propsEntries?.length
+    ? getTopicSlotsTemplateFromEntries(propsEntries)
+    : await readTopicSlotsTemplateForPath(topicPath);
+  const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const counterLayout = instructionSlotsOnly ? "area-single" : "grid";
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     topicSlotCounters.map((slot) => ({
       ...slot,
@@ -73584,7 +73642,9 @@ async function appendTopicSlotCounterStrip(
     {
       entryOverview,
       activeSlotKey: getDataStorageSlotKeyForEntryView(),
-      topicPath
+      topicPath,
+      layout: counterLayout,
+      includeTopicIndexFooter: !instructionSlotsOnly
     }
   );
   if (strip) {
@@ -75629,7 +75689,11 @@ function renderNodeNavigationElementsNavAccordion({
 
   const title = document.createElement("span");
   title.className = "doc-links-accordion-title";
-  title.textContent = "Все доступные элементы — навигация";
+  title.append(document.createTextNode("Все доступные элементы — навигация "));
+  const titleLegacyNote = document.createElement("span");
+  titleLegacyNote.className = "doc-links-accordion-title-legacy";
+  titleLegacyNote.textContent = "(устаревшая идея)";
+  title.appendChild(titleLegacyNote);
 
   summaryMain.appendChild(title);
 
@@ -81774,10 +81838,14 @@ async function resolveNavigationPrefetchValue(prefetched, key, fetcher) {
 async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
+  const slotsTemplate = prefetched.propsEntries?.length
+    ? getTopicSlotsTemplateFromEntries(prefetched.propsEntries)
+    : await readTopicSlotsTemplateForPath(topicPath);
   const topicUsesFlexibleSlots = await shouldHideTopicStorageSlots(
     topicPath,
     prefetched.propsEntries || null
   );
+  const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
 
   let intake = topicIntakeCacheByPath.get(manifestPath) || null;
   if (!intake) {
@@ -81792,7 +81860,10 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   let overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter((spec) =>
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
-  if (topicUsesFlexibleSlots) {
+  if (instructionSlotsOnly) {
+    overviewSpecs = overviewSpecs.filter((spec) => spec?.key === "todo-single");
+    if (!overviewSpecs.length) return [];
+  } else if (topicUsesFlexibleSlots) {
     overviewSpecs = overviewSpecs.filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
     if (!overviewSpecs.length) return [];
   }
@@ -96693,15 +96764,17 @@ function buildNodeNavigationMemoryPanelsWrap({
 }) {
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-panels";
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
 
   if (!isInlineNavHub) {
     const panels = [
-      slotsNone ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
-      renderNavigationInternalPart(internalData, { nodePath }),
-      renderNavigationTabularPart(tabularData),
-      slotsDisabled || slotsNone ? null : renderNavigationMediaPart(mediaData),
-      slotsDisabled || slotsNone || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      skipExternal ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
+      instructionOnly ? null : renderNavigationInternalPart(internalData, { nodePath }),
+      instructionOnly ? null : renderNavigationTabularPart(tabularData),
+      skipMediaAssets ? null : renderNavigationMediaPart(mediaData),
+      skipMediaAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -96720,7 +96793,9 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
   const isInlineNavHub = usesNavigationHubInlineSubsections(nodePath);
   const slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -96735,14 +96810,12 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           Promise.resolve(null)
         ]
       : [
-          fetchInternalMemoryForNavigation(nodePath),
-          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
-          fetchTabularMemoryForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(null) : fetchInternalMemoryForNavigation(nodePath),
+          skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          slotsDisabled || slotsNone
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          slotsDisabled || slotsNone
+          skipMediaAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          skipMediaAssets
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
@@ -96882,7 +96955,10 @@ async function renderNodeNavigation() {
     slotsTemplate = await readTopicSlotsTemplateForPath(nodePath);
   }
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
-  const slotsNone = slotsTemplate === TOPIC_SLOTS_TEMPLATE_NONE;
+  const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
+  const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
+  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const compactNav = topicSlotsTemplateUsesCompactNav(slotsTemplate, slotsDisabled);
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
 
@@ -96918,14 +96994,14 @@ async function renderNodeNavigation() {
             : Promise.resolve(null)
         ]
       : [
-          fetchInternalMemoryForNavigation(nodePath),
-          slotsNone ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
-          fetchTabularMemoryForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(null) : fetchInternalMemoryForNavigation(nodePath),
+          skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
+          instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          slotsDisabled || slotsNone ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          slotsDisabled || slotsNone
+          skipMediaAssets ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          skipMediaAssets
             ? Promise.resolve(null)
             : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
@@ -97058,6 +97134,7 @@ async function renderNodeNavigation() {
       descriptionRaw: modeContentCache.description || "",
       typeLabel: topicTypeLabel,
       showHeroInstruction: true,
+      slotsInstructionOnly: instructionOnly,
       onEditClick: openDescriptionFromOverview,
       settingsSlots: isRepositoryManifestPath(nodePath) ? [] : slotStripGroups.settings || [],
       hideSharedSlot: isRepositoryManifestPath(nodePath),
@@ -97132,7 +97209,7 @@ async function renderNodeNavigation() {
       externalData,
       mediaData
     });
-    if (slotsDisabled || slotsNone) {
+    if (compactNav) {
       const topicNavCluster = document.createElement("div");
       topicNavCluster.className = "node-navigation-hub-topic-nav-cluster";
       if (!topicSlotCounters.length) {
