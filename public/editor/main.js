@@ -27346,8 +27346,19 @@ function topicSlotsTemplateSkipsExternal(template) {
   return isTopicSlotsMinimalTemplate(template) || isTopicSlotsInstructionTemplate(template);
 }
 
-function topicSlotsTemplateSkipsMediaAssets(template, slotsDisabled = false) {
+function topicSlotsTemplateSkipsMediaSlot(template, slotsDisabled = false) {
+  if (slotsDisabled) return true;
+  if (isTopicSlotsInstructionTemplate(template)) return false;
+  return isTopicSlotsMinimalTemplate(template);
+}
+
+function topicSlotsTemplateSkipsAssetsSlot(template, slotsDisabled = false) {
   return slotsDisabled || topicSlotsTemplateSkipsExternal(template);
+}
+
+/** @deprecated use topicSlotsTemplateSkipsMediaSlot / topicSlotsTemplateSkipsAssetsSlot */
+function topicSlotsTemplateSkipsMediaAssets(template, slotsDisabled = false) {
+  return topicSlotsTemplateSkipsMediaSlot(template, slotsDisabled);
 }
 
 function topicSlotsTemplateUsesCompactNav(template, slotsDisabled = false) {
@@ -72327,7 +72338,10 @@ function buildNodeMemorySlotStatuses({
   const hasTodo = Boolean(String(todoData?.content || "").trim());
 
   if (isTopicSlotsInstructionTemplate(slotsTemplate)) {
-    return hasTodo ? [{ id: "todo", label: "TODO", filled: true, modeId: "todo" }] : [];
+    return [
+      { id: "media", label: "Медиа", filled: hasMedia, modeId: "media" },
+      { id: "todo", label: "TODO", filled: hasTodo, modeId: "todo" }
+    ];
   }
 
   if (isTopicSlotsMinimalTemplate(slotsTemplate)) {
@@ -73592,6 +73606,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
   wrap.className = "node-navigation-workspace-counters node-entry-overview-slot-counters";
   if (layout === "area-single") {
     wrap.classList.add("node-navigation-workspace-counters--area-single");
+  } else if (layout === "instruction-dual") {
+    wrap.classList.add("node-navigation-workspace-counters--instruction-dual");
   }
   wrap.setAttribute("aria-label", "Слоты памяти и разделы workspace");
   if (resolvedTopicPath) {
@@ -73607,6 +73623,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
   list.className = "node-navigation-workspace-counter-list";
   if (layout === "area-single") {
     list.classList.add("node-navigation-workspace-counter-list--area-single");
+  } else if (layout === "instruction-dual") {
+    list.classList.add("node-navigation-workspace-counter-list--instruction-dual");
   }
 
   const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
@@ -73655,7 +73673,7 @@ async function appendTopicSlotCounterStrip(
     ? getTopicSlotsTemplateFromEntries(propsEntries)
     : await readTopicSlotsTemplateForPath(topicPath);
   const instructionSlotsOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const counterLayout = instructionSlotsOnly ? "area-single" : "grid";
+  const counterLayout = instructionSlotsOnly ? "instruction-dual" : "grid";
   const strip = renderNodeNavigationWorkspaceCounterStrip(
     topicSlotCounters.map((slot) => ({
       ...slot,
@@ -81883,7 +81901,9 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
     shouldShowEntryOverviewSlotCounter(spec, topicPath)
   );
   if (instructionSlotsOnly) {
-    overviewSpecs = overviewSpecs.filter((spec) => spec?.key === "todo-single");
+    overviewSpecs = overviewSpecs.filter(
+      (spec) => spec?.key === "todo-single" || spec?.key === "media"
+    );
     if (!overviewSpecs.length) return [];
   } else if (topicUsesFlexibleSlots) {
     overviewSpecs = overviewSpecs.filter((spec) => isTopicFlexibleSingleFileSlotKey(spec?.key));
@@ -96788,15 +96808,16 @@ function buildNodeNavigationMemoryPanelsWrap({
   panelsWrap.className = "node-navigation-panels";
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
 
   if (!isInlineNavHub) {
     const panels = [
       skipExternal ? null : renderNavigationExternalPart(externalData, { slotsDisabled }),
       instructionOnly ? null : renderNavigationInternalPart(internalData, { nodePath }),
       instructionOnly ? null : renderNavigationTabularPart(tabularData),
-      skipMediaAssets ? null : renderNavigationMediaPart(mediaData),
-      skipMediaAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
+      skipMedia ? null : renderNavigationMediaPart(mediaData),
+      skipAssets || !NODE_NAVIGATION_ASSETS_PANEL_ENABLED
         ? null
         : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
@@ -96817,7 +96838,8 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
@@ -96836,10 +96858,8 @@ async function fetchNodeNavigationMemoryBundle(nodePath) {
           skipExternal ? Promise.resolve(emptyExternal) : fetchExternalFilesForNavigation(nodePath),
           instructionOnly ? Promise.resolve(emptyTabular) : fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
-          skipMediaAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
-          skipMediaAssets
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+          skipMedia ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
+          skipAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
   return {
@@ -96979,7 +96999,8 @@ async function renderNodeNavigation() {
   const slotsDisabled = slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE;
   const skipExternal = topicSlotsTemplateSkipsExternal(slotsTemplate);
   const instructionOnly = isTopicSlotsInstructionTemplate(slotsTemplate);
-  const skipMediaAssets = topicSlotsTemplateSkipsMediaAssets(slotsTemplate, slotsDisabled);
+  const skipMedia = topicSlotsTemplateSkipsMediaSlot(slotsTemplate, slotsDisabled);
+  const skipAssets = topicSlotsTemplateSkipsAssetsSlot(slotsTemplate, slotsDisabled);
   const compactNav = topicSlotsTemplateUsesCompactNav(slotsTemplate, slotsDisabled);
   const heroTitle = getOverviewTitleFromProps(entries);
   const showHeroUnread = isNodePageUnread(manifestApiPath);
@@ -97022,10 +97043,8 @@ async function renderNodeNavigation() {
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
-          skipMediaAssets ? Promise.resolve(null) : fetchMediaOverview(nodePath),
-          skipMediaAssets
-            ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
+          skipMedia ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          skipAssets ? Promise.resolve(null) : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
           loadNodeConfig(nodePath).catch(() => null),
           manifestApiPath && !isWorkspaceRootNodePath(nodePath)
             ? fetchPageOutsideSlotsReport(manifestApiPath).catch(() => null)

@@ -49101,6 +49101,20 @@ img.is-svg-media,
   box-sizing: border-box;
 }
 
+.node-navigation-workspace-counters--instruction-dual {
+  width: 100%;
+}
+
+.node-navigation-workspace-counters--instruction-dual .node-navigation-workspace-counter-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.node-navigation-workspace-counters--instruction-dual .node-navigation-workspace-counter-item,
+.node-navigation-workspace-counters--instruction-dual .node-navigation-workspace-counter-card {
+  width: 100%;
+  min-width: 0;
+}
+
 .node-navigation-page-outside-slots-row {
   margin: 0;
 }
