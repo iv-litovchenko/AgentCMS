@@ -47,7 +47,6 @@ collect_port_pids() {
     "$AGENT_CMS_EDITOR_HTTP_PORT" \
     "$AGENT_CMS_VOICE_HTTP_PORT" \
     "$AGENT_CMS_COMMANDER_HTTP_PORT" \
-    "$AGENT_CMS_CONTROL_HTTP_PORT" \
     "$AGENT_CMS_MCP_HTTP_PORT"; do
     while IFS= read -r pid; do
       [[ -n "$pid" ]] || continue
@@ -116,7 +115,7 @@ start_direct() {
   fi
 
   touch "$LOCK_FILE"
-  nohup node "$ROOT/server.js" >>"$LOG_FILE" 2>&1 &
+  CONTROL_AUTOSTART=0 nohup node "$ROOT/server.js" >>"$LOG_FILE" 2>&1 &
   echo $! >"$PID_FILE"
   disown 2>/dev/null || true
 
@@ -125,8 +124,8 @@ start_direct() {
       rm -f "$LOCK_FILE"
       echo "Agent CMS HTTP запущен (supervisor PID $(cat "$PID_FILE"))."
       echo "Editor: http://127.0.0.1:${AGENT_CMS_EDITOR_HTTP_PORT}/"
-      echo "Control: http://127.0.0.1:${AGENT_CMS_CONTROL_HTTP_PORT}/"
       echo "Лог: .run/agent-cms-http.log"
+      bash "$ROOT/scripts/agent-cms-control-service.sh" start-direct || true
       return 0
     fi
     if ! is_running; then
@@ -157,7 +156,7 @@ stop_server() {
   fi
 
   rm -f "$LOCK_FILE"
-  echo "Остановлено."
+  echo "CMS остановлен (Launcher :${AGENT_CMS_CONTROL_HTTP_PORT} — отдельный процесс, не трогаем)."
 }
 
 restart_server() {
