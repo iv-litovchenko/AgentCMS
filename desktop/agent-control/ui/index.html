@@ -82,6 +82,7 @@
             <span class="status-led" aria-hidden="true"></span>
             <span class="status-value">Проверка…</span>
           </div>
+          <button type="button" class="ghost-btn" id="app-lock-logout" hidden title="Завершить сессию app-lock">Выйти</button>
           <button type="button" class="ghost-btn" disabled title="Скоро">Документация</button>
           <button type="button" class="ghost-btn ghost-btn--icon" id="reload-ui" title="Перезагрузить интерфейс (HTML, CSS)" aria-label="Обновить UI">↻</button>
         </div>
@@ -151,6 +152,27 @@
       <footer class="app-footer" id="app-footer" aria-label="Версия"></footer>
     </div>
     <div id="copy-toast" class="copy-toast" role="status" aria-live="polite" hidden></div>
+
+    <div id="app-lock-screen" class="app-lock-screen" hidden aria-modal="true" aria-labelledby="app-lock-title">
+      <div class="app-lock-screen-card panel">
+        <img class="app-lock-screen-icon" src="assets/favicon.svg" alt="" width="48" height="48" />
+        <h2 id="app-lock-title" class="app-lock-screen-title">Agent CMS Control</h2>
+        <p class="app-lock-screen-sub">Логин и пароль из <code>.env</code> (<code>APP_LOCK_*</code>). Шаблон: <code>admin</code> / <code>changeme</code> — если не меняли.</p>
+        <form class="app-lock-screen-form" id="app-lock-form" autocomplete="on">
+          <label class="app-lock-field">
+            <span>Логин</span>
+            <input type="text" name="login" class="app-lock-input" autocomplete="username" required />
+          </label>
+          <label class="app-lock-field">
+            <span>Пароль</span>
+            <input type="password" name="password" class="app-lock-input" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="ghost-btn app-lock-submit app-lock-screen-submit">Войти</button>
+        </form>
+        <p class="app-lock-screen-error" id="app-lock-error" hidden></p>
+      </div>
+    </div>
+
     <script src="web-bridge.js"></script>
     <script src="app.js"></script>
   </body>

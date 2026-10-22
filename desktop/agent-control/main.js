@@ -16,6 +16,11 @@ const {
   probeLaunchAgentStatus
 } = requireRepo("lib/ops/control-server-probe");
 const { buildControlBootstrap } = requireRepo("lib/ops/control-bootstrap");
+const {
+  verifyAppLockCredentials,
+  buildAppLockGate,
+  isOpsActionGated
+} = requireRepo("lib/ops/control-app-lock");
 
 async function probeServerStatus() {
   return probeServerStatusCore(getProjectRoot(), { attachedServerProcess });
@@ -38,6 +43,20 @@ const activeTasks = new Map();
 const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "commander-rebuild", "control-dist"]);
 let attachedServerProcess = null;
 let lastServerStartMode = null;
+let controlAppLockSession = false;
+
+function resolveControlAppLockGate() {
+  return buildAppLockGate(getProjectRoot(), controlAppLockSession);
+}
+
+function opsBlockedByAppLock(action) {
+  const gate = resolveControlAppLockGate();
+  if (!gate.enabled || gate.sessionActive) return null;
+  if (action && isOpsActionGated(action)) {
+    return { ok: false, error: "app_lock_required", message: "Сначала войдите в Control." };
+  }
+  return null;
+}
 
 function findRepoRoot(startDir) {
   let current = path.resolve(startDir);
@@ -420,6 +439,8 @@ async function runAction(actionId) {
         : "Неизвестное действие. Полностью закройте Agent CMS Control (Cmd+Q) и откройте снова."
     };
   }
+  const appLockDenied = opsBlockedByAppLock(action);
+  if (appLockDenied) return appLockDenied;
   if (activeTasks.has(actionId)) {
     return { ok: false, error: "Это действие уже выполняется." };
   }
@@ -617,12 +638,14 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
-    ipcMain.handle("control:get-bootstrap", async () =>
-      buildControlBootstrap(getProjectRoot(), {
+    ipcMain.handle("control:get-bootstrap", async () => {
+      const payload = await buildControlBootstrap(getProjectRoot(), {
         attachedServerProcess,
         launcherMode: "electron"
-      })
-    );
+      });
+      payload.appLock = resolveControlAppLockGate();
+      return payload;
+    });
 
     ipcMain.handle("control:refresh-status", async () => ({
       server: await probeServerStatus()
@@ -662,6 +685,10 @@ if (!gotLock) {
 
     ipcMain.handle("control:set-maintenance-mode", async (_event, enabled) => {
       try {
+        const gate = resolveControlAppLockGate();
+        if (gate.enabled && !gate.sessionActive) {
+          return { ok: false, error: "app_lock_required" };
+        }
         const root = getProjectRoot();
         const next = Boolean(enabled);
         await patchPlatformSettings({ "maintenance-mode": next }, root);
@@ -682,8 +709,29 @@ if (!gotLock) {
         mobileConnect: payload.mobileConnect,
         server: payload.server,
         mcpConnect: payload.mcpConnect,
-        setupFlags: payload.setupFlags
+        setupFlags: payload.setupFlags,
+        appLock: resolveControlAppLockGate()
       };
+    });
+
+    ipcMain.handle("control:app-lock-login", async (_event, payload) => {
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      const gate = resolveControlAppLockGate();
+      if (!gate.enabled) {
+        controlAppLockSession = true;
+        return { ok: true };
+      }
+      if (!verifyAppLockCredentials(getProjectRoot(), login, password)) {
+        return { ok: false, error: "Неверный логин или пароль" };
+      }
+      controlAppLockSession = true;
+      return { ok: true };
+    });
+
+    ipcMain.handle("control:app-lock-logout", async () => {
+      controlAppLockSession = false;
+      return { ok: true };
     });
 
     ipcMain.handle("control:reload-ui", () => {

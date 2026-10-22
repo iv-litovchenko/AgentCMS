@@ -2309,54 +2309,93 @@ body.is-booting {
   gap: 8px;
 }
 
-.app-lock-gate {
+.app-lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(20, 184, 166, 0.28);
-  background: rgba(8, 16, 32, 0.55);
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(4, 8, 18, 0.72);
+  backdrop-filter: blur(10px);
 }
 
-.app-lock-gate-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.68rem;
+.app-lock-screen[hidden] {
+  display: none !important;
+}
+
+body.app-lock-active .app {
+  filter: blur(3px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.app-lock-screen-card {
+  width: min(100%, 360px);
+  padding: 22px 20px 18px;
+  text-align: center;
+}
+
+.app-lock-screen-icon {
+  display: block;
+  margin: 0 auto 10px;
+}
+
+.app-lock-screen-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-lock-screen-sub {
+  margin: 8px 0 16px;
+  font-size: 0.72rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 
-.app-lock-gate-copy strong {
-  font-size: 0.78rem;
-  color: var(--text);
+.app-lock-screen-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
 }
 
-.app-lock-gate-form {
+.app-lock-field {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .app-lock-input {
-  flex: 1 1 100px;
-  min-width: 0;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(120, 140, 180, 0.25);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 140, 180, 0.28);
   background: rgba(4, 8, 18, 0.65);
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
 }
 
-.app-lock-submit {
-  flex: 0 0 auto;
+.app-lock-screen-submit {
+  width: 100%;
+  margin-top: 4px;
 }
 
-.app-lock-gate-error {
-  margin: 0;
-  font-size: 0.68rem;
+.app-lock-screen-error {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
   color: #f87171;
 }
 
