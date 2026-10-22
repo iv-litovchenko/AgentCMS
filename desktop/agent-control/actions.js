@@ -220,11 +220,11 @@ const COMMANDER_SELF = {
 };
 
 const CONTROL_SELF = {
-  title: "Agent CMS Control (Launcher)",
-  subtitle: "Этот пульт",
+  title: "Agent CMS Control",
+  subtitle: "Launcher · браузер :3288",
   badge: "Control",
   accent: "control",
-  icon: "favicon.svg",
+  icon: "control.svg",
   appBundle: "Agent CMS Control.app",
   distActionId: "control-dist",
   npmDist: "npm run control:pack"
@@ -245,7 +245,7 @@ const MCP_TEST = {
 function getServerPortsPayload() {
   const ports = getServerPorts();
   return {
-    controlNote: "Agent CMS Control — desktop-приложение, порта нет",
+    controlNote: "Launcher — HTTP :3288 (с npm start) или Electron на Mac",
     ...ports
   };
 }

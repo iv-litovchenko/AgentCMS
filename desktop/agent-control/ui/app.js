@@ -932,7 +932,109 @@ function bindEnvExpandToggle() {
   }
 }
 
+const PLATFORM_CARDS = [
+  { id: "mac", match: "darwin", name: "macOS", accent: "mac" },
+  { id: "linux", match: "linux", name: "Linux", accent: "linux" },
+  { id: "windows", match: "win32", name: "Windows", accent: "windows", disabled: true }
+];
+
+const PLATFORM_ICON_FILES = {
+  mac: "platform-macos.svg",
+  linux: "platform-linux.svg",
+  windows: "platform-windows.svg"
+};
+
+function platformPickIcon(id) {
+  const file = PLATFORM_ICON_FILES[id] || PLATFORM_ICON_FILES.windows;
+  return `<img class="platform-pick-icon-img" src="assets/${file}" alt="" width="36" height="36" decoding="async" />`;
+}
+
+function buildPlatformHostChipLines(host) {
+  const computer = String(host?.computerName || "").trim();
+  const hostname = String(host?.hostname || "").trim();
+  const platformLabel = String(host?.platformLabel || "").trim();
+  const primary = computer || hostname || "—";
+  let secondary = platformLabel || "—";
+  if (hostname && computer && computer !== hostname) {
+    secondary = `${hostname} · ${platformLabel || "—"}`;
+  }
+  return { primary, secondary };
+}
+
+function resolveActivePlatformId(environment) {
+  const raw = String(environment?.host?.platform || "").toLowerCase();
+  if (raw === "darwin") return "mac";
+  if (raw === "linux") return "linux";
+  if (raw === "win32") return "windows";
+  return null;
+}
+
+function escapePlatformText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function launcherModeLabel() {
+  const mode = document.documentElement.dataset.controlLauncher;
+  if (mode === "web") return "Launcher в браузере";
+  if (window.agentControl && mode !== "web") return "Launcher · Electron";
+  return "Agent CMS Control";
+}
+
+function renderPlatformCover(environment) {
+  const root = document.getElementById("platform-cover");
+  if (!root) return;
+
+  const activeId = resolveActivePlatformId(environment);
+  const host = environment?.host || {};
+  const hostLines = buildPlatformHostChipLines(host);
+  const modeLine = launcherModeLabel();
+
+  const cards = PLATFORM_CARDS.map((card) => {
+    const isActive = !card.disabled && card.id === activeId;
+    const isDisabled = Boolean(card.disabled);
+    const state = isDisabled ? "disabled" : isActive ? "active" : "idle";
+
+    return `
+      <article
+        class="platform-pick platform-pick--${card.accent}"
+        data-state="${state}"
+        aria-disabled="${isDisabled ? "true" : "false"}"
+        aria-label="${escapePlatformText(card.name)}${isDisabled ? ", недоступно" : isActive ? ", текущий хост" : ""}"
+        ${isActive ? 'aria-current="true"' : ""}
+        role="listitem"
+      >
+        <div class="platform-pick-icon">${platformPickIcon(card.id)}</div>
+        <span class="platform-pick-name">${escapePlatformText(card.name)}</span>
+      </article>
+    `;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="platform-cover-inner">
+      <header class="platform-cover-head">
+        <div class="platform-cover-head-main">
+          <p class="platform-cover-kicker">${escapePlatformText(modeLine)}</p>
+          <h2 class="platform-cover-title">Где работает Agent CMS</h2>
+          <p class="platform-cover-sub">Один Launcher — разные способы запуска под ОС хоста</p>
+        </div>
+        <div class="platform-host-chip" title="Определено на сервере">
+          <span class="platform-host-chip-label">Хост</span>
+          <strong>${escapePlatformText(hostLines.primary)}</strong>
+          <code>${escapePlatformText(hostLines.secondary)}</code>
+        </div>
+      </header>
+      <div class="platform-stage">
+        <div class="platform-pick-grid" role="list">${cards}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderEnvironment(environment) {
+  renderPlatformCover(environment);
   renderSetupChecklist();
   renderEnvironmentRows(environment);
 }
@@ -999,8 +1101,24 @@ async function handleServerStatusUpdate(server, options = {}) {
   }
 
   syncServerUi(server);
+  patchControlOpenButton();
   renderSetupChecklist();
   renderServicesMonitor();
+}
+
+function patchControlOpenButton() {
+  const openBtn = actionsRoot.querySelector("[data-control-open-btn]");
+  if (!openBtn) return;
+  const server = lastServer || bootstrap?.server;
+  const ports = bootstrap?.serverPorts || {};
+  const url = getServiceMonitorOpenUrl({ id: "control" }, server, ports);
+  const canOpen =
+    Boolean(url) &&
+    (Boolean(server?.controlHttp) || Boolean(server?.cms));
+  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  openBtn.dataset.openUrl = url || "";
+  openBtn.disabled = !canOpen;
+  openBtn.title = title;
 }
 
 async function pollServerStatus() {
@@ -1803,10 +1921,25 @@ function renderAppCard(app) {
   );
 }
 
+function renderControlOpenUrl() {
+  const server = lastServer || bootstrap?.server;
+  const ports = bootstrap?.serverPorts || {};
+  const url = getServiceMonitorOpenUrl({ id: "control" }, server, ports);
+  const canOpen =
+    Boolean(url) &&
+    (Boolean(server?.controlHttp) || Boolean(server?.cms));
+  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  return `<button type="button" class="run-btn compact-btn" data-control-open-btn="1" data-tone="primary" data-open-url="${escapeAttr(url || "")}" ${canOpen ? "" : "disabled"} title="${escapeAttr(title)}">Открыть</button>`;
+}
+
 function renderControlCard(control) {
   if (!control) return "";
 
-  return launchTile(control, actionButton(control.distActionId, "default", "compact-btn"));
+  return launchTile(
+    control,
+    `${renderControlOpenUrl()}
+     ${actionButton(control.distActionId, "default", "compact-btn")}`
+  );
 }
 
 function renderCommanderCard(commander) {
