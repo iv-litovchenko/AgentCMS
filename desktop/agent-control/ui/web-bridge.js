@@ -133,8 +133,13 @@
         if (!result.ok && result.error) emitLog({ text: `${result.error}\n`, stream: "stderr" });
         return { ok: Boolean(result.ok), error: result.error || null };
       } catch (error) {
-        emitLog({ text: `${error.message}\n`, stream: "stderr" });
-        return { ok: false, error: error.message };
+        let msg = String(error.message || error);
+        if (/app_lock_required/i.test(msg)) {
+          msg =
+            "app_lock_required — сначала войдите: Editor http://HOST:3000 (логин/пароль из .env APP_LOCK_*), затем снова «Старт» на :3288 (куки на тот же IP/домен).";
+        }
+        emitLog({ text: `${msg}\n`, stream: "stderr" });
+        return { ok: false, error: msg };
       } finally {
         emitActionState({ actionId: id, running: false });
       }

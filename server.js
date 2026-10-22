@@ -1151,7 +1151,7 @@ async function getOpsMaintenanceWriteDeniedResponse(req) {
       ok: false,
       error: "app_lock_required",
       message:
-        "Для изменения maintenance-mode нужна сессия app-lock (войдите в Editor или POST /api/app-lock/login)."
+        "Нужна сессия app-lock: войдите в Editor (HTTP/HTTPS) или POST /api/app-lock/login с тем же хостом, что Control (:3288)."
     }
   };
 }
