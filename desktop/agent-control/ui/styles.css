@@ -959,8 +959,63 @@ body.is-booting {
   --section-accent: var(--voice);
 }
 
+.section-block[data-section="env-file"] {
+  --section-accent: var(--control);
+}
+
 .section-block[data-section="log"] {
   --section-accent: #94a3b8;
+}
+
+.env-file-meta {
+  margin: 0 0 8px;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-all;
+}
+
+.env-file-lock-hint {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  color: #fcd34d;
+}
+
+.env-file-editor {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 140, 180, 0.22);
+  background: rgba(6, 10, 20, 0.55);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.env-file-editor:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.env-file-editor:focus {
+  outline: 2px solid color-mix(in srgb, var(--control) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.env-file-status {
+  margin: 8px 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.env-file-save {
+  border-color: color-mix(in srgb, var(--control) 40%, rgba(120, 140, 180, 0.2));
 }
 
 .section-cap-text {

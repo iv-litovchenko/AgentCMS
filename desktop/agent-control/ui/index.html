@@ -134,6 +134,33 @@
 
       <main class="actions-layout" id="actions-root"></main>
 
+      <section class="panel section-block" data-section="env-file">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Файл .env</h2>
+            <p>Переменные на сервере (MCP token, APP_LOCK, порты). После сохранения — рестарт MCP / CMS.</p>
+          </div>
+          <div class="section-cap-actions env-file-actions">
+            <button type="button" class="ghost-btn" id="env-file-reload">Обновить</button>
+            <button type="button" class="ghost-btn env-file-save" id="env-file-save">Сохранить</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <p class="env-file-meta" id="env-file-meta"></p>
+          <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты.</p>
+          <textarea
+            class="env-file-editor"
+            id="env-file-editor"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            rows="14"
+            placeholder="# APP_LOCK_LOGIN=&#10;# AGENT_CMS_MCP_TOKEN=&#10;# AGENT_CMS_MCP_ALLOWED_HOSTS=maptex.ru,localhost,127.0.0.1"
+          ></textarea>
+          <p class="env-file-status" id="env-file-status" aria-live="polite"></p>
+        </div>
+      </section>
+
       <section class="panel section-block" data-section="log">
         <div class="section-cap">
           <div class="section-cap-text">
