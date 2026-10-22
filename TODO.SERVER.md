@@ -14,7 +14,7 @@
 
 | Компонент | Как запускается | Зависимости |
 |-----------|-----------------|-------------|
-| **CMS (Editor)** | `npm run start` или `npm run start:https` | Node **18+**, `npm install` (native: `better-sqlite3`, `sharp`) |
+| **CMS (Editor)** | `npm run start` или `npm run start:https` | Node **22+** (`better-sqlite3@13`), `npm ci` (postinstall — см. README VPS); native: `sharp` |
 | **Voice** (опц.) | вместе с CMS при `VOICE_AUTOSTART≠0`, или `npm run voice:start` | тот же Node, прокси API → CMS |
 | **Commander** (опц.) | `npm run commander:start` | статика + локальный HTTP |
 | **MCP** | `npm run mcp` | **отдельный процесс**, ходит в CMS по **`AGENT_CMS_BASE_URL`** |
@@ -69,7 +69,7 @@ Voice:      HTTP 3088   HTTPS 3488
 Commander:  HTTP 3188
 Web Control: HTTP 3288  (`npm run control:start` или CONTROL_AUTOSTART=1) · также /control/ на Editor
 MCP stdio:  (без порта) · MCP HTTP: 3490 → `/mcp`
-Ops API: GET /api/ops/status · POST maintenance (app-lock, если в `.env`)
+Ops API: GET /api/ops/status · POST maintenance · **POST /api/ops/server/action** (`start` | `stop` | `restart` | `install-npm`, app-lock) · GET /api/ops/server/status. Linux/VPS: `scripts/agent-cms-http-service.sh`; Mac HTTPS: `agent-https-service.sh`.
 ```
 
 Скрипт экспорта: `node lib/config/agent-cms-ports.js`

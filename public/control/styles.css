@@ -179,6 +179,68 @@ body {
   cursor: not-allowed;
 }
 
+.primary-btn,
+.danger-btn {
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  border: 1px solid transparent;
+}
+
+.primary-btn {
+  background: color-mix(in srgb, var(--control) 85%, #000);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--control) 60%, transparent);
+}
+
+.danger-btn {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fecdd3;
+  border-color: rgba(244, 63, 94, 0.45);
+}
+
+.primary-btn:disabled,
+.danger-btn:disabled,
+.ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.server-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.server-process-line {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.server-actions-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.server-action-log {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;

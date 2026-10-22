@@ -46,6 +46,29 @@
       <section class="panel section-block">
         <div class="section-cap">
           <div class="section-cap-text">
+            <h2>Сервер</h2>
+            <p>Старт / стоп / перезапуск · npm ci (VPS)</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <p class="server-process-line" id="server-process-line">Статус процесса: …</p>
+          <div class="server-actions" id="server-actions">
+            <button type="button" class="primary-btn" data-action="start">Запустить</button>
+            <button type="button" class="danger-btn" data-action="stop">Остановить</button>
+            <button type="button" class="ghost-btn" data-action="restart">Перезапустить</button>
+            <button type="button" class="ghost-btn" data-action="install-npm">npm ci</button>
+          </div>
+          <pre class="server-action-log" id="server-action-log" hidden></pre>
+          <p class="server-actions-hint">
+            Те же скрипты, что Agent CMS Control на Mac. Нужна сессия app-lock (войдите в Editor). Стоп/рестарт могут
+            разорвать соединение.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel section-block">
+        <div class="section-cap">
+          <div class="section-cap-text">
             <h2>Обслуживание</h2>
             <p>Заглушка 503 для Editor, Chat и Commander</p>
           </div>
