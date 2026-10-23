@@ -405,19 +405,22 @@ docker compose -f docker-compose.linux.yml ps
 {
   "mcpServers": {
     "agent-cms": {
-      "url": "http://localhost:3490/mcp"
+      "url": "http://localhost:3000/app-mcp",
+      "headers": {
+        "Authorization": "Bearer ВАШ_AGENT_CMS_MCP_TOKEN"
+      }
     }
   }
 }
 ```
 
-На VPS: `http://ВАШ_IP:3490/mcp`, в `.env` задайте **`AGENT_CMS_MCP_TOKEN`**, в Cursor — Bearer token. Запуск MCP на сервере: `AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http`.
+На VPS: `https://ваш-домен/app-mcp` (порт **3490** наружу не открываем), в `.env` — **`AGENT_CMS_MCP_TOKEN`**. Dev без Docker: `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` → `http://localhost:3490/mcp`.
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `http://localhost:3490/mcp` or VPS URL + token. See [docs/connectors/README.md](docs/connectors/README.md).
+> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token. See [docs/connectors/README.md](docs/connectors/README.md).
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 

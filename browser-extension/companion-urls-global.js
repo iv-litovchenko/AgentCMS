@@ -103,22 +103,23 @@
   const DEFAULT_VOICE_HTTP_PORT = 3088;
   const VOICE_HTTPS_OFFSET = DEFAULT_VOICE_HTTPS_PORT - DEFAULT_EDITOR_HTTPS_PORT;
 
+  function chatBaseFromCmsOrigin(origin) {
+    return String(origin || "").replace(/\/+$/, "") + "/app-chat";
+  }
+
   function voiceBaseFromCmsHost(cmsBase) {
     try {
-      const url = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, ""));
+      const url = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, "") + "/");
       if (url.hostname === "127.0.0.1" || url.hostname === "0.0.0.0") {
         url.hostname = "localhost";
       }
       const port = url.port;
-      if (!port || port === String(DEFAULT_EDITOR_HTTPS_PORT)) {
-        url.protocol = "https:";
-        url.port = String(DEFAULT_VOICE_HTTPS_PORT);
-        return url.origin;
-      }
-      if (port === String(DEFAULT_EDITOR_HTTP_PORT)) {
-        url.protocol = "https:";
-        url.port = String(DEFAULT_VOICE_HTTPS_PORT);
-        return url.origin;
+      if (
+        !port ||
+        port === String(DEFAULT_EDITOR_HTTPS_PORT) ||
+        port === String(DEFAULT_EDITOR_HTTP_PORT)
+      ) {
+        return chatBaseFromCmsOrigin(url.origin);
       }
       if (port === String(DEFAULT_VOICE_HTTPS_PORT) || port === String(DEFAULT_VOICE_HTTP_PORT)) {
         return url.origin;
@@ -150,12 +151,21 @@
     if (portsMatch?.[1]) {
       try {
         const ports = JSON.parse(portsMatch[1]);
+        const cmsUrl = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, "") + "/");
+        if (cmsUrl.hostname === "127.0.0.1" || cmsUrl.hostname === "0.0.0.0") {
+          cmsUrl.hostname = "localhost";
+        }
+        const voiceHttp = Number(ports?.voiceHttp);
+        const editorHttp = Number(ports?.editorHttp);
         const voiceHttps = Number(ports?.voiceHttps);
+        const editorHttps = Number(ports?.editorHttps);
+        if (
+          (Number.isFinite(voiceHttp) && voiceHttp === editorHttp) ||
+          (Number.isFinite(voiceHttps) && voiceHttps === editorHttps)
+        ) {
+          return chatBaseFromCmsOrigin(cmsUrl.origin);
+        }
         if (Number.isFinite(voiceHttps) && voiceHttps > 0) {
-          const cmsUrl = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, "") + "/");
-          if (cmsUrl.hostname === "127.0.0.1" || cmsUrl.hostname === "0.0.0.0") {
-            cmsUrl.hostname = "localhost";
-          }
           cmsUrl.protocol = "https:";
           cmsUrl.port = String(voiceHttps);
           return cmsUrl.origin;

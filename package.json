@@ -52,7 +52,9 @@
     "build:editor": "node scripts/build-editor.js",
     "build:editor:watch": "node scripts/build-editor.js --watch",
     "measure:editor": "node scripts/measure-editor-boot.js",
-    "check:editor-boot": "node scripts/refactor-14-boot-check.js"
+    "check:editor-boot": "node scripts/refactor-14-boot-check.js",
+    "check:app-door": "node scripts/refactor-15-app-door-check.js",
+    "check:app-door:offline": "node scripts/refactor-15-app-door-check.js --offline"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",

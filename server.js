@@ -1147,7 +1147,7 @@ async function getOpsMaintenanceWriteDeniedResponse(req) {
       ok: false,
       error: "app_lock_required",
       message:
-        "Нужна сессия app-lock: войдите в Editor (HTTP/HTTPS) или POST /api/app-lock/login с тем же хостом, что Control (:3288)."
+        "Нужна сессия app-lock: войдите в Editor или /app-control/ (POST /api/app-lock/login) на том же host, что Control."
     }
   };
 }
@@ -18964,6 +18964,16 @@ async function serveVoiceShellHtml(res) {
       '<head>\n    <meta name="agent-cms-voice-app" content="1" />'
     );
   }
+  const { getClientFacingPorts } = require("./lib/platform/single-door-ports");
+  if (!content.includes("__AGENT_CMS_PORTS__")) {
+    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getClientFacingPorts())};</script>`;
+    content = content.replace("<head>", `<head>\n    ${portsScript}`);
+  }
+  let voiceBase = voicePublicBaseUrl();
+  if (voiceBase && !content.includes("__AGENT_CMS_VOICE_URL__")) {
+    const voiceScript = `<script>window.__AGENT_CMS_VOICE_URL__=${JSON.stringify(voiceBase)};</script>`;
+    content = content.replace("<head>", `<head>\n    ${voiceScript}`);
+  }
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -19023,6 +19033,9 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   // Web Control — ops-пульт остаётся доступен в maintenance.
   if (normalized === "/control" || normalized.startsWith("/control/")) return false;
   if (normalized === "/app-control" || normalized.startsWith("/app-control/")) return false;
+  if (normalized === "/app-chat" || normalized.startsWith("/app-chat/")) return false;
+  if (normalized === "/app-commander" || normalized.startsWith("/app-commander/")) return false;
+  if (normalized === "/app-mcp" || normalized.startsWith("/app-mcp/")) return false;
   if (String(safePath || "").startsWith("control/")) return false;
 
   if (safePath === "index.html" || normalized === "/") return true;
@@ -19056,8 +19069,8 @@ async function serveIndexHtml(res, reqHost = "") {
     content = content.replace("<head>", `<head>\n    ${script}`);
   }
   if (!content.includes("__AGENT_CMS_PORTS__")) {
-    const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
-    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getAgentCmsPorts())};</script>`;
+    const { getClientFacingPorts } = require("./lib/platform/single-door-ports");
+    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getClientFacingPorts())};</script>`;
     content = content.replace("<head>", `<head>\n    ${portsScript}`);
   }
   res.writeHead(200, {
@@ -19070,6 +19083,15 @@ async function serveIndexHtml(res, reqHost = "") {
 }
 
 function voicePublicBaseUrl() {
+  const {
+    isSinglePublicHttpDoor,
+    resolveVoicePublicBaseUrl
+  } = require("./lib/platform/single-door-ports");
+  const { resolvePublicBaseUrl } = require("./lib/platform/platform-apps");
+  if (isSinglePublicHttpDoor()) {
+    const door = resolveVoicePublicBaseUrl(process.env, resolvePublicBaseUrl(undefined, process.env));
+    if (door) return door;
+  }
   const explicit = String(process.env.VOICE_PUBLIC_URL || process.env.VOICE_BASE_URL || "").trim();
   if (explicit) return explicit.replace(/\/+$/, "");
   if (voiceServerInfo?.httpsUrl) return voiceServerInfo.httpsUrl.replace(/\/+$/, "");
@@ -19089,6 +19111,10 @@ function voicePublicBaseUrl() {
 }
 
 function shellToVoiceRedirect(pathname) {
+  const bare = String(pathname || "/").replace(/\/+$/, "") || "/";
+  if (bare === "/shell") return null;
+  const { isSinglePublicHttpDoor } = require("./lib/platform/single-door-ports");
+  if (isSinglePublicHttpDoor()) return null;
   if (process.env.VOICE_REDIRECT_SHELL === "0") return null;
   if (!voiceServerInfo && !process.env.VOICE_PUBLIC_URL && !process.env.VOICE_BASE_URL) return null;
   const targetPath = shellLegacyRedirectTarget(pathname);
@@ -19135,6 +19161,16 @@ async function serveStatic(reqPath, res, req) {
   const rawPath = String(reqPath || "/");
   if (rawPath === "/control") {
     res.writeHead(301, { Location: "/app-control/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/shell" || rawPath === "/shell/") {
+    res.writeHead(301, { Location: "/app-chat/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/commander" || rawPath === "/commander/") {
+    res.writeHead(301, { Location: "/app-commander/" });
     res.end();
     return;
   }
@@ -34058,17 +34094,17 @@ function createRequestHandler() {
       }
     }
 
-    const voiceRedirect = shellToVoiceRedirect(url.pathname);
-    if (voiceRedirect) {
-      res.writeHead(302, { Location: `${voiceRedirect}${url.search}` });
-      res.end();
-      return;
-    }
-
     const { legacyAppRedirect, rewriteAppPublicPath } = require("./lib/platform/platform-apps");
     const legacyTarget = legacyAppRedirect(url.pathname);
     if (legacyTarget) {
       res.writeHead(301, { Location: `${legacyTarget}${url.search}` });
+      res.end();
+      return;
+    }
+
+    const voiceRedirect = shellToVoiceRedirect(url.pathname);
+    if (voiceRedirect) {
+      res.writeHead(302, { Location: `${voiceRedirect}${url.search}` });
       res.end();
       return;
     }
@@ -34088,6 +34124,25 @@ function createRequestHandler() {
     if (url.pathname === "/app-mcp" || url.pathname.startsWith("/app-mcp/")) {
       const { proxyAppMcpRequest } = require("./lib/http/app-mcp-proxy");
       proxyAppMcpRequest(req, res, url);
+      return;
+    }
+
+    if (url.pathname === "/app-commander") {
+      const dest = url.search ? `/app-commander/${url.search}` : "/app-commander/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+    if (url.pathname.startsWith("/app-commander/")) {
+      const { proxyAppCommanderRequest } = require("./lib/http/app-commander-proxy");
+      proxyAppCommanderRequest(req, res, url);
+      return;
+    }
+
+    if (url.pathname === "/app-chat") {
+      const dest = url.search ? `/app-chat/${url.search}` : "/app-chat/";
+      res.writeHead(301, { Location: dest });
+      res.end();
       return;
     }
 
@@ -34256,8 +34311,10 @@ async function startServer(options = {}) {
   }
 
   function commanderHttpsViaEditorUrl(httpsBase) {
+    const { isSinglePublicHttpDoor } = require("./lib/platform/single-door-ports");
     const base = String(httpsBase || "").trim().replace(/\/+$/, "");
-    return base ? `${base}/commander/` : null;
+    if (!base) return null;
+    return isSinglePublicHttpDoor() ? `${base}/app-commander/` : `${base}/commander/`;
   }
 
   if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {

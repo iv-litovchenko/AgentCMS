@@ -1,6 +1,6 @@
 # MCP — Docker на Mac
 
-Порты из корневого `.env` (пример: UI **3001**, MCP HTTP **3490**).
+Канон: один public host — MCP **`{AGENT_CMS_PUBLIC_URL}/app-mcp`** + Bearer **`AGENT_CMS_MCP_TOKEN`**. Dev с отдельным процессом: **`AGENT_CMS_EXPOSE_INTERNAL_PORTS=1`** → `http://127.0.0.1:3490/mcp`.
 
 ## Claude Desktop (stdio → CMS в Docker)
 

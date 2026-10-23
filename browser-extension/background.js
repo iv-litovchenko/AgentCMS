@@ -93,7 +93,12 @@ async function collectCmsCandidates(preferredBase) {
       try {
         const url = new URL(tab.url || "");
         if (!/^https?:$/.test(url.protocol)) continue;
-        if (url.port === "3000" || url.port === "3443" || url.pathname.startsWith("/shell")) {
+        if (
+          url.port === "3000" ||
+          url.port === "3443" ||
+          url.pathname.startsWith("/shell") ||
+          url.pathname.startsWith("/app-chat")
+        ) {
           candidates.push(`${url.protocol}//${url.host}`);
         }
       } catch {

@@ -34,7 +34,21 @@ npm run docker:down
 
 Legacy (npm/Electron): `AGENT_CMS_WELCOME_LEGACY=1 welcome.command`.
 
-Снаружи один адрес (`PUBLIC_URL`); порты в compose — внутренний/dev mapping, в `.env` не задаются.
+Снаружи один адрес (`AGENT_CMS_PUBLIC_URL`); порты 3088/3288/3490 — **только внутри** compose.
+
+### Одна дверь (`app-*`)
+
+| Путь | Приложение |
+|------|------------|
+| `/` | Editor |
+| `/app-chat` | Voice / shell |
+| `/app-commander` | Commander |
+| `/app-control` | Control (Launcher) |
+| `/app-mcp` | MCP HTTP (Cursor + Bearer) |
+
+Mac: с хоста публикуется только **3000**. VPS: **80/443** (Caddy → `cms:3000`). Проверка: `npm run check:app-door` (статика + live). После смены домена/IP — обновите `AGENT_CMS_PUBLIC_URL` в `.env` и перезапустите cms.
+
+**Ручная проверка (не в CI):** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
 Перенос: volumes + `.env` → новый сервер → `linux.yml up`.
 

@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "agent-cms-docker-http": {
-      "url": "http://localhost:3490/mcp",
+    "agent-cms": {
+      "url": "http://localhost:3000/app-mcp",
       "headers": {
-        "Authorization": "Bearer ЗАМЕНИ_НА_AGENT_CMS_MCP_TOKEN_ИЗ_ENV"
+        "Authorization": "Bearer YOUR_AGENT_CMS_MCP_TOKEN"
       }
     }
   }

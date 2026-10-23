@@ -175,7 +175,7 @@
         let msg = String(error.message || error);
         if (/app_lock_required/i.test(msg)) {
           msg =
-            "app_lock_required — сначала войдите: Editor http://HOST:3000 (логин/пароль из .env APP_LOCK_*), затем снова «Старт» на :3288 (куки на тот же IP/домен).";
+            "app_lock_required — войдите в Editor (/ или /app-control/) с APP_LOCK_* на том же host, затем снова «Старт» в Control (куки на тот же IP/домен).";
           emitLog({ text: `${msg}\n`, stream: "stderr" });
           return { ok: false, error: msg };
         }
@@ -183,7 +183,7 @@
           emitLog({
             text:
               mapped === "restart"
-                ? "Соединение оборвалось — перезапуск идёт. Страница обновится, когда :3288 снова ответит.\n"
+                ? "Соединение оборвалось — перезапуск идёт. Страница обновится, когда Control снова ответит.\n"
                 : "Соединение оборвалось — остановка, скорее всего, выполнена. Чтобы снова поднять CMS — «Старт» после reload или SSH: agent-cms-http-service.sh start\n",
             stream: "stdout"
           });

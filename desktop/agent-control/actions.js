@@ -230,7 +230,7 @@ const COMMANDER_SELF = {
 
 const CONTROL_SELF = {
   title: "Agent CMS Control",
-  subtitle: "Launcher · браузер :3288",
+  subtitle: "Launcher · /app-control",
   badge: "Control",
   accent: "control",
   icon: "control.svg",
@@ -254,7 +254,7 @@ const MCP_TEST = {
 function getServerPortsPayload() {
   const ports = getServerPorts();
   return {
-    controlNote: "Launcher — HTTP :3288 (с npm start) или Electron на Mac",
+    controlNote: "Launcher — /app-control (Docker или npm start) или Electron на Mac",
     ...ports
   };
 }

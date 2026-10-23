@@ -4,9 +4,13 @@
 
 ---
 
-## Вопрос 1 — одна «дверь», роуты, реестр, base URL
+## ✅ Вопрос 1 — одна «дверь», роуты, реестр, base URL
 
-**Статус (код):** реестр `lib/platform/platform-apps.js`, `GET /api/platform/apps`, MCP `platform_apps_list`, роуты `/app-*`, редиректы `/control`→`/app-control`, `/mcp`→`/app-mcp`, прокси `/app-mcp`→MCP, dropdown **Apps** в Editor. Остаётся: полный single-process без internal ports, smoke по 1.4.
+**Статус:** ✅ **закрыто.** Реестр, `/app-*`, legacy-редиректы, прокси control/mcp/commander, chat на CMS, `AGENT_CMS_SINGLE_HTTP_DOOR`, extension → `/app-chat`, Caddy → только `cms:3000`, smoke **`npm run check:app-door`** (статика 1.4: localhost/domain/IP + live).
+
+> **NOTE**
+> - 💡 **WebRTC/mic** — разовая ручная проверка на HTTPS (см. DOCKER.md); на закрытие Q1 не блокирует.
+> - 💡 **Dev:** `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` — отдельные порты 3088/3288/3490.
 
 ---
 
@@ -40,10 +44,10 @@
 | `app_id` | Public path | kind | Название (README) | Сейчас / процесс | В dropdown Editor |
 | --- | --- | --- | --- | --- | --- |
 | `editor` | `/` | ui | Agent CMS Editor | `server.js` :3000 | — (вы здесь) |
-| `chat` | `/app-chat` | ui | Agent CMS Voice (Flow / chat) | voice :3088 → proxy | да |
-| `commander` | `/app-commander` | ui | Commander | `server.js` :3188 → proxy | да |
-| `control` | `/app-control` | ui | Agent CMS Control (Launcher) | control UI → proxy (было `/control/`, :3288) | да |
-| `mcp` | `/app-mcp` | api | Agent CMS MCP (агенты) | `mcp-server/http.js` → proxy | нет (API; ссылка для коннектора) |
+| `chat` | `/app-chat` | ui | Agent CMS Voice (Flow / chat) | shell на CMS; voice :3088 внутри | да |
+| `commander` | `/app-commander` | ui | Commander | :3188 внутри → proxy CMS | да |
+| `control` | `/app-control` | ui | Agent CMS Control (Launcher) | :3288 внутри → proxy CMS | да |
+| `mcp` | `/app-mcp` | api | Agent CMS MCP (агенты) | :3490 внутри → proxy CMS | нет (API; ссылка для коннектора) |
 
 - **Legacy redirect (опц.):** `/control/` → `/app-control`, `/mcp` → `/app-mcp`.
 - **Dev-only** (не в public registry или `visible: false`): desktop Electron, browser-extension, toolbar — отдельные клиенты, не path на CMS.
@@ -89,7 +93,7 @@ MCP со списком приложений: что где работает, п
 > **NOTE**
 > - ✅ Одна каноническая **`AGENT_CMS_PUBLIC_URL`** (или `AGENT_CMS_BASE_URL`) + **`AGENT_CMS_SITE_TITLE`**.
 > - 💡 Все ссылки в UI/MCP/Control **генерировать только от public URL**.
-> - 💡 Smoke-тесты: три сценария (localhost, domain, IP) в `refactor-14-boot-check` или отдельный скрипт.
+> - ✅ Smoke 1.4 (public URL matrix): `scripts/refactor-15-app-door-check.js --offline`.
 > - ⚠️ IP + HTTPS: Let's Encrypt на голый IP часто **не работает** — только HTTP или свой сертификат.
 
 ### 1.5 Один адрес, два порта (HTTP / HTTPS)

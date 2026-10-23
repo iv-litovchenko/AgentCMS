@@ -623,6 +623,22 @@ function buildServiceUrl(scheme, port, path = "/") {
   return `${scheme}://${host}:${port}${normalizedPath}`;
 }
 
+function getPublicDoorBase() {
+  const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+  if (fromBootstrap) return fromBootstrap;
+  if (isWebLauncher()) {
+    return `${window.location.protocol}//${window.location.host}`.replace(/\/+$/, "");
+  }
+  return "";
+}
+
+function buildPublicAppUrl(publicPath) {
+  const base = getPublicDoorBase();
+  if (!base) return "";
+  const segment = publicPath.startsWith("/") ? publicPath : `/${publicPath}`;
+  return `${base}${segment}`;
+}
+
 function getServiceMonitorOpenUrl(def, server, ports) {
   const urls = server?.urls || {};
   const host = getClientLinkHost();
@@ -638,6 +654,8 @@ function getServiceMonitorOpenUrl(def, server, ports) {
     return "";
   }
   if (def.id === "voice") {
+    const door = buildPublicAppUrl("/app-chat/");
+    if (door) return door;
     if (httpFirst && server?.voice && ports.voiceHttp) {
       return buildServiceUrl("http", ports.voiceHttp, "/");
     }
@@ -646,22 +664,21 @@ function getServiceMonitorOpenUrl(def, server, ports) {
     return "";
   }
   if (def.id === "commander") {
+    const door = buildPublicAppUrl("/app-commander/");
+    if (door) return door;
     if (httpFirst && server?.commander && ports.commanderHttp) {
       return buildServiceUrl("http", ports.commanderHttp, "/");
     }
     if (urls.commanderHttps) return rewriteUrlHostForClient(urls.commanderHttps);
     if (urls.commanderHttp) return rewriteUrlHostForClient(urls.commanderHttp);
     if (server?.cms && ports.editorHttps) {
-      return buildServiceUrl("https", ports.editorHttps, "/commander/");
+      return buildPublicAppUrl("/app-commander/") || buildServiceUrl("https", ports.editorHttps, "/app-commander/");
     }
     return ports.commanderHttp ? buildServiceUrl("http", ports.commanderHttp, "/") : "";
   }
   if (def.id === "control") {
-    if (isWebLauncher() && ports.controlHttp) {
-      const port =
-        window.location.port ||
-        (window.location.protocol === "https:" ? "443" : String(ports.controlHttp));
-      return `${window.location.protocol}//${host}:${port}/`;
+    if (isWebLauncher()) {
+      return `${window.location.origin}/`;
     }
     if (urls.controlHttp) return rewriteUrlHostForClient(urls.controlHttp);
     if (server?.controlHttp && ports.controlHttp) {
@@ -674,6 +691,8 @@ function getServiceMonitorOpenUrl(def, server, ports) {
     return "";
   }
   if (def.id === "mcp") {
+    const door = buildPublicAppUrl("/app-mcp");
+    if (door) return door;
     if (server?.mcpHttp && ports.mcpHttp) {
       return buildServiceUrl("http", ports.mcpHttp, "/health");
     }
@@ -771,7 +790,7 @@ function getServiceMonitorRowState(def, server, ports) {
     return {
       state: "on",
       label: "Через Editor",
-      detail: `/commander/ · :${ports.editorHttps}`,
+      detail: `/app-commander/ · :${ports.editorHttps}`,
       port: portText,
       protocol: def.portLabel
     };
@@ -876,7 +895,7 @@ function renderServicesMonitor() {
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
         <summary>Launcher · Mac и Linux</summary>
-        <p>Браузер: Mac — <code>welcome.command</code> (Docker compose), Linux/VPS — <code>https://домен/control/</code> или <code>http://host:3288/</code>. Legacy Mac: Electron или <code>AGENT_CMS_WELCOME_LEGACY=1</code> + <code>npm start</code>.</p>
+        <p>Браузер: Mac — <code>welcome.command</code> (Docker), Linux/VPS — <code>https://домен/app-control/</code>. Одна HTTP-дверь: Editor <code>/</code>, Chat <code>/app-chat</code>, MCP <code>/app-mcp</code>. Legacy: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code> или Electron.</p>
       </details>
     </div>
   `;
@@ -1780,11 +1799,13 @@ function renderGuideStepServer() {
   const ports = getPorts();
   const cmsHttps = buildServiceUrl("https", ports.editorHttps, "/");
   const cmsHttp = buildServiceUrl("http", ports.editorHttp, "/");
-  const voiceHttps = buildServiceUrl("https", ports.voiceHttps, "/");
-  const voiceHttp = buildServiceUrl("http", ports.voiceHttp, "/");
-  const commanderHttp = buildServiceUrl("http", ports.commanderHttp, "/");
-  const commanderHttps = buildServiceUrl("https", ports.editorHttps, "/commander/");
-  const commanderOpenUrl = isRunning ? commanderHttps : commanderHttp;
+  const chatPublic = buildPublicAppUrl("/app-chat/") || buildServiceUrl("http", ports.editorHttp, "/app-chat/");
+  const cmdPublic = buildPublicAppUrl("/app-commander/") || buildServiceUrl("http", ports.editorHttp, "/app-commander/");
+  const voiceHttps = chatPublic;
+  const voiceHttp = chatPublic;
+  const commanderHttp = cmdPublic;
+  const commanderHttps = cmdPublic;
+  const commanderOpenUrl = isRunning ? cmdPublic : cmdPublic;
   const linkDisabled = isRunning ? "" : " disabled";
   const browserLinks = `
     <div class="server-browser-row" role="group" aria-label="Открыть или скопировать ссылки">
@@ -1806,7 +1827,7 @@ function renderGuideStepServer() {
           <span class="browser-link-icon">${BROWSER_ICON}</span>
           <span class="browser-link-text">
             <span>${VOICE_UI_LABEL}</span>
-            <code>:${ports.voiceHttps}</code>
+            <code>/app-chat</code>
           </span>
         </button>
         <div class="browser-link-copy-pair">
@@ -1819,12 +1840,11 @@ function renderGuideStepServer() {
           <span class="browser-link-icon">${BROWSER_ICON}</span>
           <span class="browser-link-text">
             <span>Commander</span>
-            <code>:${ports.commanderHttp}</code>
+            <code>/app-commander</code>
           </span>
         </button>
         <div class="browser-link-copy-pair">
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander HTTP" title="Копировать HTTP (отдельный порт)"${linkDisabled}>HTTP</button>
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttps)}" data-copy-label="Commander HTTPS" title="Копировать HTTPS (/commander/ на Editor)"${linkDisabled}>HTTPS</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander URL" title="Копировать /app-commander"${linkDisabled}>URL</button>
         </div>
       </div>
     </div>
