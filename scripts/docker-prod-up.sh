@@ -11,8 +11,8 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 if [[ ! -f .env ]]; then
-  cp .env.example .env
-  echo "Создан .env из .env.example — задайте APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_* (VPS)."
+  echo "Нет .env — ожидается файл в репозитории (git clone / pull)." >&2
+  exit 1
 fi
 
 if [[ -z "${AGENT_CMS_PUBLIC_DOMAIN:-}" ]]; then

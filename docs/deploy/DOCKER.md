@@ -9,7 +9,7 @@
 ## Linux VPS
 
 ```bash
-cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_PUBLIC_URL
+# .env уже в репозитории; на VPS поправьте DOMAIN, PUBLIC_URL, токены и закоммитьте / задеployьте pull
 docker compose -f docker-compose.linux.yml up -d --build
 # или
 npm run docker:linux
@@ -24,14 +24,15 @@ npm run docker:down:linux
 
 ## Mac
 
-Сервер **только Docker** (Node/npm на хост для CMS не нужен). В `.env`: `AGENT_CMS_PUBLIC_URL=http://127.0.0.1:3000`, `APP_LOCK_*`, `AGENT_CMS_MCP_TOKEN`.
+Сервер **только Docker**. **`install.command`** (Docker + проверка **`.env`**); **`welcome.command`** → `up -d --build` + браузер Control.
 
 ```bash
-cp .env.example .env
 docker compose -f docker-compose.mac.yml up -d --build
 npm run docker:mac
 npm run docker:down
 ```
+
+Legacy (npm/Electron): `AGENT_CMS_WELCOME_LEGACY=1 welcome.command`.
 
 Снаружи один адрес (`PUBLIC_URL`); порты в compose — внутренний/dev mapping, в `.env` не задаются.
 
@@ -68,4 +69,4 @@ Control и Caddy **не** останавливаются кнопкой «Сто
 
 Node 22 (base image), bash, curl, **git**, **python3**, **ffmpeg**, **jq**, **rsync**, **openssh-client**, build-essential, **Docker CLI** + Compose plugin (Control → compose на хосте).
 
-Секреты и домен — только в `.env` на хосте, не в образе.
+Конфиг — **`.env` в git** (на хосте при деплое); `.env.example` — только список ключей. Секреты не в образе.

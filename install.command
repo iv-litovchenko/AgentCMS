@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# Работает и из корня проекта, и с рабочего стола (через symlink).
 SOURCE="${BASH_SOURCE[0]:-$0}"
 while [ -h "$SOURCE" ]; do
   DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
@@ -9,4 +8,4 @@ while [ -h "$SOURCE" ]; do
 done
 ROOT="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 export AGENT_CMS_ROOT="$ROOT"
-exec bash "$ROOT/scripts/install-deps.sh"
+exec bash "$ROOT/scripts/docker-mac-setup.sh"

@@ -868,7 +868,7 @@ function renderServicesMonitor() {
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
         <summary>Launcher · Mac и Linux</summary>
-        <p>Один UI: Electron на Mac (<code>welcome.command</code>) или браузер на Linux/VPS — <code>http://host:3288/</code> (поднимается с <code>npm start</code>). На Mac можно открыть тот же URL.</p>
+        <p>Браузер: Mac — <code>welcome.command</code> (Docker compose), Linux/VPS — <code>https://домен/control/</code> или <code>http://host:3288/</code>. Legacy Mac: Electron или <code>AGENT_CMS_WELCOME_LEGACY=1</code> + <code>npm start</code>.</p>
       </details>
     </div>
   `;
@@ -1379,7 +1379,7 @@ function patchControlOpenButton() {
   const canOpen =
     Boolean(url) &&
     (Boolean(server?.controlHttp) || Boolean(server?.cms));
-  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  const title = canOpen ? url : "Сначала поднимите CMS (Docker compose или «Старт» в Control)";
   openBtn.dataset.openUrl = url || "";
   openBtn.disabled = !canOpen;
   openBtn.title = title;
@@ -1731,7 +1731,7 @@ function renderMobileVoiceBlock() {
       `
           : ""
       }
-      ${!isRunning ? `<p class="mobile-voice-warn">Сначала запустите сервер.</p>` : ""}
+      ${!isRunning ? `<p class="mobile-voice-warn">Сначала поднимите CMS.</p>` : ""}
     </div>
   `;
 }
@@ -2268,7 +2268,7 @@ function renderControlOpenUrl() {
   const canOpen =
     Boolean(url) &&
     (Boolean(server?.controlHttp) || Boolean(server?.cms));
-  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  const title = canOpen ? url : "Сначала поднимите CMS (Docker compose или «Старт» в Control)";
   return `<button type="button" class="run-btn compact-btn" data-control-open-btn="1" data-tone="primary" data-open-url="${escapeAttr(url || "")}" ${canOpen ? "" : "disabled"} title="${escapeAttr(title)}">Открыть</button>`;
 }
 

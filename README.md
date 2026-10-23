@@ -13,7 +13,6 @@
 - [Принципы](#-принципы-gb-principles)
 - [Стек](#-стек-gb-stack)
 - [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
-- [Порты по умолчанию](#-порты-по-умолчанию-gb-default-ports)
 - [Установка — macOS](#-установка--macos-gb-install--macos)
 - [Установка — Ubuntu VPS / сервер](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
@@ -38,7 +37,6 @@
 > - [Principles](#-принципы-gb-principles)
 > - [Stack](#-стек-gb-stack)
 > - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
-> - [Default ports](#-порты-по-умолчанию-gb-default-ports)
 > - [Install — macOS](#-установка--macos-gb-install--macos)
 > - [Install — Ubuntu VPS / server](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
@@ -251,10 +249,10 @@
 | | **macOS (локально)** | **Ubuntu VPS / сервер** |
 | --- | --- | --- |
 | **ОС** | macOS (Apple Silicon / Intel) | Ubuntu 22.04+ / Debian 12+; не Alpine на первом заходе |
-| **Node.js** | через **`install.command`** (22+) | **22+** обязательно (NodeSource `setup_22.x`); Node 20 — не использовать |
+| **Docker** | **Docker Desktop** + [`docker-compose.mac.yml`](docker-compose.mac.yml) | **Engine + Compose plugin** + [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **RAM** | 8 GB+ комфортно | мин. **2 GB**; комфорт **4 GB** |
 | **Диск** | место под репо и workspaces | **30 GB+** NVMe; код в **`/opt/agent-cms`** |
-| **Сеть** | localhost / LAN | публичный IPv4; открыть порты (см. ниже) |
+| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установка Linux](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server) |
 | **Не на сервере** | — | Electron, Control desktop, GUI |
 
 Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
@@ -263,29 +261,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 > 🇬🇧 **[en]**
 >
-> macOS: **`install.command`**. VPS: **Node 22+**, **2 GB+** RAM, **`/opt/agent-cms`**, open firewall ports. No Electron on the server. Prod: [TODO.SERVER.md](TODO.SERVER.md).
-
-## 🇷🇺 Порты по умолчанию (🇬🇧 Default ports)
-
-🇷🇺 **[ru]**
-
-Меняются в `.env` (`AGENT_CMS_*_HTTP_PORT`, legacy `PORT` / `VOICE_PORT`). Канон: `lib/config/agent-cms-ports.js`.
-
-| Сервис | HTTP | HTTPS | Переменная (пример) |
-| --- | ---: | ---: | --- |
-| **Editor (CMS)** | 3000 | 3443 | `AGENT_CMS_EDITOR_HTTP_PORT` |
-| **Voice** | 3088 | 3488 | `AGENT_CMS_VOICE_HTTP_PORT` |
-| **Commander** | 3188 | — | `AGENT_CMS_COMMANDER_HTTP_PORT` |
-| **Control (Launcher)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
-| **MCP HTTP** | 3490 | — | `AGENT_CMS_MCP_HTTP_PORT` → `…/mcp` |
-
-**VPS без Docker:** **22**, **3000**, **3490** (и при необходимости **3288**). **VPS с Docker + Caddy** ([`docker-compose.linux.yml`](docker-compose.linux.yml)): наружу только **22**, **80**, **443**. **Сначала `ufw allow 22`, потом `ufw enable`.**
-
----
-
-> 🇬🇧 **[en]**
->
-> Defaults in `.env` / `agent-cms-ports.js`. VPS bare-metal: **22**, **3000**, **3490**. VPS Docker: **22**, **80**, **443** — see [`docker-compose.linux.yml`](docker-compose.linux.yml).
+> macOS: **Docker Desktop**, **`install.command`**, **`welcome.command`**. Config: **`.env` in the repo**. VPS: one install block below, [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only.
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -293,125 +269,84 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 🇷🇺 **[ru]**
 
+**Docker Compose V2** — команда `docker compose` (с пробелом). **`.env`** уже в репозитории. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+
 ```bash
+# 1) Docker Desktop — https://www.docker.com/products/docker-desktop/
+#    Установить, запустить, дождаться Running в меню. Compose V2 уже внутри Desktop.
+
 git clone https://github.com/iv-litovchenko/AgentCMS.git
 cd AgentCMS
-```
+docker compose version
 
-1. Склонируйте репозиторий (Desktop или любая папка).
-2. В **`.env`** — `APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`; порты — [по умолчанию](#-порты-по-умолчанию-gb-default-ports).
-3. **`install.command`** (двойной клик) — зависимости, HTTPS.
-4. **`welcome.command`** → **Agent CMS Control** → при необходимости **Ярлыки**.
-5. **Старт** в Control → Editor: `https://localhost:3443`.
-6. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection) → workspace в UI.
+# 2) Удобно с Mac: install.command → welcome.command (то же up --build + браузер Control)
+# ./install.command
+# ./welcome.command
+
+docker compose -f docker-compose.mac.yml up -d --build
+# npm run docker:mac · npm run docker:down
+# Control: http://127.0.0.1:3288/ · Editor: AGENT_CMS_PUBLIC_URL (по умолчанию http://127.0.0.1:3000)
+# Первый --build часто 10–30+ мин. Legacy npm/Electron: AGENT_CMS_WELCOME_LEGACY=1 welcome.command
+```
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> ```bash
-> git clone https://github.com/iv-litovchenko/AgentCMS.git
-> cd AgentCMS
-> ```
->
-> 1. Clone → `.env` → **`install.command`** → **`welcome.command`** → **Start** → `https://localhost:3443`.
-> 2. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+> [Docker Desktop](https://www.docker.com/products/docker-desktop/) → clone → `docker compose -f docker-compose.mac.yml up -d --build` (or **`install.command`** → **`welcome.command`**). Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ## 🇷🇺 Установка — Ubuntu VPS / сервер (🇬🇧 Install — Ubuntu VPS / server)
 
 🇷🇺 **[ru]**
 
-Editor по HTTP, опционально MCP HTTP. **Docker не обязателен** (вариант A — Node **22+**). Требования и [порты](#-порты-по-умолчанию-gb-default-ports) — выше. **`npm ci`** без `--omit=dev`. Node 20 → `apt purge -y nodejs`, затем `setup_22.x` и `npm ci` заново. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
-
-> [!CAUTION]
-> **Установка на VPS:** на типичном тарифе **1–2 vCPU / 2 GB RAM** команда **`npm ci`** (сборка native-модулей и postinstall) в среднем занимает **от 15 до 30 минут**, иногда дольше. Терминал может «висеть» на одном символе — не прерывайте, если в `top` виден `node` / `gcc`. Если в конце **`Killed`** — не хватило памяти: добавьте **swap 2 GB** и запустите `npm ci` снова.
+**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). **`.env` в git**. Наружу только **22, 80, 443** (панель + `ufw` — в блоке ниже). Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ```bash
-# === Agent CMS на Ubuntu (VPS) — первый запуск ===
-# Подключение (IP и пароль — из панели хостинга):
+# === Ubuntu VPS — Docker Engine + Agent CMS ===
 ssh root@ВАШ_IP
-
-# Обновление и базовые пакеты
 apt update && apt upgrade -y
-apt install -y git curl
+apt install -y git curl ca-certificates
 
-# Порты: в панели хостинга открыть 22, 3000, (3490 для MCP). На сервере — до ufw enable:
-# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
+# Docker Engine + Compose plugin (Ubuntu 22.04/24.04; Debian 12+ — docs.docker.com/engine/install/debian/)
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+docker compose version
 
-# На 1–2 GB RAM при npm install / сборке Docker полезен swap (опционально):
-# fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+# --- Открытие портов (prod: Editor/Control/MCP только через Caddy на 443) ---
+# 1) Панель хостинга (Timeweb, Hetzner…): inbound TCP 22, 80, 443
+# 2) UFW на сервере — сначала SSH (22), потом enable; 3000/3288/3490 наружу не открываем
+apt install -y ufw
+ufw allow 22/tcp comment 'SSH'
+ufw allow 80/tcp comment 'HTTP Caddy'
+ufw allow 443/tcp comment 'HTTPS Caddy'
+ufw status numbered
+ufw enable
+# SSH пропал — консоль/VNC провайдера: ufw allow 22/tcp && ufw reload
 
-# Каталог на сервере (принято: /opt/<имя-приложения>)
-mkdir -p /opt/agent-cms
-cd /opt/agent-cms
+# swap 2G на 1–2 GB RAM (опционально): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 
-# Клонирование в текущую папку (или свой fork / private repo)
+mkdir -p /opt/agent-cms && cd /opt/agent-cms
 git clone https://github.com/iv-litovchenko/AgentCMS.git .
+# .env в репо — DOMAIN, PUBLIC_URL, APP_LOCK_*, AGENT_CMS_MCP_TOKEN (git pull на сервере)
 
-# Настройка окружения (Docker): см. docs/deploy/DOCKER.md
-cp .env.example .env
-nano .env
-# Обязательно: APP_LOCK_PASSWORD, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_PUBLIC_URL
+docker compose -f docker-compose.linux.yml up -d --build
+docker compose -f docker-compose.linux.yml ps
+# npm run docker:linux · npm run docker:down:linux · docs/deploy/DOCKER.md
+# https://ваш-домен/ · https://ваш-домен/control/ · https://ваш-домен/mcp (Bearer token)
 
-# --- Вариант A: без Docker (Node 22+) — если Docker не установлен ---
-# Если уже стоял Node 20: apt purge -y nodejs && apt autoremove -y
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs build-essential   # build-essential для sharp / better-sqlite3
-node -v   # ожидается v22.x
-
-# postinstall копирует vendor-иконки из devDependencies — не используйте npm ci --omit=dev
-npm ci
-# (как в Dockerfile после установки можно: npm prune --omit=dev — только если postinstall уже отработал)
-
-# Смена Node 20 → 22 в том же каталоге: purge nodejs → setup_22.x → npm ci заново
-
-# Editor + Control Launcher (3288). Для LAN/VPS:
-# HOST=0.0.0.0 CONTROL_HOST=0.0.0.0 npm start
-# Локально на сервере: bash welcome.command — откроет тот же Launcher в браузере
-HOST=0.0.0.0 npm start
-# Держать процесс после выхода из SSH: tmux new -s cms → команда выше; отсоединиться: Ctrl+B, D
-
-# MCP HTTP — второй сеанс (tmux/SSH):
-# cd /opt/agent-cms
-# AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
-# Позже: systemd или pm2 — см. TODO.SERVER.md
-
-# --- Вариант B: Docker (рекомендуется на VPS) ---
-# Установка Engine: https://docs.docker.com/engine/install/ubuntu/
-# docker compose version
-# В .env: APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN=ваш-домен, AGENT_CMS_CADDY_EMAIL=...
-# docker compose -f docker-compose.linux.yml up -d --build
-# docker compose -f docker-compose.linux.yml ps
-# docker compose -f docker-compose.linux.yml logs -f cms mcp caddy
-# Подробнее: docs/deploy/DOCKER.md
-# Mac локально: docker compose -f docker-compose.mac.yml up -d --build
-
-# Фаервол (Docker + домен): 22, 80, 443 — без 3000/3288/3490 наружу
-# ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw enable
-# Bare-metal (вариант A): ufw allow 3000/tcp && ufw allow 3490/tcp
-# Если SSH уже refused: консоль/VNC в панели хостинга (Timeweb) → ufw allow 22 → ufw disable или reboot
-
-# Проверка в браузере (bare-metal):
-#   http://ВАШ_IP:3000   — Editor (APP_LOCK_*)
-#   http://ВАШ_IP:3288   — Control Launcher
-#   http://ВАШ_IP:3490/mcp — MCP (Bearer AGENT_CMS_MCP_TOKEN)
-# Docker + домен (Caddy в linux.yml):
-#   https://ваш-домен/          — Editor
-#   https://ваш-домен/control/  — Control
-#   https://ваш-домен/mcp       — MCP (Claude / Cursor, Bearer token)
-# Коннекторы: docs/connectors/README.md
-
-# Prod: TODO.SERVER.md
 ```
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> VPS: Node **22+**, `npm ci`, `HOST=0.0.0.0 npm start`. Requirements and ports above. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
->
-> > [!CAUTION]
-> > On a typical **1–2 vCPU / 2 GB RAM** VPS, **`npm ci`** usually takes **15–30 minutes** (sometimes longer). A frozen spinner is normal while `node`/`gcc` work in `top`. **`Killed`** means OOM — add **2 GB swap** and retry.
+> VPS: one block above — Docker CE, **ufw 22/80/443**, compose up. [DOCKER.md](docs/deploy/DOCKER.md).
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 

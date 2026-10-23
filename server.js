@@ -1105,22 +1105,30 @@ async function readRootEnvFile() {
 
 async function getAppLockStatus() {
   const env = await readRootEnvFile();
-  const login = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
-  const password = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
-  const configured = Boolean(login && password);
+  const { resolveAppLockPolicy, buildAppLockAppsCatalog } = require("./lib/auth/app-lock-apps");
+  const policy = resolveAppLockPolicy(env);
   return {
-    enabled: configured,
-    needsSetup: !configured
+    enabled: policy.configured,
+    needsSetup: policy.needsSetup,
+    lockedApps: policy.lockedApps,
+    lockableApps: policy.lockableApps,
+    legacyDefault: policy.legacyDefault,
+    apps: buildAppLockAppsCatalog(policy)
   };
 }
 
 async function resolveOpsAppLockGate(req) {
-  const status = await getAppLockStatus();
+  const env = await readRootEnvFile();
+  const { isOpsAppLockRequired, resolveAppLockPolicy } = require("./lib/auth/app-lock-apps");
+  const policy = resolveAppLockPolicy(env);
+  const opsLockRequired = isOpsAppLockRequired(policy);
   const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
   return {
-    enabled: status.enabled,
+    enabled: opsLockRequired,
+    configured: policy.configured,
+    lockedApps: policy.lockedApps,
     sessionActive,
-    canToggleMaintenance: !status.enabled || sessionActive
+    canToggleMaintenance: !opsLockRequired || sessionActive
   };
 }
 

@@ -108,7 +108,7 @@ MCP со списком приложений: что где работает, п
 - Как будет работать **Electron**, если каждое приложение…?
 - Всё через Docker, **не** ставить Node на хост «вручную».
 - В образ: git, Python, что ещё — полный список.
-- Mac Docker — что не доделали.
+- Mac Docker — **`welcome.command` / `install.command`** → `scripts/docker-mac-*.sh`; README/DOCKER.md обновлены.
 - Подняли / опустили Docker.
 - Кнопки **старт / стоп / рестарт** в Control — что делают после перехода на Docker?
 
@@ -150,13 +150,14 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 5 — закрытие паролем (app-lock по зонам)
 
+**Статус (код):** **`APP_LOCK_APPS=control`** (список `editor,chat,commander,control`); `lib/auth/app-lock-apps.js`; `/api/app-lock/status` → `lockedApps` + `apps[]`; Editor/Shell app-lock по appId; Control ops — если `control` в списке. Без `APP_LOCK_APPS` — legacy `editor,control`.
+
 По умолчанию только launcher (`…/app-lancher`). Отдельно launcher / editor / агенты?
 
 > **NOTE**
-> - 💡 Сейчас: **`APP_LOCK_*`** = один пароль на ops (Control, опасные API).
-> - 💡 Эволюция: флаги **`APP_LOCK_CONTROL=1`**, **`APP_LOCK_EDITOR=0`** или маршруты `/app/control` vs `/`.
-> - 💡 По умолчанию: lock **`/app/control`** (launcher); Editor — опционально (часто нужен без пароля в dev).
-> - ⚠️ «Только HTTPS launcher» — на `http://localhost` cookie/session уже отдельный кейс; не путать с «зона Editor».
+> - ✅ Один пароль **`APP_LOCK_*`**, зоны — **`APP_LOCK_APPS`** (как `platform_apps_list`, без `mcp`).
+> - 💡 Commander: lock в env есть; UI lock на commander — позже (пока только control/editor/chat через app-lock.js).
+> - ⚠️ MCP — **`AGENT_CMS_MCP_TOKEN`**, не app-lock UI.
 
 ---
 
