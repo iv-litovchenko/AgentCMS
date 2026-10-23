@@ -84,12 +84,15 @@ services:
       AGENT_CMS_DOCKER_UP_SERVICES: "cms mcp"
       AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
       AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
+      AGENT_CMS_HOST_PROJECT: "/host-project"
+      AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.mac.yml"
       COMPOSE_PROJECT_NAME: "agent-cms"
       APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
       APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-compose.mac.yml:/app/docker-compose.mac.yml:ro
+      - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
     restart: unless-stopped
 
 volumes:

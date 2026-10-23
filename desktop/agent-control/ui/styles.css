@@ -2588,6 +2588,10 @@ body.app-lock-active .app {
   grid-template-columns: repeat(5, 1fr);
 }
 
+.server-deck--6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
 .server-deck-btn[data-tone="autostart-on"] {
   background: rgba(52, 211, 153, 0.08);
 }
@@ -2815,6 +2819,14 @@ body.app-lock-active .app {
     0 6px 16px rgba(245, 158, 11, 0.1);
 }
 
+.server-deck-icon--update {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.35),
+    0 6px 16px rgba(59, 130, 246, 0.12);
+}
+
 .server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--play {
   transform: scale(1.05);
   box-shadow:
@@ -2840,6 +2852,13 @@ body.app-lock-active .app {
   box-shadow:
     0 0 0 1px rgba(251, 191, 36, 0.55),
     0 0 22px rgba(245, 158, 11, 0.18);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--update {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(147, 197, 253, 0.55),
+    0 0 22px rgba(59, 130, 246, 0.2);
 }
 
 .server-deck-badge {

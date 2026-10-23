@@ -6146,6 +6146,8 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/ops/server/action",
   "/api/ops/server/status",
   "/api/ops/env-file",
+  "/api/platform/env-keys",
+  "/api/platform/env-key",
   "/api/agent/mcp-ping"
 ]);
 
@@ -14946,7 +14948,7 @@ const SESSION_CONTEXT_API_MAP = {
   opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
   opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
   opsServerAction:
-    "POST /api/ops/server/action — Web Control: start|stop|restart|install-npm (app-lock session). GET /api/ops/server/status",
+    "POST /api/ops/server/action — Web Control: start|stop|restart|deploy-update|install-npm (app-lock session). GET /api/ops/server/status",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -22902,6 +22904,65 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to build platform info",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/env-keys") {
+    try {
+      const { listPlatformEnvKeys } = require("./lib/ops/platform-root-env");
+      const payload = listPlatformEnvKeys(getProjectRoot());
+      if (!payload.ok) return sendJson(res, payload.error === "env_example_missing" ? 404 : 500, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list env keys",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/env-key") {
+    try {
+      const key = String(url.searchParams.get("key") || "").trim();
+      const { readPlatformEnvKey } = require("./lib/ops/platform-root-env");
+      const gate = await resolveOpsAppLockGate(req);
+      const revealSecrets = gate.canToggleMaintenance;
+      const payload = readPlatformEnvKey(getProjectRoot(), key, { revealSecrets });
+      if (!payload.ok) {
+        const status =
+          payload.error === "unknown_key" || payload.error === "missing_key" ? 400 : 500;
+        return sendJson(res, status, payload);
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read env key",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/env-key") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 32_000);
+      const key = String(body?.key || "").trim();
+      if (!key) return sendJson(res, 400, { ok: false, error: "missing_key" });
+      if (body?.value === undefined) return sendJson(res, 400, { ok: false, error: "missing_value" });
+      const { writePlatformEnvKey } = require("./lib/ops/platform-root-env");
+      const payload = writePlatformEnvKey(getProjectRoot(), key, body.value);
+      if (!payload.ok) {
+        const status =
+          payload.error === "unknown_key" ? 400 : payload.error === "env_too_large" ? 413 : 500;
+        return sendJson(res, status, payload);
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write env key",
+        details: String(error?.message || error)
       });
     }
   }

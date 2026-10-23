@@ -125,6 +125,8 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 3 — кнопка «Обновить» в Control (= git pull)
 
+**Статус (код):** action `server-update` → `deploy-update` (`lib/ops/ops-deploy-update.js`); git pull + compose `up -d --build`; app-lock; commit до/после в журнале; mount `AGENT_CMS_HOST_PROJECT` в control; DOCKER.md.
+
 Рядом с Restart — по сути git pull.
 
 > **NOTE**
@@ -137,10 +139,12 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 4 — MCP-редактор `.env` + ревью всех ключей
 
+**Статус (код):** `lib/ops/platform-root-env.js`; HTTP `GET /api/platform/env-keys`, `GET|POST /api/platform/env-key`; MCP **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (+ legacy `list_env_keys`, …); каталог из `.env.example`; секреты маскируются без app-lock; write — app-lock.
+
 > **NOTE**
-> - ✅ Control уже: GET/POST `/api/ops/env-file` — вынести в MCP: **`read_root_env`**, **`write_root_env`** (или один tool с mode).
-> - 💡 Ревью: **`docs/env-reference.md`** из `.env.example` + tool **`list_env_keys`** (описание, без значений секретов).
-> - ⚠️ Write — только с app-lock; **`AGENT_CMS_MCP_TOKEN`**, пароли — не возвращать в list/read для агента без сессии (политика на ревью).
+> - ✅ Control по-прежнему: GET/POST `/api/ops/env-file` (весь файл).
+> - 💡 Отдельный `docs/env-reference.md` — опционально; сейчас источник — `.env.example`.
+> - ⚠️ **`platform_env_key_write`** через MCP нужна **app-lock** сессия (как ops/env-file).
 
 ---
 
@@ -162,6 +166,7 @@ MCP со списком приложений: что где работает, п
 
 > **NOTE**
 > - 💡 Именование source: **`local`** / **`remote`** + **`:`** + workspace id — **`local:ws-aya`** ок; документировать в glossary.
-> - 💡 **stdio MCP (`node mcp-server/index.js`)** — dev/Cursor desktop; **на VPS prod** — только **HTTP MCP** за token + HTTPS.
-> - ⚠️ «Node напрямую на сервере» = обход Docker и политики — **выключить** в prod-доке; оставить для локальной разработки.
+> - ✅ **MCP для агентов (Mac, VPS, любой хост):** только **HTTP(S) URL** (`/app-mcp` или legacy `/mcp`) + **`Authorization: Bearer AGENT_CMS_MCP_TOKEN`**. CMS уже запущен — подключаемся к нему; отдельного «запуска платформы» через MCP нет.
+> - ⚠️ **stdio** (`node mcp-server/index.js`) — **не** рекомендуемый путь: локальный sidecar для старых коннекторов без HTTP MCP. В prod-доке и UI — **не** как равноправная альтернатива URL.
+> - ⚠️ «Node напрямую на сервере» = обход Docker и политики — **выключить** в prod-доке; локально — только осознанный dev без Docker.
 > - 📌 Обсуждение отложено — вынести в отдельный `TODO-REFACTOR-15-Q6.md` когда будет набросок модели instances/sources.

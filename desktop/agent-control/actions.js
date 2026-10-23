@@ -101,6 +101,15 @@ const ACTIONS = [
     serverRole: "restart"
   },
   {
+    id: "server-update",
+    category: "server",
+    title: "Обновить",
+    command: "bash",
+    args: ["scripts/agent-https-service.sh", "status"],
+    tone: "default",
+    serverRole: "update"
+  },
+  {
     id: "server-start-attached",
     category: "server",
     title: "Пока Control открыт",

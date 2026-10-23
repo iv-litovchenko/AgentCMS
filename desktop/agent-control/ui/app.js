@@ -557,13 +557,18 @@ function isDockerDeployment() {
   return bootstrap?.deployment?.mode === "docker";
 }
 
+function isServerUpdateEnabled() {
+  return bootstrap?.deployment?.updateEnabled === true;
+}
+
 function getServerBtnTitle(actionId) {
   if (!isDockerDeployment()) return SERVER_BTN_TITLES[actionId] || "Запуск";
   const dockerTitles = {
     "server-start-bg": "Старт CMS",
     "server-start-attached": "Старт CMS",
     "server-stop": "Стоп CMS",
-    "server-restart": "Рестарт CMS"
+    "server-restart": "Рестарт CMS",
+    "server-update": "Обновить"
   };
   return dockerTitles[actionId] || SERVER_BTN_TITLES[actionId] || "Запуск";
 }
@@ -575,7 +580,8 @@ function getServerBtnHint(actionId, hintOverride) {
     const dockerHints = {
       "server-start-bg": `docker compose up -d ${up}`,
       "server-stop": "Control-контейнер остаётся",
-      "server-restart": `docker compose restart ${up}`
+      "server-restart": `docker compose restart ${up}`,
+      "server-update": "git pull → compose up --build"
     };
     return dockerHints[actionId] ?? SERVER_BTN_HINTS[actionId] ?? "";
   }
@@ -1304,7 +1310,8 @@ function syncServerUi(server) {
     runningActions.has("server-start-bg") ||
     runningActions.has("server-start-attached") ||
     runningActions.has("server-stop") ||
-    runningActions.has("server-restart");
+    runningActions.has("server-restart") ||
+    runningActions.has("server-update");
   const opsLocked = needsAppLockLogin();
 
   document
@@ -1318,6 +1325,10 @@ function syncServerUi(server) {
   });
   document.querySelectorAll('[data-action="server-restart"]').forEach((button) => {
     button.disabled = opsLocked || !isRunning || serverActionBusy;
+  });
+  document.querySelectorAll('[data-action="server-update"]').forEach((button) => {
+    button.disabled =
+      !isServerUpdateEnabled() || opsLocked || serverActionBusy || runningActions.has("server-update");
   });
 
   const autostartOn = Boolean(server?.autoStart?.enabled);
@@ -1410,7 +1421,8 @@ const SERVER_BTN_TITLES = {
   "server-start-bg": "Старт в фоне",
   "server-start-attached": "Старт",
   "server-stop": "Стоп",
-  "server-restart": "Рестарт"
+  "server-restart": "Рестарт",
+  "server-update": "Обновить"
 };
 
 const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
@@ -1425,7 +1437,8 @@ const SERVER_BTN_HINTS = {
   "server-start-bg": "Останется после закрытия",
   "server-start-attached": "Пока окно открыто",
   "server-stop": "Остановить сервер",
-  "server-restart": "Тот же режим запуска"
+  "server-restart": "Тот же режим запуска",
+  "server-update": "git pull и пересборка (Docker) или только pull"
 };
 
 const SERVER_PLAY_ICON = `
@@ -1459,18 +1472,35 @@ const SERVER_RESTART_ICON = `
   </svg>
 `;
 
+const SERVER_UPDATE_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M12 7v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+    <path d="M9.5 10.5 12 13l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M8.5 16.5h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+  </svg>
+`;
+
 function serverButton(actionId, tone, disabled = false, hintOverride) {
   const disabledAttr = disabled ? " disabled" : "";
   const title = getServerBtnTitle(actionId);
   const hint = getServerBtnHint(actionId, hintOverride);
   const icon =
-    tone === "stop" ? SERVER_STOP_ICON : tone === "restart" ? SERVER_RESTART_ICON : SERVER_PLAY_ICON;
+    tone === "stop"
+      ? SERVER_STOP_ICON
+      : tone === "restart"
+        ? SERVER_RESTART_ICON
+        : tone === "update"
+          ? SERVER_UPDATE_ICON
+          : SERVER_PLAY_ICON;
   const iconClass =
     tone === "stop"
       ? "server-deck-icon--stop"
       : tone === "restart"
         ? "server-deck-icon--restart"
-        : "server-deck-icon--play";
+        : tone === "update"
+          ? "server-deck-icon--update"
+          : "server-deck-icon--play";
   const badge =
     tone === "start-bg" && isDockerDeployment()
       ? `<span class="server-deck-badge">docker</span>`
@@ -1822,10 +1852,19 @@ function renderGuideStepServer() {
     serverButton("server-stop", "stop", !isRunning || opsLocked),
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
+      : "",
+    isControlActionAvailable("server-update")
+      ? serverButton(
+          "server-update",
+          "update",
+          opsLocked || !isServerUpdateEnabled(),
+          isServerUpdateEnabled() ? null : "Пока отключено"
+        )
       : ""
   ].filter(Boolean);
   const deckCount = deckButtons.length;
-  const deckSizeClass = deckCount >= 5 ? " server-deck--5" : "";
+  const deckSizeClass =
+    deckCount > 4 && deckCount <= 6 ? ` server-deck--${deckCount}` : deckCount > 6 ? " server-deck--6" : "";
   const serverDeckAria = isDockerDeployment() ? "Управление контейнером CMS" : "Управление сервером";
   const dockerDeployNote = isDockerDeployment()
     ? `<p class="server-docker-note">${escapePlatformText(bootstrap?.deployment?.electronNote || "")}</p>`
@@ -2543,7 +2582,9 @@ function waitForControlServerReload(maxWaitMs = 120000) {
 
 async function runAction(actionId) {
   if (!actionId || runningActions.has(actionId)) return;
-  if (actionId === "server-stop" || actionId === "server-restart") suppressServerDownNotify = true;
+  if (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") {
+    suppressServerDownNotify = true;
+  }
   runningActions.add(actionId);
   updateRunningButtons();
   try {
@@ -2551,7 +2592,7 @@ async function runAction(actionId) {
     if (result?.error) appendLog(`${result.error}\n`, "stderr");
 
     if (result?.serverDisconnectExpected) {
-      if (actionId === "server-restart" && isWebLauncher()) {
+      if ((actionId === "server-restart" || (actionId === "server-update" && result?.rebuildStarted)) && isWebLauncher()) {
         waitForControlServerReload();
       } else if (actionId === "server-stop") {
         lastServer = { ...(lastServer || bootstrap?.server || {}), running: false };
@@ -2566,20 +2607,22 @@ async function runAction(actionId) {
     } catch (error) {
       if (
         isWebLauncher() &&
-        (actionId === "server-stop" || actionId === "server-restart") &&
+        (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") &&
         /failed to fetch|networkerror|load failed/i.test(String(error.message || error))
       ) {
-        if (actionId === "server-restart") waitForControlServerReload();
+        if (actionId === "server-restart" || actionId === "server-update") waitForControlServerReload();
         return;
       }
       throw error;
     }
     await handleServerStatusUpdate(status.server, {
-      skipNotify: actionId === "server-stop" || actionId === "server-restart"
+      skipNotify:
+        actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update"
     });
     if (actionId === "install-deps" || actionId === "setup-certs") {
       const data = await window.agentControl.refreshBootstrap();
       if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
+      window.__controlBootstrap = bootstrap;
       if (data.environment) {
         bootstrap.environment = data.environment;
         renderEnvironment(data.environment);
@@ -2611,6 +2654,7 @@ const ACTION_CARD_BUSY = {
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",
   "server-restart": "Перезапуск…",
+  "server-update": "Обновление…",
   "install-deps": "Установка…",
   "setup-certs": "Настройка…",
   "setup-desktop-shortcuts": "Создание…"
@@ -2668,7 +2712,7 @@ function updateRunningButtons() {
       if (title) title.textContent = ACTION_CARD_BUSY[actionId] || "…";
       return;
     }
-    if (title) title.textContent = SERVER_BTN_TITLES[actionId] || title.textContent;
+    if (title) title.textContent = getServerBtnTitle(actionId) || title.textContent;
   });
 
   syncServerUi(lastServer || { running: false });
@@ -2706,6 +2750,7 @@ async function init() {
   await playSplash();
 
   bootstrap = await window.agentControl.getBootstrap();
+  window.__controlBootstrap = bootstrap;
   bindAppLockGate();
   bindAppLockLogout();
   syncAppLockScreen();

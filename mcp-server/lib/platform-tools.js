@@ -84,4 +84,45 @@ export function registerPlatformTools(reg, client) {
       client.get("/api/platform/apps", ui ? { ui: "1" } : {}, { agentScope: false }),
     options: { agentScope: false }
   });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_keys_list",
+    legacy: "list_env_keys",
+    description:
+      "Root .env catalog from .env.example: key names, descriptions, secret flag (no values from .env).",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/env-keys", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_key_read",
+    legacy: "read_env_key",
+    description:
+      "Read one root .env value by key (key must be in platform_env_keys_list). Secrets redacted unless app-lock session.",
+    schema: z.object({
+      key: z.string().min(1).describe("Env key from .env.example, e.g. AGENT_CMS_PUBLIC_URL")
+    }),
+    handler: ({ key }) =>
+      client.get("/api/platform/env-key", { key: String(key || "").trim() }, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_key_write",
+    legacy: "write_env_key",
+    description:
+      "Write one root .env key (app-lock session required). Key must be in platform_env_keys_list.",
+    schema: z.object({
+      key: z.string().min(1).describe("Env key from .env.example"),
+      value: z.string().describe("New value (empty string clears to KEY=)")
+    }),
+    handler: ({ key, value }) =>
+      client.post(
+        "/api/platform/env-key",
+        { key: String(key || "").trim(), value: String(value ?? "") },
+        { agentScope: false }
+      ),
+    options: { agentScope: false }
+  });
 }

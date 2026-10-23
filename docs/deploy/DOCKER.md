@@ -50,6 +50,15 @@ npm run docker:down
 
 Control и Caddy **не** останавливаются кнопкой «Стоп CMS». Полный down — с хоста: `docker compose … down`.
 
+## Обновление с VPS (Control)
+
+Кнопка **«Обновить»** (рядом с Restart), только после **app-lock**:
+
+1. `git pull --ff-only` в каталоге на хосте (`AGENT_CMS_HOST_PROJECT`, по умолчанию `.` → `/host-project` в control)
+2. `docker compose up -d --build` (лог: `.run/deploy-update.log` на хосте)
+
+Опционально в `.env`: `AGENT_CMS_DEPLOY_GIT_REMOTE`, `AGENT_CMS_DEPLOY_GIT_BRANCH`, `AGENT_CMS_DEPLOY_SKIP_PULL=1`.
+
 ## В образе (apt)
 
 Node 22 (base image), bash, curl, **git**, **python3**, **ffmpeg**, **jq**, **rsync**, **openssh-client**, build-essential, **Docker CLI** + Compose plugin (Control → compose на хосте).

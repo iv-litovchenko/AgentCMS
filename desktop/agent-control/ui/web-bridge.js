@@ -9,6 +9,7 @@
     "server-start-attached": "start",
     "server-stop": "stop",
     "server-restart": "restart",
+    "server-update": "deploy-update",
     "install-deps": "install-npm"
   };
 
@@ -137,16 +138,21 @@
 
     runAction: async (actionId) => {
       const id = String(actionId || "").trim();
+      if (id === "server-update" && window.__controlBootstrap?.deployment?.updateEnabled !== true) {
+        emitLog({ text: "Обновление из Control пока отключено.\n", stream: "stderr" });
+        return { ok: false, error: "deploy_update_disabled" };
+      }
+
       const mapped = SERVER_ACTION_MAP[id];
       if (!mapped) {
         return {
           ok: false,
           error:
-            "На Linux/VPS в браузере доступны только «Запуск/Стоп/Restart сервера» и «npm ci». Остальное — Electron (Mac) или SSH."
+            "На Linux/VPS в браузере доступны «Запуск/Стоп/Restart/Обновить» и «npm ci». Остальное — Electron (Mac) или SSH."
         };
       }
 
-      const mayDropConnection = mapped === "stop" || mapped === "restart";
+      const mayDropConnection = mapped === "stop" || mapped === "restart" || mapped === "deploy-update";
 
       emitActionState({ actionId: id, running: true });
       emitLog({ text: `\n▶ ${id} (${mapped})\n`, stream: "stdout" });
@@ -162,7 +168,8 @@
         return {
           ok: Boolean(result.ok),
           error: result.error || null,
-          serverDisconnectExpected: mayDropConnection && result.ok
+          serverDisconnectExpected: mayDropConnection && result.ok,
+          rebuildStarted: Boolean(result.rebuildStarted)
         };
       } catch (error) {
         let msg = String(error.message || error);

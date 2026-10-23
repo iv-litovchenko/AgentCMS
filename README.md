@@ -488,18 +488,21 @@ HOST=0.0.0.0 npm start
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 222** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа (Platform) · 7
+├── ⚙️ Платформа (Platform) · 10
 │   ├── 🟢 platform_info_get
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
 │   ├── 🟢 platform_doc_read
 │   ├── 🟢 platform_config_list
 │   ├── 🟢 platform_apps_list
+│   ├── 🟢 platform_env_keys_list
+│   ├── 🟢 platform_env_key_read
+│   ├── 🟢 platform_env_key_write
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │
