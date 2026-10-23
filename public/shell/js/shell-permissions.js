@@ -1,6 +1,6 @@
 /** HTTPS / mic permissions for iPhone Safari (shared desktop + mobile). */
 
-import { buildVoiceShellPath, parseVoiceShellPath } from "./voice-chpu.js";
+import { buildVoiceShellPath, parseVoiceShellPath, resolveVoicePublicPathPrefix } from "./voice-chpu.js";
 import { resolveVoiceTlsPort } from "./shell-ports.js";
 import { getShellSurface } from "./shell-surface.js";
 
@@ -14,6 +14,11 @@ function resolveHostname(hostname = window.location.hostname) {
 
 function pathnameForVoiceUrl(pathname = window.location.pathname) {
   let path = String(pathname || "/").trim();
+  const voicePrefix = resolveVoicePublicPathPrefix().replace(/\/+$/, "");
+  if (voicePrefix && (path === voicePrefix || path.startsWith(`${voicePrefix}/`))) {
+    path = path.slice(voicePrefix.length) || "/";
+    if (!path.startsWith("/")) path = `/${path}`;
+  }
   if (path === "/shell" || path === "/shell/") return "/";
   if (path.startsWith("/shell/")) {
     path = path.slice("/shell".length);

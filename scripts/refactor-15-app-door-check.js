@@ -163,7 +163,50 @@ const liveChecks = [
     expectStatus: (s) => s === 301 || s === 302,
     expectLocation: (loc) => loc && loc.includes("/app-commander")
   },
-  { name: "platform apps API", path: "/api/platform/apps", expectStatus: (s) => s === 200, json: true }
+  { name: "platform apps API", path: "/api/platform/apps", expectStatus: (s) => s === 200, json: true },
+  {
+    name: "editor styles.css",
+    path: "/editor/styles.css",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("text/css")
+  },
+  {
+    name: "voice shell.css (legacy /shell)",
+    path: "/shell/shell.css",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("text/css")
+  },
+  {
+    name: "voice shell.css (/app-chat rewrite)",
+    path: "/app-chat/shell.css",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("text/css")
+  },
+  {
+    name: "commander app-lock css",
+    path: "/shell/shell-app-lock.css",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("text/css")
+  },
+  {
+    name: "control styles.css",
+    path: "/app-control/styles.css",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("text/css")
+  },
+  {
+    name: "control app.js",
+    path: "/app-control/app.js",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("javascript")
+  },
+  {
+    name: "editor app-lock.js",
+    path: "/editor/js/app/app-lock.js",
+    expectStatus: (s) => s === 200,
+    expectContentType: (ct) => ct && ct.includes("javascript")
+  },
+  { name: "app-lock status API", path: "/api/app-lock/status", expectStatus: (s) => s === 200 }
 ];
 
 async function headOrGet(urlPath, json) {
@@ -173,17 +216,27 @@ async function headOrGet(urlPath, json) {
   if (json && res.status === 200) {
     body = await res.json();
   }
-  return { status: res.status, location: res.headers.get("location"), body };
+  return {
+    status: res.status,
+    location: res.headers.get("location"),
+    contentType: res.headers.get("content-type"),
+    body
+  };
 }
 
 async function runLiveChecks() {
   let failed = 0;
   for (const check of liveChecks) {
     try {
-      const { status, location, body } = await headOrGet(check.path, check.json);
+      const { status, location, contentType, body } = await headOrGet(check.path, check.json);
       const ok = check.expectStatus(status);
       if (!ok) {
         console.error(`FAIL ${check.name}: HTTP ${status}${location ? ` → ${location}` : ""}`);
+        failed += 1;
+        continue;
+      }
+      if (check.expectContentType && !check.expectContentType(contentType || "")) {
+        console.error(`FAIL ${check.name}: Content-Type ${contentType}`);
         failed += 1;
         continue;
       }

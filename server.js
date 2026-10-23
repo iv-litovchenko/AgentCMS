@@ -34117,7 +34117,11 @@ function createRequestHandler() {
       }
     }
 
-    const { legacyAppRedirect, rewriteAppPublicPath } = require("./lib/platform/platform-apps");
+    const {
+      legacyAppRedirect,
+      rewriteAppPublicPath,
+      isPublicStaticAssetPath
+    } = require("./lib/platform/platform-apps");
     const legacyTarget = legacyAppRedirect(url.pathname);
     if (legacyTarget) {
       res.writeHead(301, { Location: `${legacyTarget}${url.search}` });
@@ -34172,12 +34176,18 @@ function createRequestHandler() {
     const appRewrite = rewriteAppPublicPath(url.pathname);
     const staticPath = appRewrite || url.pathname;
 
+    if (appRewrite && isPublicStaticAssetPath(url.pathname)) {
+      return serveStatic(staticPath, res, req);
+    }
+
     const isAppChatPublicPath =
-      url.pathname === "/app-chat" ||
-      url.pathname.startsWith("/app-chat/") ||
-      staticPath === "/shell" ||
-      staticPath === "/shell/" ||
-      staticPath.startsWith("/shell/");
+      (url.pathname === "/app-chat" ||
+        url.pathname.startsWith("/app-chat/") ||
+        staticPath === "/shell" ||
+        staticPath === "/shell/" ||
+        staticPath.startsWith("/shell/")) &&
+      !isPublicStaticAssetPath(url.pathname) &&
+      !isPublicStaticAssetPath(staticPath);
     if (isAppChatPublicPath) {
       if (await isPlatformMaintenanceActive()) {
         await serveMaintenanceHtml(res);
