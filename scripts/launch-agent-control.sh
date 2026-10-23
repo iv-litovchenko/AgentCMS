@@ -49,7 +49,7 @@ if [[ ! -d node_modules ]]; then
   fi
   echo "Зависимости ещё не установлены."
   echo ""
-  echo "  Docker (канон): welcome.command"
+  echo "  Docker (канон): docker-start.command"
   echo "  Legacy npm: bash scripts/install-deps.sh"
   if [[ "$(uname -s)" == "Darwin" ]]; then
     read -r -p "Нажмите Enter для выхода..."

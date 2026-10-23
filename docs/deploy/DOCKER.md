@@ -9,7 +9,7 @@
 ## Mac = Docker + браузер (канон)
 
 1. **Docker Desktop** + `.env` в репозитории.
-2. Поднять стек: **`welcome.command`** или `docker compose -f docker-compose.mac.yml up -d --build`.
+2. Поднять стек: **`docker-start.command`** / `npm run docker:start` (первый раз или после кода — **`docker-rebuild.command`** / `npm run docker:rebuild`).
 3. Работать в **Chrome/Safari**: Editor `http://127.0.0.1:3000/`, Control `/app-control/`, chat `/app-chat/`.
 
 **Node на Mac для сервера не ставим** — он уже внутри образов `cms`, `mcp`, `control`.
@@ -37,11 +37,15 @@ npm run docker:down:linux
 
 ## Mac (команды)
 
-```bash
-docker compose -f docker-compose.mac.yml up -d --build
-npm run docker:mac
-npm run docker:down
-```
+| Действие | npm | Двойной клик (Mac) |
+|----------|-----|---------------------|
+| Старт | `npm run docker:start` | `docker-start.command` |
+| Стоп cms/mcp | `npm run docker:stop` | `docker-stop.command` |
+| Рестарт | `npm run docker:restart` | `docker-restart.command` |
+| Пересобрать образы | `npm run docker:rebuild` | `docker-rebuild.command` |
+| Полный down | `npm run docker:down` | — |
+
+`npm run docker:mac` = **`docker:rebuild`** (как раньше, с `--build`).
 
 Снаружи один адрес (`AGENT_CMS_PUBLIC_URL`); порты 3088/3288/3490 — **только внутри** compose.
 
