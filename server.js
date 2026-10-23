@@ -23076,6 +23076,7 @@ async function handleApiForAgent(req, res, url) {
           server: payload.server,
           mcpConnect: payload.mcpConnect,
           setupFlags: payload.setupFlags,
+          deployment: payload.deployment,
           appLock: await resolveOpsAppLockGate(req)
         });
       }
@@ -23179,11 +23180,18 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/ops/env-file") {
     try {
-      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
-      if (denied) return sendJson(res, denied.status, denied.body);
+      const gate = await resolveOpsAppLockGate(req);
       const { readProjectEnvFile } = require("./lib/ops/control-env-file");
       const payload = readProjectEnvFile(getProjectRoot());
       if (!payload.ok) return sendJson(res, 500, payload);
+      if (!gate.canToggleMaintenance) {
+        return sendJson(res, 200, {
+          ...payload,
+          content: "",
+          locked: true,
+          message: "Войдите для редактирования .env. Справа — справочник .env.example."
+        });
+      }
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -34163,6 +34171,21 @@ function createRequestHandler() {
 
     const appRewrite = rewriteAppPublicPath(url.pathname);
     const staticPath = appRewrite || url.pathname;
+
+    const isAppChatPublicPath =
+      url.pathname === "/app-chat" ||
+      url.pathname.startsWith("/app-chat/") ||
+      staticPath === "/shell" ||
+      staticPath === "/shell/" ||
+      staticPath.startsWith("/shell/");
+    if (isAppChatPublicPath) {
+      if (await isPlatformMaintenanceActive()) {
+        await serveMaintenanceHtml(res);
+        return;
+      }
+      await serveVoiceShellHtml(res);
+      return;
+    }
 
     if (isVoiceShellSpaRoute(staticPath)) {
       if (await isPlatformMaintenanceActive()) {

@@ -765,11 +765,18 @@ if (!gotLock) {
 
     ipcMain.handle("control:get-env-file", async () => {
       const gate = resolveControlAppLockGate();
-      if (gate.enabled && !gate.sessionActive) {
-        return { ok: false, error: "app_lock_required" };
-      }
       const { readProjectEnvFile } = requireRepo("lib/ops/control-env-file.js");
-      return readProjectEnvFile(getProjectRoot());
+      const payload = readProjectEnvFile(getProjectRoot());
+      if (!payload.ok) return payload;
+      if (gate.enabled && !gate.sessionActive) {
+        return {
+          ...payload,
+          content: "",
+          locked: true,
+          message: "Войдите для редактирования .env. Справа — справочник .env.example."
+        };
+      }
+      return payload;
     });
 
     ipcMain.handle("control:save-env-file", async (_event, content) => {

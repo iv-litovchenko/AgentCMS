@@ -55,7 +55,8 @@
         server: payload.server,
         mcpConnect: payload.mcpConnect,
         setupFlags: payload.setupFlags,
-        appLock: payload.appLock
+        appLock: payload.appLock,
+        deployment: payload.deployment
       };
     },
 

@@ -794,16 +794,109 @@ body.is-booting {
   max-width: 36em;
 }
 
-.platform-host-chip {
-  flex: 0 1 auto;
+.platform-host-chips {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: min(100%, 420px);
+}
+
+.platform-host-chip {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 11px;
   border-radius: 12px;
   border: 1px solid rgba(20, 184, 166, 0.28);
   background: rgba(8, 16, 32, 0.55);
   min-width: 0;
+  max-width: 210px;
+}
+
+.platform-host-chip--docker {
+  border-color: rgba(36, 150, 237, 0.42);
+  background: linear-gradient(145deg, rgba(10, 24, 48, 0.88), rgba(8, 18, 36, 0.72));
+  box-shadow:
+    0 0 0 1px rgba(36, 150, 237, 0.1) inset,
+    0 8px 24px rgba(36, 150, 237, 0.08);
+}
+
+.platform-host-chip--os {
+  border-color: rgba(20, 184, 166, 0.32);
+  background: linear-gradient(145deg, rgba(8, 22, 28, 0.75), rgba(8, 16, 32, 0.62));
+}
+
+.platform-host-chip-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+.platform-host-chip-icon--docker {
+  background: rgba(36, 150, 237, 0.16);
+  box-shadow: 0 0 0 1px rgba(36, 150, 237, 0.2) inset;
+}
+
+.platform-host-chip-icon--os {
+  background: rgba(20, 184, 166, 0.1);
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.15) inset;
+}
+
+.platform-host-chip-os-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.platform-host-chip-icon-svg {
+  display: block;
+}
+
+.platform-host-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.platform-host-chip--docker .platform-host-chip-label {
+  color: #7dd3fc;
+}
+
+.platform-host-chip--os .platform-host-chip-label {
+  color: #5eead4;
+}
+
+.platform-host-chip-meta {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.platform-host-chip-meta--docker {
+  color: #86efac;
+}
+
+.platform-host-chip-meta--muted {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.platform-host-chip-meta:empty {
+  display: none;
 }
 
 .platform-host-chip-label {
@@ -815,21 +908,21 @@ body.is-booting {
 }
 
 .platform-host-chip strong {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 140px;
 }
 
 .platform-host-chip code {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 140px;
 }
 
 .platform-stage {
@@ -981,10 +1074,56 @@ body.is-booting {
   color: #fcd34d;
 }
 
+.env-file-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 820px) {
+  .env-file-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.env-file-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.env-file-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.env-file-pane-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text);
+}
+
+.env-file-pane-hint {
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.env-file-pane--example .env-file-pane-title {
+  color: color-mix(in srgb, var(--control) 70%, var(--text));
+}
+
 .env-file-editor {
   display: block;
   width: 100%;
   min-height: 220px;
+  flex: 1;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid rgba(120, 140, 180, 0.22);
@@ -1000,6 +1139,17 @@ body.is-booting {
 .env-file-editor:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.env-file-editor--readonly,
+.env-file-editor--readonly:focus {
+  opacity: 0.92;
+  cursor: default;
+  background: rgba(8, 14, 28, 0.42);
+  border-color: rgba(120, 140, 180, 0.14);
+  outline: none;
+  resize: none;
+  user-select: text;
 }
 
 .env-file-editor:focus {
@@ -1307,82 +1457,6 @@ body.is-booting {
   gap: 8px;
 }
 
-.svc-rack-bar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  height: 5px;
-}
-
-.svc-rack-seg {
-  border-radius: 999px;
-  background: rgba(120, 140, 180, 0.22);
-  transition: background 0.25s ease, box-shadow 0.25s ease;
-}
-
-.svc-rack-seg[data-on="1"][data-accent="cms"] {
-  background: var(--cms);
-  box-shadow: 0 0 10px rgba(79, 141, 253, 0.45);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="voice"] {
-  background: var(--voice);
-  box-shadow: 0 0 10px rgba(192, 38, 211, 0.4);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="commander"] {
-  background: var(--commander);
-  box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="control"] {
-  background: var(--control);
-  box-shadow: 0 0 10px rgba(13, 148, 136, 0.45);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="mcp"] {
-  background: var(--mcp);
-  box-shadow: 0 0 10px rgba(129, 140, 248, 0.45);
-}
-
-.svc-rack-seg[data-on="1"] {
-  animation: svc-seg-live 2.6s ease-in-out infinite;
-}
-
-.svc-rack-seg[data-pending="1"] {
-  background: #93c5fd;
-  animation: svc-seg-pending 1.4s ease-in-out infinite;
-}
-
-@keyframes svc-seg-live {
-  0%,
-  100% {
-    opacity: 1;
-    filter: brightness(1);
-  }
-  50% {
-    opacity: 0.82;
-    filter: brightness(1.12);
-  }
-}
-
-@keyframes svc-seg-pending {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.svc-rack-meta {
-  margin: 0;
-  font-size: 0.68rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .svc-rack-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
@@ -1480,18 +1554,8 @@ body.is-booting {
   border-color: rgba(147, 197, 253, 0.35);
 }
 
-.svc-rack-card--link {
-  cursor: pointer;
-}
-
 .svc-rack-card--link:hover {
-  border-color: rgba(147, 197, 253, 0.35);
-  background: rgba(14, 20, 38, 0.95);
-}
-
-.svc-rack-card--link:focus-visible {
-  outline: 2px solid rgba(147, 197, 253, 0.75);
-  outline-offset: 2px;
+  border-color: rgba(147, 197, 253, 0.22);
 }
 
 .svc-rack-head {
@@ -1565,16 +1629,50 @@ body.is-booting {
   overflow: hidden;
 }
 
-.svc-rack-go {
-  flex-shrink: 0;
-  font-size: 0.78rem;
-  line-height: 1;
-  color: var(--muted);
-  opacity: 0.85;
+.svc-rack-copy {
+  margin-top: 4px;
 }
 
-.svc-rack-card--link:hover .svc-rack-go {
+.svc-rack-copy .svc-rack-copy-btn {
+  padding: 4px 6px;
+  font-size: 0.58rem;
+}
+
+.svc-rack-card--link .svc-rack-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.svc-rack-go {
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: var(--muted);
+  background: rgba(120, 140, 180, 0.08);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.svc-rack-go:hover {
   color: #bfdbfe;
+  background: rgba(96, 165, 250, 0.16);
+}
+
+.svc-rack-go:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cms) 55%, transparent);
+  outline-offset: 1px;
 }
 
 .svc-rack-foot {
@@ -3537,7 +3635,13 @@ body.app-lock-active .app {
     gap: 12px 8px;
   }
 
-  .platform-host-chip {
+  .platform-host-chips {
     width: 100%;
+    max-width: none;
+  }
+
+  .platform-host-chip {
+    max-width: none;
+    flex: 1 1 100%;
   }
 }

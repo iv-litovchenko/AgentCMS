@@ -147,16 +147,42 @@
         </div>
         <div class="section-body">
           <p class="env-file-meta" id="env-file-meta"></p>
-          <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты.</p>
-          <textarea
-            class="env-file-editor"
-            id="env-file-editor"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            rows="14"
-            placeholder="# APP_LOCK_LOGIN=&#10;# AGENT_CMS_MCP_TOKEN=&#10;# AGENT_CMS_MCP_ALLOWED_HOSTS=maptex.ru,localhost,127.0.0.1"
-          ></textarea>
+          <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты. Справочник .env.example справа доступен без входа.</p>
+          <div class="env-file-split">
+            <div class="env-file-pane">
+              <div class="env-file-pane-head">
+                <span class="env-file-pane-title">.env</span>
+                <span class="env-file-pane-hint">рабочий файл</span>
+              </div>
+              <textarea
+                class="env-file-editor"
+                id="env-file-editor"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                rows="14"
+                placeholder="# ваши значения — сохранить создаст .env на хосте"
+              ></textarea>
+            </div>
+            <div class="env-file-pane env-file-pane--example">
+              <div class="env-file-pane-head">
+                <span class="env-file-pane-title">.env.example</span>
+                <span class="env-file-pane-hint">только чтение</span>
+              </div>
+              <textarea
+                class="env-file-editor env-file-editor--readonly"
+                id="env-file-example"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                rows="14"
+                readonly
+                tabindex="-1"
+                aria-readonly="true"
+                placeholder="# нет .env.example в репозитории"
+              ></textarea>
+            </div>
+          </div>
           <p class="env-file-status" id="env-file-status" aria-live="polite"></p>
         </div>
       </section>
