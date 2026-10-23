@@ -23,6 +23,8 @@
     "cms:desktop": "electron .",
     "cms:pack": "bash scripts/cms-electron-build.sh pack",
     "cms:dist": "bash scripts/cms-electron-build.sh dist",
+    "cms:electron-build": "bash scripts/cms-electron-build-all.sh pack",
+    "cms:electron-build:dist": "bash scripts/cms-electron-build-all.sh dist",
     "cms:open": "open \"dist/agent-cms/Agent CMS.app\"",
     "shell:desktop": "electron ./desktop/agent-shell",
     "shell:pack": "node scripts/build-desktop-subapp.js agent-shell pack && node scripts/flatten-desktop-dist.js agent-shell",

@@ -1093,7 +1093,8 @@ const APP_LOCK_PASSWORD_KEY = "APP_LOCK_PASSWORD";
 const { parseRootEnvFileContent } = require("./lib/config/agent-cms-ports");
 
 async function readRootEnvFile() {
-  const envPath = path.join(getProjectRoot(), ".env");
+  const { resolveEnvProjectRoot } = require("./lib/ops/control-env-file");
+  const envPath = path.join(resolveEnvProjectRoot(getProjectRoot()), ".env");
   try {
     const content = await fs.readFile(envPath, "utf-8");
     return parseRootEnvFileContent(content);

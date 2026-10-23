@@ -61,11 +61,26 @@ npm run docker:down:linux
 | `/app-control` | Control (Launcher) |
 | `/app-mcp` | MCP HTTP (Cursor + Bearer) |
 
-Mac: с хоста публикуется только **3000** (плюс mount `./public` для UI без rebuild). VPS: **80/443**. Проверка: `npm run check:app-door`. После смены домена/IP — `AGENT_CMS_PUBLIC_URL` в `.env` и restart `cms`.
+Mac/VPS bind-mount (без rebuild для UI/кода):
+
+```
+📦 cms
+├── public/              → Editor, shell, commander
+├── workspaces/
+├── host-project/        → .env
+├── .agent-cms-global/   → списки ws, platform.yml, runtime (было volume)
+├── desktop/agent-control/ → bootstrap/actions
+└── lib/, server.js, control-server.js
+
+🧩 control → desktop/agent-control/ui + lib (Launcher UI)
+🔌 mcp     → mcp-server/ + lib/ (restart контейнера mcp после правок)
+```
+
+**Rebuild образа** — только `package.json`, Dockerfile, native-модули. После смены `.env` — **restart cms** (`env_file` при старте). Проверка: `npm run check:app-door`.
 
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
-Перенос: volumes + `.env` → новый сервер → `linux.yml up`.
+Перенос: **`./workspaces`**, **`./.agent-cms-global`**, `.env` → новый сервер → `linux.yml up`. (Старые Docker volumes `cms-workspaces` / `cms-global` — скопируйте в эти папки на хосте.)
 
 ## Что внутри образа
 

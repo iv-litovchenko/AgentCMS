@@ -193,6 +193,14 @@ function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
 
 const SERVER_POLL_MS = 8000;
 
+const SINGLE_DOOR_PUBLIC_PATHS = {
+  editor: "/",
+  voice: "/app-chat",
+  commander: "/app-commander",
+  control: "/app-control",
+  mcp: "/app-mcp"
+};
+
 const SERVICE_MONITOR_DEFS = [
   {
     id: "editor",
@@ -200,8 +208,9 @@ const SERVICE_MONITOR_DEFS = [
     shortName: "Editor",
     accent: "cms",
     icon: "cms.svg",
-    portKey: "editorHttps",
-    portLabel: "HTTPS"
+    portKey: "editorHttp",
+    portKeyLegacyHttps: "editorHttps",
+    portLabel: "HTTP"
   },
   {
     id: "voice",
@@ -209,8 +218,9 @@ const SERVICE_MONITOR_DEFS = [
     shortName: "Chat",
     accent: "voice",
     icon: "voice.svg",
-    portKey: "voiceHttps",
-    portLabel: "HTTPS"
+    portKey: "voiceHttp",
+    portKeyLegacyHttps: "voiceHttps",
+    portLabel: "HTTP"
   },
   {
     id: "commander",
@@ -237,7 +247,7 @@ const SERVICE_MONITOR_DEFS = [
     accent: "mcp",
     icon: "mcp.svg",
     portKey: "mcpHttp",
-    portLabel: "HTTP"
+    portLabel: "API"
   }
 ];
 
@@ -286,7 +296,7 @@ const ACTION_LABELS = {
   "voice-rebuild": "Собрать",
   "commander-open": "Открыть",
   "commander-rebuild": "Собрать",
-  "control-dist": "Собрать",
+  "cms-electron-build": "Electron",
   "server-autostart-enable": "Автостарт",
   "server-autostart-disable": "Автостарт",
   "server-start-bg": "В фоне",
@@ -302,7 +312,7 @@ const BUILD_DURATION_HINTS = {
   "cms-rebuild": "~1–2 мин",
   "voice-rebuild": "~1 мин",
   "commander-rebuild": "~1 мин",
-  "control-dist": "~1 мин"
+  "cms-electron-build": "~3–5 мин"
 };
 
 function formatActionButtonContent(actionId) {
@@ -639,12 +649,37 @@ function buildPublicAppUrl(publicPath) {
   return `${base}${segment}`;
 }
 
+function usesSingleHttpDoor(server) {
+  if (server?.singleHttpDoor === true) return true;
+  const ports = getPorts();
+  if (ports.singleHttpDoor === true) return true;
+  if (bootstrap?.deployment?.mode === "docker") return true;
+  return false;
+}
+
+function getSingleDoorHostPort(ports) {
+  const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
+  return { host: getClientLinkHost(), port };
+}
+
+function getServiceMonitorBadge(def, server, ports) {
+  if (usesSingleHttpDoor(server)) {
+    const path = SINGLE_DOOR_PUBLIC_PATHS[def.id] || "/";
+    return path === "/" ? "/" : path;
+  }
+  const key = def.portKeyLegacyHttps && !preferHttpServiceLinks() ? def.portKeyLegacyHttps : def.portKey;
+  const port = ports[key] ?? ports[def.portKey];
+  return port != null ? `:${port}` : "—";
+}
+
 function getServiceMonitorOpenUrl(def, server, ports) {
   const urls = server?.urls || {};
-  const host = getClientLinkHost();
   const httpFirst = preferHttpServiceLinks();
+  const singleDoor = usesSingleHttpDoor(server);
 
   if (def.id === "editor") {
+    const door = buildPublicAppUrl("/");
+    if (singleDoor && door) return door.endsWith("/") ? door : `${door}/`;
     if (httpFirst && server?.cms && ports.editorHttp) {
       return buildServiceUrl("http", ports.editorHttp, "/");
     }
@@ -677,8 +712,10 @@ function getServiceMonitorOpenUrl(def, server, ports) {
     return ports.commanderHttp ? buildServiceUrl("http", ports.commanderHttp, "/") : "";
   }
   if (def.id === "control") {
+    const door = buildPublicAppUrl("/app-control/");
+    if (singleDoor && door) return door;
     if (isWebLauncher()) {
-      return `${window.location.origin}/`;
+      return buildPublicAppUrl("/app-control/") || `${window.location.origin}/app-control/`;
     }
     if (urls.controlHttp) return rewriteUrlHostForClient(urls.controlHttp);
     if (server?.controlHttp && ports.controlHttp) {
@@ -703,8 +740,61 @@ function getServiceMonitorOpenUrl(def, server, ports) {
 }
 
 function getServiceMonitorRowState(def, server, ports) {
+  const singleDoor = usesSingleHttpDoor(server);
   const port = ports[def.portKey];
   const portText = port != null ? String(port) : "—";
+  const hostPort = getSingleDoorHostPort(ports);
+  const doorDetail = `${hostPort.host}:${hostPort.port}`;
+
+  if (singleDoor) {
+    if (def.id === "mcp") {
+      const httpUp = Boolean(server?.mcpHttp);
+      const pingOk = mcpOk === true;
+      const pingFail = mcpOk === false;
+      const detailArgs = { pingOk, httpUp, portText, singleDoor: true, hostPort };
+      if (server?.cms && mcpOk === null) {
+        return {
+          state: "pending",
+          label: "Проверка…",
+          detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText, singleDoor: true, hostPort }),
+          protocol: def.portLabel
+        };
+      }
+      if (pingOk || (httpUp && server?.cms)) {
+        return { state: "on", label: "В сети", detail: formatMcpMonitorDetail(detailArgs), protocol: def.portLabel };
+      }
+      if (server?.cms && pingFail) {
+        return {
+          state: "off",
+          label: "Не отвечает",
+          detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText, singleDoor: true, hostPort }),
+          protocol: def.portLabel
+        };
+      }
+      return { state: "off", label: "Не запущен", detail: "CMS offline", protocol: def.portLabel };
+    }
+
+    const viaCms =
+      def.id === "editor"
+        ? Boolean(server?.cms)
+        : def.id === "voice"
+          ? Boolean(server?.voice || server?.cms)
+          : def.id === "commander"
+            ? Boolean(server?.commander || server?.cms)
+            : def.id === "control"
+              ? Boolean(server?.controlHttp || server?.cms)
+              : false;
+
+    if (viaCms) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: doorDetail,
+        protocol: preferHttpServiceLinks() ? "HTTP" : def.portLabel
+      };
+    }
+    return { state: "off", label: "Не запущен", detail: "CMS offline", protocol: def.portLabel };
+  }
 
   if (def.id === "control") {
     const dedicated = Boolean(server?.controlHttp);
@@ -713,7 +803,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "on",
         label: "В сети",
         detail: "HTTP localhost",
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -721,18 +810,11 @@ function getServiceMonitorRowState(def, server, ports) {
       return {
         state: "on",
         label: "Через Editor",
-        detail: `/control/ · :${ports.editorHttps}`,
-        port: portText,
+        detail: `/control/ · :${ports.editorHttps ?? portText}`,
         protocol: def.portLabel
       };
     }
-    return {
-      state: "off",
-      label: "Не запущен",
-      detail: "порт свободен",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "off", label: "Не запущен", detail: "порт свободен", protocol: def.portLabel };
   }
 
   if (def.id === "mcp") {
@@ -744,7 +826,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "pending",
         label: "Проверка…",
         detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -753,7 +834,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "on",
         label: "В сети",
         detail: formatMcpMonitorDetail({ pingOk, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -762,53 +842,39 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "off",
         label: "Не отвечает",
         detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
-    return {
-      state: "off",
-      label: "Не запущен",
-      detail: "нужен запущенный сервер",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "off", label: "Не запущен", detail: "нужен запущенный сервер", protocol: def.portLabel };
   }
 
   const flag = def.id === "editor" ? "cms" : def.id === "voice" ? "voice" : "commander";
   const listening = Boolean(server?.[flag]);
   if (listening) {
-    return {
-      state: "on",
-      label: "В сети",
-      detail: "localhost",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "on", label: "В сети", detail: "localhost", protocol: def.portLabel };
   }
   if (def.id === "commander" && server?.cms) {
     return {
       state: "on",
       label: "Через Editor",
-      detail: `/app-commander/ · :${ports.editorHttps}`,
-      port: portText,
+      detail: `/app-commander/ · :${ports.editorHttps ?? portText}`,
       protocol: def.portLabel
     };
   }
-  return {
-    state: "off",
-    label: "Не запущен",
-    detail: "порт свободен",
-    port: portText,
-    protocol: def.portLabel
-  };
+  return { state: "off", label: "Не запущен", detail: "порт свободен", protocol: def.portLabel };
 }
 
-function formatMcpMonitorDetail({ pingOk, httpUp, portText }) {
+function formatMcpMonitorDetail({ pingOk, httpUp, portText, singleDoor, hostPort }) {
   const parts = [];
-  if (pingOk === true) parts.push("API OK");
-  else if (pingOk === false) parts.push("API нет");
-  else if (pingOk === null) parts.push("API …");
+  if (pingOk === true) parts.push("ping OK");
+  else if (pingOk === false) parts.push("ping нет");
+  else if (pingOk === null) parts.push("ping …");
+  if (singleDoor) {
+    parts.push(SINGLE_DOOR_PUBLIC_PATHS.mcp);
+    if (hostPort) parts.push(`${hostPort.host}:${hostPort.port}`);
+    parts.push("Bearer");
+    return parts.join(" · ");
+  }
   if (httpUp) parts.push(`HTTP :${portText}`);
   return parts.join(" · ") || `HTTP :${portText}`;
 }
@@ -836,6 +902,7 @@ function renderServiceMonitorRackCard(def, server, ports) {
   const row = getServiceMonitorRowState(def, server, ports);
   const openUrl = getServiceMonitorOpenUrl(def, server, ports);
   const canOpen = row.state === "on" && Boolean(openUrl);
+  const badge = getServiceMonitorBadge(def, server, ports);
   const subline = row.detail ? `${row.protocol} · ${row.detail}` : row.protocol;
   const openAttr = canOpen ? ` data-svc-open="${escapeAttr(openUrl)}"` : "";
   const interactive = canOpen ? ` tabindex="0" role="link" aria-label="Открыть ${escapeAttr(def.shortName)}"` : "";
@@ -853,7 +920,7 @@ function renderServiceMonitorRackCard(def, server, ports) {
         <img class="svc-rack-icon" src="assets/${def.icon}" alt="" width="28" height="28" />
         <div class="svc-rack-head-text">
           <strong class="svc-rack-name">${def.shortName}</strong>
-          <code class="svc-rack-port">:${row.port}</code>
+          <code class="svc-rack-port">${escapeAttr(badge)}</code>
         </div>
         ${canOpen ? `<span class="svc-rack-go" aria-hidden="true">↗</span>` : ""}
       </div>
@@ -894,8 +961,8 @@ function renderServicesMonitor() {
       <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
-        <summary>Launcher · Mac и Linux</summary>
-        <p>Браузер: Mac — <code>welcome.command</code> (Docker), Linux/VPS — <code>https://домен/app-control/</code>. Одна HTTP-дверь: Editor <code>/</code>, Chat <code>/app-chat</code>, MCP <code>/app-mcp</code>. Legacy: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code> или Electron.</p>
+        <summary>Одна дверь (app-*)</summary>
+        <p>Снаружи один host:port (<code>AGENT_CMS_PUBLIC_URL</code>). UI: <code>/</code>, <code>/app-chat</code>, <code>/app-commander</code>, <code>/app-control</code>; агенты: <code>/app-mcp</code> + Bearer. Legacy dev: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code> — снова отдельные порты 3088/3188/3288/3490.</p>
       </details>
     </div>
   `;
@@ -1426,13 +1493,23 @@ function startServerPoll() {
   serverPollTimer = window.setInterval(pollServerStatus, SERVER_POLL_MS);
 }
 
-function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
+function actionButton(
+  actionId,
+  tone = "default",
+  extraClass = "",
+  disabled = false,
+  labelOverride = "",
+  titleOverride = ""
+) {
   const label = labelOverride || formatActionButtonContent(actionId);
   const disabledAttr = disabled ? " disabled" : "";
   const durationClass = BUILD_DURATION_HINTS[actionId] ? " has-duration" : "";
-  const titleAttr = BUILD_DURATION_HINTS[actionId]
-    ? ` title="Примерное время сборки: ${BUILD_DURATION_HINTS[actionId]}. Прогресс — в журнале внизу."`
-    : "";
+  let titleAttr = "";
+  if (titleOverride) {
+    titleAttr = ` title="${escapeAttr(titleOverride)}"`;
+  } else if (BUILD_DURATION_HINTS[actionId]) {
+    titleAttr = ` title="Примерное время сборки: ${BUILD_DURATION_HINTS[actionId]}. Прогресс — в журнале внизу."`;
+  }
   return `<button type="button" class="run-btn ${extraClass}${durationClass}" data-tone="${tone}" data-action="${actionId}"${titleAttr}${disabledAttr}>${label}</button>`;
 }
 
@@ -1585,13 +1662,14 @@ function actionCard(actionId, title, hint, tone = "default", disabled = false, w
 function getPorts() {
   return (
     bootstrap?.serverPorts || {
-      editorHttps: 3443,
+      singleHttpDoor: true,
+      editorHttps: 3000,
       editorHttp: 3000,
-      voiceHttps: 3488,
-      voiceHttp: 3088,
-      commanderHttp: 3188,
-      controlHttp: 3288,
-      mcpHttp: 3490
+      voiceHttps: 3000,
+      voiceHttp: 3000,
+      commanderHttp: 3000,
+      controlHttp: 3000,
+      mcpHttp: 3000
     }
   );
 }
@@ -1679,18 +1757,27 @@ function renderGuideStepSetup() {
   const ids = bootstrap?.setupActionIds || [];
   const actions = (bootstrap?.actions || []).filter((entry) => ids.includes(entry.id));
 
+  const dockerSetupSkip = isDockerDeployment();
   const cards = actions
     .map((action) => {
       const shortcutsOnly =
         action.id === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported();
-      const hint = shortcutsOnly
-        ? "Только macOS и Windows — на Linux/VPS не нужно."
-        : action.description || "";
+      const dockerNativeOnly =
+        dockerSetupSkip && (action.id === "install-deps" || action.id === "setup-certs");
+      let hint = action.description || "";
+      if (shortcutsOnly) {
+        hint = "Только macOS и Windows — на Linux/VPS не нужно.";
+      } else if (dockerNativeOnly) {
+        hint =
+          action.id === "install-deps"
+            ? "В Docker не нужно: зависимости уже в образе. Канон — браузер на :3000 (VPS — Caddy 443)."
+            : "В Docker не нужно: dev-сертификаты для legacy npm start. Mac/VPS — HTTP или Caddy HTTPS.";
+      }
       return setupButton(
         action.id,
         SETUP_SHORT_TITLES[action.id] || action.title,
         hint,
-        shortcutsOnly
+        shortcutsOnly || dockerNativeOnly
       );
     })
     .join("");
@@ -1701,7 +1788,11 @@ function renderGuideStepSetup() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>Установка</h3>
-          <p>Один раз: зависимости проекта и HTTPS-сертификаты для localhost</p>
+          <p>${
+            isDockerDeployment()
+              ? "Docker: шаги ниже для legacy npm start на Mac — в compose уже не актуальны."
+              : "Один раз: зависимости проекта и HTTPS-сертификаты для localhost"
+          }</p>
         </div>
         <div class="setup-btn-grid">
           ${cards}
@@ -2305,10 +2396,22 @@ function renderControlOpenUrl() {
 function renderControlCard(control) {
   if (!control) return "";
 
+  const electronBuildDisabled = isWebLauncher() && isDockerDeployment();
+  const buildTitle = electronBuildDisabled
+    ? "Сборка .app только на Mac в Terminal: npm run cms:electron-build (Node на хосте, не в Docker)"
+    : undefined;
+
   return launchTile(
     control,
     `${renderControlOpenUrl()}
-     ${actionButton(control.distActionId, "default", "compact-btn")}`
+     ${actionButton(
+       control.distActionId,
+       "default",
+       "compact-btn",
+       electronBuildDisabled,
+       electronBuildDisabled ? "Electron" : "",
+       buildTitle
+     )}`
   );
 }
 
@@ -2330,7 +2433,10 @@ function renderAppsSection() {
   section.dataset.section = "apps";
 
   section.innerHTML = `
-    ${renderSectionCap("Приложения", "Desktop-приложения проекта — открыть или пересобрать")}
+    ${renderSectionCap(
+      "Electron · Mac (опционально)",
+      "Сервер — Docker + браузер (app-*). Здесь — .app-клиенты: «Открыть» / пересобрать по одному; на Control — «Electron» = npm run cms:electron-build (все четыре .app на хосте)."
+    )}
     <div class="section-body">
       <div class="launchpad-grid">
         ${products.map(renderAppCard).join("")}
@@ -2466,20 +2572,34 @@ function bindAppLockGate() {
       if (loginResult && loginResult.ok === false) {
         throw new Error(loginResult.error || "Неверный логин или пароль");
       }
+      bootstrap.appLock = {
+        ...(bootstrap.appLock || {}),
+        enabled: true,
+        sessionActive: true,
+        canToggleMaintenance: true
+      };
+      syncAppLockScreen();
       if (window.agentControl.getBootstrap) {
-        bootstrap = await window.agentControl.getBootstrap();
+        let merged = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, 100));
+          }
+          merged = await window.agentControl.getBootstrap();
+          bootstrap = merged;
+          if (!needsAppLockLogin()) break;
+        }
         if (needsAppLockLogin()) {
+          bootstrap.appLock = {
+            ...(bootstrap.appLock || {}),
+            sessionActive: false,
+            canToggleMaintenance: false
+          };
+          syncAppLockScreen();
           throw new Error(
             "Пароль принят, но сессия не сохранилась. Открывайте Control по тому же адресу (http/https), без смешения IP и домена; отключите блокировку cookies для этого сайта."
           );
         }
-      } else {
-        bootstrap.appLock = {
-          ...(bootstrap.appLock || {}),
-          enabled: true,
-          sessionActive: true,
-          canToggleMaintenance: true
-        };
       }
       appendLog("Вход выполнен.\n");
       syncAppLockScreen();
@@ -2677,7 +2797,7 @@ const ACTION_CARD_BUSY = {
   "cms-rebuild": "Сборка…",
   "commander-rebuild": "Сборка…",
   "voice-rebuild": "Сборка…",
-  "control-dist": "Сборка…",
+  "cms-electron-build": "Electron…",
   "server-autostart-enable": "Автостарт…",
   "server-autostart-disable": "Выключение…",
   "server-start-bg": "Запуск…",
@@ -2837,6 +2957,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.appLock) bootstrap.appLock = data.appLock;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
+    syncAppLockScreen();
     syncAppLockLogoutButton();
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();

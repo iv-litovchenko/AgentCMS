@@ -39,9 +39,16 @@ services:
       AGENT_CMS_SINGLE_HTTP_DOOR: "1"
       AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-}"
       AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
+      AGENT_CMS_HOST_PROJECT: "/host-project"
     volumes:
-      - cms-workspaces:/app/workspaces
-      - cms-global:/app/.agent-cms-global
+      - ./workspaces:/app/workspaces
+      - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
+      - ./.agent-cms-global:/app/.agent-cms-global
+      - ./public:/app/public:ro
+      - ./desktop/agent-control:/app/desktop/agent-control:ro
+      - ./lib:/app/lib:ro
+      - ./server.js:/app/server.js:ro
+      - ./control-server.js:/app/control-server.js:ro
     healthcheck:
       test:
         [
@@ -69,6 +76,11 @@ services:
       AGENT_CMS_MCP_BEHIND_PROXY: "1"
       AGENT_CMS_BASE_URL: "http://cms:3000"
       AGENT_CMS_MCP_TOKEN: "${AGENT_CMS_MCP_TOKEN:-}"
+    volumes:
+      - ./workspaces:/app/workspaces:ro
+      - ./.agent-cms-global:/app/.agent-cms-global
+      - ./mcp-server:/app/mcp-server:ro
+      - ./lib:/app/lib:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:3490/health"]
       interval: 15s
@@ -106,6 +118,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-compose.linux.yml:/app/docker-compose.linux.yml:ro
       - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
+      - ./desktop/agent-control:/app/desktop/agent-control:ro
+      - ./lib:/app/lib:ro
+      - ./control-server.js:/app/control-server.js:ro
 
   caddy:
     image: caddy:2-alpine
@@ -129,7 +144,5 @@ services:
         condition: service_healthy
 
 volumes:
-  cms-workspaces:
-  cms-global:
   caddy-data:
   caddy-config:

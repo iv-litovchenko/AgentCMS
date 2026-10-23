@@ -1524,9 +1524,13 @@ body.is-booting {
 }
 
 .svc-rack-port {
-  font: 0.72rem/1 ui-monospace, Menlo, monospace;
+  font: 0.68rem/1.15 ui-monospace, Menlo, monospace;
   font-weight: 700;
   color: var(--muted);
+  max-width: 7.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .svc-rack-card[data-accent="cms"] .svc-rack-port {
