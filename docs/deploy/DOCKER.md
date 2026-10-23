@@ -9,7 +9,7 @@
 ## Mac = Docker + браузер (канон)
 
 1. **Docker Desktop** + `.env` в репозитории.
-2. Поднять стек: **`docker-start.command`** / `npm run docker:start` (первый раз или после кода — **`docker-rebuild.command`** / `npm run docker:rebuild`).
+2. Поднять стек: **`cms-start.command`** / `npm run cms:start` (первый раз или после кода — **`cms-rebuild.command`** / `npm run cms:rebuild`).
 3. Работать в **Chrome/Safari**: Editor `http://127.0.0.1:3000/`, Control `/app-control/`, chat `/app-chat/`.
 
 **Node на Mac для сервера не ставим** — он уже внутри образов `cms`, `mcp`, `control`.
@@ -37,15 +37,17 @@ npm run docker:down:linux
 
 ## Mac (команды)
 
-| Действие | npm | Двойной клик (Mac) |
-|----------|-----|---------------------|
-| Старт | `npm run docker:start` | `docker-start.command` |
-| Стоп cms/mcp | `npm run docker:stop` | `docker-stop.command` |
-| Рестарт | `npm run docker:restart` | `docker-restart.command` |
-| Пересобрать образы | `npm run docker:rebuild` | `docker-rebuild.command` |
-| Полный down | `npm run docker:down` | — |
+Префикс **`cms-`** — короткие имена (≤12 символов до `.command`).
 
-`npm run docker:mac` = **`docker:rebuild`** (как раньше, с `--build`).
+| Действие | npm (канон) | Mac |
+|----------|-------------|-----|
+| Старт | `npm run cms:start` | `cms-start.command` |
+| Стоп | `npm run cms:stop` | `cms-stop.command` |
+| Рестарт | `npm run cms:restart` | `cms-restart.command` |
+| Rebuild | `npm run cms:rebuild` | `cms-rebuild.command` |
+| Down | `npm run docker:down` | — |
+
+Алиасы: `docker:start` … = `cms:*`. `docker:mac` = **`cms:rebuild`**.
 
 Снаружи один адрес (`AGENT_CMS_PUBLIC_URL`); порты 3088/3288/3490 — **только внутри** compose.
 

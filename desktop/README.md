@@ -10,7 +10,7 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run commander:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run commander:open` | `npm run control:open` |
 
-Старт сервера: **`docker-start.command`** (Mac Docker). Конфиг — **`.env` в git**. Electron `.app` — клиент по URL; legacy npm: `scripts/install-deps.sh`.
+Старт сервера: **`cms-start.command`** (Mac Docker). Конфиг — **`.env` в git**. Electron `.app` — клиент по URL; legacy npm: `scripts/install-deps.sh`.
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control):
 - `ACMS-Control.app` → `dist/agent-control/`

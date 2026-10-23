@@ -34,6 +34,6 @@ echo "→ .env на месте (редактируйте в репо при см
 
 if [[ "${AGENT_CMS_SETUP_FROM_WELCOME:-}" != "1" ]]; then
   echo ""
-  echo "  Дальше: docker-start.command или npm run docker:start"
+  echo "  Дальше: cms-start.command или npm run cms:start"
   echo ""
 fi

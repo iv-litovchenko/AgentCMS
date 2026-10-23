@@ -261,7 +261,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 > 🇬🇧 **[en]**
 >
-> macOS: **Docker Desktop**, **`docker-start.command`**. Config: **`.env` in the repo**. VPS: one install block below, [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only.
+> macOS: **Docker Desktop**, **`cms-start.command`**. Config: **`.env` in the repo**. VPS: one install block below, [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only.
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -279,20 +279,20 @@ git clone https://github.com/iv-litovchenko/AgentCMS.git
 cd AgentCMS
 docker compose version
 
-# 2) Mac: docker-start.command (up) · docker-rebuild.command (первый раз / после server.js)
-# ./docker-start.command
+# 2) Mac: cms-start.command (up) · cms-rebuild.command (первый раз / после server.js)
+# ./cms-start.command
 
 docker compose -f docker-compose.mac.yml up -d --build
 # npm run docker:mac · npm run docker:down
 # Control: http://127.0.0.1:3000/app-control/ · Editor: тот же хост (AGENT_CMS_PUBLIC_URL)
-# Первый rebuild часто 10–30+ мин. Legacy npm: AGENT_CMS_WELCOME_LEGACY=1 docker-start.command
+# Первый rebuild часто 10–30+ мин. Legacy npm: AGENT_CMS_WELCOME_LEGACY=1 cms-start.command
 ```
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> [Docker Desktop](https://www.docker.com/products/docker-desktop/) → clone → **`docker-rebuild.command`** then **`docker-start.command`**. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+> [Docker Desktop](https://www.docker.com/products/docker-desktop/) → clone → **`cms-rebuild.command`** then **`cms-start.command`**. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ## 🇷🇺 Установка — Ubuntu VPS / сервер (🇬🇧 Install — Ubuntu VPS / server)
 
