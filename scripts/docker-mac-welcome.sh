@@ -47,9 +47,9 @@ read_env_var() {
 }
 
 PUBLIC_URL="$(read_env_var AGENT_CMS_PUBLIC_URL "http://127.0.0.1:3000")"
-CONTROL_PORT="$(read_env_var AGENT_CMS_CONTROL_HTTP_PORT "3288")"
-CONTROL_URL="http://127.0.0.1:${CONTROL_PORT}/"
-EDITOR_URL="${PUBLIC_URL%/}/"
+PUBLIC_BASE="${PUBLIC_URL%/}"
+CONTROL_URL="${PUBLIC_BASE}/app-control/"
+EDITOR_URL="${PUBLIC_BASE}/"
 
 open_url() {
   local url="$1"

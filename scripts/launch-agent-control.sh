@@ -49,10 +49,8 @@ if [[ ! -d node_modules ]]; then
   fi
   echo "Зависимости ещё не установлены."
   echo ""
-  echo "  1. Двойной клик: install.command  (в корне проекта)"
-  echo "  2. Затем снова: welcome.command"
-  echo ""
-  echo "  Или в Terminal: bash scripts/install-deps.sh"
+  echo "  Docker (канон): welcome.command"
+  echo "  Legacy npm: bash scripts/install-deps.sh"
   if [[ "$(uname -s)" == "Darwin" ]]; then
     read -r -p "Нажмите Enter для выхода..."
   fi

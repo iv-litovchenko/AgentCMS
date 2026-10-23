@@ -24,7 +24,7 @@ npm run docker:down:linux
 
 ## Mac
 
-Сервер **только Docker**. **`install.command`** (Docker + проверка **`.env`**); **`welcome.command`** → `up -d --build` + браузер Control.
+Сервер **только Docker**. **`welcome.command`** — проверка Docker/`.env`, `up -d --build`, браузер Control.
 
 ```bash
 docker compose -f docker-compose.mac.yml up -d --build

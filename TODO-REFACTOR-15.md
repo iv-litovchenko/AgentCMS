@@ -108,14 +108,14 @@ MCP со списком приложений: что где работает, п
 - Как будет работать **Electron**, если каждое приложение…?
 - Всё через Docker, **не** ставить Node на хост «вручную».
 - В образ: git, Python, что ещё — полный список.
-- Mac Docker — **`welcome.command` / `install.command`** → `scripts/docker-mac-*.sh`; README/DOCKER.md обновлены.
+- Mac Docker — **`welcome.command`** → `docker-mac-welcome.sh` + `docker-mac-setup.sh`; README/DOCKER.md; **`install.command` удалён**.
 - Подняли / опустили Docker.
 - Кнопки **старт / стоп / рестарт** в Control — что делают после перехода на Docker?
 
 > **NOTE**
 > - ✅ **Prod/VPS:** только `docker-compose.linux.yml` (+ `.env` на хосте).
 > - 🍎 **Electron (Mac):** **вне** Docker — нативные `.app` (Editor/Control/Shell); они ходят на **URL** (localhost или VPS). В Docker — **серверная** часть, не замена Electron.
-> - ✅ **Mac server:** только **`docker-compose.mac.yml`** (как VPS). `install.command` / `npm start` — legacy, не канон.
+> - ✅ **Mac server:** только **`docker-compose.mac.yml`** (как VPS). `npm start` / legacy welcome — dev, не канон.
 > - 📦 **Уже в Dockerfile:** Node 22, bash, curl, git, ffmpeg, python3, build-essential, **Docker CLI** (Control → restart cms). **Git** уже есть.
 > - 💡 Опционально в образ: `openssh-client` — только если Control делает `git pull` по SSH.
 > - 🎛️ **Кнопки Control:** при `AGENT_CMS_DOCKER_OPS=1` → `docker compose restart/start/stop cms` (уже так). Переименовать в UI: «Контейнер CMS», не «npm start».

@@ -34067,6 +34067,18 @@ function createRequestHandler() {
       return;
     }
 
+    if (url.pathname === "/app-control") {
+      const dest = url.search ? `/app-control/${url.search}` : "/app-control/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+    if (url.pathname.startsWith("/app-control/")) {
+      const { proxyAppControlRequest } = require("./lib/http/app-control-proxy");
+      proxyAppControlRequest(req, res, url);
+      return;
+    }
+
     if (url.pathname === "/app-mcp" || url.pathname.startsWith("/app-mcp/")) {
       const { proxyAppMcpRequest } = require("./lib/http/app-mcp-proxy");
       proxyAppMcpRequest(req, res, url);

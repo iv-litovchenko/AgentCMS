@@ -231,7 +231,6 @@ install_entity_gliner_python
 echo ""
 echo "Готово. Дальше:"
 echo "  welcome.command    — Docker compose up + Control в браузере (канон Mac)"
-echo "  install.command    — проверка Docker + .env в репо"
 echo "  (этот скрипт — legacy npm/ci для разработки образа)"
 echo "  commands/          — отдельные ярлыки команд"
 
