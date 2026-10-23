@@ -486,6 +486,7 @@ function getServerStatusDisplay(server) {
   }
 
   if (server.running) {
+    if (server.mode === "docker") return { state: "on", label: "Контейнер CMS" };
     const label = server.mode === "background" ? "Запущен (фон)" : "Запущен";
     return { state: "on", label };
   }
@@ -550,6 +551,35 @@ function getDiskStatState() {
 /** Electron на Mac — localhost; Launcher в браузере (VPS/LAN) — хост из адресной строки. */
 function isWebLauncher() {
   return document.documentElement.dataset.controlLauncher === "web";
+}
+
+function isDockerDeployment() {
+  return bootstrap?.deployment?.mode === "docker";
+}
+
+function getServerBtnTitle(actionId) {
+  if (!isDockerDeployment()) return SERVER_BTN_TITLES[actionId] || "Запуск";
+  const dockerTitles = {
+    "server-start-bg": "Старт CMS",
+    "server-start-attached": "Старт CMS",
+    "server-stop": "Стоп CMS",
+    "server-restart": "Рестарт CMS"
+  };
+  return dockerTitles[actionId] || SERVER_BTN_TITLES[actionId] || "Запуск";
+}
+
+function getServerBtnHint(actionId, hintOverride) {
+  if (hintOverride != null) return hintOverride;
+  if (isDockerDeployment()) {
+    const up = (bootstrap?.deployment?.upServices || ["cms", "mcp"]).join(", ");
+    const dockerHints = {
+      "server-start-bg": `docker compose up -d ${up}`,
+      "server-stop": "Control-контейнер остаётся",
+      "server-restart": `docker compose restart ${up}`
+    };
+    return dockerHints[actionId] ?? SERVER_BTN_HINTS[actionId] ?? "";
+  }
+  return SERVER_BTN_HINTS[actionId] ?? "";
 }
 
 function getClientLinkHost() {
@@ -1431,8 +1461,8 @@ const SERVER_RESTART_ICON = `
 
 function serverButton(actionId, tone, disabled = false, hintOverride) {
   const disabledAttr = disabled ? " disabled" : "";
-  const title = SERVER_BTN_TITLES[actionId] || "Запуск";
-  const hint = hintOverride ?? SERVER_BTN_HINTS[actionId] ?? "";
+  const title = getServerBtnTitle(actionId);
+  const hint = getServerBtnHint(actionId, hintOverride);
   const icon =
     tone === "stop" ? SERVER_STOP_ICON : tone === "restart" ? SERVER_RESTART_ICON : SERVER_PLAY_ICON;
   const iconClass =
@@ -1442,7 +1472,9 @@ function serverButton(actionId, tone, disabled = false, hintOverride) {
         ? "server-deck-icon--restart"
         : "server-deck-icon--play";
   const badge =
-    tone === "start-bg"
+    tone === "start-bg" && isDockerDeployment()
+      ? `<span class="server-deck-badge">docker</span>`
+      : tone === "start-bg"
       ? `<span class="server-deck-badge">фон</span>`
       : tone === "autostart-on"
         ? `<span class="server-deck-badge">вкл</span>`
@@ -1763,23 +1795,30 @@ function renderGuideStepServer() {
   const maintenanceDisabled = maintenanceModeBusy;
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
   const autoStart = server?.autoStart;
-  const autostartSupported = autoStart?.supported !== false && !isWebLauncher();
+  const autostartSupported =
+    autoStart?.supported !== false && !isWebLauncher() && !isDockerDeployment();
   const autostartOn = Boolean(autoStart?.enabled);
   const autostartActionId = autostartOn ? "server-autostart-disable" : "server-autostart-enable";
   const autostartTone = autostartOn ? "autostart-on" : "autostart";
   const autostartButton = autostartSupported
     ? serverButton(autostartActionId, autostartTone, false)
     : "";
-  const startBgHint = isWebLauncher()
-    ? "Фоновый start-direct (npm start)"
-    : SERVER_BTN_HINTS["server-start-bg"];
-  const startAttachedHint = isWebLauncher()
-    ? "Тот же запуск, пока вкладка открыта"
-    : SERVER_BTN_HINTS["server-start-attached"];
+  const startBgHint = isDockerDeployment()
+    ? null
+    : isWebLauncher()
+      ? "Фоновый start-direct (npm start)"
+      : SERVER_BTN_HINTS["server-start-bg"];
+  const startAttachedHint = isDockerDeployment()
+    ? null
+    : isWebLauncher()
+      ? "Тот же запуск, пока вкладка открыта"
+      : SERVER_BTN_HINTS["server-start-attached"];
   const deckButtons = [
     autostartButton,
     serverButton("server-start-bg", "start-bg", isRunning || opsLocked, startBgHint),
-    serverButton("server-start-attached", "start", isRunning || opsLocked, startAttachedHint),
+    isDockerDeployment()
+      ? ""
+      : serverButton("server-start-attached", "start", isRunning || opsLocked, startAttachedHint),
     serverButton("server-stop", "stop", !isRunning || opsLocked),
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
@@ -1787,10 +1826,15 @@ function renderGuideStepServer() {
   ].filter(Boolean);
   const deckCount = deckButtons.length;
   const deckSizeClass = deckCount >= 5 ? " server-deck--5" : "";
+  const serverDeckAria = isDockerDeployment() ? "Управление контейнером CMS" : "Управление сервером";
+  const dockerDeployNote = isDockerDeployment()
+    ? `<p class="server-docker-note">${escapePlatformText(bootstrap?.deployment?.electronNote || "")}</p>`
+    : "";
 
   const controlBlock = `
     <div class="server-controls">
-      <div class="server-deck${deckSizeClass}" role="group" aria-label="Управление сервером">
+      ${dockerDeployNote}
+      <div class="server-deck${deckSizeClass}" role="group" aria-label="${escapeAttr(serverDeckAria)}">
         ${deckButtons.join("")}
       </div>
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
@@ -1816,7 +1860,11 @@ function renderGuideStepServer() {
             Сервер
             <span id="server-status-inline"></span>
           </h3>
-          <p>Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome</p>
+          <p>${
+            isDockerDeployment()
+              ? "Стек в Docker: кнопки ниже управляют контейнерами cms/mcp через docker compose (Control и Caddy не трогаем)."
+              : `Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome`
+          }</p>
         </div>
         ${controlBlock}
         ${renderMobileVoiceBlock()}

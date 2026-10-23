@@ -33,8 +33,8 @@ docker compose -f "${COMPOSE_FILE}" ps
 echo ""
 if [[ "$AGENT_CMS_PUBLIC_DOMAIN" != "localhost" ]]; then
   echo "Editor:  https://${AGENT_CMS_PUBLIC_DOMAIN}/"
-  echo "Control: https://${AGENT_CMS_PUBLIC_DOMAIN}/control/"
-  echo "MCP:     https://${AGENT_CMS_PUBLIC_DOMAIN}/mcp  (Bearer AGENT_CMS_MCP_TOKEN)"
+  echo "Control: https://${AGENT_CMS_PUBLIC_DOMAIN}/app-control"
+  echo "MCP:     https://${AGENT_CMS_PUBLIC_DOMAIN}/app-mcp  (Bearer AGENT_CMS_MCP_TOKEN)"
 else
   echo "Editor:  http://127.0.0.1/  (Caddy :80, AGENT_CMS_PUBLIC_DOMAIN=localhost)"
   echo "MCP:     http://127.0.0.1/mcp"

@@ -103,6 +103,8 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 2 — Docker как база
 
+**Статус (код):** образ (git, python3, ffmpeg, jq, rsync, openssh-client, Docker CLI); Control при `AGENT_CMS_DOCKER_OPS=1` — `up/stop/restart` через `lib/ops/docker-compose-ops.js`; probe по `CMS_API_URL` / MCP health; bootstrap `deployment`; UI «Старт/Стоп/Рестарт CMS» + подсказки compose; `docs/deploy/DOCKER.md`; скрипты `docker-prod-up.sh`, `docker-linux-down.sh`, `docker-mac-down.sh`.
+
 - Как будет работать **Electron**, если каждое приложение…?
 - Всё через Docker, **не** ставить Node на хост «вручную».
 - В образ: git, Python, что ещё — полный список.

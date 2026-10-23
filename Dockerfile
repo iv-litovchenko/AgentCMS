@@ -8,13 +8,16 @@ RUN apt-get update \
     curl \
     ffmpeg \
     git \
+    jq \
     lsof \
     make \
     g++ \
+    openssh-client \
     pkg-config \
     python3 \
     python3-pip \
     python3-venv \
+    rsync \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
