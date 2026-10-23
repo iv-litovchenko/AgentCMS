@@ -433,7 +433,8 @@ export function registerContentTools({ reg, client, pagePath }) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_delete",
     legacy: "delete_content",
-    description: "Delete content from an external slot. Address: placement { kind, path, slot, ref } like content_read.",
+    description:
+      "Delete content. External slots: placement { kind, path, slot, ref } like content_read. kind=root: placement.path = workspace file path (e.g. preview.svg).",
     schema: address({
       confirm: z.boolean().optional()
     }),

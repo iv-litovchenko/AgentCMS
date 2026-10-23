@@ -279,13 +279,13 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 | **Control (Launcher)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
 | **MCP HTTP** | 3490 | — | `AGENT_CMS_MCP_HTTP_PORT` → `…/mcp` |
 
-**VPS — открыть наружу (панель + ufw):** **22** (SSH); **3000** (Editor); **3490** (MCP); позже **443** за proxy. **Сначала `ufw allow 22`, потом `ufw enable`.**
+**VPS без Docker:** **22**, **3000**, **3490** (и при необходимости **3288**). **VPS с Docker + Caddy** ([`docker-compose.linux.yml`](docker-compose.linux.yml)): наружу только **22**, **80**, **443**. **Сначала `ufw allow 22`, потом `ufw enable`.**
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> Defaults in `.env` / `agent-cms-ports.js`. VPS: open **22**, **3000**, **3490**; allow **22** before `ufw enable`.
+> Defaults in `.env` / `agent-cms-ports.js`. VPS bare-metal: **22**, **3000**, **3490**. VPS Docker: **22**, **80**, **443** — see [`docker-compose.linux.yml`](docker-compose.linux.yml).
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -377,22 +377,29 @@ HOST=0.0.0.0 npm start
 # AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
 # Позже: systemd или pm2 — см. TODO.SERVER.md
 
-# --- Вариант B: Docker (опционально, если Engine уже стоит) ---
-# Установка: https://docs.docker.com/engine/install/ubuntu/
+# --- Вариант B: Docker (рекомендуется на VPS) ---
+# Установка Engine: https://docs.docker.com/engine/install/ubuntu/
 # docker compose version
-# HOST/VOICE_HOST=0.0.0.0 заданы в docker-compose.yml
-# docker compose up -d --build
-# docker compose ps && docker compose logs -f cms
+# В .env: APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN=ваш-домен, AGENT_CMS_CADDY_EMAIL=...
+# docker compose -f docker-compose.linux.yml up -d --build
+# docker compose -f docker-compose.linux.yml ps
+# docker compose -f docker-compose.linux.yml logs -f cms mcp caddy
+# Подробнее: docs/deploy/DOCKER.md
+# Mac локально: docker compose -f docker-compose.mac.yml up -d --build
 
-# Фаервол: сначала разрешить SSH (22), потом enable — иначе потеряете SSH (Connection refused)
-# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
+# Фаервол (Docker + домен): 22, 80, 443 — без 3000/3288/3490 наружу
+# ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw enable
+# Bare-metal (вариант A): ufw allow 3000/tcp && ufw allow 3490/tcp
 # Если SSH уже refused: консоль/VNC в панели хостинга (Timeweb) → ufw allow 22 → ufw disable или reboot
 
-# Проверка в браузере:
-#   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD (нужен для кнопок ops)
-#   http://ВАШ_IP:3288   — Agent CMS Control (Launcher), тот же UI что welcome.command на Mac
-# Cursor (remote MCP, Bearer = AGENT_CMS_MCP_TOKEN):
-#   http://ВАШ_IP:3490/mcp
+# Проверка в браузере (bare-metal):
+#   http://ВАШ_IP:3000   — Editor (APP_LOCK_*)
+#   http://ВАШ_IP:3288   — Control Launcher
+#   http://ВАШ_IP:3490/mcp — MCP (Bearer AGENT_CMS_MCP_TOKEN)
+# Docker + домен (Caddy в linux.yml):
+#   https://ваш-домен/          — Editor
+#   https://ваш-домен/control/  — Control
+#   https://ваш-домен/mcp       — MCP (Claude / Cursor, Bearer token)
 # Коннекторы: docs/connectors/README.md
 
 # Prod: TODO.SERVER.md

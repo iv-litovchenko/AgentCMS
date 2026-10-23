@@ -1,11 +1,11 @@
 # Caddy внутри Docker Compose (docker-compose.prod.yml / docker-compose.caddy.yml)
-# Env: MAPTEX_DOMAIN, CADDY_EMAIL
+# Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
 
 {
-	email {$CADDY_EMAIL}
+	email {$AGENT_CMS_CADDY_EMAIL}
 }
 
-{$MAPTEX_DOMAIN} {
+{$AGENT_CMS_PUBLIC_DOMAIN} {
 	handle /mcp* {
 		reverse_proxy mcp:3490
 	}

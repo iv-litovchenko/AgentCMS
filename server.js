@@ -5799,16 +5799,19 @@ async function resolveWorkspaceFreeMemoryPath(relPath) {
 
   if (stat.isFile()) {
     const parentRel = path.posix.dirname(normalized);
-    if (!parentRel || parentRel === ".") return { error: "Invalid file path", status: 400 };
-    const parentAbsolute = path.dirname(absolute);
+    const atVaultRoot = !parentRel || parentRel === ".";
+    const parentAbsolute = atVaultRoot ? getAgentRoot() : path.dirname(absolute);
     if (!(await isFreeMemoryFolderAbsolute(parentAbsolute))) {
       return { error: "Path is not free memory", status: 400 };
+    }
+    if (atVaultRoot && isCoreSystemFileName(path.basename(normalized))) {
+      return { error: "Cannot modify core workspace system file via folder tools", status: 403 };
     }
     return {
       absolute,
       relPath: normalized,
       isDirectory: false,
-      parentRel,
+      parentRel: atVaultRoot ? "." : parentRel,
       parentAbsolute
     };
   }

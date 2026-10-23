@@ -9,7 +9,7 @@
 ## Linux VPS
 
 ```bash
-cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, MAPTEX_DOMAIN, CADDY_EMAIL
+cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
 docker compose -f docker-compose.linux.yml up -d --build
 ```
 
