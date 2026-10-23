@@ -572,11 +572,11 @@ function isServerUpdateEnabled() {
 function getServerBtnTitle(actionId) {
   if (!isDockerDeployment()) return SERVER_BTN_TITLES[actionId] || "Запуск";
   const dockerTitles = {
-    "server-start-bg": "Старт CMS",
-    "server-start-attached": "Старт CMS",
-    "server-stop": "Стоп CMS",
-    "server-restart": "Рестарт CMS",
-    "server-update": "Обновить"
+    "server-start-bg": "Compose up",
+    "server-start-attached": "Compose up",
+    "server-stop": "Stop cms",
+    "server-restart": "Restart cms",
+    "server-update": "Pull + build"
   };
   return dockerTitles[actionId] || SERVER_BTN_TITLES[actionId] || "Запуск";
 }
@@ -586,10 +586,10 @@ function getServerBtnHint(actionId, hintOverride) {
   if (isDockerDeployment()) {
     const up = (bootstrap?.deployment?.upServices || ["cms", "mcp"]).join(", ");
     const dockerHints = {
-      "server-start-bg": `docker compose up -d ${up}`,
-      "server-stop": "Control-контейнер остаётся",
+      "server-start-bg": `docker compose up -d ${up} · контейнеры cms, mcp`,
+      "server-stop": "docker compose stop cms · Control и Caddy не трогаем",
       "server-restart": `docker compose restart ${up}`,
-      "server-update": "git pull → compose up --build"
+      "server-update": "git pull на хосте → compose up -d --build"
     };
     return dockerHints[actionId] ?? SERVER_BTN_HINTS[actionId] ?? "";
   }
@@ -1893,7 +1893,9 @@ function renderGuideStepServer() {
   const deckCount = deckButtons.length;
   const deckSizeClass =
     deckCount > 4 && deckCount <= 6 ? ` server-deck--${deckCount}` : deckCount > 6 ? " server-deck--6" : "";
-  const serverDeckAria = isDockerDeployment() ? "Управление контейнером CMS" : "Управление сервером";
+  const serverDeckAria = isDockerDeployment()
+    ? "Docker compose: cms и mcp"
+    : "Управление сервером";
   const dockerDeployNote = isDockerDeployment()
     ? `<p class="server-docker-note">${escapePlatformText(bootstrap?.deployment?.electronNote || "")}</p>`
     : "";
@@ -1924,12 +1926,12 @@ function renderGuideStepServer() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3 class="server-step-title">
-            Сервер
+            ${isDockerDeployment() ? "Контейнер CMS (compose)" : "Сервер"}
             <span id="server-status-inline"></span>
           </h3>
           <p>${
             isDockerDeployment()
-              ? "Стек в Docker: кнопки ниже управляют контейнерами cms/mcp через docker compose (Control и Caddy не трогаем)."
+              ? "Кнопки — docker compose для cms/mcp на этом хосте. Не npm start: Node уже внутри образов. Control-контейнер и (на VPS) Caddy этими кнопками не останавливаются."
               : `Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome`
           }</p>
         </div>
