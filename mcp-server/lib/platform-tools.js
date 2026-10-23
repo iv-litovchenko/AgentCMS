@@ -68,4 +68,20 @@ export function registerPlatformTools(reg, client) {
     handler: () => client.get("/api/platform/config", {}, { agentScope: false }),
     options: { agentScope: false }
   });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_apps_list",
+    legacy: "list_platform_apps",
+    description:
+      "Registry of platform apps (editor, app-chat, app-commander, app-control, app-mcp): public URLs, kind ui|api, optional internal ports in dev.",
+    schema: z.object({
+      ui: z
+        .boolean()
+        .optional()
+        .describe("If true, only UI apps shown in Editor app switcher")
+    }),
+    handler: ({ ui }) =>
+      client.get("/api/platform/apps", ui ? { ui: "1" } : {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 }

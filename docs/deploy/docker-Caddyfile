@@ -9,6 +9,10 @@
 	handle /mcp* {
 		reverse_proxy mcp:3490
 	}
+	handle /app-mcp* {
+		uri replace /app-mcp /mcp
+		reverse_proxy mcp:3490
+	}
 	handle {
 		reverse_proxy cms:3000
 	}
@@ -17,6 +21,10 @@
 # Локально без DNS:
 :80 {
 	handle /mcp* {
+		reverse_proxy mcp:3490
+	}
+	handle /app-mcp* {
+		uri replace /app-mcp /mcp
 		reverse_proxy mcp:3490
 	}
 	handle {

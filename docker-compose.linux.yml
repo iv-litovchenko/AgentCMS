@@ -33,6 +33,9 @@ services:
       VOICE_AUTOSTART: "${VOICE_AUTOSTART:-1}"
       APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
       APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
+      AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-}"
+      AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
     volumes:
       - cms-workspaces:/app/workspaces
       - cms-global:/app/.agent-cms-global

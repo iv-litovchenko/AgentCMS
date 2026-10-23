@@ -6,6 +6,10 @@
 
 ## Вопрос 1 — одна «дверь», роуты, реестр, base URL
 
+**Статус (код):** реестр `lib/platform/platform-apps.js`, `GET /api/platform/apps`, MCP `platform_apps_list`, роуты `/app-*`, редиректы `/control`→`/app-control`, `/mcp`→`/app-mcp`, прокси `/app-mcp`→MCP, dropdown **Apps** в Editor. Остаётся: полный single-process без internal ports, smoke по 1.4.
+
+---
+
 ### 1.1 Отказ от кучи портов — только HTTP + HTTPS
 
 ОДНА ДВЕРЬ НА ВСЕ: отказываемся от такого количества портов, снаружи всего два — HTTP и HTTPS.
@@ -13,7 +17,7 @@
 > **NOTE**
 > - ✅ Направление верное: **prod уже так** (Caddy 80/443 → cms/mcp внутри Docker).
 > - 💡 Внутри compose процессы могут слушать 3000/3490 и т.д. — **наружу не светим**.
-> - ⚠️ Voice/shell (WebRTC, mic) — проверить, что после схлопывания портов **не ломается** `/app/shell` или отдельный path.
+> - ⚠️ Voice/chat (WebRTC, mic) — проверить, что после схлопывания портов **не ломается** `/app-chat` или отдельный path.
 
 ### 1.1.1 `app` или `door`?
 
@@ -27,18 +31,28 @@
 - `https://localhost:3000/app-mcp`
 - `https://localhost:3000/app-lancher`
 
-Подняли один раз — все приложения работают. Нужен список и предложения по названиям.
+Подняли один раз — все приложения работают.
+
+#### Канон: платформенные приложения (`app-*`)
+
+Один **public host** (из `AGENT_CMS_PUBLIC_URL`); снаружи только **HTTP + HTTPS**. Путь **`app-{id}`** — сегмент URL (через дефис, как в роутере).
+
+| `app_id` | Public path | kind | Название (README) | Сейчас / процесс | В dropdown Editor |
+| --- | --- | --- | --- | --- | --- |
+| `editor` | `/` | ui | Agent CMS Editor | `server.js` :3000 | — (вы здесь) |
+| `chat` | `/app-chat` | ui | Agent CMS Voice (Flow / chat) | voice :3088 → proxy | да |
+| `commander` | `/app-commander` | ui | Commander | `server.js` :3188 → proxy | да |
+| `control` | `/app-control` | ui | Agent CMS Control (Launcher) | control UI → proxy (было `/control/`, :3288) | да |
+| `mcp` | `/app-mcp` | api | Agent CMS MCP (агенты) | `mcp-server/http.js` → proxy | нет (API; ссылка для коннектора) |
+
+- **Legacy redirect (опц.):** `/control/` → `/app-control`, `/mcp` → `/app-mcp`.
+- **Dev-only** (не в public registry или `visible: false`): desktop Electron, browser-extension, toolbar — отдельные клиенты, не path на CMS.
 
 > **NOTE**
-> - 💡 Лучше **`/app/`** или **`/apps/`** — привычный REST-паттерн; **`door`** в URL не используем.
-> - 💡 **Editor** — корень `/` (канон), без `/app-editor` в адресной строке.
-> - 💡 Рабочие id (пример):
->   - `/` → **editor**
->   - `/app/shell` → voice/chat (не `app-chat`, если shell — официальное имя)
->   - `/app/commander`
->   - `/app/control` → launcher (сейчас `/control/`)
->   - `/mcp` → **лучше отдельный path на Caddy → mcp:3490**, не через static cms (Streamable HTTP)
-> - ⚠️ Единый `server.js` + reverse proxy: маршруты **явно** в Caddy/роутере, не «магия портов».
+> - ✅ Формат **`app-*`** принимаем для всех entry points, **включая MCP** (`/app-mcp`).
+> - 💡 **Editor** без префикса — **`/`**, id `editor` только в реестре.
+> - ⚠️ Зарезервировать **`app-*`** в роутере CMS, чтобы не пересекаться с workspace paths.
+> - ⚠️ **`kind: api`** — не открывать как вкладку в dropdown; показывать URL для Claude/Cursor.
 
 ### 1.2 Dropdown приложений в Editor (рядом с языком)
 
@@ -51,10 +65,18 @@
 
 MCP со списком приложений: что где работает, по каким адресам открывается, порты (dev), типа реестр с URL.
 
+**Именование MCP** (как в [README.md](README.md): `platform_info_get`, `platform_docs_list`, …):
+
+| Канон | Legacy alias | HTTP (CMS) |
+| --- | --- | --- |
+| **`platform_apps_list`** | `list_platform_apps` | `GET /api/platform/apps` |
+
+Ответ (кратко): `{ apps: [{ appId, title, kind, publicPath, publicUrl, internalPort?, running? }] }` — строки из таблицы «Канон: платформенные приложения» + вычисленный URL.
+
 > **NOTE**
-> - ✅ Новый tool или расширение **`platform_info`**: `list_platform_apps` → `{ id, title, publicUrl, internalPort?, health? }`.
-> - 💡 **Prod:** только **public** URL; internal ports — опционально, `localhost` для dev.
-> - 💡 Один JSON-schema в docs, Editor и Control читают тот же API.
+> - ✅ Реализовать в `mcp-server/lib/platform-tools.js` по образцу `platform_config_list`.
+> - 💡 **Prod:** в списке только **publicUrl**; `internalPort` — если dev или явный debug-флаг.
+> - 💡 Editor dropdown и Control — **тот же** `/api/platform/apps`, не дублировать JSON.
 
 ### 1.4 Название сайта + адрес проекта (переезд)
 

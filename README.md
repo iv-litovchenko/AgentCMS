@@ -499,6 +499,7 @@ user-agent-cms
 │   ├── 🟢 platform_docs_list
 │   ├── 🟢 platform_doc_read
 │   ├── 🟢 platform_config_list
+│   ├── 🟢 platform_apps_list
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │

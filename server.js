@@ -19004,8 +19004,9 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return false;
 
-  // Web Control (/control) — ops-пульт остаётся доступен в maintenance.
+  // Web Control — ops-пульт остаётся доступен в maintenance.
   if (normalized === "/control" || normalized.startsWith("/control/")) return false;
+  if (normalized === "/app-control" || normalized.startsWith("/app-control/")) return false;
   if (String(safePath || "").startsWith("control/")) return false;
 
   if (safePath === "index.html" || normalized === "/") return true;
@@ -19117,7 +19118,12 @@ function resolvePublicStaticCacheControl(diskPath) {
 async function serveStatic(reqPath, res, req) {
   const rawPath = String(reqPath || "/");
   if (rawPath === "/control") {
-    res.writeHead(301, { Location: "/control/" });
+    res.writeHead(301, { Location: "/app-control/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/app-control") {
+    res.writeHead(301, { Location: "/app-control/" });
     res.end();
     return;
   }
@@ -22896,6 +22902,29 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to build platform info",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/apps") {
+    try {
+      const { buildPlatformAppsPayload } = require("./lib/platform/platform-apps");
+      const uiOnly = String(url.searchParams.get("ui") || "").trim() === "1";
+      const payload = await buildPlatformAppsPayload({
+        projectRoot: getProjectRoot(),
+        req,
+        uiOnly,
+        runtime: {
+          voice: Boolean(voiceServerInfo),
+          commander: Boolean(commanderServerInfo),
+          control: Boolean(controlServerInfo)
+        }
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build platform apps",
+        details: String(error?.message || error)
       });
     }
   }
@@ -33958,7 +33987,24 @@ function createRequestHandler() {
       return;
     }
 
-    if (isVoiceShellSpaRoute(url.pathname)) {
+    const { legacyAppRedirect, rewriteAppPublicPath } = require("./lib/platform/platform-apps");
+    const legacyTarget = legacyAppRedirect(url.pathname);
+    if (legacyTarget) {
+      res.writeHead(301, { Location: `${legacyTarget}${url.search}` });
+      res.end();
+      return;
+    }
+
+    if (url.pathname === "/app-mcp" || url.pathname.startsWith("/app-mcp/")) {
+      const { proxyAppMcpRequest } = require("./lib/http/app-mcp-proxy");
+      proxyAppMcpRequest(req, res, url);
+      return;
+    }
+
+    const appRewrite = rewriteAppPublicPath(url.pathname);
+    const staticPath = appRewrite || url.pathname;
+
+    if (isVoiceShellSpaRoute(staticPath)) {
       if (await isPlatformMaintenanceActive()) {
         await serveMaintenanceHtml(res);
         return;
@@ -33967,7 +34013,7 @@ function createRequestHandler() {
       return;
     }
 
-    return serveStatic(url.pathname, res, req);
+    return serveStatic(staticPath, res, req);
   };
 }
 
