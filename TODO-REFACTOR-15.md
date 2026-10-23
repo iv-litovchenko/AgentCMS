@@ -115,7 +115,7 @@ MCP со списком приложений: что где работает, п
 > **NOTE**
 > - ✅ **Prod/VPS:** только `docker-compose.linux.yml` (+ `.env` на хосте).
 > - 🍎 **Electron (Mac):** **вне** Docker — нативные `.app` (Editor/Control/Shell); они ходят на **URL** (localhost или VPS). В Docker — **серверная** часть, не замена Electron.
-> - 💡 **Mac dev server:** `docker-compose.mac.yml` (порты на localhost) **или** `install.command` без Docker — два пути, но prod один.
+> - ✅ **Mac server:** только **`docker-compose.mac.yml`** (как VPS). `install.command` / `npm start` — legacy, не канон.
 > - 📦 **Уже в Dockerfile:** Node 22, bash, curl, git, ffmpeg, python3, build-essential, **Docker CLI** (Control → restart cms). **Git** уже есть.
 > - 💡 Опционально в образ: `openssh-client` — только если Control делает `git pull` по SSH.
 > - 🎛️ **Кнопки Control:** при `AGENT_CMS_DOCKER_OPS=1` → `docker compose restart/start/stop cms` (уже так). Переименовать в UI: «Контейнер CMS», не «npm start».
@@ -139,7 +139,7 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 4 — MCP-редактор `.env` + ревью всех ключей
 
-**Статус (код):** `lib/ops/platform-root-env.js`; HTTP `GET /api/platform/env-keys`, `GET|POST /api/platform/env-key`; MCP **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (+ legacy `list_env_keys`, …); каталог из `.env.example`; секреты маскируются без app-lock; write — app-lock.
+**Статус (код):** `lib/ops/platform-root-env.js`; **`platform_env_keys_list`** = example + current в одном ответе; read/write одного ключа; write — app-lock.
 
 > **NOTE**
 > - ✅ Control по-прежнему: GET/POST `/api/ops/env-file` (весь файл).

@@ -1,7 +1,8 @@
 # Справочник ключей `.env`
 
-Канонический список — **`platform_env_keys_list`** (MCP) / **`GET /api/platform/env-keys`**: парсинг **`.env.example`** (имя ключа + комментарии над строкой).
+**`platform_env_keys_list`**: для каждого ключа — **`example`** (из `.env.example`) и **`current`** (из `.env`). Whitelist для read/write — ключи из example.
 
-Чтение одного значения: **`platform_env_key_read`** · запись: **`platform_env_key_write`** (только после app-lock).
+Чтение/запись одного ключа: **`platform_env_key_read`** / **`platform_env_key_write`** (write — app-lock).  
+Полный файл в Control: **`/api/ops/env-file`**.
 
-Полный файл в UI Control: **`/api/ops/env-file`**.
+Устаревшие имена (не задавать): `PORT`, `TLS_PORT`, `MAPTEX_DOMAIN`, `CADDY_EMAIL`, `AGENT_CMS_BASE_URL` как главный URL → **`AGENT_CMS_PUBLIC_URL`**.

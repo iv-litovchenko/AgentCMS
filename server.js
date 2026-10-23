@@ -22911,7 +22911,10 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/platform/env-keys") {
     try {
       const { listPlatformEnvKeys } = require("./lib/ops/platform-root-env");
-      const payload = listPlatformEnvKeys(getProjectRoot());
+      const gate = await resolveOpsAppLockGate(req);
+      const payload = listPlatformEnvKeys(getProjectRoot(), {
+        revealSecrets: gate.canToggleMaintenance
+      });
       if (!payload.ok) return sendJson(res, payload.error === "env_example_missing" ? 404 : 500, payload);
       return sendJson(res, 200, payload);
     } catch (error) {

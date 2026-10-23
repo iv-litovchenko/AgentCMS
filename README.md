@@ -348,11 +348,10 @@ cd /opt/agent-cms
 # Клонирование в текущую папку (или свой fork / private repo)
 git clone https://github.com/iv-litovchenko/AgentCMS.git .
 
-# Настройка окружения: скопировать и отредактировать пароли и MCP-token
+# Настройка окружения (Docker): см. docs/deploy/DOCKER.md
 cp .env.example .env
 nano .env
-# Обязательно сменить: APP_LOCK_PASSWORD (не changeme)
-# Для доступа к MCP снаружи: AGENT_CMS_MCP_TOKEN=<длинная-случайная-строка>
+# Обязательно: APP_LOCK_PASSWORD, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_PUBLIC_URL
 
 # --- Вариант A: без Docker (Node 22+) — если Docker не установлен ---
 # Если уже стоял Node 20: apt purge -y nodejs && apt autoremove -y

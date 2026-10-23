@@ -89,7 +89,7 @@ export function registerPlatformTools(reg, client) {
     canonical: "platform_env_keys_list",
     legacy: "list_env_keys",
     description:
-      "Root .env catalog from .env.example: key names, descriptions, secret flag (no values from .env).",
+      "Root env: per key from .env.example — example.value (what can be) and current.* from .env (what is; secrets redacted unless app-lock).",
     schema: z.object({}),
     handler: () => client.get("/api/platform/env-keys", {}, { agentScope: false }),
     options: { agentScope: false }

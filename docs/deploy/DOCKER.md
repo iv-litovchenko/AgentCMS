@@ -9,7 +9,7 @@
 ## Linux VPS
 
 ```bash
-cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL, AGENT_CMS_PUBLIC_URL
+cp .env.example .env   # APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_PUBLIC_URL
 docker compose -f docker-compose.linux.yml up -d --build
 # или
 npm run docker:linux
@@ -24,11 +24,16 @@ npm run docker:down:linux
 
 ## Mac
 
+Сервер **только Docker** (Node/npm на хост для CMS не нужен). В `.env`: `AGENT_CMS_PUBLIC_URL=http://127.0.0.1:3000`, `APP_LOCK_*`, `AGENT_CMS_MCP_TOKEN`.
+
 ```bash
+cp .env.example .env
 docker compose -f docker-compose.mac.yml up -d --build
 npm run docker:mac
 npm run docker:down
 ```
+
+Снаружи один адрес (`PUBLIC_URL`); порты в compose — внутренний/dev mapping, в `.env` не задаются.
 
 Перенос: volumes + `.env` → новый сервер → `linux.yml up`.
 

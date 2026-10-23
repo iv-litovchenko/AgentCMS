@@ -12,7 +12,7 @@ fi
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  echo "Создан .env из .env.example — задайте APP_LOCK_* и AGENT_CMS_MCP_TOKEN."
+  echo "Создан .env из .env.example — задайте APP_LOCK_*, AGENT_CMS_MCP_TOKEN, AGENT_CMS_PUBLIC_* (VPS)."
 fi
 
 if [[ -z "${AGENT_CMS_PUBLIC_DOMAIN:-}" ]]; then
