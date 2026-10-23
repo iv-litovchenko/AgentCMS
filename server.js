@@ -1103,8 +1103,14 @@ async function readRootEnvFile() {
   }
 }
 
+/** .env на диске + process.env (Docker compose env_file не создаёт /app/.env). */
+async function readEffectiveRootEnv() {
+  const fromFile = await readRootEnvFile();
+  return { ...process.env, ...fromFile };
+}
+
 async function getAppLockStatus() {
-  const env = await readRootEnvFile();
+  const env = await readEffectiveRootEnv();
   const { resolveAppLockPolicy, buildAppLockAppsCatalog } = require("./lib/auth/app-lock-apps");
   const policy = resolveAppLockPolicy(env);
   return {
@@ -1118,7 +1124,7 @@ async function getAppLockStatus() {
 }
 
 async function resolveOpsAppLockGate(req) {
-  const env = await readRootEnvFile();
+  const env = await readEffectiveRootEnv();
   const { isOpsAppLockRequired, resolveAppLockPolicy } = require("./lib/auth/app-lock-apps");
   const policy = resolveAppLockPolicy(env);
   const opsLockRequired = isOpsAppLockRequired(policy);
@@ -1147,7 +1153,7 @@ async function getOpsMaintenanceWriteDeniedResponse(req) {
 }
 
 async function verifyAppLockCredentials(login, password) {
-  const env = await readRootEnvFile();
+  const env = await readEffectiveRootEnv();
   const expectedLogin = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
   const expectedPassword = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
   if (!expectedLogin || !expectedPassword) return false;

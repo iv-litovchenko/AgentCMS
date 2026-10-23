@@ -87,11 +87,19 @@ async function loadEnvFileEditor() {
     editor.value = data.content ?? "";
     if (meta) {
       const pathLabel = data.filePath || ".env";
-      meta.textContent = data.exists
-        ? pathLabel
-        : `${pathLabel} (будет создан при сохранении)`;
+      if (data.schemaOnly) {
+        meta.textContent = `${pathLabel} — шаблон (.env.example), файла ещё нет`;
+      } else if (data.projectRoot) {
+        meta.textContent = `${pathLabel} · ${data.projectRoot}`;
+      } else {
+        meta.textContent = data.exists ? pathLabel : `${pathLabel} (создастся при сохранении)`;
+      }
     }
-    if (status) status.textContent = data.message || "Загружено";
+    if (status) {
+      status.textContent = data.schemaOnly
+        ? data.message || "Это не ваш рабочий .env — только схема ключей."
+        : data.message || "Загружено";
+    }
   } catch (error) {
     if (status) status.textContent = String(error.message || error);
   }

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MyJarvis — выбор ядра</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0c10'/%3E%3Cpath d='M8 16h6l2-4 4 8 2-4h2' stroke='%23a78bfa' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
   <style>
     :root {
       --bg: #07080c;
@@ -354,6 +355,46 @@
   </style>
 </head>
 <body>
+  <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
+    <div class="app-lock-bg" aria-hidden="true"></div>
+    <div class="app-lock-panel">
+      <div class="app-lock-inner">
+        <div class="app-lock-brand">
+          <div class="brand-mark" style="width:48px;height:48px;font-size:14px" aria-hidden="true">MJ</div>
+          <h2 id="app-lock-title" class="app-lock-title">Commander</h2>
+        </div>
+        <p id="app-lock-lead" class="app-lock-lead">Введите логин и пароль</p>
+        <form id="app-lock-form" class="app-lock-form">
+          <label class="app-lock-field">
+            <span class="app-lock-label">Логин</span>
+            <input id="app-lock-login" class="app-lock-input" type="text" name="login" placeholder="Логин" autocomplete="username" required />
+          </label>
+          <label class="app-lock-field">
+            <span class="app-lock-label">Пароль</span>
+            <input id="app-lock-password" class="app-lock-input" type="password" name="password" placeholder="Пароль" autocomplete="current-password" required />
+          </label>
+          <label id="app-lock-confirm-field" class="app-lock-field hidden">
+            <span class="app-lock-label">Повтор пароля</span>
+            <input id="app-lock-confirm" class="app-lock-input" type="password" name="confirm" placeholder="Повторите пароль" autocomplete="new-password" />
+          </label>
+          <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
+          <label id="app-lock-remember-field" class="app-lock-remember">
+            <input id="app-lock-remember" class="app-lock-remember-input" type="checkbox" name="remember" checked />
+            <span class="app-lock-remember-check" aria-hidden="true"></span>
+            <span class="app-lock-remember-text">Запомнить вход на этом устройстве</span>
+          </label>
+          <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
+        </form>
+        <button id="app-lock-biometric-btn" class="app-lock-biometric-btn hidden" type="button" disabled hidden aria-hidden="true">
+          <span id="app-lock-biometric-label">Face ID / Touch ID</span>
+        </button>
+        <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль — <code>APP_LOCK_*</code> в <code>.env</code>. Зона: <code>commander</code> в <code>APP_LOCK_APPS</code>.</p>
+      </div>
+      <div class="app-lock-version-wrap">
+        <span class="app-project-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+      </div>
+    </div>
+  </div>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -389,6 +430,8 @@
       </div>
     </div>
   </div>
+  <script src="/editor/js/core/project-version.js?v=1"></script>
+  <script src="/editor/js/app/app-lock.js?v=16"></script>
   <script>
     const JARVIS_EXTRA_FALLBACK = [
       { id: 'jarvis-bridge', file: 'http://127.0.0.1:5173/', label: 'JARVIS Bridge', note: 'JarvisAndBrains/jarvis · npm run dev' },
@@ -561,6 +604,9 @@
     }
 
     async function boot() {
+      if (window.agentAppLock?.whenUnlocked) {
+        await window.agentAppLock.whenUnlocked();
+      }
       JARVIS = await loadCores();
       JARVIS_EXTRA = await loadExtraCores();
       renderList();

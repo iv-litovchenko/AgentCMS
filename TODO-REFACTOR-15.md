@@ -123,41 +123,36 @@ MCP со списком приложений: что где работает, п
 
 ---
 
-## Вопрос 3 — кнопка «Обновить» в Control (= git pull)
+## ✅ Вопрос 3 — кнопка «Обновить» в Control (= git pull)
 
-**Статус (код):** action `server-update` → `deploy-update` (`lib/ops/ops-deploy-update.js`); git pull + compose `up -d --build`; app-lock; commit до/после в журнале; mount `AGENT_CMS_HOST_PROJECT` в control; DOCKER.md.
-
-Рядом с Restart — по сути git pull.
+**Статус:** ✅ **закрыто** (достаточно для использования). Код: `server-update` → `deploy-update` (`lib/ops/ops-deploy-update.js`); `git pull --ff-only` + `docker compose up -d --build`; app-lock; commit до/после в `.run/deploy-update.log`; `AGENT_CMS_HOST_PROJECT`; флаг `AGENT_CMS_DEPLOY_UPDATE_ENABLED`; DOCKER.md.
 
 > **NOTE**
-> - ✅ Полезно на VPS.
-> - 💡 Не голый `git pull` на хост без контекста: **`git pull` → `docker compose up -d --build`** (или pull image из registry).
-> - ⚠️ Только после **app-lock**; опционально: ветка/tag, не auto-pull `main` на prod.
-> - 💡 Лог в Journal: commit до/после, ошибка merge.
+> - ✅ Полезно на VPS — сделано.
+> - ✅ Не голый `git pull`: pull + compose build — сделано.
+> - ✅ Только после **app-lock** — сделано.
+> - 💡 Позже по желанию: Journal вместо файла, tag/registry, guard main на prod.
 
 ---
 
-## Вопрос 4 — MCP-редактор `.env` + ревью всех ключей
+## ✅ Вопрос 4 — MCP-редактор `.env` + ревью всех ключей
 
-**Статус (код):** `lib/ops/platform-root-env.js`; **`platform_env_keys_list`** = example + current в одном ответе; read/write одного ключа; write — app-lock.
+**Статус:** ✅ **закрыто** (достаточно для использования). Код: `lib/ops/platform-root-env.js`; MCP **`platform_env_keys_list`** / **`platform_env_key_read`** / **`platform_env_key_write`**; HTTP `/api/platform/env-keys`, `/api/platform/env-key`; whitelist из `.env.example`; write + redacted secrets — app-lock.
 
 > **NOTE**
-> - ✅ Control по-прежнему: GET/POST `/api/ops/env-file` (весь файл).
-> - 💡 Отдельный `docs/env-reference.md` — опционально; сейчас источник — `.env.example`.
-> - ⚠️ **`platform_env_key_write`** через MCP нужна **app-lock** сессия (как ops/env-file).
+> - ✅ Control: GET/POST `/api/ops/env-file` (весь файл).
+> - ✅ **`platform_env_key_write`** — app-lock (как ops/env-file).
+> - 💡 Позже по желанию: полный `docs/env-reference.md`, UI по ключам, онбординг в скиллах.
 
 ---
 
-## Вопрос 5 — закрытие паролем (app-lock по зонам)
+## ✅ Вопрос 5 — закрытие паролем (app-lock по зонам)
 
-**Статус (код):** **`APP_LOCK_APPS=control`** (список `editor,chat,commander,control`); `lib/auth/app-lock-apps.js`; `/api/app-lock/status` → `lockedApps` + `apps[]`; Editor/Shell app-lock по appId; Control ops — если `control` в списке. Без `APP_LOCK_APPS` — legacy `editor,control`.
-
-По умолчанию только launcher (`…/app-lancher`). Отдельно launcher / editor / агенты?
+**Статус:** ✅ **закрыто**. Один пароль **`APP_LOCK_*`**, список зон **`APP_LOCK_APPS`** (`editor`, `chat`, `commander`, `control`); `lib/auth/app-lock-apps.js`; `/api/app-lock/status`; UI lock — Editor, Shell/chat, Commander, Control ops; без `APP_LOCK_APPS` — legacy `editor`+`control`. **MCP** — отдельно **`AGENT_CMS_MCP_TOKEN`**, не app-lock.
 
 > **NOTE**
-> - ✅ Один пароль **`APP_LOCK_*`**, зоны — **`APP_LOCK_APPS`** (как `platform_apps_list`, без `mcp`).
-> - 💡 Commander: lock в env есть; UI lock на commander — позже (пока только control/editor/chat через app-lock.js).
-> - ⚠️ MCP — **`AGENT_CMS_MCP_TOKEN`**, не app-lock UI.
+> - ✅ Список приложений под пароль = id из реестра UI (не `mcp`).
+> - 💡 Политика «что в `.env.example` по умолчанию lock» — на усмотрение prod.
 
 ---
 
