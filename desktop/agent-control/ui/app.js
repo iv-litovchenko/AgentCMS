@@ -634,7 +634,8 @@ function getClientLinkHost() {
 }
 
 function preferHttpServiceLinks() {
-  return isWebLauncher() && window.location.protocol === "http:";
+  if (isWebLauncher() && window.location.protocol === "http:") return true;
+  return usesSingleHttpDoor(lastServer || bootstrap?.server);
 }
 
 function rewriteUrlHostForClient(url) {
@@ -655,11 +656,33 @@ function buildServiceUrl(scheme, port, path = "/") {
   return `${scheme}://${host}:${port}${normalizedPath}`;
 }
 
+function shouldUseCanonicalHttpDoor() {
+  const server = lastServer || bootstrap?.server;
+  return usesSingleHttpDoor(server) || isDockerDeployment();
+}
+
 function getPublicDoorBase() {
-  const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
-  if (fromBootstrap) return fromBootstrap;
+  const server = lastServer || bootstrap?.server;
+  if (shouldUseCanonicalHttpDoor()) {
+    const door = getClientDoorHttpOrigin();
+    if (door) return rewriteUrlHostForClient(door.replace(/\/+$/, ""));
+  }
+
   if (isWebLauncher()) {
     return `${window.location.protocol}//${window.location.host}`.replace(/\/+$/, "");
+  }
+
+  const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+  if (fromBootstrap) {
+    if (usesSingleHttpDoor(server) && fromBootstrap.startsWith("https:") && preferHttpServiceLinks()) {
+      try {
+        const parsed = new URL(fromBootstrap);
+        return `http://${parsed.host}`.replace(/\/+$/, "");
+      } catch {
+        /* fall through */
+      }
+    }
+    return fromBootstrap;
   }
   return "";
 }
@@ -737,11 +760,40 @@ function getClientDoorHostPort(ports) {
 }
 
 function getClientDoorHttpOrigin() {
+  const server = lastServer || bootstrap?.server;
+  if (isWebLauncher() && shouldUseCanonicalHttpDoor()) {
+    const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+    if (fromBootstrap) {
+      let base = fromBootstrap.startsWith("https:") ? fromBootstrap.replace(/^https:/, "http:") : fromBootstrap;
+      try {
+        const parsed = new URL(base.includes("://") ? base : `http://${base}`);
+        const ports = getPorts();
+        const doorPort = String(ports.editorHttp ?? 3000);
+        if (!parsed.port || parsed.port === "3443" || parsed.port === String(ports.editorHttps ?? 3443)) {
+          parsed.protocol = "http:";
+          parsed.port = doorPort;
+        }
+        return parsed.origin.replace(/\/+$/, "");
+      } catch {
+        /* fall through */
+      }
+    }
+    const ports = getPorts();
+    const doorPort = String(ports.editorHttp ?? 3000);
+    const host = window.location.hostname || "127.0.0.1";
+    const locPort =
+      window.location.port ||
+      (window.location.protocol === "https:" ? "443" : window.location.protocol === "http:" ? "80" : "");
+    if (window.location.protocol === "http:" && locPort === doorPort) {
+      return window.location.origin.replace(/\/+$/, "");
+    }
+    return `http://${host}:${doorPort}`.replace(/\/+$/, "");
+  }
+
   if (isWebLauncher()) {
     return window.location.origin.replace(/\/+$/, "");
   }
 
-  const server = lastServer || bootstrap?.server;
   const pathKeys = {
     editor: "cms",
     voice: "voice",
@@ -759,9 +811,9 @@ function getClientDoorHttpOrigin() {
     }
   }
 
-  let base = getEffectiveCmsBaseUrl();
-  if (base.startsWith("https:")) base = base.replace(/^https:/, "http:");
-  return base.replace(/\/+$/, "");
+  const ports = getPorts();
+  const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
+  return buildServiceUrl("http", port, "/").replace(/\/+$/, "");
 }
 
 function singleDoorProbeUrl(def, server) {
@@ -2091,20 +2143,44 @@ function joinCmsBaseAndPath(base, testPath) {
 function getEffectiveCmsBaseUrl() {
   const server = lastServer || bootstrap?.server;
   const ports = getPorts();
+  const singleDoor = usesSingleHttpDoor(server);
+
+  if (shouldUseCanonicalHttpDoor()) {
+    const door =
+      getClientDoorHttpOrigin() ||
+      getPublicDoorBase() ||
+      String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+    if (door) {
+      let base = door.replace(/\/+$/, "");
+      if (base.startsWith("https:")) base = base.replace(/^https:/, "http:");
+      return rewriteUrlHostForClient(base);
+    }
+  }
+
+  if (isWebLauncher()) {
+    return window.location.origin.replace(/\/+$/, "");
+  }
+
   const doorBase = getPublicDoorBase();
   if (doorBase) return rewriteUrlHostForClient(doorBase.replace(/\/+$/, ""));
 
-  const fromProbe = String(server?.urls?.cms || "").trim();
-  if (server?.cms && fromProbe) return rewriteUrlHostForClient(fromProbe.replace(/\/+$/, ""));
+  const fromProbe = String(server?.urls?.cms || server?.urls?.controlHttp || "").trim();
+  if (server?.cms && fromProbe) {
+    let base = fromProbe.replace(/\/+$/, "");
+    if (singleDoor && base.startsWith("https:")) {
+      base = base.replace(/^https:/, "http:");
+    }
+    return rewriteUrlHostForClient(base);
+  }
 
-  const mcpUrl = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim();
-  if (mcpUrl) return rewriteUrlHostForClient(mcpUrl.replace(/\/+$/, ""));
-
-  const singleDoor = usesSingleHttpDoor(server);
   if (singleDoor || preferHttpServiceLinks()) {
     const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
     return buildServiceUrl("http", port, "/").replace(/\/+$/, "");
   }
+
+  const mcpUrl = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim();
+  if (mcpUrl) return rewriteUrlHostForClient(mcpUrl.replace(/\/+$/, ""));
+
   return buildServiceUrl("https", ports.editorHttps, "/").replace(/\/+$/, "");
 }
 
@@ -2129,12 +2205,32 @@ function getMcpTlsInsecureEnv() {
   return {};
 }
 
+function getMcpHttpConnectUrl() {
+  const computed = joinCmsBaseAndPath(getEffectiveCmsBaseUrl(), "/app-mcp").replace(/\/+$/, "");
+  if (shouldUseCanonicalHttpDoor()) return computed;
+
+  const fromBootstrap = String(bootstrap?.mcpConnect?.mcpHttpUrl || "").trim();
+  if (!fromBootstrap) return computed;
+
+  if (usesSingleHttpDoor(lastServer || bootstrap?.server)) {
+    try {
+      const parsed = new URL(fromBootstrap);
+      const ports = getPorts();
+      const doorPort = String(ports.editorHttp ?? 3000);
+      if (parsed.port === "3443" || parsed.port === String(ports.editorHttps ?? 3443)) {
+        return computed;
+      }
+    } catch {
+      return computed;
+    }
+  }
+  return fromBootstrap;
+}
+
 function buildMcpConfigObject({ useAbsPath = false, includeToken = false } = {}) {
   const mcp = bootstrap?.mcpConnect || {};
   if (usesHttpMcpConnect()) {
-    const url =
-      String(mcp.mcpHttpUrl || "").trim() ||
-      joinCmsBaseAndPath(getEffectiveCmsBaseUrl(), "/app-mcp").replace(/\/+$/, "");
+    const url = getMcpHttpConnectUrl();
     const token = includeToken
       ? String(mcp.mcpToken || bootstrap?.mcpToken || "YOUR_MCP_TOKEN")
       : "<AGENT_CMS_MCP_TOKEN>";
@@ -2276,7 +2372,11 @@ function renderMobileVoiceBlock() {
         (lanIp ? `http://${lanIp}:${ports.voiceHttp}/dev/mkcert-root-ca.pem` : "");
 
   if (isDockerDeployment()) {
-    const sample = voiceUrl || "http://192.168.x.x:3000/app-chat/";
+    const doorBase = getClientDoorHttpOrigin() || getEffectiveCmsBaseUrl();
+    const sample =
+      voiceUrl ||
+      joinCmsBaseAndPath(doorBase, "/app-chat/") ||
+      "http://192.168.x.x:3000/app-chat/";
     return `
     <div class="mobile-voice-block" id="mobile-voice-block">
       <p class="mobile-voice-note">${VOICE_UI_LABEL} на телефоне: подставьте <strong>IP Mac в Wi‑Fi</strong> (не localhost, не 172.x контейнера). Порт как в <code>AGENT_CMS_PUBLIC_URL</code>, путь <code>/app-chat/</code>.</p>

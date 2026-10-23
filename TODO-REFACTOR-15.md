@@ -177,3 +177,47 @@ MCP со списком приложений: что где работает, п
 > - ✅ Согласовано с Q2 и `docs/deploy/DOCKER.md` (Electron опционален, URL = браузер).
 > - 💡 Dev-only в реестре (Q1): desktop Electron — `visible: false`, не path на CMS.
 > - 📌 Задача на потом: единый launcher vs статус-кво — отдельный мини-TODO или пункт в desktop/, когда понадобится.
+
+---
+
+## Вопрос 8 — не видно хранилищ (`ws-aya`, `ws-medsente`, `DOWNLOADWS`)
+
+**Статус:** 📌 **диагностика / чеклист** (не баг Control UI — данные и реестр).
+
+**Факт (Mac + compose):** CMS видит только то, что лежит в **`./workspaces`** репозитория (mount `→ /app/workspaces`). Если папок `ws-aya` / `ws-medsente` / `DOWNLOADWS` там нет — в Editor / `workspaces_list` их не будет.
+
+```
+Почему не видно ws-aya / ws-medsente / DOWNLOADWS
+│
+├─ A. Данные не в том каталоге (часто)
+│   ├─ лежат на Mac в другом пути или в старом Docker volume `cms-workspaces`
+│   └─ → скопировать / symlink в `YamlCMS/workspaces/<id>/`
+│
+├─ B. Docker mount
+│   ├─ контейнер видит только `./workspaces` хост-проекта
+│   └─ → положить папки туда или добавить volume в compose
+│
+├─ C. Папка есть, но нет в реестре CMS
+│   ├─ недостаточно «просто папка на диске» — нужен manifest / register
+│   └─ → `workspaces_scan` → `workspace_register` (MCP или UI)
+│
+├─ D. Смотрим не тот UI
+│   ├─ Control ≠ дерево хранилищ
+│   └─ → Editor, MCP `workspaces_list`, настройки workspace
+│
+└─ E. Индекс / кэш
+    └─ → после появления папок: scan + rebuild indexes при необходимости
+```
+
+**Быстрая проверка:**
+
+```bash
+ls ./workspaces
+docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
+```
+
+Если id нет в **обоих** списках — сначала **A/B**, затем **C**.
+
+> **NOTE**
+> - 💡 Связь с Q6: имена вида **`local:ws-aya`** — про source/instance, не заменяют физический каталог в `workspaces/`.
+> - ⚠️ `.agent-cms-global` — отдельный mount; реестр workspace может ссылаться на id, которого нет на диске после миграции с named volumes.
