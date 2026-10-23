@@ -15,6 +15,7 @@
 - [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
 - [Установка — macOS](#-установка--macos-gb-install--macos)
 - [Установка — Ubuntu VPS / сервер](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+- [Настройка — `.env`](#-настройка--env-gb-configuration--env)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 - [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
@@ -39,6 +40,7 @@
 > - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
 > - [Install — macOS](#-установка--macos-gb-install--macos)
 > - [Install — Ubuntu VPS / server](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+> - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 > - [MCP connection](#-подключение-mcp-gb-mcp-connection)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
@@ -346,6 +348,61 @@ docker compose -f docker-compose.linux.yml ps
 > 🇬🇧 **[en]**
 >
 > VPS: one block above — Docker CE, **ufw 22/80/443**, compose up. [DOCKER.md](docs/deploy/DOCKER.md).
+
+## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
+
+🇷🇺 **[ru]**
+
+Рабочий файл — **`.env` в корне репозитория** (шаблон — [`.env.example`](.env.example)). Его читают **Docker Compose**, **CMS / Control / MCP** и клиенты (публичный URL, токены). На **VPS** обязательно задайте **`AGENT_CMS_PUBLIC_URL`**, **`AGENT_CMS_PUBLIC_DOMAIN`**, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`**. На **Mac** чаще достаточно пароля и MCP-токена; остальное — по умолчанию из example.
+
+После правок: `docker compose … up -d` (пересоздать контейнеры, если меняли mount или секреты). В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
+
+**Ключи из `.env.example`** (whitelist платформы):
+
+| Ключ | 🇷🇺 Назначение | 🇬🇧 Purpose | Пример / Example |
+| --- | --- | --- | --- |
+| **`APP_LOCK_LOGIN`** | Логин app-lock (Control, ops, запись `.env` через MCP) | App-lock login | `admin` |
+| **`APP_LOCK_PASSWORD`** | Пароль app-lock | App-lock password | смените с `changeme` |
+| **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | Password-gated apps | `editor,chat,commander,control` |
+| **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | In-CMS HTTP→HTTPS redirect | `0` |
+| **`AGENT_CMS_WORKSPACES_DIR`** | Каталог на **хосте** → `/app/workspaces` (все workspace — **подпапки**, compose не меняем) | Host workspaces root mount | `/opt/agent-cms/workspaces` или Mac: `/Users/…/AgentCMS-workspaces` |
+| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac: `http://127.0.0.1:3000` · VPS: `https://ваш-домен` |
+| **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
+| **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
+| **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
+| **`AGENT_CMS_PUBLIC_DOMAIN`** | Домен для **Caddy** (VPS) | Caddy site domain | `example.com` |
+| **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
+| **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
+| **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
+| **`AGENT_CMS_DEPLOY_UPDATE_ENABLED`** | `1` — кнопка «Обновить» в Control (**git pull + rebuild**) | Control deploy update button | `0` / `1` на VPS по желанию |
+| **`AGENT_CMS_DEPLOY_PLATFORM`** | Подпись платформы в Control: **`mac`** \| **`linux`** \| **`windows`** | Control platform chip | в compose часто уже задано |
+| **`WEB_SEARCH_MODE`** | Режим веб-поиска в MCP | Web search mode | `direct` |
+| **`GOOGLE_SEARCH_API_KEY`** | Google Custom Search API key (если используете) | Google CSE API key | пусто / ключ |
+| **`GOOGLE_SEARCH_ENGINE_ID`** | ID поисковой машины (cx) | Google CSE engine ID | пусто / id |
+| **`GOOGLE_SEARCH_LANG`** | Язык запросов | Query language | `ru` |
+| **`GOOGLE_SEARCH_COUNTRY`** | Страна (регион) | Country bias | `RU` |
+| **`GOOGLE_SEARCH_GL`** | Параметр `gl` | Google `gl` | `ru` |
+| **`GOOGLE_SEARCH_SAFE`** | SafeSearch | SafeSearch level | `active` |
+
+**Дополнительно в Compose** (можно задать в `.env`, в `.env.example` не дублируются):
+
+| Ключ | 🇷🇺 · 🇬🇧 | Пример |
+| --- | --- | --- |
+| **`AGENT_CMS_EDITOR_HTTP_PORT`** | Порт CMS на localhost (Mac) · CMS host port | `3000` |
+| **`AGENT_CMS_HOST_PROJECT`** | Путь к репо на хосте (mount `.env`, compose) · Repo path on host | `.` |
+| **`AGENT_CMS_IMAGE_TAG`** | Тег образа · Image tag | `local` |
+| **`VOICE_AUTOSTART`** | Автостарт Voice в контейнере cms · Voice autostart in cms | `1` |
+| **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP за reverse-proxy (Mac `0`, Linux `1`) · MCP behind proxy | Mac `0` |
+
+> **NOTE**
+> - 💡 Не используйте устаревшие **`PORT` / `TLS_PORT` / `MAPTEX_DOMAIN`** как главный URL — канон **`AGENT_CMS_PUBLIC_URL`** ([docs/env-reference.md](docs/env-reference.md)).
+> - ⚠️ Секреты (**`APP_LOCK_PASSWORD`**, **`AGENT_CMS_MCP_TOKEN`**, **`GOOGLE_SEARCH_API_KEY`**) не коммитьте; на VPS — уникальные значения.
+
+---
+
+> 🇬🇧 **[en]**
+>
+> Edit **`.env`** at the repo root ([`.env.example`](.env.example)). Table above lists every **whitelist** key; use **`AGENT_CMS_PUBLIC_URL`**, domain, app-lock, and MCP token on production. Optional Compose-only keys in the second table. MCP: **`platform_env_keys_list`**. Details: [docs/env-reference.md](docs/env-reference.md).
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 

@@ -1,5 +1,7 @@
 # Справочник ключей `.env`
 
+Таблица ключей и пояснений — в [README — Настройка `.env`](../README.md#-настройка--env-gb-configuration--env).
+
 **`platform_env_keys_list`**: для каждого ключа — **`example`** (из `.env.example`, схема) и **`current`** (из **`.env` в репозитории**). Whitelist для read/write — ключи из example.
 
 Чтение/запись одного ключа: **`platform_env_key_read`** / **`platform_env_key_write`** (write — app-lock).  

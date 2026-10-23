@@ -194,8 +194,9 @@ MCP со списком приложений: что где работает, п
 │   └─ → скопировать / symlink в `YamlCMS/workspaces/<id>/`
 │
 ├─ B. Docker mount
-│   ├─ контейнер видит только `./workspaces` хост-проекта
-│   └─ → положить папки туда или добавить volume в compose
+│   ├─ контейнер видит один каталог → `/app/workspaces`
+│   └─ → **`AGENT_CMS_WORKSPACES_DIR`** в `.env` (стабильный родитель на Mac); новые id = новые **подпапки**, compose не трогаем
+│   └─ (legacy) symlink в `./workspaces` — для Docker на путь вне репо часто битый; не «каждый ws = строка в compose»
 │
 ├─ C. Папка есть, но нет в реестре CMS
 │   ├─ недостаточно «просто папка на диске» — нужен manifest / register

@@ -46,7 +46,7 @@ services:
       AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
     volumes:
-      - ./workspaces:/app/workspaces
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces
       - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
       - ./.agent-cms-global:/app/.agent-cms-global
       - ./public:/app/public:ro
@@ -82,7 +82,7 @@ services:
       AGENT_CMS_BASE_URL: "http://cms:3000"
       AGENT_CMS_MCP_TOKEN: "${AGENT_CMS_MCP_TOKEN:-}"
     volumes:
-      - ./workspaces:/app/workspaces:ro
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces:ro
       - ./.agent-cms-global:/app/.agent-cms-global
       - ./mcp-server:/app/mcp-server:ro
       - ./lib:/app/lib:ro
