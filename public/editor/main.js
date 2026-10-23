@@ -89684,6 +89684,7 @@ function hydrateMarkdownPreviewElement(element, nodePath) {
   void typesetMarkdownDiagrams(element);
   void syncMermaidDiagramChromeInRoot(element);
   void hydrateAwnFenceBlocks(element);
+  void window.agentCmsHydrateScene3dPreviewBlocks?.(element);
   enhanceMarkdownPreviewImages(element);
 }
 
