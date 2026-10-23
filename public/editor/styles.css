@@ -26997,60 +26997,17 @@ a.header-tool-btn {
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
-/* Platform apps dropdown (Editor header) */
-.header-ui-apps-btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  padding: 3px;
-  border-radius: 9px;
+/* Platform apps dropdown (Editor header) — trigger matches locale button (26px circle + code + chevron) */
+.header-ui-apps-flag {
   box-sizing: border-box;
-  background: linear-gradient(145deg, #eef2ff 0%, #faf5ff 42%, #e0f2fe 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 0 0 1px rgba(99, 102, 241, 0.28),
-    0 2px 8px rgba(79, 70, 229, 0.14);
-  transition:
-    background 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.12s ease;
-}
-
-.header-ui-apps-btn-icon img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.12));
-}
-
-.header-tool-btn--apps {
-  padding-left: 2px;
-  gap: 5px;
-}
-
-.header-tool-btn--apps:hover .header-ui-apps-btn-icon {
-  background: linear-gradient(145deg, #e0e7ff 0%, #f3e8ff 50%, #dbeafe 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(79, 70, 229, 0.35),
-    0 3px 10px rgba(79, 70, 229, 0.2);
-  transform: translateY(-0.5px);
-}
-
-.header-tool-btn--apps.is-open .header-ui-apps-btn-icon {
-  background: linear-gradient(145deg, #ddd6fe 0%, #ede9fe 45%, #bfdbfe 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(67, 56, 202, 0.45),
-    0 0 0 2px rgba(129, 140, 248, 0.25);
-}
-
-.header-ui-apps-btn-label {
-  color: #4338ca;
-  letter-spacing: 0.04em;
+  padding: 4px;
+  background-color: #f1f5f9;
+  background-image: url("/editor/assets/platform-apps/apps-launcher.svg?v=4");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-origin: content-box;
+  background-clip: content-box;
+  background-size: 100% 100%;
 }
 
 .header-ui-apps-menu {
