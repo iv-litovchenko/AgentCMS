@@ -28,6 +28,8 @@ services:
     volumes:
       - cms-workspaces:/app/workspaces
       - cms-global:/app/.agent-cms-global
+      # Mac dev: UI из репо без rebuild образа (Editor, shell, commander static)
+      - ./public:/app/public:ro
     healthcheck:
       test:
         [

@@ -6,33 +6,42 @@
 | `docker-compose.linux.yml` | VPS |
 | `docker-compose.windows.yml` | заготовка (→ WSL + mac) |
 
+## Mac = Docker + браузер (канон)
+
+1. **Docker Desktop** + `.env` в репозитории.
+2. Поднять стек: **`welcome.command`** или `docker compose -f docker-compose.mac.yml up -d --build`.
+3. Работать в **Chrome/Safari**: Editor `http://127.0.0.1:3000/`, Control `/app-control/`, chat `/app-chat/`.
+
+**Node на Mac для сервера не ставим** — он уже внутри образов `cms`, `mcp`, `control`.
+
+**Electron (.app)** — **опционально**: отдельные окна Editor/Shell/Control, но они только открывают **тот же URL**, что и браузер. Без запущенного Docker (или legacy `npm start`) `.app` сервер **не поднимет**.
+
+Legacy dev: `AGENT_CMS_WELCOME_LEGACY=1` + `npm start` — не канон для «сервера на Mac».
+
 ## Linux VPS
 
 ```bash
-# .env уже в репозитории; на VPS поправьте DOMAIN, PUBLIC_URL, токены и закоммитьте / задеployьте pull
+# .env в репо; на VPS поправьте DOMAIN, PUBLIC_URL, токены
 docker compose -f docker-compose.linux.yml up -d --build
 # или
 npm run docker:linux
 ```
 
-Остановить стек на хосте:
+Снаружи **80/443** (Caddy → `cms:3000`). Node на хост **не нужен** — Docker Engine + `.env`.
+
+Остановить стек:
 
 ```bash
 npm run docker:down:linux
-# или scripts/docker-linux-down.sh
 ```
 
-## Mac
-
-Сервер **только Docker**. **`welcome.command`** — проверка Docker/`.env`, `up -d --build`, браузер Control.
+## Mac (команды)
 
 ```bash
 docker compose -f docker-compose.mac.yml up -d --build
 npm run docker:mac
 npm run docker:down
 ```
-
-Legacy (npm/Electron): `AGENT_CMS_WELCOME_LEGACY=1 welcome.command`.
 
 Снаружи один адрес (`AGENT_CMS_PUBLIC_URL`); порты 3088/3288/3490 — **только внутри** compose.
 
@@ -46,41 +55,45 @@ Legacy (npm/Electron): `AGENT_CMS_WELCOME_LEGACY=1 welcome.command`.
 | `/app-control` | Control (Launcher) |
 | `/app-mcp` | MCP HTTP (Cursor + Bearer) |
 
-Mac: с хоста публикуется только **3000**. VPS: **80/443** (Caddy → `cms:3000`). Проверка: `npm run check:app-door` (статика + live). После смены домена/IP — обновите `AGENT_CMS_PUBLIC_URL` в `.env` и перезапустите cms.
+Mac: с хоста публикуется только **3000** (плюс mount `./public` для UI без rebuild). VPS: **80/443**. Проверка: `npm run check:app-door`. После смены домена/IP — `AGENT_CMS_PUBLIC_URL` в `.env` и restart `cms`.
 
-**Ручная проверка (не в CI):** mic/WebRTC в `/app-chat` по HTTPS с телефона.
+**Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
 Перенос: volumes + `.env` → новый сервер → `linux.yml up`.
 
-## Electron и Docker
+## Что внутри образа
 
-- **Сервер (CMS, MCP, Control в браузере, Caddy)** — в Docker на VPS или локально через `docker-compose.mac.yml`.
-- **Desktop (.app)** — Editor, Control, Shell, Commander на Mac **вне** образа: нативные Electron-приложения подключаются к **URL** (`AGENT_CMS_PUBLIC_URL`, `https://maptex.ru/…` или `https://localhost:…`).
-- На VPS Node на хост **не нужен** — только Docker Engine + `.env`.
+| Компонент | Зачем |
+|-----------|--------|
+| **Node 22** | CMS, MCP, Control |
+| **git** | «Обновить» в Control (`git pull` на хосте через mount) |
+| **python3**, **ffmpeg** | скрипты, медиа |
+| **jq**, **rsync**, **curl**, **bash** | ops, health, deploy |
+| **g++**, **make**, **pkg-config** | сборка native-модулей (better-sqlite3, sharp) при `docker build` |
+| **Docker CLI + Compose plugin** | Control: `docker compose up/stop/restart` через socket хоста |
 
-## Control: кнопки старт / стоп / рестарт
+**Не в образе:** Electron, **openssh-client** (пока не нужен — для `git pull` используйте **HTTPS** remote; SSH добавим в образ, если понадобится).
 
-В контейнере `control` включено `AGENT_CMS_DOCKER_OPS=1` и смонтирован `/var/run/docker.sock`.
+## Control: compose-кнопки
+
+В контейнере `control`: `AGENT_CMS_DOCKER_OPS=1`, `/var/run/docker.sock`.
 
 | Кнопка в UI | Действие |
 |-------------|----------|
-| **Старт CMS** | `docker compose up -d cms mcp` (сервисы из `AGENT_CMS_DOCKER_UP_SERVICES`) |
-| **Стоп CMS** | `docker compose stop cms` |
-| **Рестарт CMS** | `docker compose restart cms mcp` |
+| **Compose up** | `docker compose up -d cms mcp` |
+| **Stop cms** | `docker compose stop cms` |
+| **Restart cms** | `docker compose restart cms mcp` |
+| **Pull + build** | `git pull` на хосте → `compose up -d --build` (если включено) |
 
-Control и Caddy **не** останавливаются кнопкой «Стоп CMS». Полный down — с хоста: `docker compose … down`.
+Control и Caddy **не** останавливаются кнопкой Stop. Полный down — с хоста: `docker compose … down`.
 
 ## Обновление с VPS (Control)
 
-Кнопка **«Обновить»** (рядом с Restart), только после **app-lock**:
+Кнопка **Pull + build**, только после **app-lock**:
 
-1. `git pull --ff-only` в каталоге на хосте (`AGENT_CMS_HOST_PROJECT`, по умолчанию `.` → `/host-project` в control)
-2. `docker compose up -d --build` (лог: `.run/deploy-update.log` на хосте)
+1. `git pull --ff-only` в `AGENT_CMS_HOST_PROJECT` (mount `/host-project`)
+2. `docker compose up -d --build` (лог: `.run/deploy-update.log`)
 
-Опционально в `.env`: `AGENT_CMS_DEPLOY_GIT_REMOTE`, `AGENT_CMS_DEPLOY_GIT_BRANCH`, `AGENT_CMS_DEPLOY_SKIP_PULL=1`.
+`.env`: `AGENT_CMS_DEPLOY_UPDATE_ENABLED=1`, опционально `AGENT_CMS_DEPLOY_GIT_REMOTE`, `AGENT_CMS_DEPLOY_GIT_BRANCH`, `AGENT_CMS_DEPLOY_SKIP_PULL=1`.
 
-## В образе (apt)
-
-Node 22 (base image), bash, curl, **git**, **python3**, **ffmpeg**, **jq**, **rsync**, **openssh-client**, build-essential, **Docker CLI** + Compose plugin (Control → compose на хосте).
-
-Конфиг — **`.env` в git** (на хосте при деплое); `.env.example` — только список ключей. Секреты не в образе.
+Конфиг — **`.env` в git** на хосте; `.env.example` — схема ключей. Секреты не запекаются в образ.
