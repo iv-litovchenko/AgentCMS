@@ -55,6 +55,7 @@ import { registerSessionTools } from "./lib/session-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
+import { getMcpServerInfo } from "./lib/server-info.js";
 import { registerCanonicalWithLegacyAlias } from "./lib/register-tool-alias.js";
 
 const pagePath = z
@@ -120,16 +121,13 @@ async function listWorkspacesAcrossInstances(registry) {
   return { agents, defaultAgentId, instanceIds: registry.listInstances().map((i) => i.id) };
 }
 
-function createServer() {
+function createServer(options = {}) {
   const cfg = getConfig();
   const registry = new InstanceRegistry();
   const client = new CmsRoutingClient(registry);
 
   const instructions = loadMcpServerInstructions();
-  const server = new McpServer(
-    { name: "agent-cms", version: "0.4.0" },
-    instructions ? { instructions } : {}
-  );
+  const server = new McpServer(getMcpServerInfo(options), instructions ? { instructions } : {});
   const toolRegistry = createToolRegistry();
 
   const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {

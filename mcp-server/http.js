@@ -114,7 +114,7 @@ app.post("/mcp", requireMcpToken, async (req, res) => {
         const sid = transport.sessionId;
         if (sid && transports[sid]) delete transports[sid];
       };
-      const server = createServer();
+      const server = createServer({ transport: "http" });
       await server.connect(transport);
     } else {
       res.status(400).json({
