@@ -30,6 +30,8 @@ npm install
 | `AGENT_CMS_PUBLIC_URL` | — | Для **Streamable HTTP** (`http.js`): `serverInfo.icons` → `{origin}/favicon.png` и `.svg` |
 | `AGENT_CMS_MCP_ICON_URL` | — | Одна картинка вместо favicon (полный URL); опционально `AGENT_CMS_MCP_ICON_BASE_URL` |
 
+**Большие файлы (без base64):** `content_binary_upload_begin` → **PUT** `putUrl` (сырые байты) → `content_binary_upload_complete`.
+
 ## Термины
 
 **`workspaceId`** — канонический параметр (id из `workspaces_list`, напр. `0-ws-test`). Legacy alias: **`agentId`** (не путать с темой **0-agent** / identity).

@@ -471,17 +471,19 @@ docker compose -f docker-compose.linux.yml ps
 }
 ```
 
-На VPS: `https://ваш-домен/app-mcp` (порт **3490** наружу не открываем), в `.env` — **`AGENT_CMS_MCP_TOKEN`**. Dev без Docker: `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` → `http://localhost:3490/mcp`.
+На VPS: `https://ваш-домен/app-mcp` (порт **3490** наружу не открываем), в `.env` — **`AGENT_CMS_MCP_TOKEN`** и **`AGENT_CMS_PUBLIC_URL`** (нужен для `putUrl` при загрузке больших файлов и иконки MCP). Dev без Docker: `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` → `http://localhost:3490/mcp`.
+
+**Большие файлы (фото, pdf):** без base64 в чате — `content_binary_upload_begin` → **PUT** `putUrl` → `content_binary_upload_complete` (подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5).
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token. See [docs/connectors/README.md](docs/connectors/README.md).
+> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token; set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md).
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 222** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 227** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -623,13 +625,18 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 18
+├── 📄 Контент (Content) · 23
 │   ├── 🟢 contents_list
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
 │   ├── 🟢 content_binary_read
 │   ├── 🟢 content_binary_write
 │   ├── 🟢 content_binary_write_from_url
+│   ├── 🟢 content_binary_upload_begin
+│   ├── 🟢 content_binary_upload_complete
+│   ├── 🟢 content_binary_upload_abort
+│   ├── 🟢 content_binary_upload_status
+│   ├── 🟢 content_binary_metadata_get
 │   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get
 │   ├── 🟢 content_property_read

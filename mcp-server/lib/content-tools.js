@@ -27,6 +27,13 @@ import {
   getWorkspaceUrlPagePreview,
   withMdRefFallback
 } from "./content-core.js";
+import {
+  beginContentBinaryUpload,
+  completeContentBinaryUpload,
+  abortContentBinaryUpload,
+  statusContentBinaryUpload,
+  getContentBinaryMetadata
+} from "./content-binary-upload.js";
 import { jsonText } from "./client.js";
 import { formatReadFileToolResult } from "./workspace-fs-tools.js";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
@@ -205,7 +212,14 @@ export function registerContentTools({ reg, client, pagePath }) {
       "Optional thumb + max for images. Does not return file bytes.",
     schema: address({
       thumb: z.boolean().optional().describe("Request thumbnail for images (default true)"),
-      max: z.number().int().min(64).max(2000).optional().describe("Thumbnail max px (default server 480)")
+      max: z.number().int().min(64).max(2000).optional().describe("Thumbnail max px (default server 480)"),
+      ttlSec: z
+        .number()
+        .int()
+        .min(60)
+        .max(86400)
+        .optional()
+        .describe("Reserved: short-lived signed URL (not yet enforced server-side)")
     }),
     handler: (args) => getContentBinaryUrl(client, args)
   });
@@ -228,6 +242,52 @@ export function registerContentTools({ reg, client, pagePath }) {
     }),
     handler: (args) => readContentBinary(client, args),
     options: { formatResult: (data) => formatReadFileToolResult(data, jsonText) }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_upload_begin",
+    description:
+      "Start a large binary upload without base64. Returns uploadId + putUrl — PUT raw bytes to putUrl, then content_binary_upload_complete. Same placement as content_binary_write.",
+    schema: address({
+      sizeBytes: z.number().int().min(1).describe("Exact file size in bytes (required for PUT)"),
+      mimeType: z.string().optional(),
+      createSubdir: z.boolean().optional().describe("Create subdirs in ref (default true)")
+    }),
+    handler: (args) => beginContentBinaryUpload(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_upload_complete",
+    description: "Finalize upload after PUT to putUrl from content_binary_upload_begin.",
+    schema: z.object({
+      uploadId: z.string().uuid().describe("From content_binary_upload_begin")
+    }),
+    handler: (args) => completeContentBinaryUpload(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_upload_abort",
+    description: "Cancel a pending upload session and delete staging data.",
+    schema: z.object({
+      uploadId: z.string().uuid()
+    }),
+    handler: (args) => abortContentBinaryUpload(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_upload_status",
+    description: "Check pending upload session: pending | uploaded | ready | expired.",
+    schema: z.object({
+      uploadId: z.string().uuid()
+    }),
+    handler: (args) => statusContentBinaryUpload(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_metadata_get",
+    description: "File metadata (size, mimeType) without reading bytes. Workspace-resolved placement only.",
+    schema: address({}),
+    handler: (args) => getContentBinaryMetadata(client, args)
   });
 
   registerCanonicalWithLegacyAlias(reg, {

@@ -133,7 +133,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_read`, `content_binary_write`, `content_binary_write_from_url`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). **`contents_list_reconcile`** (🔵) — пакетная сверка `{ id?, path? }[]` из памяти/cron с диском (краткий diff, без тел); затем точечный `content_read` / write. Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
+Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_*`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). **`contents_list_reconcile`** (🔵) — пакетная сверка `{ id?, path? }[]` из памяти/cron с диском (краткий diff, без тел); затем точечный `content_read` / write. Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
@@ -160,8 +160,22 @@ Workspace — папка с md-файлами. Хабы:
 
 `expectedHash` — `hash` из последнего чтения/записи; файл изменился → `conflict`. Frontmatter через body не меняется — только `part=properties`.
 
-- Новый `.md` — `content_create`. Бинарник — `content_binary_write` или `content_binary_write_from_url` (не `.md`).
-- Показать картинку из заметки: ссылку `awn-storage/assets/pasted/x.png` достроить до `awn-topics/<тема>/awn-storage/…` (путь — из `record_path_resolve`), затем `content_read` с `kind: root`, `format: "base64"`.
+- Новый `.md` — `content_create`. Бинарник — см. **бинарные файлы** ниже (не `.md` в `ref`).
+- Показать картинку из заметки: ссылку `awn-storage/assets/pasted/x.png` достроить до `awn-topics/<тема>/awn-storage/…` (путь — из `record_path_resolve`), затем `content_read` с `kind: root`, `format: "base64"` или **`record_binary_url_get`** (URL без байтов).
+
+**Бинарные файлы** (картинки, pdf, архивы) — тот же `placement`, что у текста; `ref` с расширением (например `assets/pasted/photo.png`).
+
+| Задача | Tool |
+|--------|------|
+| Прочитать байты / превью в чат | `content_binary_read` (base64; для больших — `maxBytes`) |
+| Мелкая запись | `content_binary_write` (base64; **не** для МБ — жрёт токены) |
+| Файл уже по HTTP(S) URL | `content_binary_write_from_url` |
+| **Большой файл** (HTTP MCP, без base64) | `content_binary_upload_begin` → **PUT** `putUrl` (сырое тело, `Content-Type`) → `content_binary_upload_complete` |
+| Отмена / прогресс загрузки | `content_binary_upload_abort` / `content_binary_upload_status` |
+| Ссылка на просмотр | `record_binary_url_get` |
+| Размер и mime без чтения | `content_binary_metadata_get` |
+
+Лимиты: до **45 MB** при пути workspace (`kind: root`, channel/media `files|assets`); слоты topic/media через storage — до **10 MB**. Для `putUrl` на проде нужен **`AGENT_CMS_PUBLIC_URL`**.
 
 ---
 
@@ -220,7 +234,7 @@ Workspace — папка с md-файлами. Хабы:
 
 Файлы и картинки уровня хранилища. Слоты: `files`, `assets`. `placement: { kind: "media", path: "<slug>", slot, ref }`.
 
-- Tools: `media_libraries_list`, `media_library_get`, `media_library_register` / `media_library_update` / `media_library_rename` / `media_library_delete` (legacy `list_media_libraries`, …); картинка из сети — `content_binary_write_from_url`.
+- Tools: `media_libraries_list`, `media_library_get`, `media_library_register` / `media_library_update` / `media_library_rename` / `media_library_delete` (legacy `list_media_libraries`, …); файл из сети — `content_binary_write_from_url`; большой — `content_binary_upload_*`.
 - **Медиа-облако:** `module_media_cloud_*` — `providers_list`, `status`, `sync`, `links_repair` (`path` — manifest темы, `file` — **полный** путь от корня). Пока только локально (`awn-media-cloud/`), в Google и Яндекс не грузит. Скилл `agent-cms-modules`.
 
 ---
@@ -317,7 +331,8 @@ Workspace — папка с md-файлами. Хабы:
 |-----|-----|
 | Любой файл по пути | `content_read` / `content_write` с `kind: root`; обход — `contents_list` (`kind: root`, `path`, `depth`) |
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `contents_list` (`path: "."`) → `content_read` / `content_write` (`path: AGENTS.md`; история на write) |
-| Бинарь в слот | `content_binary_write` (base64) / `content_binary_write_from_url` |
+| Бинарь в слот | `content_binary_write` (мелкий, base64) / `content_binary_write_from_url` / **`content_binary_upload_begin` → PUT → `complete`** (большой) |
+| Ссылка на бинарник | `record_binary_url_get` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `utility_document_text_extract` |
 | Веб | `utility_web_search`, `utility_web_images_search`, `utility_web_page_read`, `utility_web_page_preview` |

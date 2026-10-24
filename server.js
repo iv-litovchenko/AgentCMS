@@ -15097,6 +15097,11 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content, mode? }",
   workspaceFsPatch: "POST /api/workspace/fs/patch — patch_file MCP { path, old_string, new_string, replaceAll? }",
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
+  workspaceBinaryUploadBegin:
+    "POST /api/workspace/binary-upload/begin — content_binary_upload_begin { placement, sizeBytes, mimeType? }",
+  workspaceBinaryUploadPut:
+    "PUT /api/workspace/binary-upload/{uploadId} — raw body (not base64); then POST …/complete",
+  workspaceBinaryUploadComplete: "POST /api/workspace/binary-upload/complete — { uploadId }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
   workspaceNote: "GET/POST /api/workspace/note — session_note_read / session_note_write (shared NOTE.md)",
@@ -31600,6 +31605,102 @@ async function handleApiForAgent(req, res, url) {
         details: String(error.message || error)
       });
     }
+  }
+
+  const binaryUploadIdMatch = url.pathname.match(/^\/api\/workspace\/binary-upload\/([^/]+)$/);
+  if (req.method === "PUT" && binaryUploadIdMatch) {
+    const { putBinaryUploadBody } = require("./lib/workspace/binary-upload-handlers");
+    const uploadId = decodeURIComponent(binaryUploadIdMatch[1]);
+    try {
+      const session = await putBinaryUploadBody(req, uploadId);
+      return sendJson(res, 200, {
+        uploadId: session.uploadId,
+        receivedBytes: session.receivedBytes,
+        sizeBytes: session.sizeBytes,
+        status: session.status,
+        complete: session.receivedBytes >= session.sizeBytes
+      });
+    } catch (error) {
+      return sendJson(res, error.status || 500, {
+        error: String(error.message || error),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/begin") {
+    const { beginBinaryUpload } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 256_000);
+      const data = await beginBinaryUpload(req, payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, error.status || 400, {
+        error: String(error.message || error),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/complete") {
+    const { completeBinaryUpload } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 64_000);
+      const uploadId = String(payload.uploadId || "").trim();
+      if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+      const data = await completeBinaryUpload(uploadId, {
+        uploadWorkspaceFsFile,
+        persistMediaUploadBuffer,
+        resolveApiStorageContext,
+        validateContentSlotAccess,
+        getProjectRoot,
+        getAgentRoot,
+        readManifestAwnTypeId,
+        slotKeyFromStorageFolder
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, error.status || 500, {
+        error: String(error.message || error),
+        ...(error.hint ? { hint: error.hint } : {}),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/abort") {
+    const { removeBinaryUploadSession, getBinaryUploadSession } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 64_000);
+      const uploadId = String(payload.uploadId || "").trim();
+      if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+      const session = getBinaryUploadSession(uploadId);
+      if (!session) return sendJson(res, 404, { error: "Upload session not found or expired" });
+      await removeBinaryUploadSession(uploadId);
+      return sendJson(res, 200, { ok: true, uploadId });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to abort upload",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/binary-upload/status") {
+    const { getBinaryUploadSession } = require("./lib/workspace/binary-upload-handlers");
+    const uploadId = String(url.searchParams.get("uploadId") || "").trim();
+    if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+    const session = getBinaryUploadSession(uploadId);
+    if (!session) return sendJson(res, 404, { error: "Upload session not found or expired" });
+    return sendJson(res, 200, {
+      uploadId: session.uploadId,
+      status: session.status,
+      receivedBytes: session.receivedBytes,
+      sizeBytes: session.sizeBytes,
+      expiresAt: new Date(session.expiresAt).toISOString(),
+      placement: session.target?.placement,
+      result: session.result || undefined
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/api/workspace/fs/import") {
