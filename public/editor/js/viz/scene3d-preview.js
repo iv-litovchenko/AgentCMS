@@ -3,16 +3,38 @@
  * Lazy-loads three.js from shell vendor (same as Voice shell).
  */
 
-const THREE_MODULE_URL = "/shell/vendor/three.module.js";
+const THREE_URLS = [
+  "/shell/vendor/three.module.js",
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+];
 const GLTF_LOADER_URL = "/shell/vendor/loaders/GLTFLoader.js";
+const GLTF_LOADER_CDN =
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js";
 
 let threeModulePromise = null;
 
-function loadThreeModule() {
-  if (!threeModulePromise) {
-    threeModulePromise = import(/* webpackIgnore: true */ THREE_MODULE_URL);
-  }
+async function loadThreeModule() {
+  if (threeModulePromise) return threeModulePromise;
+  threeModulePromise = (async () => {
+    let lastErr;
+    for (const url of THREE_URLS) {
+      try {
+        return await import(/* webpackIgnore: true */ url);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error("Three.js не загрузился");
+  })();
   return threeModulePromise;
+}
+
+async function loadGLTFLoaderModule() {
+  try {
+    return await import(/* webpackIgnore: true */ GLTF_LOADER_URL);
+  } catch {
+    return import(/* webpackIgnore: true */ GLTF_LOADER_CDN);
+  }
 }
 
 function parseScene3dSource(raw) {
@@ -43,7 +65,7 @@ function fitCameraToGroup(THREE, camera, group, padding = 1.35) {
   camera.lookAt(center.x, center.y + size.y * 0.08, center.z);
 }
 
-async function buildObject(THREE, GLTFLoader, spec, ctx) {
+async function buildObject(THREE, spec, ctx) {
   const type = String(spec.type || "box").toLowerCase();
   const color = parseColor(spec.color, "#7c6cff");
   const mat = new THREE.MeshStandardMaterial({
@@ -74,6 +96,7 @@ async function buildObject(THREE, GLTFLoader, spec, ctx) {
   } else if (type === "gltf" || type === "glb") {
     const url = String(spec.url || "").trim();
     if (!url) throw new Error("gltf: нужен url");
+    const { GLTFLoader } = await loadGLTFLoaderModule();
     const loader = new GLTFLoader();
     const abs = url.startsWith("http") ? url : ctx.resolveAssetUrl?.(url) || url;
     const gltf = await loader.loadAsync(abs);
@@ -141,7 +164,6 @@ async function initScene3dViewer({ frame, canvas, errNode, sourceText, nodePath 
   }
 
   const THREE = await loadThreeModule();
-  const { GLTFLoader } = await import(/* webpackIgnore: true */ GLTF_LOADER_URL);
 
   const ctx = {
     resolveAssetUrl(rel) {
@@ -161,7 +183,7 @@ async function initScene3dViewer({ frame, canvas, errNode, sourceText, nodePath 
     }
   };
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -172,18 +194,19 @@ async function initScene3dViewer({ frame, canvas, errNode, sourceText, nodePath 
   const rig = new THREE.Group();
   scene.add(rig);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const key = new THREE.DirectionalLight(0xffffff, 1.05);
-  key.position.set(4, 8, 6);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 0.85));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  const key = new THREE.DirectionalLight(0xffffff, 1.35);
+  key.position.set(4, 10, 6);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0xc4b5fd, 0.35);
-  fill.position.set(-5, 2, -3);
+  const fill = new THREE.DirectionalLight(0xc4b5fd, 0.55);
+  fill.position.set(-6, 3, -4);
   scene.add(fill);
 
   const objects = Array.isArray(spec.objects) ? spec.objects : [];
   for (const item of objects) {
     try {
-      const obj = await buildObject(THREE, GLTFLoader, item, ctx);
+      const obj = await buildObject(THREE, item, ctx);
       rig.add(obj);
     } catch (error) {
       console.warn("scene3d object skipped:", item, error);
@@ -282,7 +305,13 @@ export async function hydrateScene3dPreviewBlocks(rootNode) {
     if (!pre) continue;
     const sourceText = code.textContent || "";
     const mount = mountScene3dFrame(pre, sourceText);
-    await initScene3dViewer({ ...mount, nodePath });
+    try {
+      await initScene3dViewer({ ...mount, nodePath });
+    } catch (error) {
+      mount.errNode.textContent = error?.message || "Ошибка 3D-превью";
+      mount.errNode.classList.remove("hidden");
+      mount.frame.dataset.scene3dMounted = "error";
+    }
   }
 }
 
