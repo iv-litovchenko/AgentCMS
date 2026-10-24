@@ -2671,15 +2671,14 @@ function syncMcpConfigPreview() {
 let mcpInstancesControlState = { instances: [] };
 
 function getDefaultMcpInstancesPreview() {
-  const localUrl = getMcpHttpConnectUrl().replace(/\/+$/, "");
   return [
     {
       id: "local",
       kind: "local",
       label: "local",
-      url: localUrl,
-      token: "<AGENT_CMS_MCP_TOKEN>",
-      deviceId: "local",
+      url: "",
+      token: "",
+      deviceId: "",
       hubUrl: "",
       auto: true
     },
@@ -2687,12 +2686,27 @@ function getDefaultMcpInstancesPreview() {
       id: "server",
       kind: "remote",
       label: "VPS",
-      url: "https://ваш-домен/app-mcp",
-      token: "<AGENT_CMS_MCP_TOKEN>",
+      url: "https://",
+      token: "AGENT_CMS_MCP_TOKEN",
       deviceId: "server",
       hubUrl: ""
     }
   ];
+}
+
+function normalizeMcpInstanceForLegacyDisplay(inst) {
+  if (!inst || typeof inst !== "object") return inst;
+  const row = { ...inst };
+  if (!row.token && row.hasToken) row.token = "AGENT_CMS_MCP_TOKEN";
+  delete row.hasToken;
+  return row;
+}
+
+function displayMcpInstanceToken(inst) {
+  const token = String(inst?.token || "").trim();
+  if (token) return token;
+  if (inst?.kind === "remote" || inst?.id === "server") return "AGENT_CMS_MCP_TOKEN";
+  return "";
 }
 
 function renderMcpConnectorField(label, value, mono = false) {
@@ -2706,21 +2720,54 @@ function renderMcpConnectorField(label, value, mono = false) {
 
 function renderMcpInstanceRowLegacy(inst, index) {
   const kind = inst.kind || "local";
+  const isPinnedLocal = kind === "local" && inst.id === "local";
+  const urlValue =
+    String(inst.url || "").trim() || (kind === "remote" ? "https://" : "");
+  const hubValue = String(inst.hubUrl || "").trim();
+  const hubPlaceholder = "https://hub / http://localhost:3001";
+  const deviceIdValue =
+    kind === "tunnel" ? String(inst.deviceId || inst.id || "").trim() : String(inst.deviceId || "").trim();
+
   return `
     <fieldset class="mcp-instance-row" data-index="${index}">
       <legend>${escapeAttr(inst.label || inst.id)}</legend>
-      <label>id <input name="id" value="${escapeAttr(inst.id || "")}" disabled /></label>
-      <label>kind
+      <label>id <input name="id" value="${escapeAttr(inst.id || "")}" disabled autocomplete="off" /></label>
+      <label>label <input name="label" value="${escapeAttr(inst.label || inst.id || "")}" disabled autocomplete="off" /></label>
+      <label class="mcp-instance-kind">kind
         <select name="kind" disabled>
           <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
           <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
           <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
         </select>
       </label>
-      <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" disabled /></label>
-      <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" disabled autocomplete="off" /></label>
-      <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" disabled /></label>
-      <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" disabled /></label>
+      <label class="mcp-instance-wide">
+        url <span class="mcp-instance-hint">(remote CMS)</span>
+        <input name="url" value="${escapeAttr(urlValue)}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="mcp-instance-wide">
+        token
+        <input name="token" value="${escapeAttr(displayMcpInstanceToken(inst))}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label>
+        deviceId <span class="mcp-instance-hint">(tunnel)</span>
+        <input name="deviceId" value="${escapeAttr(deviceIdValue)}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="mcp-instance-wide">
+        hubUrl <span class="mcp-instance-hint">(tunnel)</span>
+        <input
+          name="hubUrl"
+          value="${escapeAttr(hubValue)}"
+          placeholder="${escapeAttr(hubPlaceholder)}"
+          disabled
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </label>
+      ${
+        isPinnedLocal
+          ? ""
+          : `<button type="button" class="ghost-btn mcp-instance-remove mcp-instance-wide" disabled>Удалить</button>`
+      }
     </fieldset>`;
 }
 
@@ -2730,9 +2777,10 @@ function renderMcpInstancesControlRows() {
 
   const localUrl = getMcpHttpConnectUrl().replace(/\/+$/, "");
   const remoteUrl = "https://ваш-домен/app-mcp";
-  const instances = (mcpInstancesControlState.instances || []).length
+  const rawInstances = (mcpInstancesControlState.instances || []).length
     ? mcpInstancesControlState.instances
     : getDefaultMcpInstancesPreview();
+  const instances = rawInstances.map((inst) => normalizeMcpInstanceForLegacyDisplay(inst));
   const legacyRows = instances.map((inst, index) => renderMcpInstanceRowLegacy(inst, index)).join("");
 
   list.innerHTML = `
@@ -2811,7 +2859,9 @@ async function loadMcpInstancesControl() {
     return;
   }
   if (Array.isArray(data.instances) && data.instances.length) {
-    mcpInstancesControlState = { instances: data.instances };
+    mcpInstancesControlState = {
+      instances: data.instances.map((inst) => normalizeMcpInstanceForLegacyDisplay(inst))
+    };
     renderMcpInstancesControlRows();
   }
   if (fileNode) fileNode.textContent = data.filePath ? `Файл: ${data.filePath}` : "";
