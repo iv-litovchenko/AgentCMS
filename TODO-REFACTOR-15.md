@@ -150,14 +150,15 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 6 — источники / instances (обсуждение отдельно)
 
-Теория «всё это»; Source вместо instances; имя `local:ws-aya` — разделитель; можно ли на сервере подключаться напрямую через **node** — на prod **должно быть недоступно** (и на компе, и на сервере?).
+**Статус (пока):** без полноценных **instances** — два **коннектора MCP** в Control (local + server, просмотр); создание workspace — поле **«источник»** в Editor (`environment`: `local` | `production` = server в UI).
+
+Теория «всё это»; Source вместо instances; имя `local:ws-aya` — разделитель.
 
 > **NOTE**
-> - 💡 Именование source: **`local`** / **`remote`** + **`:`** + workspace id — **`local:ws-aya`** ок; документировать в glossary.
-> - ✅ **MCP для агентов (Mac, VPS, любой хост):** только **HTTP(S) URL** (`/app-mcp` или legacy `/mcp`) + **`Authorization: Bearer AGENT_CMS_MCP_TOKEN`**. CMS уже запущен — подключаемся к нему; отдельного «запуска платформы» через MCP нет.
-> - ⚠️ **stdio** (`node mcp-server/index.js`) — **не** рекомендуемый путь: локальный sidecar для старых коннекторов без HTTP MCP. В prod-доке и UI — **не** как равноправная альтернатива URL.
-> - ⚠️ «Node напрямую на сервере» = обход Docker и политики — **выключить** в prod-доке; локально — только осознанный dev без Docker.
-> - 📌 Обсуждение отложено — вынести в отдельный `TODO-REFACTOR-15-Q6.md` когда будет набросок модели instances/sources.
+> - 💡 Именование source: **`local`** / **`server`** (в реестре `production`) + **`:`** + workspace id — **`local:ws-aya`** — справочно для агента (Q6).
+> - ✅ **MCP:** только **HTTP** `…/app-mcp` + **Bearer** — в UI Control и JSON-конфиге; **stdio / node mcp-server** в prod и в гайде Control **не показываем**.
+> - 📌 Редактирование `instances.json` и коннекторов — **скоро**; старые идеи instances/tunnel — в `TODO.MCP-INSTANCES.md`.
+> - 📌 Полная модель — отдельный `TODO-REFACTOR-15-Q6.md` позже.
 
 ---
 

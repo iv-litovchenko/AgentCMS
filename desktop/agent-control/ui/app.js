@@ -2227,34 +2227,19 @@ function getMcpHttpConnectUrl() {
   return fromBootstrap;
 }
 
-function buildMcpConfigObject({ useAbsPath = false, includeToken = false } = {}) {
+function buildMcpConfigObject({ includeToken = false } = {}) {
   const mcp = bootstrap?.mcpConnect || {};
-  if (usesHttpMcpConnect()) {
-    const url = getMcpHttpConnectUrl();
-    const token = includeToken
-      ? String(mcp.mcpToken || bootstrap?.mcpToken || "YOUR_MCP_TOKEN")
-      : "<AGENT_CMS_MCP_TOKEN>";
-    return {
-      mcpServers: {
-        "agent-cms": {
-          url,
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      }
-    };
-  }
-  const root = String(bootstrap?.projectRoot || "").trim();
-  const scriptPath = useAbsPath
-    ? "<ABS_PATH>/mcp-server/index.js"
-    : mcp.mcpServerPath || `${root}/mcp-server/index.js`;
-
+  const url = getMcpHttpConnectUrl();
+  const token = includeToken
+    ? String(mcp.mcpToken || bootstrap?.mcpToken || "YOUR_MCP_TOKEN")
+    : "<AGENT_CMS_MCP_TOKEN>";
   return {
     mcpServers: {
       "agent-cms": {
-        command: "node",
-        args: [scriptPath]
+        url,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
     }
   };
@@ -2630,48 +2615,39 @@ function renderGuideStepMcp() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>MCP к агенту</h3>
-          <p>${
-            usesHttpMcpConnect()
-              ? "Канон: HTTP MCP на <code>/app-mcp</code> + Bearer <code>AGENT_CMS_MCP_TOKEN</code> (Cursor / Claude Desktop)."
-              : "Подключите Cursor или Claude Desktop к CMS по MCP"
-          }</p>
+          <p>Канон: HTTP MCP на <code>/app-mcp</code> + Bearer <code>AGENT_CMS_MCP_TOKEN</code> (Cursor / Claude Desktop).</p>
         </div>
         <ol class="guide-list">
           <li>Запустите <strong>сервер</strong> (шаг 2)</li>
           <li><strong>Cursor:</strong> Settings → MCP или <code>.cursor/mcp.json</code></li>
           <li><strong>Claude Desktop:</strong> <code>claude_desktop_config.json</code></li>
-          <li>${
-            usesHttpMcpConnect()
-              ? "Вставьте JSON ниже (<code>url</code> + <code>Authorization</code>). stdio <code>node mcp-server</code> — только legacy dev."
-              : "Вставьте JSON ниже (stdio). Удалённые CMS — <code>instances.json</code>"
-          }</li>
-          <li>Удалённые CMS: блок <strong>Инстансы MCP</strong> ниже или Editor → MCP Server</li>
+          <li>Вставьте JSON ниже: <code>url</code> → <code>/app-mcp</code> + <code>Authorization: Bearer …</code></li>
+          <li>Удалённый хост — второй коннектор (ниже); полноценное редактирование — позже</li>
           <li>Перезапустите MCP-клиент</li>
         </ol>
         <div class="mcp-instances-control panel-inset" id="mcp-instances-control-root">
           <p class="mcp-config-note">
-            Единственное место для URL и token удалённых CMS. Editor показывает список без секретов; MCP stdio читает этот файл с диска.
+            Канон: только <strong>HTTP MCP</strong> (<code>/app-mcp</code>). Коннекторы — локальная машина и удалённый сервер; реестр
+            <code>instances.json</code> — позже (идеи Q6 сохранены в TODO).
           </p>
-          <h4>Инстансы MCP</h4>
+          <h4>Коннекторы MCP</h4>
           <p class="mcp-config-note" id="mcp-instances-control-file"></p>
           <div id="mcp-instances-control-list"></div>
-          <div class="guide-actions">
-            <button type="button" class="ghost-btn" id="mcp-instances-control-add">+ Remote</button>
-            <button type="button" class="ghost-btn" id="mcp-instances-control-reload">Обновить</button>
-            <button type="button" class="ghost-btn" id="mcp-instances-control-save">Сохранить</button>
+          <div class="guide-actions mcp-connectors-actions">
+            <button type="button" class="ghost-btn" id="mcp-instances-control-add" disabled title="Скоро">+ Удалённый</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-reload" disabled title="Скоро">Обновить</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-save" disabled title="Скоро">Сохранить</button>
           </div>
-          <p class="mcp-config-note" id="mcp-instances-control-status" role="status"></p>
+          <p class="mcp-config-note" id="mcp-instances-control-status" role="status">Просмотр. Редактирование коннекторов временно отключено.</p>
         </div>
         <div class="mcp-config-box">
           <div class="cmd-row">
             <pre class="mcp-config-json" id="mcp-config-json" aria-label="Пример MCP-конфига"></pre>
-            <button type="button" class="ghost-btn cmd-btn" data-copy-mcp-config title="Скопировать с путём этого проекта">Копировать</button>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-mcp-config title="Скопировать HTTP MCP (/app-mcp)">Копировать</button>
           </div>
-          <p class="mcp-config-note">${
-            usesHttpMcpConnect()
-              ? "Копировать — URL <code>/app-mcp</code> и плейсхолдер токена; подставьте <code>AGENT_CMS_MCP_TOKEN</code> из .env."
-              : "Копировать подставит реальный путь <code>mcp-server</code> этого проекта."
-          }</p>
+          <p class="mcp-config-note">
+            Копировать — URL <code>/app-mcp</code> и плейсхолдер токена; подставьте <code>AGENT_CMS_MCP_TOKEN</code> из .env.
+          </p>
         </div>
         <div class="guide-actions">
           <button type="button" class="ghost-btn" data-open-url="${escapeAttr(docsUrl)}">Полная документация MCP</button>
@@ -2686,43 +2662,117 @@ function syncMcpConfigPreview() {
   const node = document.getElementById("mcp-config-json");
   if (!node) return;
 
-  node.textContent = JSON.stringify(buildMcpConfigObject({ useAbsPath: true, includeToken: false }), null, 2);
+  node.textContent = JSON.stringify(buildMcpConfigObject({ includeToken: false }), null, 2);
+  if (document.getElementById("mcp-instances-control-list")) {
+    renderMcpInstancesControlRows();
+  }
 }
 
 let mcpInstancesControlState = { instances: [] };
 
+function getDefaultMcpInstancesPreview() {
+  const localUrl = getMcpHttpConnectUrl().replace(/\/+$/, "");
+  return [
+    {
+      id: "local",
+      kind: "local",
+      label: "local",
+      url: localUrl,
+      token: "<AGENT_CMS_MCP_TOKEN>",
+      deviceId: "local",
+      hubUrl: "",
+      auto: true
+    },
+    {
+      id: "server",
+      kind: "remote",
+      label: "VPS",
+      url: "https://ваш-домен/app-mcp",
+      token: "<AGENT_CMS_MCP_TOKEN>",
+      deviceId: "server",
+      hubUrl: ""
+    }
+  ];
+}
+
+function renderMcpConnectorField(label, value, mono = false) {
+  const cls = mono ? " mcp-connector-input--mono" : "";
+  return `
+    <label class="mcp-connector-field">
+      <span class="mcp-connector-field-label">${escapeAttr(label)}</span>
+      <input class="mcp-connector-input${cls}" type="text" value="${escapeAttr(value)}" disabled />
+    </label>`;
+}
+
+function renderMcpInstanceRowLegacy(inst, index) {
+  const kind = inst.kind || "local";
+  return `
+    <fieldset class="mcp-instance-row" data-index="${index}">
+      <legend>${escapeAttr(inst.label || inst.id)}</legend>
+      <label>id <input name="id" value="${escapeAttr(inst.id || "")}" disabled /></label>
+      <label>kind
+        <select name="kind" disabled>
+          <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
+          <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
+          <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
+        </select>
+      </label>
+      <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" disabled /></label>
+      <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" disabled autocomplete="off" /></label>
+      <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" disabled /></label>
+      <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" disabled /></label>
+    </fieldset>`;
+}
+
 function renderMcpInstancesControlRows() {
   const list = document.getElementById("mcp-instances-control-list");
   if (!list) return;
-  list.innerHTML = (mcpInstancesControlState.instances || [])
-    .map((inst, index) => {
-      const kind = inst.kind || "local";
-      const ro = kind === "local" && inst.id === "local";
-      return `
-        <fieldset class="mcp-instance-row" data-index="${index}">
-          <legend>${escapeAttr(inst.label || inst.id)}</legend>
-          <label>id <input name="id" value="${escapeAttr(inst.id || "")}" ${ro ? "readonly" : ""} /></label>
-          <label>kind
-            <select name="kind" ${ro ? "disabled" : ""}>
-              <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
-              <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
-              <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
-            </select>
-          </label>
-          <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" /></label>
-          <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" /></label>
-          <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" /></label>
-          <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" /></label>
-          ${ro ? "" : `<button type="button" class="ghost-btn mcp-instance-remove" data-index="${index}">Удалить</button>`}
-        </fieldset>`;
-    })
-    .join("");
-  list.querySelectorAll(".mcp-instance-remove").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      mcpInstancesControlState.instances.splice(Number(btn.dataset.index), 1);
-      renderMcpInstancesControlRows();
-    });
-  });
+
+  const localUrl = getMcpHttpConnectUrl().replace(/\/+$/, "");
+  const remoteUrl = "https://ваш-домен/app-mcp";
+  const instances = (mcpInstancesControlState.instances || []).length
+    ? mcpInstancesControlState.instances
+    : getDefaultMcpInstancesPreview();
+  const legacyRows = instances.map((inst, index) => renderMcpInstanceRowLegacy(inst, index)).join("");
+
+  list.innerHTML = `
+    <div class="mcp-instances-control-stack">
+      <div class="mcp-connectors-grid">
+        <article class="mcp-connector-card" data-connector="local">
+          <header class="mcp-connector-head">
+            <span class="mcp-connector-badge">local</span>
+            <h5>Локальная машина</h5>
+          </header>
+          <p class="mcp-connector-lead">Docker / Mac · тот же хост, что Editor и Control</p>
+          <div class="mcp-connector-fields">
+            ${renderMcpConnectorField("MCP URL", localUrl, true)}
+            ${renderMcpConnectorField("Токен", "<AGENT_CMS_MCP_TOKEN>", true)}
+            ${renderMcpConnectorField("Источник (справочно)", "local — данные в ./workspaces")}
+          </div>
+        </article>
+        <article class="mcp-connector-card" data-connector="remote">
+          <header class="mcp-connector-head">
+            <span class="mcp-connector-badge mcp-connector-badge--remote">server</span>
+            <h5>Удалённый сервер</h5>
+          </header>
+          <p class="mcp-connector-lead">VPS · HTTPS + Bearer (как в JSON ниже)</p>
+          <div class="mcp-connector-fields">
+            ${renderMcpConnectorField("MCP URL", remoteUrl, true)}
+            ${renderMcpConnectorField("Токен", "<AGENT_CMS_MCP_TOKEN>", true)}
+            ${renderMcpConnectorField("Источник (справочно)", "server — хранилище на VPS")}
+          </div>
+        </article>
+      </div>
+      <section class="mcp-instances-legacy" aria-labelledby="mcp-instances-legacy-heading">
+        <header class="mcp-instances-legacy-head">
+          <h5 id="mcp-instances-legacy-heading">Реестр instances.json</h5>
+          <span class="mcp-instances-legacy-badge">скоро</span>
+        </header>
+        <p class="mcp-instances-legacy-lead">Превью полей из Editor / sidecar; редактирование временно отключено.</p>
+        <div class="mcp-instances-list">${legacyRows}</div>
+      </section>
+    </div>
+  `;
 }
 
 function collectMcpInstancesControlForm() {
@@ -2746,17 +2796,26 @@ function collectMcpInstancesControlForm() {
 async function loadMcpInstancesControl() {
   const status = document.getElementById("mcp-instances-control-status");
   const fileNode = document.getElementById("mcp-instances-control-file");
-  if (!window.agentControl?.getMcpInstances) return;
-  if (status) status.textContent = "Загрузка…";
-  const data = await window.agentControl.getMcpInstances();
-  if (!data.ok) {
-    if (status) status.textContent = data.error || "Ошибка загрузки";
+  renderMcpInstancesControlRows();
+
+  if (!window.agentControl?.getMcpInstances) {
+    if (fileNode) fileNode.textContent = "Файл instances.json — подключим при редактировании коннекторов.";
     return;
   }
-  mcpInstancesControlState = { instances: data.instances || [] };
-  renderMcpInstancesControlRows();
-  if (fileNode) fileNode.textContent = data.filePath || "";
-  if (status) status.textContent = "Готово";
+
+  if (status) status.textContent = "Загрузка реестра…";
+  const data = await window.agentControl.getMcpInstances();
+  if (!data.ok) {
+    if (status) status.textContent = "Просмотр. Редактирование коннекторов временно отключено.";
+    if (fileNode) fileNode.textContent = data.error || "instances.json недоступен";
+    return;
+  }
+  if (Array.isArray(data.instances) && data.instances.length) {
+    mcpInstancesControlState = { instances: data.instances };
+    renderMcpInstancesControlRows();
+  }
+  if (fileNode) fileNode.textContent = data.filePath ? `Файл: ${data.filePath}` : "";
+  if (status) status.textContent = "Просмотр. Редактирование коннекторов временно отключено.";
 }
 
 async function bindMcpInstancesControl() {
@@ -2766,34 +2825,6 @@ async function bindMcpInstancesControl() {
     return;
   }
   root.dataset.bound = "1";
-  const add = document.getElementById("mcp-instances-control-add");
-  const reload = document.getElementById("mcp-instances-control-reload");
-  const save = document.getElementById("mcp-instances-control-save");
-  const status = document.getElementById("mcp-instances-control-status");
-  add?.addEventListener("click", () => {
-    mcpInstancesControlState.instances.push({
-      id: "server",
-      kind: "remote",
-      label: "VPS",
-      url: "https://",
-      token: ""
-    });
-    renderMcpInstancesControlRows();
-  });
-  reload?.addEventListener("click", () => loadMcpInstancesControl());
-  save?.addEventListener("click", async () => {
-    if (!window.agentControl?.saveMcpInstances) return;
-    if (status) status.textContent = "Сохранение…";
-    const payload = collectMcpInstancesControlForm();
-    const data = await window.agentControl.saveMcpInstances(payload);
-    if (!data.ok) {
-      if (status) status.textContent = data.error || "Ошибка";
-      return;
-    }
-    mcpInstancesControlState = { instances: data.instances || [] };
-    renderMcpInstancesControlRows();
-    if (status) status.textContent = "Сохранено. Перезапустите Claude Desktop.";
-  });
   await loadMcpInstancesControl();
 }
 
@@ -3287,7 +3318,7 @@ function bindActionHandlers() {
 
   actionsRoot.querySelectorAll("[data-copy-mcp-config]").forEach((button) => {
     button.addEventListener("click", () => {
-      copyText(JSON.stringify(buildMcpConfigObject({ useAbsPath: false }), null, 2));
+      copyText(JSON.stringify(buildMcpConfigObject(), null, 2));
     });
   });
 

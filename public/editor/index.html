@@ -3798,6 +3798,14 @@
             <input id="app-landing-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
             <p class="agents-registry-create-footnote">Уникальный идентификатор и имя последней папки в пути. Не связан с названием.</p>
           </label>
+          <label class="agents-registry-field agents-registry-create-field agents-registry-environment-field">
+            <span>Где работает агент (источник)</span>
+            <select id="app-landing-create-environment-input" class="agents-registry-select">
+              <option value="local" selected>local — эта машина (Mac / Docker)</option>
+              <option value="production">server — VPS / удалённый хост</option>
+            </select>
+            <p class="agents-registry-create-footnote">Справочно для реестра и MCP (<code>local:slug</code> / <code>server:slug</code> — см. TODO Q6). Не меняет папку на диске.</p>
+          </label>
           <div class="modal-actions">
             <button id="app-landing-create-cancel-btn" class="save-btn" type="button">Отмена</button>
             <button id="app-landing-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
@@ -7646,6 +7654,14 @@ awn-type: awn.page.ws
           <span>Slug (ID агента)</span>
           <input id="agents-registry-create-slug-input" class="agents-registry-slug-input" type="text" placeholder="my-project" spellcheck="false" autocomplete="off" required />
           <p class="agents-registry-create-footnote">Уникальный идентификатор и имя последней папки в пути. Не связан с названием.</p>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field agents-registry-environment-field">
+          <span>Где работает агент (источник)</span>
+          <select id="agents-registry-create-environment-input" class="agents-registry-select">
+            <option value="local" selected>local — эта машина (Mac / Docker)</option>
+            <option value="production">server — VPS / удалённый хост</option>
+          </select>
+          <p class="agents-registry-create-footnote">Справочно для реестра. Папка workspace — на диске того хоста, где развёрнут CMS.</p>
         </label>
         <div class="modal-actions">
           <button id="agents-registry-create-cancel-btn" class="save-btn" type="button">Отмена</button>

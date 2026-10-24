@@ -2236,6 +2236,7 @@ const agentsRegistryCreateNameInputNode = document.getElementById("agents-regist
 const agentsRegistryCreateDescriptionInputNode = document.getElementById("agents-registry-create-description-input");
 const agentsRegistryCreateSlugInputNode = document.getElementById("agents-registry-create-slug-input");
 const agentsRegistryCreatePathInputNode = document.getElementById("agents-registry-create-path-input");
+const agentsRegistryCreateEnvironmentInputNode = document.getElementById("agents-registry-create-environment-input");
 const agentsRegistryCreateCancelBtn = document.getElementById("agents-registry-create-cancel-btn");
 const agentsRegistryCreateSubmitBtn = document.getElementById("agents-registry-create-submit-btn");
 const appLandingCreateModalNode = document.getElementById("app-landing-create-modal");
@@ -2243,6 +2244,7 @@ const appLandingCreateNameInputNode = document.getElementById("app-landing-creat
 const appLandingCreateDescriptionInputNode = document.getElementById("app-landing-create-description-input");
 const appLandingCreateSlugInputNode = document.getElementById("app-landing-create-slug-input");
 const appLandingCreatePathInputNode = document.getElementById("app-landing-create-path-input");
+const appLandingCreateEnvironmentInputNode = document.getElementById("app-landing-create-environment-input");
 const appLandingCreateCancelBtn = document.getElementById("app-landing-create-cancel-btn");
 const appLandingCreateSubmitBtn = document.getElementById("app-landing-create-submit-btn");
 const agentsRegistryCancelBtn = document.getElementById("agents-registry-cancel-btn");
@@ -2464,8 +2466,8 @@ let agentsRegistryPathValidateTimer = null;
 let agentsRegistryPathValidateRequestId = 0;
 
 const AGENT_ENVIRONMENT_OPTIONS = [
-  { value: "local", label: "Local" },
-  { value: "production", label: "Production" }
+  { value: "local", label: "local — эта машина" },
+  { value: "production", label: "server — VPS" }
 ];
 
 function normalizeAgentEnvironmentDraft(raw) {
@@ -13455,6 +13457,9 @@ function openAppLandingCreateModal() {
   if (appLandingCreatePathInputNode) {
     appLandingCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
+  if (appLandingCreateEnvironmentInputNode) {
+    appLandingCreateEnvironmentInputNode.value = "local";
+  }
   clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
   appLandingCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => appLandingCreateNameInputNode?.focus(), 0);
@@ -13473,13 +13478,19 @@ function isAgentPathInRegistry(pathValue) {
   return agentsCache.some((agent) => normalizeRegistryPathKey(agent.path) === key);
 }
 
-async function appendCreatedAgentToRegistry(discovered) {
+function readCreateAgentEnvironmentFromSelect(selectNode) {
+  return normalizeAgentEnvironmentDraft(selectNode?.value || "local");
+}
+
+async function appendCreatedAgentToRegistry(discovered, environment = "local") {
   await loadAgents();
   const key = normalizeRegistryPathKey(discovered.path);
   const base = getRegistryAgentsForUi();
   if (base.some((agent) => normalizeRegistryPathKey(agent.path) === key)) {
     return false;
   }
+
+  const env = normalizeAgentEnvironmentDraft(environment);
 
   const agents = [
     ...base.map(({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
@@ -13493,7 +13504,7 @@ async function appendCreatedAgentToRegistry(discovered) {
     })),
     {
       path: discovered.path,
-      environment: "local",
+      environment: env,
       default: base.length === 0,
       active: true,
       name: discovered.name ?? "",
@@ -13567,7 +13578,10 @@ async function submitAppLandingCreate() {
     const data = await response.json();
     if (!data.agent) throw new Error("Сервер не вернул данные агента");
 
-    const added = await appendCreatedAgentToRegistry(data.agent);
+    const added = await appendCreatedAgentToRegistry(
+      data.agent,
+      readCreateAgentEnvironmentFromSelect(appLandingCreateEnvironmentInputNode)
+    );
     if (!added) {
       showToast("Агент создан, но уже есть в реестре", "error");
       return;
@@ -17730,6 +17744,9 @@ function openAgentsRegistryCreateModal() {
   if (agentsRegistryCreatePathInputNode) {
     agentsRegistryCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
+  if (agentsRegistryCreateEnvironmentInputNode) {
+    agentsRegistryCreateEnvironmentInputNode.value = "local";
+  }
   clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
   agentsRegistryCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => agentsRegistryCreateNameInputNode?.focus(), 0);
@@ -17829,7 +17846,7 @@ function applyDiscoverAgentToDraft(discovered) {
   const entry = {
     id: discovered.id,
     path,
-    environment: "local",
+    environment: readCreateAgentEnvironmentFromSelect(agentsRegistryCreateEnvironmentInputNode),
     name: getDiscoverAgentDisplayName(discovered),
     comment: getDiscoverAgentDisplayComment(discovered),
     manifestFound: true,
