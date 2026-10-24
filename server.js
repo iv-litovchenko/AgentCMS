@@ -17679,6 +17679,7 @@ const {
   initModuleGitRepo,
   setModuleGitRemote,
   removeModuleGitRemote,
+  fetchModuleGitRemote,
   pushModuleGitRepo,
   pullModuleGitRepo,
   commitModuleGitChanges,
@@ -18239,8 +18240,20 @@ async function buildAgentGitStatus(options = {}) {
   // Список для отображения status всегда = union партий коммита (не узкий legacy-фильтр с клиента).
   const normalizedExtensions = commitBatchSettings.unionExtensions;
   const includeCommits = options.includeCommits !== false;
+  const fetchRemote = options.fetchRemote === true;
+  let remoteFetch = null;
 
   try {
+    if (fetchRemote) {
+      const remotesForFetch = await listModuleGitRemotes(repoAbsolute).catch(() => []);
+      const hasFetchUrl = remotesForFetch.some((item) => String(item?.fetchUrl || "").trim());
+      if (hasFetchUrl) {
+        remoteFetch = await fetchModuleGitRemote(repoAbsolute, { remote: "origin" });
+      } else {
+        remoteFetch = { remote: "origin", ok: false, skipped: true, reason: "no_remote" };
+      }
+    }
+
     const statusRaw = await runGitInRepo(repoAbsolute, [
       "status",
       "--porcelain=v1",
@@ -18327,7 +18340,8 @@ async function buildAgentGitStatus(options = {}) {
       outOfBatch,
       emptyFolderHints,
       remotes,
-      moduleConfig
+      moduleConfig,
+      remoteFetch
     };
   } catch (error) {
     return {
@@ -22420,9 +22434,11 @@ async function handleApiForAgent(req, res, url) {
     try {
       const extensionsParam = url.searchParams.get("extensions");
       const includeCommits = url.searchParams.get("includeCommits") !== "false";
+      const fetchRemote = url.searchParams.get("fetchRemote") === "true";
       const status = await buildAgentGitStatus({
         extensions: extensionsParam ?? MODULE_GIT_DEFAULT_EXTENSIONS.join(","),
-        includeCommits
+        includeCommits,
+        fetchRemote
       });
       return sendJson(res, 200, status);
     } catch (error) {

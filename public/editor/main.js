@@ -929,6 +929,10 @@ function getAgentGitFilterLabel() {
 let agentGitSettingsOpen = false;
 let agentGitLastStatus = null;
 let agentGitLastStatusAgentId = null;
+let agentGitRemoteCheckLoading = false;
+let agentGitRemoteCheckSeq = 0;
+let agentGitRemoteCheckTimer = null;
+const AGENT_GIT_REMOTE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
 const agentJournalContentNode = document.getElementById("agent-journal-content");
 const agentJournalMetaNode = document.getElementById("agent-journal-meta");
@@ -2205,6 +2209,7 @@ const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const sidebarRoadmapGlobeBtn = document.getElementById("sidebar-roadmap-globe-btn");
 const sidebarGitBtn = document.getElementById("sidebar-git-btn");
+const sidebarGitBtnBadgeNode = document.getElementById("sidebar-git-btn-badge");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
 const AGENT_ROADMAP_MAP_WORKSPACE_VIEW = "roadmap-map";
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
@@ -13258,6 +13263,7 @@ function refreshAgentsPickerIfOpen() {
 function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
   if (!btn || !icon) return;
   const label = btn.querySelector(".agents-picker-tool-label");
+  const preservedNodes = [...btn.querySelectorAll(".sidebar-git-btn-badge")];
   btn.replaceChildren();
   icon.classList.add(iconClass);
   const iconWrap = document.createElement("span");
@@ -13266,6 +13272,7 @@ function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
   iconWrap.appendChild(icon);
   btn.appendChild(iconWrap);
   if (label) btn.appendChild(label);
+  for (const node of preservedNodes) btn.appendChild(node);
 }
 
 function wireAgentsPickerToolButtons() {
@@ -16383,6 +16390,8 @@ async function switchActiveAgent(nextAgentId) {
     activeWorkspaceId = nextAgentId;
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
+    agentGitRemoteCheckSeq += 1;
+    agentGitRemoteCheckLoading = false;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
     workspaceNotificationsEvents = [];
     workspaceNotificationsLatestId = 0;
@@ -16420,6 +16429,7 @@ async function switchActiveAgent(nextAgentId) {
       currentMenuData = cachedMenu;
       syncAgentGitToolbarUi();
       void prefetchAgentGitToolbarRepoState();
+      if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
     } else {
       syncAgentGitToolbarUi();
     }
@@ -106689,6 +106699,7 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
     ensureSidebarWorkspacePageIndexRow();
     syncAgentGitToolbarUi();
     void prefetchAgentGitToolbarRepoState();
+    if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
   }
 
   enableMenuLinkDragSources(target);
@@ -110624,6 +110635,16 @@ function initAgentGitToolbar() {
       });
     }
   }
+  if (!window.__agentGitRemoteCheckBound) {
+    window.__agentGitRemoteCheckBound = true;
+    window.addEventListener("focus", () => {
+      void refreshAgentGitRemoteIndicator();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refreshAgentGitRemoteIndicator();
+    });
+  }
+  scheduleAgentGitRemoteCheck();
   syncAgentGitToolbarUi();
 }
 
@@ -110651,22 +110672,98 @@ async function prefetchAgentGitToolbarRepoState() {
     agentGitLastStatus = data;
     agentGitLastStatusAgentId = activeWorkspaceId;
     syncAgentGitToolbarUi();
+    if (data.isRepo) void refreshAgentGitRemoteIndicator();
   } catch {
     // ignore — menu markers remain primary
+  }
+}
+
+function scheduleAgentGitRemoteCheck() {
+  if (agentGitRemoteCheckTimer) {
+    clearInterval(agentGitRemoteCheckTimer);
+    agentGitRemoteCheckTimer = null;
+  }
+  agentGitRemoteCheckTimer = setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    void refreshAgentGitRemoteIndicator();
+  }, AGENT_GIT_REMOTE_CHECK_INTERVAL_MS);
+}
+
+async function refreshAgentGitRemoteIndicator() {
+  if (!activeWorkspaceId) return;
+  if (!resolveActiveAgentWorkspaceGitRepo() && !agentGitLastStatus?.isRepo) return;
+
+  const seq = (agentGitRemoteCheckSeq += 1);
+  agentGitRemoteCheckLoading = true;
+  syncAgentGitToolbarUi();
+
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/git/status", { includeCommits: "false", fetchRemote: "true" })
+    );
+    if (seq !== agentGitRemoteCheckSeq) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data?.moduleId !== "module-git" || !data.isRepo) return;
+    agentGitLastStatus = { ...(agentGitLastStatus || {}), ...data };
+    agentGitLastStatusAgentId = activeWorkspaceId;
+    syncAgentGitToolbarUi();
+  } catch {
+    // offline / git unavailable — keep previous badge
+  } finally {
+    if (seq === agentGitRemoteCheckSeq) {
+      agentGitRemoteCheckLoading = false;
+      syncAgentGitToolbarUi();
+    }
   }
 }
 
 function syncAgentGitToolbarUi() {
   const active = agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible();
   const hasGitRepo = resolveActiveAgentWorkspaceGitRepo();
+  const behind =
+    hasGitRepo && agentGitLastStatusAgentId === activeWorkspaceId
+      ? Number(agentGitLastStatus?.behind) || 0
+      : 0;
   agentGitBtn?.classList.toggle("is-active", active);
   sidebarGitBtn?.classList.toggle("is-active", active);
   agentGitBtn?.classList.toggle("has-git-repo", hasGitRepo);
   sidebarGitBtn?.classList.toggle("has-git-repo", hasGitRepo);
+  sidebarGitBtn?.classList.toggle("has-remote-behind", behind > 0);
+  sidebarGitBtn?.classList.toggle("is-remote-check-loading", agentGitRemoteCheckLoading);
+
+  if (sidebarGitBtnBadgeNode) {
+    if (agentGitRemoteCheckLoading && hasGitRepo) {
+      sidebarGitBtnBadgeNode.textContent = "…";
+      sidebarGitBtnBadgeNode.classList.remove("hidden");
+      sidebarGitBtnBadgeNode.classList.add("is-loading");
+    } else if (behind > 0) {
+      sidebarGitBtnBadgeNode.textContent = String(behind);
+      sidebarGitBtnBadgeNode.classList.remove("hidden", "is-loading");
+    } else {
+      sidebarGitBtnBadgeNode.textContent = "";
+      sidebarGitBtnBadgeNode.classList.add("hidden");
+      sidebarGitBtnBadgeNode.classList.remove("is-loading");
+    }
+  }
+
   if (sidebarGitBtn) {
-    sidebarGitBtn.title = hasGitRepo
-      ? "Git-репозиторий — изменения в workspace"
-      : "Git — репозиторий не инициализирован";
+    if (!hasGitRepo) {
+      sidebarGitBtn.title = "Git — репозиторий не инициализирован";
+    } else if (agentGitRemoteCheckLoading) {
+      sidebarGitBtn.title = "Git — проверка изменений на remote…";
+    } else if (behind > 0) {
+      sidebarGitBtn.title = `Git — на remote ${behind} новых коммитов, заберите (Pull)`;
+    } else {
+      sidebarGitBtn.title = "Git-репозиторий — с remote синхронизировано";
+    }
+    const ariaBits = [];
+    if (agentGitRemoteCheckLoading) ariaBits.push("проверка remote");
+    if (behind > 0) ariaBits.push(`${behind} коммитов на remote`);
+    sidebarGitBtn.setAttribute(
+      "aria-label",
+      ariaBits.length ? `Git-репозиторий, ${ariaBits.join(", ")}` : "Git-репозиторий"
+    );
   }
 }
 
@@ -136505,6 +136602,7 @@ agentGitPullBtn?.addEventListener("click", () => {
     try {
       const result = await postAgentGitPull();
       await renderAgentGitView();
+      void refreshAgentGitRemoteIndicator();
       await showAlertDialog(formatAgentGitPullResultDialog(result), {
         title: "Результат pull",
         icon: "⬇️",
