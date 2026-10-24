@@ -72,7 +72,6 @@ async function writeMarkdownFull(client, manifestPath, slot, ref, content) {
 async function readInternalContent(client, manifestPath, slot, file) {
   if (slot === "main-single-csv") return client.get("/api/memory/tabular", { path: manifestPath, file });
   if (slot === "todo-single" || slot === "todo") return client.get("/api/todo", { path: manifestPath });
-  if (slot === "roadmap-single" || slot === "roadmap") return client.get("/api/roadmap", { path: manifestPath });
   return client.get("/api/memory/internal", { path: manifestPath });
 }
 
@@ -81,9 +80,6 @@ async function writeInternalContent(client, manifestPath, slot, content, file) {
     return client.post("/api/memory/tabular", { path: manifestPath, content, file });
   }
   if (slot === "todo-single" || slot === "todo") return client.post("/api/todo", { path: manifestPath, content });
-  if (slot === "roadmap-single" || slot === "roadmap") {
-    return client.post("/api/roadmap", { path: manifestPath, content });
-  }
   return client.post("/api/memory/internal", { path: manifestPath, content });
 }
 

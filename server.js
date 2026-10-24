@@ -308,6 +308,7 @@ const {
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ATLAS,
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_FILES,
   STORAGE_SUBFOLDER_ASSETS,
@@ -5492,8 +5493,8 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "todo") {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, toTodoFilePath);
   }
-  if (mode === "roadmap") {
-    return resolveObsidianSidecarAbsolute(nodeAbsolute, toRoadmapFilePath);
+  if (mode === "atlas" || mode === "roadmap") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_ATLAS);
   }
   if (mode === "scripts") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_SCRIPTS);
@@ -6641,7 +6642,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (bundleMatch) {
     return {
       error:
-        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|roadmap-single|main-single-csv, no ref) for internal single-file slots",
+        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|main-single-csv, no ref) for internal single-file slots; atlas uses folder atlas/ with ref",
       status: 400
     };
   }
@@ -11452,8 +11453,7 @@ async function scanStorageRootBundleSlots(storageRootAbs) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const bundleSlots = {};
   if (!storageRootAbs) {
@@ -11863,6 +11863,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_QUICK_NOTES, slot: "notes" },
   { folder: STORAGE_SUBFOLDER_NOTE, slot: "notes" },
   { folder: STORAGE_SUBFOLDER_REFERENCES, slot: "references" },
+  { folder: STORAGE_SUBFOLDER_ATLAS, slot: "atlas" },
   { folder: STORAGE_SUBFOLDER_ARTEFACTS, slot: "artefacts" },
   { folder: STORAGE_SUBFOLDER_SCRIPTS, slot: "scripts" },
   { folder: STORAGE_SUBFOLDER_TEMPLATES, slot: "templates" },
@@ -13061,15 +13062,13 @@ const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundle
 const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
-  "todo-single": "TODO",
-  "roadmap-single": "Карты"
+  "todo-single": "TODO"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {
   "main-single": BUNDLE_CONTENT_FILE,
   "main-single-csv": BUNDLE_TABULAR_FILE,
-  "todo-single": BUNDLE_TODO_FILE,
-  "roadmap-single": BUNDLE_ROADMAP_FILE
+  "todo-single": BUNDLE_TODO_FILE
 };
 
 function isMarkdownBundleBodyFilled(content) {
@@ -13119,20 +13118,6 @@ async function resolveBundleSlotIndexRow(manifestRelPath, slotKey) {
       label,
       fileName,
       linkPath: hit.path || toTodoFilePath(manifestRelPath),
-      filled,
-      status: filled ? "заполнено" : "не заполнено"
-    };
-  }
-
-  if (normalizedSlot === "roadmap-single") {
-    const hit = await readRoadmapContent(manifestRelPath);
-    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
-    const filled = hit.exists && isMarkdownBundleBodyFilled(hit.content);
-    return {
-      slot: normalizedSlot,
-      label,
-      fileName,
-      linkPath: hit.path || toRoadmapFilePath(manifestRelPath),
       filled,
       status: filled ? "заполнено" : "не заполнено"
     };
@@ -14634,8 +14619,7 @@ async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const spec = specs.find((row) => row.slotKey === slotKey);
   if (!spec) return [];
@@ -15477,7 +15461,8 @@ const TIMELINE_SLOT_FOLDER_TRACKS = [
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
   { subfolder: STORAGE_SUBFOLDER_REPOSITORY, fileKind: "repository", label: "Репозиторий" },
   { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
-  { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" }
+  { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" },
+  { subfolder: STORAGE_SUBFOLDER_ATLAS, fileKind: "atlas", label: "Карты" }
 ];
 
 async function buildAgentTimeline(limit = 150) {
