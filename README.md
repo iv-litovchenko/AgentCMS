@@ -40,8 +40,10 @@
 - [Принципы](#-принципы-gb-principles)
 - [Стек](#-стек-gb-stack)
 - [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
-- [Установка — macOS](#-установка--macos-gb-install--macos)
-- [Установка — Ubuntu VPS / сервер](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+- [Установка — установщик (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
+- [Установка — macOS (вручную)](#-установка--macos-gb-install--macos)
+- [Установка — Ubuntu VPS / сервер (вручную)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+- [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
 - [Настройка — `.env`](#-настройка--env-gb-configuration--env)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 - [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
@@ -65,8 +67,10 @@
 > - [Principles](#-принципы-gb-principles)
 > - [Stack](#-стек-gb-stack)
 > - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
-> - [Install — macOS](#-установка--macos-gb-install--macos)
-> - [Install — Ubuntu VPS / server](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+> - [Install — installer (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
+> - [Install — macOS (manual)](#-установка--macos-gb-install--macos)
+> - [Install — Ubuntu VPS / server (manual)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+> - [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
 > - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 > - [MCP connection](#-подключение-mcp-gb-mcp-connection)
@@ -281,7 +285,7 @@
 | **Docker** | **Docker Desktop** + [`docker-compose.mac.yml`](docker-compose.mac.yml) | **Engine + Compose plugin** + [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **RAM** | 8 GB+ комфортно | мин. **2 GB**; комфорт **4 GB** |
 | **Диск** | место под репо и workspaces | **30 GB+** NVMe; код в **`/opt/agent-cms`** |
-| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установка Linux](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server) |
+| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установщик / Linux](#-установка--установщик-mac--windows--linux-gb-install--installer) |
 | **Не на сервере** | — | Electron, Control desktop, GUI |
 
 Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
@@ -290,7 +294,45 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 > 🇬🇧 **[en]**
 >
-> macOS: **Docker Desktop**, **`cms-start.command`**. Config: **`.env` in the repo**. VPS: one install block below, [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only.
+> Prefer the **installer** (below), then daily ops via **`agent-cms` CLI**. Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [TODO-REFACTOR-15.md](TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
+
+## 🇷🇺 Установка — установщик (Mac / Windows / Linux) (🇬🇧 Install — installer)
+
+🇷🇺 **[ru]**
+
+**Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)** — `start`, `status`, `update` и т.д.
+
+| ОС | Куда кладётся код | Compose |
+| --- | --- | --- |
+| **macOS** | `~/Projects/AgentCMS` | [`docker-compose.mac.yml`](docker-compose.mac.yml) |
+| **Linux (VPS)** | `/opt/agent-cms` | [`docker-compose.linux.yml`](docker-compose.linux.yml) |
+| **Windows** | `%USERPROFILE%\Projects\AgentCMS` или **WSL2** `/opt/agent-cms` | [`docker-compose.windows.yml`](docker-compose.windows.yml) |
+
+**Нужно заранее:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac / Windows) или **Docker Engine + Compose plugin** (Linux). **`.env`** уже в репозитории — установщик клонирует репо в таблице выше и делает первый `docker compose up -d --build`.
+
+```bash
+# macOS / Linux — без npm: clone + CLI в ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
+
+# опции: --dir ~/Projects/AgentCMS --no-start --skip-build
+# из уже клонированного репо:
+# bash scripts/install.sh
+
+# Windows PowerShell → WSL2 + тот же install.sh
+irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.ps1 | iex
+```
+
+После установки добавьте **`~/.local/bin`** в PATH (если нужно), затем: `agent-cms doctor` → `agent-cms rebuild` (первый раз) → [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+
+> **NOTE**
+> - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms`. Конфиг: `~/.config/agent-cms/home`.
+> - ⚠️ `curl | bash` / `irm | iex` — только с **доверенного** URL (официальный GitHub). [Ручная установка](#-установка--macos-gb-install--macos) — запасной путь.
+
+---
+
+> 🇬🇧 **[en]**
+>
+> **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms`** for daily ops. No npm publish. Manual blocks below = fallback.
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -298,7 +340,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 🇷🇺 **[ru]**
 
-**Docker Compose V2** — команда `docker compose` (с пробелом). **`.env`** уже в репозитории. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+**Ручной путь** (если [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) ещё не используете). **Docker Compose V2** — `docker compose` (с пробелом). **`.env`** уже в репозитории.
 
 ```bash
 # 1) Docker Desktop — https://www.docker.com/products/docker-desktop/
@@ -327,7 +369,7 @@ docker compose -f docker-compose.mac.yml up -d --build
 
 🇷🇺 **[ru]**
 
-**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). **`.env` в git**. Наружу только **22, 80, 443** (панель + `ufw` — в блоке ниже). Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+**Ручной путь** для VPS (альтернатива [установщику](#-установка--установщик-mac--windows--linux-gb-install--installer)). **Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). **`.env` в git**. Наружу только **22, 80, 443** (панель + `ufw` — в блоке ниже).
 
 ```bash
 # === Ubuntu VPS — Docker Engine + Agent CMS ===
@@ -375,6 +417,57 @@ docker compose -f docker-compose.linux.yml ps
 > 🇬🇧 **[en]**
 >
 > VPS: one block above — Docker CE, **ufw 22/80/443**, compose up. [DOCKER.md](docs/deploy/DOCKER.md).
+
+## 🇷🇺 CLI `agent-cms` (🇬🇧 CLI `agent-cms`)
+
+🇷🇺 **[ru]**
+
+Утилита в **PATH** вместо длинных `docker compose -f …` и `.command`-файлов. Имя команды: **`agent-cms`** (опционально alias `agent cms` через completion).
+
+**Конфиг:** каталог установки из [установщика](#-установка--установщик-mac--windows--linux-gb-install--installer) или env **`AGENT_CMS_HOME`**; compose-файл выбирается по ОС; URL — из `.env` (`AGENT_CMS_PUBLIC_URL`).
+
+```bash
+agent-cms --version
+agent-cms doctor          # Docker, compose, каталог, порты
+agent-cms paths           # HOME, compose file, public URL
+
+agent-cms start           # up -d (с workspace-mounts, если есть)
+agent-cms stop
+agent-cms restart
+agent-cms ps
+agent-cms logs            # logs -f cms mcp control …
+
+agent-cms rebuild         # up -d --build (первый раз / после server.js)
+agent-cms update          # git pull --ff-only + rebuild (как Control «Обновить», Q3)
+
+agent-cms open editor
+agent-cms open control
+agent-cms open chat
+agent-cms open mcp-url    # URL + напоминание про Bearer token
+
+agent-cms install         # делегат установщика (Q9.1)
+# agent-cms env show      # позже, осторожно на prod
+```
+
+| Группа | Команды | Сейчас без CLI |
+| --- | --- | --- |
+| **info** | `version`, `doctor`, `paths`, `status` | `docker compose ps`, ручные проверки |
+| **lifecycle** | `start`, `stop`, `restart`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
+| **build** | `rebuild` | `cms-rebuild.command`, `--build` |
+| **update** | `update` | Control → «Обновить» / `deploy-update` |
+| **open** | `open editor\|control\|chat\|mcp-url` | копировать URL из README |
+| **install** | `install` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
+
+> **NOTE**
+> - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
+> - 💡 **`agent-cms update`** = `git pull --ff-only` + rebuild (как Q3); app-lock на prod — через Control.
+> - 📌 Fallback: **`cms-start.command`**, **`npm run docker:mac`** / **`docker:linux`** ([package.json](package.json)).
+
+---
+
+> 🇬🇧 **[en]**
+>
+> **`agent-cms`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required.
 
 ## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
 
