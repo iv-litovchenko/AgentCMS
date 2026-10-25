@@ -5,13 +5,14 @@
 ## Требования
 
 - Google Chrome (Manifest V3, Side Panel API)
-- Запущенный Agent CMS: `npm run start:https` → CMS `https://localhost:3443`, Voice `https://localhost:3488`
+- Запущенный Agent CMS (Docker / одна дверь): **`http://127.0.0.1:3000`** — Side Panel на **`/app-chat`**
+- Legacy dev HTTPS: `npm run start:https` → CMS `https://localhost:3443`, Voice `https://localhost:3488`
 
 ## Установка
 
 1. `chrome://extensions` → **Режим разработчика** → **Загрузить распакованное расширение**
 2. Выберите эту папку: `browser-extension/`
-3. **Параметры расширения** → URL CMS (`https://localhost:3443`) и при необходимости `agent` id
+3. **Параметры расширения** → URL CMS (`http://127.0.0.1:3000`, без `/app-chat`) и при необходимости `agent` id
 4. После обновления файлов нажмите **↻** у расширения — Chrome запросит доступ **«Читать и изменять данные на всех сайтах»** (нужен для скриншота вкладки и page picker)
 
 Подробная инструкция также в CMS: кнопка с иконкой Shell в шапке (после **WEB**).
@@ -64,7 +65,8 @@ browser-extension/
 
 Тот же API, что и web Shell:
 
-- `POST /api/shell/message?agent=` (на CMS `:3443`)
-- Side Panel: `GET https://localhost:3488/{agent}/extension/?companion=1` (без agent — `/?companion=1`)
+- `POST /api/shell/message?agent=` (на базовом URL CMS, обычно `:3000`)
+- Side Panel: chat на **`/app-chat`**, например `http://127.0.0.1:3000/app-chat/{agent}/extension/?companion=1` (без agent — `…/app-chat/?companion=1`)
+- Legacy: CMS `:3443`, Voice `:3488` — те же пути отдельным портом
 
 Автор сообщений из расширения: `companion`.
