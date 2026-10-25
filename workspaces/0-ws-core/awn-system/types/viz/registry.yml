@@ -18,6 +18,9 @@ sections:
   - id: places
     label: Места
     icon: "📍"
+  - id: space
+    label: Пространство
+    icon: "🧊"
 
 kinds:
   - mindmap
@@ -30,3 +33,4 @@ kinds:
   - timeline
   - people
   - geo
+  - scene3d

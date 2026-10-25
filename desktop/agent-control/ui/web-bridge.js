@@ -9,6 +9,7 @@
     "server-start-attached": "start",
     "server-stop": "stop",
     "server-restart": "restart",
+    "server-update": "deploy-update",
     "install-deps": "install-npm"
   };
 
@@ -54,7 +55,8 @@
         server: payload.server,
         mcpConnect: payload.mcpConnect,
         setupFlags: payload.setupFlags,
-        appLock: payload.appLock
+        appLock: payload.appLock,
+        deployment: payload.deployment
       };
     },
 
@@ -80,6 +82,14 @@
       fetchJson("/api/ops/env-file", {
         method: "POST",
         body: JSON.stringify({ content: String(content ?? "") })
+      }),
+
+    getWorkspaceMounts: () => fetchJson("/api/ops/workspace-mounts"),
+
+    saveWorkspaceMounts: (document) =>
+      fetchJson("/api/ops/workspace-mounts", {
+        method: "POST",
+        body: JSON.stringify(document || {})
       }),
 
     reloadUi: () => {
@@ -137,16 +147,21 @@
 
     runAction: async (actionId) => {
       const id = String(actionId || "").trim();
+      if (id === "server-update" && window.__controlBootstrap?.deployment?.updateEnabled !== true) {
+        emitLog({ text: "Обновление из Control пока отключено.\n", stream: "stderr" });
+        return { ok: false, error: "deploy_update_disabled" };
+      }
+
       const mapped = SERVER_ACTION_MAP[id];
       if (!mapped) {
         return {
           ok: false,
           error:
-            "На Linux/VPS в браузере доступны только «Запуск/Стоп/Restart сервера» и «npm ci». Остальное — Electron (Mac) или SSH."
+            "На Linux/VPS в браузере доступны «Запуск/Стоп/Restart/Обновить» и «npm ci». Остальное — Electron (Mac) или SSH."
         };
       }
 
-      const mayDropConnection = mapped === "stop" || mapped === "restart";
+      const mayDropConnection = mapped === "stop" || mapped === "restart" || mapped === "deploy-update";
 
       emitActionState({ actionId: id, running: true });
       emitLog({ text: `\n▶ ${id} (${mapped})\n`, stream: "stdout" });
@@ -162,13 +177,14 @@
         return {
           ok: Boolean(result.ok),
           error: result.error || null,
-          serverDisconnectExpected: mayDropConnection && result.ok
+          serverDisconnectExpected: mayDropConnection && result.ok,
+          rebuildStarted: Boolean(result.rebuildStarted)
         };
       } catch (error) {
         let msg = String(error.message || error);
         if (/app_lock_required/i.test(msg)) {
           msg =
-            "app_lock_required — сначала войдите: Editor http://HOST:3000 (логин/пароль из .env APP_LOCK_*), затем снова «Старт» на :3288 (куки на тот же IP/домен).";
+            "app_lock_required — войдите в Editor (/ или /app-control/) с APP_LOCK_* на том же host, затем снова «Старт» в Control (куки на тот же IP/домен).";
           emitLog({ text: `${msg}\n`, stream: "stderr" });
           return { ok: false, error: msg };
         }
@@ -176,7 +192,7 @@
           emitLog({
             text:
               mapped === "restart"
-                ? "Соединение оборвалось — перезапуск идёт. Страница обновится, когда :3288 снова ответит.\n"
+                ? "Соединение оборвалось — перезапуск идёт. Страница обновится, когда Control снова ответит.\n"
                 : "Соединение оборвалось — остановка, скорее всего, выполнена. Чтобы снова поднять CMS — «Старт» после reload или SSH: agent-cms-http-service.sh start\n",
             stream: "stdout"
           });

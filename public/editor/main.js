@@ -929,6 +929,10 @@ function getAgentGitFilterLabel() {
 let agentGitSettingsOpen = false;
 let agentGitLastStatus = null;
 let agentGitLastStatusAgentId = null;
+let agentGitRemoteCheckLoading = false;
+let agentGitRemoteCheckSeq = 0;
+let agentGitRemoteCheckTimer = null;
+const AGENT_GIT_REMOTE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const agentJournalPaneNode = document.getElementById("agent-journal-pane");
 const agentJournalContentNode = document.getElementById("agent-journal-content");
 const agentJournalMetaNode = document.getElementById("agent-journal-meta");
@@ -2100,7 +2104,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам", icon: "📎" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме", icon: "📃" },
   { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги", icon: "🧠" },
-  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md", icon: "⚙" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md, BUFFER.md", icon: "⚙" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO", icon: "🔧" }
 ];
 const DOC_LINKS_ACCORDION_STORAGE_KEY = "agent-cms:doc-links-accordion.v1";
@@ -2231,6 +2235,7 @@ const agentsRegistryCreateNameInputNode = document.getElementById("agents-regist
 const agentsRegistryCreateDescriptionInputNode = document.getElementById("agents-registry-create-description-input");
 const agentsRegistryCreateSlugInputNode = document.getElementById("agents-registry-create-slug-input");
 const agentsRegistryCreatePathInputNode = document.getElementById("agents-registry-create-path-input");
+const agentsRegistryCreateEnvironmentInputNode = document.getElementById("agents-registry-create-environment-input");
 const agentsRegistryCreateCancelBtn = document.getElementById("agents-registry-create-cancel-btn");
 const agentsRegistryCreateSubmitBtn = document.getElementById("agents-registry-create-submit-btn");
 const appLandingCreateModalNode = document.getElementById("app-landing-create-modal");
@@ -2238,6 +2243,7 @@ const appLandingCreateNameInputNode = document.getElementById("app-landing-creat
 const appLandingCreateDescriptionInputNode = document.getElementById("app-landing-create-description-input");
 const appLandingCreateSlugInputNode = document.getElementById("app-landing-create-slug-input");
 const appLandingCreatePathInputNode = document.getElementById("app-landing-create-path-input");
+const appLandingCreateEnvironmentInputNode = document.getElementById("app-landing-create-environment-input");
 const appLandingCreateCancelBtn = document.getElementById("app-landing-create-cancel-btn");
 const appLandingCreateSubmitBtn = document.getElementById("app-landing-create-submit-btn");
 const agentsRegistryCancelBtn = document.getElementById("agents-registry-cancel-btn");
@@ -2270,6 +2276,8 @@ const WORKSPACE_NOTIFICATIONS_HIDDEN_KEY_PREFIX = "yamlcms.workspaceNotification
 const WORKSPACE_NOTIFICATIONS_FILTER_COOKIE = "yamlcms.notificationsFilter";
 const WORKSPACE_NOTIFICATIONS_MUTED_COOKIE = "yamlcms.notificationsMuted";
 const WORKSPACE_NOTIFICATIONS_FETCH_LIMIT = 100;
+/** Временно: без фонового GET /api/agent/workspace-notifications (limit=100). По клику на колокольчик — загрузка. */
+const WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED = false;
 const WORKSPACE_NOTIFICATIONS_FILTER_VALUES = new Set(["all", "mcp", "ui", "notify"]);
 let workspaceNotificationsEvents = [];
 let workspaceNotificationsLatestId = 0;
@@ -2457,8 +2465,8 @@ let agentsRegistryPathValidateTimer = null;
 let agentsRegistryPathValidateRequestId = 0;
 
 const AGENT_ENVIRONMENT_OPTIONS = [
-  { value: "local", label: "Local" },
-  { value: "production", label: "Production" }
+  { value: "local", label: "local — эта машина" },
+  { value: "production", label: "server — VPS" }
 ];
 
 function normalizeAgentEnvironmentDraft(raw) {
@@ -2466,10 +2474,28 @@ function normalizeAgentEnvironmentDraft(raw) {
   return AGENT_ENVIRONMENT_OPTIONS.some((item) => item.value === value) ? value : "local";
 }
 /** Selected workspace registry id (REFACTOR-10; not persona 0-agent / agent-kit). */
-let activeWorkspaceId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "main";
+let activeWorkspaceId = readStorageItem(ACTIVE_AGENT_STORAGE_KEY) || "";
+/** Блокирует фоновые API агента, пока init/loadAgents не завершились (localStorage ≠ UI). */
+let editorBootComplete = false;
+
+function isAgentWorkspaceSessionActive() {
+  return (
+    editorBootComplete &&
+    Boolean(activeWorkspaceId) &&
+    !appRootNode?.classList.contains("app-landing-view")
+  );
+}
+
+/** Agent id for боковое меню / agent-scoped API; пусто на лендинге и до boot. */
+function resolveAgentMenuStatsScope(agentId = activeWorkspaceId) {
+  const scopedId = String(agentId ?? activeWorkspaceId ?? "").trim();
+  if (!scopedId || !isAgentWorkspaceSessionActive()) return "";
+  return scopedId;
+}
 
 function getActiveWorkspaceId() {
-  return activeWorkspaceId || "main";
+  if (activeWorkspaceId) return activeWorkspaceId;
+  return isAppLandingViewActive() ? "" : "main";
 }
 
 function nodeStorageKey(agentId, nodePath) {
@@ -2572,7 +2598,7 @@ const CHPU_UI_VIEW_IDS = new Set([
   "env",
   "chat",
   "todo",
-  "roadmap",
+  "atlas",
   "list",
   "preview"
 ]);
@@ -2596,8 +2622,9 @@ const CHPU_LEGACY_UI_ALIASES = {
   chat: "chat",
   todo: "todo",
   tasks: "todo",
-  roadmap: "roadmap",
-  plan: "roadmap",
+  atlas: "atlas",
+  roadmap: "atlas",
+  plan: "atlas",
   list: "list",
   browse: "list",
   "show-list": "list",
@@ -3015,8 +3042,9 @@ function chpuUiViewToContentMode(uiView) {
       return NODE_DISCUSSION_MODE;
     case "todo":
       return "todo";
+    case "atlas":
     case "roadmap":
-      return "roadmap";
+      return "atlas";
     case "folder":
       return "folder-browse";
     default:
@@ -3044,8 +3072,10 @@ function contentModeToChpuUiView(mode) {
       return "chat";
     case "todo":
       return "todo";
+    case "atlas":
+      return "atlas";
     case "roadmap":
-      return "roadmap";
+      return "atlas";
     case "folder-browse":
       return "folder";
     default:
@@ -4222,7 +4252,7 @@ function resolveActivePageSlotFromState() {
   if (activeContentMode === "internal") return "main-single";
   if (activeContentMode === "tabular") return "main-single-csv";
   if (activeContentMode === "todo") return "todo-single";
-  if (activeContentMode === "roadmap") return "roadmap-single";
+  if (activeContentMode === "atlas") return "atlas";
   const dataSlot = getDataStorageSlotForMode(activeContentMode);
   if (dataSlot) return dataSlot;
   if (isMediaLibraryContentMode()) {
@@ -4813,7 +4843,7 @@ function isWorkspaceEditorLinkInsertionContext() {
   if (activeContentMode === "description") return true;
   if (activeContentMode === "internal") return true;
   if (activeContentMode === "todo") return true;
-  if (activeContentMode === "roadmap") return true;
+  if (activeContentMode === "atlas") return true;
   if (activeContentMode === "external" && activeExternalFilePath) return true;
   if (activeContentMode === "tabular" && isTabularSourceEditing()) return true;
   return false;
@@ -4860,10 +4890,6 @@ function getWorkspaceEditorLinkTargetRel() {
 
   if (manifestBase && activeContentMode === "todo") {
     return resolveNodeSidecarRelPath(manifestBase, "todo");
-  }
-
-  if (manifestBase && activeContentMode === "roadmap") {
-    return resolveNodeSidecarRelPath(manifestBase, "roadmap");
   }
 
   return manifestPath || manifestBase;
@@ -5168,8 +5194,33 @@ function syncAgentToUrl(agentId) {
   syncAppRouteToUrl({ replace: true });
 }
 
+function getCachedDefaultWorkspaceId() {
+  const selectable = getSelectableAgents();
+  return (
+    agentsCache.find((agent) => agent.default)?.id ||
+    selectable[0]?.id ||
+    agentsCache[0]?.id ||
+    ""
+  );
+}
+
+/** Workspace id for ?agent=&workspace= on API calls (never stale legacy "main"). */
+function resolveApiWorkspaceId(workspaceId) {
+  const explicitWorkspace = workspaceId != null && String(workspaceId).trim() !== "";
+  const candidate = String(explicitWorkspace ? workspaceId : activeWorkspaceId ?? "").trim();
+  if (candidate && candidate !== "main" && agentsCache.some((agent) => agent.id === candidate)) {
+    return canonicalChpuWorkspaceId(candidate);
+  }
+  if (isAppLandingViewActive() && !explicitWorkspace) {
+    return "";
+  }
+  const fallback = isAppLandingViewActive() ? "" : getCachedDefaultWorkspaceId();
+  if (fallback) return canonicalChpuWorkspaceId(fallback);
+  return canonicalChpuWorkspaceId(candidate || "main");
+}
+
 function buildApiUrl(apiPath, params = {}, workspaceId = activeWorkspaceId) {
-  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  const id = resolveApiWorkspaceId(workspaceId);
   const search = new URLSearchParams({ agent: id, workspace: id });
   for (const [key, value] of Object.entries(params)) {
     if (value != null && value !== "") search.set(key, String(value));
@@ -5232,7 +5283,7 @@ async function fetchPlatformGlobalMarkdown(fileName) {
 function appendWorkspaceToApiUrl(url, workspaceId = activeWorkspaceId) {
   if (!url || typeof url !== "string" || !url.startsWith("/api/")) return url;
   const parsed = new URL(url, window.location.origin);
-  const id = canonicalChpuWorkspaceId(workspaceId || activeWorkspaceId || "main");
+  const id = resolveApiWorkspaceId(workspaceId);
   parsed.searchParams.set("agent", id);
   parsed.searchParams.set("workspace", id);
   return `${parsed.pathname}?${parsed.searchParams.toString()}`;
@@ -5255,8 +5306,22 @@ function isAgentRootTreeNode(depth, folderPath) {
   return depth === 0 && folderPath === ".";
 }
 
+const LOAD_AGENTS_FETCH_TIMEOUT_MS = 12000;
+
 async function loadAgents() {
-  const response = await fetch("/api/agents");
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), LOAD_AGENTS_FETCH_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch("/api/agents", { signal: controller.signal, cache: "no-store" });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Сервер не ответил вовремя на /api/agents. Проверьте Docker (npm run cms:restart).");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   agentsCache = Array.isArray(data.agents) ? data.agents : [];
@@ -5269,7 +5334,11 @@ async function loadAgents() {
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   } else if (isAppLandingRoute) {
     activeWorkspaceId = null;
-  } else if (!selectableAgents.some((agent) => agent.id === activeWorkspaceId)) {
+  } else if (
+    !activeWorkspaceId ||
+    activeWorkspaceId === "main" ||
+    !selectableAgents.some((agent) => agent.id === activeWorkspaceId)
+  ) {
     activeWorkspaceId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   }
@@ -5289,6 +5358,7 @@ async function loadAgents() {
     paintAppLandingHomeImmediate();
     void renderAppLandingAgents();
   }
+  syncChannelLiveUpdates();
 }
 
 function stripTopicPrefix(name) {
@@ -6010,8 +6080,8 @@ function resolveVoiceChatSlotSpec({ slotId = "", modeId = "", memoryKind = "" } 
   if (mode === "todo") {
     return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "todo-single") || null;
   }
-  if (mode === "roadmap") {
-    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "roadmap-single") || null;
+  if (mode === "atlas" || mode === "roadmap") {
+    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "atlas") || null;
   }
 
   return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === mode && !item.disabled) || null;
@@ -6430,7 +6500,9 @@ function resolveHubChannelWorkspaceBrowseMemoryKind(topicPath = getResolvedNodeP
   if (hubPolicyIncludesMemoryKind(policy, mode)) return mode;
   if (mode === "task-queue" && policy.slotKeys.includes("task-queue")) return "task-queue";
   if (mode === "agent-task-queue" && policy.slotKeys.includes("task-queue")) return "task-queue";
-  if (mode === "roadmap" && policy.slotKeys.includes("roadmap-single")) return "roadmap";
+  if ((mode === "atlas" || mode === "roadmap") && (policy.slotKeys.includes("atlas") || policy.slotKeys.includes("roadmap-single"))) {
+    return "atlas";
+  }
   return policy.defaultMemoryKind;
 }
 
@@ -8508,7 +8580,7 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "base", label: "База", modeId: "base" },
   { id: "notebooklm", label: "NotebookLM", modeId: "notebooklm" },
   { id: "todo-single", label: "TODO", modeId: "todo" },
-  { id: "roadmap-single", label: "Карты", modeId: "roadmap" }
+  { id: "atlas", label: "Карты", modeId: "atlas" }
 ];
 
 function isFullWorkspaceRelPath(relPath) {
@@ -13192,6 +13264,7 @@ function refreshAgentsPickerIfOpen() {
 function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
   if (!btn || !icon) return;
   const label = btn.querySelector(".agents-picker-tool-label");
+  const preservedNodes = [...btn.querySelectorAll(".sidebar-git-btn-badge")];
   btn.replaceChildren();
   icon.classList.add(iconClass);
   const iconWrap = document.createElement("span");
@@ -13200,6 +13273,7 @@ function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
   iconWrap.appendChild(icon);
   btn.appendChild(iconWrap);
   if (label) btn.appendChild(label);
+  for (const node of preservedNodes) btn.appendChild(node);
 }
 
 function wireAgentsPickerToolButtons() {
@@ -13382,6 +13456,9 @@ function openAppLandingCreateModal() {
   if (appLandingCreatePathInputNode) {
     appLandingCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
+  if (appLandingCreateEnvironmentInputNode) {
+    appLandingCreateEnvironmentInputNode.value = "local";
+  }
   clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
   appLandingCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => appLandingCreateNameInputNode?.focus(), 0);
@@ -13400,13 +13477,19 @@ function isAgentPathInRegistry(pathValue) {
   return agentsCache.some((agent) => normalizeRegistryPathKey(agent.path) === key);
 }
 
-async function appendCreatedAgentToRegistry(discovered) {
+function readCreateAgentEnvironmentFromSelect(selectNode) {
+  return normalizeAgentEnvironmentDraft(selectNode?.value || "local");
+}
+
+async function appendCreatedAgentToRegistry(discovered, environment = "local") {
   await loadAgents();
   const key = normalizeRegistryPathKey(discovered.path);
   const base = getRegistryAgentsForUi();
   if (base.some((agent) => normalizeRegistryPathKey(agent.path) === key)) {
     return false;
   }
+
+  const env = normalizeAgentEnvironmentDraft(environment);
 
   const agents = [
     ...base.map(({ path, environment, default: isDefault, orchestrator: isOrchestrator, active, name, comment }) => ({
@@ -13420,7 +13503,7 @@ async function appendCreatedAgentToRegistry(discovered) {
     })),
     {
       path: discovered.path,
-      environment: "local",
+      environment: env,
       default: base.length === 0,
       active: true,
       name: discovered.name ?? "",
@@ -13494,7 +13577,10 @@ async function submitAppLandingCreate() {
     const data = await response.json();
     if (!data.agent) throw new Error("Сервер не вернул данные агента");
 
-    const added = await appendCreatedAgentToRegistry(data.agent);
+    const added = await appendCreatedAgentToRegistry(
+      data.agent,
+      readCreateAgentEnvironmentFromSelect(appLandingCreateEnvironmentInputNode)
+    );
     if (!added) {
       showToast("Агент создан, но уже есть в реестре", "error");
       return;
@@ -16317,6 +16403,8 @@ async function switchActiveAgent(nextAgentId) {
     activeWorkspaceId = nextAgentId;
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
+    agentGitRemoteCheckSeq += 1;
+    agentGitRemoteCheckLoading = false;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
     workspaceNotificationsEvents = [];
     workspaceNotificationsLatestId = 0;
@@ -16326,7 +16414,9 @@ async function switchActiveAgent(nextAgentId) {
     workspaceNotificationsAnnouncedUpToId = 0;
     loadWorkspaceNotificationsSeenId(nextAgentId);
     loadWorkspaceNotificationsHiddenBeforeId(nextAgentId);
-    void refreshWorkspaceNotifications(false);
+    if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+      void refreshWorkspaceNotifications(false);
+    }
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
@@ -16334,6 +16424,7 @@ async function switchActiveAgent(nextAgentId) {
     invalidateContentSearchFieldCatalog();
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();
+    syncChannelLiveUpdates();
     syncAppFooterJournalAvailability();
     hideMenuNoAgentPlaceholder();
     activateMenuAgentPane(activeWorkspaceId);
@@ -16351,6 +16442,7 @@ async function switchActiveAgent(nextAgentId) {
       currentMenuData = cachedMenu;
       syncAgentGitToolbarUi();
       void prefetchAgentGitToolbarRepoState();
+      if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
     } else {
       syncAgentGitToolbarUi();
     }
@@ -16404,14 +16496,7 @@ async function switchActiveAgent(nextAgentId) {
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
         void loadAppFooterIdeasPreview();
-        void refreshMenuGoogleDriveStats(switchedAgentId);
-        void refreshMenuAwnDataStores(switchedAgentId, { showLoading: true });
-        void refreshMenuRepositories(switchedAgentId);
-        void refreshMenuMediaLibraries(switchedAgentId);
-        void refreshMenuAwnChannels(switchedAgentId);
-        void refreshMenuAwnDialogsStats(switchedAgentId);
-        void refreshMenuAwnFactsStats(switchedAgentId);
-        void refreshMenuAwnTempStats(switchedAgentId);
+        refreshMenuAgentStaticSummaries(switchedAgentId);
         window.AwnDashboards?.refreshMenuStats?.(switchedAgentId);
         window.WorkspaceIndexPanel?.refreshStatus?.();
       } catch (error) {
@@ -17658,6 +17743,9 @@ function openAgentsRegistryCreateModal() {
   if (agentsRegistryCreatePathInputNode) {
     agentsRegistryCreatePathInputNode.value = CREATE_AGENT_WORKSPACE_PATH_PREFIX;
   }
+  if (agentsRegistryCreateEnvironmentInputNode) {
+    agentsRegistryCreateEnvironmentInputNode.value = "local";
+  }
   clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
   agentsRegistryCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => agentsRegistryCreateNameInputNode?.focus(), 0);
@@ -17757,7 +17845,7 @@ function applyDiscoverAgentToDraft(discovered) {
   const entry = {
     id: discovered.id,
     path,
-    environment: "local",
+    environment: readCreateAgentEnvironmentFromSelect(agentsRegistryCreateEnvironmentInputNode),
     name: getDiscoverAgentDisplayName(discovered),
     comment: getDiscoverAgentDisplayComment(discovered),
     manifestFound: true,
@@ -18171,6 +18259,7 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "outbox",
   "note",
   "notes",
+  "atlas",
   "references",
   "artefacts",
   "assets",
@@ -18192,6 +18281,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "note",
   "notes",
   "references",
+  "atlas",
   "artefacts",
   "assets",
   "repository",
@@ -18212,6 +18302,7 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.note.toc.root",
   "awn.notes.toc.root",
   "awn.references.toc.root",
+  "awn.atlas.toc.root",
   "awn.artefacts.toc.root",
   "awn.assets.toc.root",
   "awn.repository.toc.root",
@@ -18244,6 +18335,7 @@ const NODE_VIEW_SURFACE = {
   thread: "discussion",
   "quick-notes": "browser",
   references: "browser",
+  atlas: "browser",
   media: "browser",
   temp: "browser",
   scripts: "browser",
@@ -18826,14 +18918,13 @@ const DATA_STORAGE_SLOT_SPECS = [
     bundleFile: BUNDLE_TODO_FILE
   },
   {
-    key: "roadmap-single",
+    key: "atlas",
     label: "Карты",
     icon: "🗺️",
-    modes: new Set(["roadmap"]),
-    defaultMode: "roadmap",
-    sectionKind: "bundle",
-    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
-    bundleFile: BUNDLE_ROADMAP_FILE
+    modes: new Set(["atlas"]),
+    defaultMode: "atlas",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
     key: "quick-notes",
@@ -18987,7 +19078,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   "main-single": "Markdown (.md) — main.md",
   "main-single-csv": "CSV (.csv) — main.csv",
   "todo-single": "Markdown (.md) — todo.md",
-  "roadmap-single": "Markdown (.md) — roadmap.md",
+  atlas: "Markdown (.md) и viz (*.viz.md) — папка atlas/",
   discussion: "Markdown (.md)"
 };
 
@@ -20378,7 +20469,7 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
     if (memoryKind === "internal") return "main-single";
     if (memoryKind === "tabular") return "main-single-csv";
     if (memoryKind === "todo") return "todo-single";
-    if (memoryKind === "roadmap") return "roadmap-single";
+    if (memoryKind === "atlas") return "atlas";
     if (memoryKind === "files") return "files";
     if (memoryKind === "media") return isHubWorkspaceFilesSlotPage() ? "files" : "media";
     if (memoryKind === "assets") return "assets";
@@ -20397,7 +20488,7 @@ function getEntryOverviewMemoryKindForSlot(spec) {
   if (spec.key === "files") return "media";
   if (spec.key === "assets") return "assets";
   if (spec.key === "todo-single") return "todo";
-  if (spec.key === "roadmap-single") return "roadmap";
+  if (spec.key === "atlas") return "atlas";
   if (spec.defaultMode && isFlatEntryOverviewMemoryKind(spec.defaultMode)) return spec.defaultMode;
   return null;
 }
@@ -21234,7 +21325,7 @@ function setActiveDataStorageAllItems() {
 function shouldUseDataHubListShell(mode = activeContentMode) {
   if (!getDataStorageSlotForMode(mode)) return false;
   if (mode === NODE_DISCUSSION_MODE) return false;
-  if (mode === "internal" || mode === "todo" || mode === "roadmap") return true;
+  if (mode === "internal" || mode === "todo") return true;
   if (mode === "external" && isExternalFileEditing()) return false;
   if (mode === "media" && isMediaAssetEditing()) return false;
   if (mode === "assets" && isMediaAssetEditing()) return false;
@@ -21290,15 +21381,6 @@ async function ensureDataHubBundleEditorContent(mode = activeContentMode) {
     const data = await response.json();
     modeContentCache.todo = data.content || "";
     fileContentInputNode.value = modeContentCache.todo;
-    return;
-  }
-
-  if (mode === "roadmap") {
-    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    modeContentCache.roadmap = data.content || "";
-    fileContentInputNode.value = modeContentCache.roadmap;
     return;
   }
 
@@ -21444,7 +21526,7 @@ async function renderDataHubBundleSlotPanel(container, mode = activeContentMode)
 
     container.replaceChildren();
     const meaningful =
-      memoryKind === "todo" || memoryKind === "roadmap"
+      memoryKind === "todo"
         ? getBundleMemoryMeaningfulBody(text)
         : stripAwnDescCallouts(splitFrontmatter(String(text)).body).trim();
 
@@ -21467,7 +21549,7 @@ async function renderDataHubBundleSlotPanel(container, mode = activeContentMode)
     preview.className =
       "data-hub-bundle-preview-body file-content-preview node-navigation-preview";
     const nodePath = getResolvedNodePath(activePath);
-    if (memoryKind === "todo" || memoryKind === "roadmap") {
+    if (memoryKind === "todo") {
       setMarkdownPreviewHtml(preview, text, { nodePath });
     } else {
       setMarkdownPreviewHtml(preview, meaningful, { nodePath });
@@ -22181,6 +22263,8 @@ let nodeThreadRefreshOnFocus = null;
 let nodeInboxRefreshOnPoll = null;
 let activeThreadScope = null;
 const CHANNEL_POLL_INTERVAL_MS = 20000;
+/** Временно: без SSE GET /api/channels/stream?scope=agent (тяжёлый опрос на сервере). */
+const AGENT_CHANNEL_SSE_ENABLED = false;
 let channelPollTimer = null;
 let menuIntakeSeq = 0;
 const CHANNEL_AUTO_POLL_INTERVAL_MS = 20000;
@@ -22726,7 +22810,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "task-queue" ||
     mode === "agent-task-queue" ||
     mode === "todo" ||
-    mode === "roadmap" ||
+    mode === "atlas" ||
     mode === NODE_DISCUSSION_MODE
   ) {
     return true;
@@ -22887,7 +22971,7 @@ function getContentModeLabel(mode) {
   if (mode === "notebooklm") return "NotebookLM";
   if (mode === "task-queue" || mode === "agent-task-queue") return "Очередь задач";
   if (mode === "todo") return "TODO";
-  if (mode === "roadmap") return "Карты";
+  if (mode === "atlas") return "Карты";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
   if (mode === "assets") return "Активы";
@@ -27312,8 +27396,7 @@ const FLEXIBLE_SLOT_MEDIA_LAYOUT_SCOPE = "flexible-slot";
 const TOPIC_FLEXIBLE_SINGLE_FILE_SLOT_KEYS = new Set([
   "main-single",
   "main-single-csv",
-  "todo-single",
-  "roadmap-single"
+  "todo-single"
 ]);
 
 function isTopicFlexibleSingleFileSlotKey(slotKey) {
@@ -28313,7 +28396,7 @@ async function applyNodeWorkspaceDomainChange(domain) {
           isDataStorageSlotActive("main-single") ||
           isDataStorageSlotActive("main-single-csv") ||
           isDataStorageSlotActive("todo-single") ||
-          isDataStorageSlotActive("roadmap-single")
+          isDataStorageSlotActive("atlas")
       );
       applyNodeWorkspaceViewUi();
       renderListViewContent();
@@ -28383,7 +28466,7 @@ function applyNodeWorkspaceViewUi(options = {}) {
   const mainSingleSlotActive = isDataStorageSlotActive("main-single");
   const tabularSlotActive = isDataStorageSlotActive("main-single-csv");
   const todoSingleSlotActive = isDataStorageSlotActive("todo-single");
-  const roadmapSingleSlotActive = isDataStorageSlotActive("roadmap-single");
+  const atlasSlotActive = isDataStorageSlotActive("atlas");
   const quickNotesSlotActive = noteSlotActive;
   const showWorkspaceDomainControls = isNodeWorkspaceToolbarDomainActive();
   const awnDatabaseManifestEditing = isAwnDatabaseManifestEditing();
@@ -28399,7 +28482,7 @@ function applyNodeWorkspaceViewUi(options = {}) {
     mainSingleSlotActive ||
     tabularSlotActive ||
     todoSingleSlotActive ||
-    roadmapSingleSlotActive;
+    atlasSlotActive;
   workspacePathHeaderNode?.classList.toggle("is-node-settings", settingsDomain);
   workspacePathHeaderNode?.classList.toggle(
     "is-node-memory",
@@ -29888,7 +29971,7 @@ function contentLoadingVariantForMode(mode = activeContentMode) {
     mode === "env" ||
     mode === "scripts" ||
     mode === "todo" ||
-    mode === "roadmap"
+    mode === "atlas"
   ) {
     return "editor";
   }
@@ -34428,7 +34511,7 @@ function applyContentModeState(mode, options = {}) {
   if (isFlatStorageListMode(mode) || mode === "tabular") {
     editorViewMode = "preview";
   }
-  if ((mode === "todo" || mode === "roadmap") && WYSIWYG_EDITOR_ENABLED) {
+  if (mode === "todo" && WYSIWYG_EDITOR_ENABLED) {
     editorViewMode = "wysiwyg";
   }
   if (
@@ -34626,7 +34709,6 @@ function isCurrentModeListTemplate() {
   return (
     activeContentMode === "internal" ||
     activeContentMode === "todo" ||
-    activeContentMode === "roadmap" ||
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     (isFlatStorageListMode() && !flatStorageEditing) ||
@@ -35346,6 +35428,7 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   "task-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
   "agent-task-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
   "agent-queue": STORAGE_SUBFOLDER_TASK_QUEUE,
+  atlas: "atlas",
   temp: STORAGE_SUBFOLDER_TEMP
 };
 
@@ -54817,7 +54900,7 @@ function getSectionSchemaSlotKeyForContext(context) {
   if (memoryKind === "internal") return "main-single";
   if (memoryKind === "tabular") return "main-single-csv";
   if (memoryKind === "todo") return "todo-single";
-  if (memoryKind === "roadmap") return "roadmap-single";
+  if (memoryKind === "atlas") return "atlas";
   if (memoryKind === "media") return "media";
   if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
   return "memory";
@@ -68995,7 +69078,7 @@ function openTodoFromOverview() {
 }
 
 function openRoadmapFromOverview() {
-  setContentMode("roadmap");
+  setContentMode("atlas");
 }
 
 function openDescriptionFromOverview() {
@@ -73568,12 +73651,13 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
     "notes",
     "references",
     "artefacts",
-    "task-queue",
-    "agent-task-queue",
-    "scripts",
-    "templates",
-    "base",
-    "notebooklm"
+  "atlas",
+  "task-queue",
+  "agent-task-queue",
+  "scripts",
+  "templates",
+  "base",
+  "notebooklm"
   ];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
@@ -73664,7 +73748,7 @@ function openWorkspaceModeFromNavigation(modeId) {
     openTodoFromOverview();
     return;
   }
-  if (modeId === "roadmap") {
+  if (modeId === "atlas") {
     openRoadmapFromOverview();
     return;
   }
@@ -77312,7 +77396,7 @@ function isFlatEntryOverviewMemoryKind(kind) {
 }
 
 function isBundleEntryOverviewMemoryKind(kind) {
-  return kind === "internal" || kind === "tabular" || kind === "todo" || kind === "roadmap";
+  return kind === "internal" || kind === "tabular" || kind === "todo";
 }
 
 function isDataEntryOverviewMemoryKind(kind) {
@@ -77341,7 +77425,7 @@ function getEntryOverviewTocTitle(memoryKind) {
   if (memoryKind === "internal") return "Память (однофайловая)";
   if (memoryKind === "tabular") return "Память (табличная)";
   if (memoryKind === "todo") return "TODO";
-  if (memoryKind === "roadmap") return "Карты";
+  if (memoryKind === "atlas") return "Карты";
   const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === memoryKind);
   return spec ? `Оглавление: ${spec.label}` : "Оглавление";
 }
@@ -77857,8 +77941,7 @@ function getEntryOverviewKindLabel(entryKind) {
 const BUNDLE_OVERVIEW_SIDECAR_KIND = {
   internal: "content",
   tabular: "tabular",
-  todo: "todo",
-  roadmap: "roadmap"
+  todo: "todo"
 };
 
 function openEntryOverviewBundleSlotFromNavigation(memoryKind, options = {}) {
@@ -77881,8 +77964,8 @@ function openEntryOverviewBundleSlotFromNavigation(memoryKind, options = {}) {
             ? "tabular"
             : memoryKind === "todo"
               ? "todo"
-              : memoryKind === "roadmap"
-                ? "roadmap"
+              : memoryKind === "atlas"
+                ? "atlas"
                 : "internal"
       })
     },
@@ -79010,8 +79093,7 @@ async function ensureRecordPartsWorkspaceFolder(folderPath) {
 function getEntryOverviewStorageSlotFolderApiName(context, topicPath = getResolvedNodePath(activePath)) {
   const memoryKind = context?.memoryKind;
   if (!memoryKind) return null;
-  if (memoryKind === "internal" || memoryKind === "tabular" || memoryKind === "todo" || memoryKind === "roadmap")
-    return null;
+  if (memoryKind === "internal" || memoryKind === "tabular" || memoryKind === "todo") return null;
   if (isBundleEntryOverviewMemoryKind(memoryKind)) return null;
   if (memoryKind === "external") return STORAGE_SUBFOLDER_CONTENT;
   if (memoryKind === "media") {
@@ -79038,7 +79120,7 @@ function shouldOfferEntryOverviewStorageSlotCreate(context, topicPath = getResol
   if (!isEntryOverviewMemoryTocRoot(context)) return false;
   const hubPolicy = resolveHubWorkspaceSlotPolicy(topicPath);
   if (hubPolicy?.kind === "channel") {
-    if (context.memoryKind === "todo" || context.memoryKind === "roadmap") return true;
+    if (context.memoryKind === "todo" || context.memoryKind === "atlas") return true;
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) return true;
     return false;
   }
@@ -79059,10 +79141,6 @@ async function fetchEntryOverviewStorageSlotFolderExists(context, topicPath) {
     if (spec.key === "todo-single") {
       const todo = await fetchTodoForOverview(topicPath || manifestPath);
       return Boolean(todo?.exists);
-    }
-    if (spec.key === "roadmap-single") {
-      const roadmap = await fetchRoadmapForOverview(topicPath || manifestPath);
-      return Boolean(roadmap?.exists);
     }
     const scan = await fetchStorageRootScan(manifestPath);
     if (!scan?.exists) return false;
@@ -79093,20 +79171,6 @@ async function ensureEntryOverviewStorageSlotFolder(context, topicPath) {
     const apiPath = getOverviewNodeApiPath(topicPath || manifestPath);
     if (!apiPath) throw new Error("Не удалось определить путь слота");
     const response = await fetch(buildApiUrl("/api/todo"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: apiPath, content: "---\n---\n\n" })
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || data.details || `HTTP ${response.status}`);
-    }
-    return response.json();
-  }
-  if (spec?.key === "roadmap-single") {
-    const apiPath = getOverviewNodeApiPath(topicPath || manifestPath);
-    if (!apiPath) throw new Error("Не удалось определить путь слота");
-    const response = await fetch(buildApiUrl("/api/roadmap"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: apiPath, content: "---\n---\n\n" })
@@ -82287,18 +82351,6 @@ function getBundleMemoryCounterMetrics(
     };
   }
 
-  if (memoryKind === "roadmap") {
-    const body = getBundleMemoryMeaningfulBody(roadmapData?.content);
-    const filled = body.length > 0;
-    return {
-      available: true,
-      filled,
-      count: filled ? 1 : 0,
-      display: "flag",
-      title: filled ? `${spec.label}: заполнена` : `${spec.label}: пусто`
-    };
-  }
-
   return null;
 }
 
@@ -84806,12 +84858,6 @@ async function fetchBundleMemoryTextContent(memoryKind, nodePath = activePath) {
   }
   if (memoryKind === "todo") {
     const response = await fetch(buildApiUrl("/api/todo", { path: apiPath }));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    return String(data.content ?? "");
-  }
-  if (memoryKind === "roadmap") {
-    const response = await fetch(buildApiUrl("/api/roadmap", { path: apiPath }));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     return String(data.content ?? "");
@@ -89034,8 +89080,10 @@ function buildMergedRuntimeRegistryPayload(rows) {
 }
 
 async function refreshMenuRuntimeFlagsCache(agentId = activeWorkspaceId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) return;
   try {
-    const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources(agentId);
+    const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources(scopedId);
     const rows = mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems);
     const map = new Map();
     for (const row of rows) {
@@ -89684,6 +89732,7 @@ function hydrateMarkdownPreviewElement(element, nodePath) {
   void typesetMarkdownDiagrams(element);
   void syncMermaidDiagramChromeInRoot(element);
   void hydrateAwnFenceBlocks(element);
+  void window.agentCmsHydrateScene3dPreviewBlocks?.(element);
   enhanceMarkdownPreviewImages(element);
 }
 
@@ -90729,7 +90778,7 @@ async function syncLiveFileExternalRevisions(watchPaths) {
 }
 
 async function syncLiveFileUpdates() {
-  if (liveSyncInFlight || document.hidden || !activeWorkspaceId) return;
+  if (liveSyncInFlight || document.hidden || !isAgentWorkspaceSessionActive()) return;
   if (shouldPauseLiveSyncWhileEditing()) return;
   liveSyncInFlight = true;
   try {
@@ -90969,7 +91018,7 @@ function saveWorkspaceNotificationsMuted() {
 }
 
 function isWorkspaceNotificationsContextActive() {
-  return Boolean(activeWorkspaceId) && !appRootNode?.classList.contains("app-landing-view");
+  return isAgentWorkspaceSessionActive();
 }
 
 function syncWorkspaceNotificationsAvailability() {
@@ -90984,7 +91033,9 @@ function syncWorkspaceNotificationsAvailability() {
   if (!wasActive) {
     workspaceNotificationsInitialLoadDone = false;
     workspaceNotificationsAnnouncedUpToId = 0;
-    void refreshWorkspaceNotifications(false);
+    if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+      void refreshWorkspaceNotifications(false);
+    }
   }
 }
 
@@ -91582,8 +91633,11 @@ function openWorkspaceNotificationsPopover() {
   workspaceNotificationsOpen = true;
   workspaceNotificationsPopoverNode.classList.remove("hidden");
   workspaceNotificationsBtn.setAttribute("aria-expanded", "true");
-  markWorkspaceNotificationsRead();
   positionWorkspaceNotificationsPopover();
+  void refreshWorkspaceNotifications(false, { manual: true }).then(() => {
+    markWorkspaceNotificationsRead();
+    positionWorkspaceNotificationsPopover();
+  });
 }
 
 function closeWorkspaceNotificationsPopover() {
@@ -91715,7 +91769,8 @@ function maybeAnnounceWorkspaceNotifications() {
   showToast(toastText, "info");
 }
 
-async function refreshWorkspaceNotifications(mergeOnly = false) {
+async function refreshWorkspaceNotifications(mergeOnly = false, { manual = false } = {}) {
+  if (!manual && !WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) return;
   if (!isWorkspaceNotificationsContextActive()) {
     syncWorkspaceNotificationsAvailability();
     return;
@@ -91790,11 +91845,11 @@ function initWorkspaceNotifications() {
   syncWorkspaceNotificationsFilterUi();
   syncWorkspaceNotificationsMuteUi();
   syncWorkspaceNotificationsAvailability();
-  syncChannelLiveUpdates();
-  void refreshWorkspaceNotifications(false);
   workspaceNotificationsPollTimer = window.setInterval(() => {
-    if (document.hidden || !isWorkspaceNotificationsContextActive()) return;
-    void refreshWorkspaceNotifications(true);
+    if (document.hidden || !isAgentWorkspaceSessionActive()) return;
+    if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+      void refreshWorkspaceNotifications(true);
+    }
     void syncLiveFileUpdates();
   }, 3000);
 
@@ -91841,7 +91896,11 @@ function initWorkspaceNotifications() {
 function syncChannelLiveUpdates() {
   stopChannelEventStream();
   stopChannelAutoPoll();
-  if (document.hidden || !activeWorkspaceId) return;
+  if (document.hidden || !isAgentWorkspaceSessionActive()) return;
+
+  if (!AGENT_CHANNEL_SSE_ENABLED) {
+    return;
+  }
 
   if (typeof EventSource === "undefined") {
     syncChannelAutoPoll();
@@ -91850,7 +91909,9 @@ function syncChannelLiveUpdates() {
       void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
-      void refreshWorkspaceNotifications(true);
+      if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+        void refreshWorkspaceNotifications(true);
+      }
       void syncLiveFileUpdates();
     }, CHANNEL_POLL_INTERVAL_MS);
     return;
@@ -91866,7 +91927,9 @@ function syncChannelLiveUpdates() {
       void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
-      void refreshWorkspaceNotifications(true);
+      if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+        void refreshWorkspaceNotifications(true);
+      }
       void syncLiveFileUpdates();
     });
     channelEventSource.addEventListener("reconnect", () => {
@@ -91882,7 +91945,9 @@ function syncChannelLiveUpdates() {
         void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
         if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
-        void refreshWorkspaceNotifications(true);
+        if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+          void refreshWorkspaceNotifications(true);
+        }
         void syncLiveFileUpdates();
       }, CHANNEL_POLL_INTERVAL_MS);
     };
@@ -106650,6 +106715,7 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
     ensureSidebarWorkspacePageIndexRow();
     syncAgentGitToolbarUi();
     void prefetchAgentGitToolbarRepoState();
+    if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
   }
 
   enableMenuLinkDragSources(target);
@@ -107042,6 +107108,7 @@ function setMenuAgentStatsReloadLoading(loading) {
 }
 
 async function refreshMenuAgentStorageSummary({ updatePopover = false, showReloadSpinner = false } = {}) {
+  if (!isAgentWorkspaceSessionActive()) return;
   const seq = ++menuAgentStorageSummarySeq;
   if (showReloadSpinner) setMenuAgentStatsReloadLoading(true);
   if (updatePopover) renderMenuAgentStorageSummary(null, { loading: true });
@@ -107384,6 +107451,7 @@ function hideMenuAgentStats() {
 }
 
 async function fetchSystemEnvironment(force = false) {
+  if (!isAgentWorkspaceSessionActive()) return null;
   if (!force && menuSystemEnvironmentCache) return menuSystemEnvironmentCache;
   const response = await fetch(buildApiUrl("/api/agent/system-environment"));
   if (!response.ok) {
@@ -107469,6 +107537,7 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
 
 async function syncMenuSystemEnvironment({ force = false } = {}) {
   if (!menuAgentStatsEnvPopoverGridNode) return;
+  if (!isAgentWorkspaceSessionActive()) return;
 
   const seq = ++menuSystemEnvironmentSeq;
   if (!force && menuSystemEnvironmentCache) {
@@ -109255,18 +109324,15 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
-  if (activeContentMode === "roadmap") {
+  if (activeContentMode === "atlas") {
     try {
-      const response = await fetch(buildApiUrl("/api/roadmap", { path: getActiveNodeApiPath() }));
-      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-      const data = await response.json();
-      modeContentCache.roadmap = data.content || "";
-      fileContentInputNode.value = modeContentCache.roadmap;
-      applyModeUi();
-      refreshEditorViewContent();
-      if (isDataHubBundleEditorMode("roadmap")) activateDataHubBundleEditorUi("roadmap");
+      await loadFlatStorageSectionContent(
+        "atlas",
+        activeContentMode === "atlas" ? preserveFlatStorageSectionFolder : null
+      );
     } catch (error) {
-      fileContentInputNode.value = `Ошибка чтения дорожной карты: ${error.message}`;
+      fileContentInputNode.value = `Ошибка чтения карт: ${error.message}`;
+      renderListViewContent();
       fileContentInputNode.readOnly = true;
     }
     updateBreadcrumbsForActiveMode();
@@ -109835,8 +109901,6 @@ async function saveContent() {
             ? "/api/memory/tabular"
           : activeContentMode === "todo"
             ? "/api/todo"
-            : activeContentMode === "roadmap"
-              ? "/api/roadmap"
             : isNodeConfigEditorMode()
               ? "/api/file/node-config"
               : activeContentMode === "env"
@@ -110011,14 +110075,6 @@ async function saveContent() {
       fileContentInputNode.value = modeContentCache.todo;
       saveSucceeded = true;
       showToast("TODO сохранён", "success");
-      refreshEditorViewContent();
-      return;
-    }
-    if (activeContentMode === "roadmap") {
-      modeContentCache.roadmap = data.content || "";
-      fileContentInputNode.value = modeContentCache.roadmap;
-      saveSucceeded = true;
-      showToast("Карты сохранены", "success");
       refreshEditorViewContent();
       return;
     }
@@ -110587,6 +110643,7 @@ function initAgentGitToolbar() {
   }
   if (sidebarGitBtn) {
     mountAgentToolbarBtnIcon(sidebarGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
+    ensureSidebarGitBtnBadge();
     if (sidebarGitBtn.dataset.gitToolbarBound !== "1") {
       sidebarGitBtn.dataset.gitToolbarBound = "1";
       sidebarGitBtn.addEventListener("click", () => {
@@ -110595,7 +110652,31 @@ function initAgentGitToolbar() {
       });
     }
   }
+  if (!window.__agentGitRemoteCheckBound) {
+    window.__agentGitRemoteCheckBound = true;
+    window.addEventListener("focus", () => {
+      void refreshAgentGitRemoteIndicator();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refreshAgentGitRemoteIndicator();
+    });
+  }
+  scheduleAgentGitRemoteCheck();
   syncAgentGitToolbarUi();
+}
+
+function ensureSidebarGitBtnBadge() {
+  if (!sidebarGitBtn) return null;
+  let badge = sidebarGitBtn.querySelector("#sidebar-git-btn-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.id = "sidebar-git-btn-badge";
+    badge.className = "sidebar-git-btn-badge is-zero";
+    badge.setAttribute("aria-hidden", "true");
+    badge.textContent = "0";
+    sidebarGitBtn.appendChild(badge);
+  }
+  return badge;
 }
 
 function resolveActiveAgentWorkspaceGitRepo() {
@@ -110622,22 +110703,97 @@ async function prefetchAgentGitToolbarRepoState() {
     agentGitLastStatus = data;
     agentGitLastStatusAgentId = activeWorkspaceId;
     syncAgentGitToolbarUi();
+    if (data.isRepo) void refreshAgentGitRemoteIndicator();
   } catch {
     // ignore — menu markers remain primary
+  }
+}
+
+function scheduleAgentGitRemoteCheck() {
+  if (agentGitRemoteCheckTimer) {
+    clearInterval(agentGitRemoteCheckTimer);
+    agentGitRemoteCheckTimer = null;
+  }
+  agentGitRemoteCheckTimer = setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    void refreshAgentGitRemoteIndicator();
+  }, AGENT_GIT_REMOTE_CHECK_INTERVAL_MS);
+}
+
+async function refreshAgentGitRemoteIndicator() {
+  if (!activeWorkspaceId) return;
+  if (!resolveActiveAgentWorkspaceGitRepo() && !agentGitLastStatus?.isRepo) return;
+
+  const seq = (agentGitRemoteCheckSeq += 1);
+  agentGitRemoteCheckLoading = true;
+  syncAgentGitToolbarUi();
+
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/git/status", { includeCommits: "false", fetchRemote: "true" })
+    );
+    if (seq !== agentGitRemoteCheckSeq) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data?.moduleId !== "module-git" || !data.isRepo) return;
+    agentGitLastStatus = { ...(agentGitLastStatus || {}), ...data };
+    agentGitLastStatusAgentId = activeWorkspaceId;
+    syncAgentGitToolbarUi();
+  } catch {
+    // offline / git unavailable — keep previous badge
+  } finally {
+    if (seq === agentGitRemoteCheckSeq) {
+      agentGitRemoteCheckLoading = false;
+      syncAgentGitToolbarUi();
+    }
   }
 }
 
 function syncAgentGitToolbarUi() {
   const active = agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible();
   const hasGitRepo = resolveActiveAgentWorkspaceGitRepo();
+  const behind =
+    hasGitRepo && agentGitLastStatusAgentId === activeWorkspaceId
+      ? Number(agentGitLastStatus?.behind) || 0
+      : 0;
   agentGitBtn?.classList.toggle("is-active", active);
   sidebarGitBtn?.classList.toggle("is-active", active);
   agentGitBtn?.classList.toggle("has-git-repo", hasGitRepo);
   sidebarGitBtn?.classList.toggle("has-git-repo", hasGitRepo);
+  sidebarGitBtn?.classList.toggle("has-remote-behind", behind > 0);
+  sidebarGitBtn?.classList.toggle("is-remote-check-loading", agentGitRemoteCheckLoading);
+
+  const gitBadgeNode = ensureSidebarGitBtnBadge();
+  if (gitBadgeNode) {
+    if (agentGitRemoteCheckLoading && hasGitRepo) {
+      gitBadgeNode.textContent = "…";
+      gitBadgeNode.classList.add("is-loading");
+      gitBadgeNode.classList.remove("is-zero");
+    } else {
+      gitBadgeNode.textContent = String(behind);
+      gitBadgeNode.classList.remove("is-loading");
+      gitBadgeNode.classList.toggle("is-zero", behind <= 0);
+    }
+    gitBadgeNode.classList.remove("hidden");
+  }
+
   if (sidebarGitBtn) {
-    sidebarGitBtn.title = hasGitRepo
-      ? "Git-репозиторий — изменения в workspace"
-      : "Git — репозиторий не инициализирован";
+    if (!hasGitRepo) {
+      sidebarGitBtn.title = "Git — репозиторий не инициализирован";
+    } else if (agentGitRemoteCheckLoading) {
+      sidebarGitBtn.title = "Git — проверка изменений на remote…";
+    } else if (behind > 0) {
+      sidebarGitBtn.title = `Git — на remote ${behind} новых коммитов, заберите (Pull)`;
+    } else {
+      sidebarGitBtn.title = "Git-репозиторий — с remote синхронизировано";
+    }
+    const ariaBits = [];
+    if (agentGitRemoteCheckLoading) ariaBits.push("проверка remote");
+    else if (hasGitRepo) ariaBits.push(`${behind} коммитов на remote`);
+    sidebarGitBtn.setAttribute(
+      "aria-label",
+      ariaBits.length ? `Git-репозиторий, ${ariaBits.join(", ")}` : "Git-репозиторий"
+    );
   }
 }
 
@@ -116019,7 +116175,7 @@ async function renderAgentRoadmapMapRoadmapView(renderSeq) {
   if (!columns.length) {
     renderListEmptyMessage(
       agentRoadmapMapHostNode,
-      "Нет roadmap.md в темах. Добавьте слот roadmap-single или файл roadmap.md."
+      "Нет карт в темах. Добавьте слот atlas или файлы в atlas/."
     );
     return;
   }
@@ -118414,6 +118570,7 @@ function showAppLandingView(hint = "") {
   syncWorkspaceIdleScreensaverEligibility();
   syncWorkspacePomodoroEligibility();
   window.ContextBufferPanel?.syncMount?.();
+  syncChannelLiveUpdates();
 }
 
 function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
@@ -120701,7 +120858,7 @@ function renderMenuAwnChannelsList(payload = null, { loading = false, error = fa
 async function refreshMenuAwnChannels(agentId = activeWorkspaceId) {
   if (!menuAwnChannelsListNode) return;
 
-  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
+  const resolvedAgent = resolveAgentMenuStatsScope(agentId);
   if (resolvedAgent !== menuAwnChannelsCachedAgentId) {
     menuAwnChannelsLastPayload = null;
     menuAwnChannelsCachedAgentId = resolvedAgent;
@@ -121600,14 +121757,7 @@ function setupMenuStaticFooterGroup() {
     closeMenuAgentStatsSummaryPopover();
     toggleMenuAgentStatsEnvPopover();
   });
-  void refreshMenuGoogleDriveStats();
-  void refreshMenuAwnDataStores();
-  void refreshMenuRepositories();
-  void refreshMenuMediaLibraries();
-  void refreshMenuAwnChannels();
-  void refreshMenuAwnDialogsStats();
-  void refreshMenuAwnFactsStats();
-  void refreshMenuAwnTempStats();
+  refreshMenuAgentStaticSummaries();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
@@ -121622,7 +121772,8 @@ function setupWorkspaceIndexPanelUi() {
   if (!window.WorkspaceIndexPanel?.init) return;
   window.WorkspaceIndexPanel.init({
     buildApiUrl,
-    getActiveAgentId: () => activeWorkspaceId
+    getActiveAgentId: () => activeWorkspaceId,
+    isAgentWorkspaceSessionActive: () => isAgentWorkspaceSessionActive()
   });
 }
 
@@ -131526,7 +131677,7 @@ async function handleRepositoryIndexRefreshClick() {
 async function refreshMenuRepositories(agentId = activeWorkspaceId) {
   if (!menuRepositoriesListNode) return;
 
-  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
+  const resolvedAgent = resolveAgentMenuStatsScope(agentId);
   if (resolvedAgent !== menuRepositoriesCachedAgentId) {
     menuRepositoriesLastPayload = null;
     menuRepositoriesCachedAgentId = resolvedAgent;
@@ -131901,7 +132052,7 @@ function renderMenuMediaLibraries(payload = null, { loading = false, error = fal
 async function refreshMenuMediaLibraries(agentId = activeWorkspaceId) {
   if (!menuMediaLibraryListNode) return;
 
-  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
+  const resolvedAgent = resolveAgentMenuStatsScope(agentId);
   if (resolvedAgent !== menuMediaLibrariesCachedAgentId) {
     menuMediaLibrariesLastPayload = null;
     menuMediaLibrariesCachedAgentId = resolvedAgent;
@@ -133105,7 +133256,7 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
     renderMenuAwnDataStores(null, { loading: true });
   }
 
-  const resolvedAgent = String(agentId || activeWorkspaceId || "").trim();
+  const resolvedAgent = resolveAgentMenuStatsScope(agentId);
   if (!resolvedAgent) {
     if (seq !== menuAwnDataStoresLoadSeq) return;
     renderMenuAwnDataStores({ stores: [], emptyHint: "select-agent" });
@@ -133130,9 +133281,23 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
   }
 }
 
+function refreshMenuAgentStaticSummaries(agentId = activeWorkspaceId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) return;
+  void refreshMenuGoogleDriveStats(scopedId);
+  void refreshMenuAwnDataStores(scopedId);
+  void refreshMenuRepositories(scopedId);
+  void refreshMenuMediaLibraries(scopedId);
+  void refreshMenuAwnChannels(scopedId);
+  void refreshMenuAwnDialogsStats(scopedId);
+  void refreshMenuAwnFactsStats(scopedId);
+  void refreshMenuAwnTempStats(scopedId);
+}
+
 async function refreshMenuGoogleDriveStats(agentId = activeWorkspaceId) {
   if (!agentLargeFilesCloudStatsNode) return;
-  if (!agentId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) {
     renderMenuGoogleDriveStats({ exists: false, fileCount: 0, totalBytes: 0, files: [], providers: [] });
     return;
   }
@@ -133142,7 +133307,7 @@ async function refreshMenuGoogleDriveStats(agentId = activeWorkspaceId) {
 
   try {
     await fetchMediaCloudProviders().catch(() => null);
-    const response = await fetch(buildApiUrl("/api/agent/google-drive-stats", {}, agentId));
+    const response = await fetch(buildApiUrl("/api/agent/google-drive-stats", {}, scopedId));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuGoogleDriveStatsLoadSeq) return;
@@ -133295,7 +133460,8 @@ function renderMenuAwnDialogsStats(payload = null, { loading = false, error = fa
 
 async function refreshMenuAwnDialogsStats(agentId = activeWorkspaceId) {
   if (!menuAwnDialogsStatsNode && !menuAwnDialogsRuntimesNode) return;
-  if (!agentId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) {
     renderMenuAwnDialogsStats({ exists: false, runtimeCount: 0, dayFileCount: 0, runtimes: [] });
     return;
   }
@@ -133305,7 +133471,7 @@ async function refreshMenuAwnDialogsStats(agentId = activeWorkspaceId) {
 
   try {
     const response = await fetch(
-      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_DIALOGS_FOLDER }, agentId)
+      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_DIALOGS_FOLDER }, scopedId)
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -133410,7 +133576,8 @@ function renderMenuAwnFactsStats(payload, { loading = false, error = false } = {
 
 async function refreshMenuAwnFactsStats(agentId = activeWorkspaceId) {
   if (!menuAwnFactsStatsNode) return;
-  if (!agentId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) {
     renderMenuAwnFactsStats({ totalCount: 0, kinds: {} });
     return;
   }
@@ -133419,7 +133586,7 @@ async function refreshMenuAwnFactsStats(agentId = activeWorkspaceId) {
   renderMenuAwnFactsStats(null, { loading: true });
 
   try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-facts/stats", {}, agentId));
+    const response = await fetch(buildApiUrl("/api/agent/workspace-facts/stats", {}, scopedId));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuAwnFactsStatsLoadSeq) return;
@@ -133490,7 +133657,8 @@ function renderMenuAwnTempStats(payload, { loading = false, error = false } = {}
 
 async function refreshMenuAwnTempStats(agentId = activeWorkspaceId) {
   if (!menuAwnTempStatsNode) return;
-  if (!agentId) {
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) {
     renderMenuAwnTempStats({ exists: false, itemCount: 0, folderCount: 0 });
     return;
   }
@@ -133500,7 +133668,7 @@ async function refreshMenuAwnTempStats(agentId = activeWorkspaceId) {
 
   try {
     const response = await fetch(
-      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_TEMP_FOLDER }, agentId)
+      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_TEMP_FOLDER }, scopedId)
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -133792,7 +133960,9 @@ function toggleAppFooterJournalPopover() {
 async function refreshWorkspaceJournalSurfaces() {
   if (agentWorkspaceView === "journal") void renderAgentJournalView();
   if (activeContentMode === NODE_JOURNAL_MODE) void renderNodeJournal();
-  void refreshWorkspaceNotifications(true);
+  if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+    void refreshWorkspaceNotifications(true);
+  }
 }
 
 async function submitAppFooterJournalEntry() {
@@ -134960,6 +135130,10 @@ async function init() {
   ]).catch(() => {});
 
   setupMaintenancePaneUi();
+  const bootRouteEarly = parseAppRoute(location.pathname);
+  if (bootRouteEarly.type === "root" || bootRouteEarly.type === "legacy") {
+    activeWorkspaceId = null;
+  }
   const splashStartedAt = Date.now();
   const finishSplash = () => {
     const elapsed = Date.now() - splashStartedAt;
@@ -134967,9 +135141,11 @@ async function init() {
     window.setTimeout(hideAppSplash, wait);
   };
   const splashFailsafe = window.setTimeout(() => {
+    editorBootComplete = true;
     finishSplash();
+    syncChannelLiveUpdates();
     if (document.body.classList.contains("app-booting")) {
-      showAppLandingView("Загрузка заняла слишком много времени. Проверьте сервер и обновите страницу.");
+      showAppLandingView("Загрузка заняла слишком много времени. Проверьте сервер (npm run cms:restart) и обновите страницу.");
       setMenuLoading(false);
     }
   }, 20000);
@@ -134989,7 +135165,9 @@ async function init() {
     }
 
     await loadAgents();
-    window.WorkspaceIndexPanel?.refreshStatus?.();
+    if (isAgentWorkspaceSessionActive()) {
+      window.WorkspaceIndexPanel?.refreshStatus?.();
+    }
     if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
     await ensureWorkspaceComfortScriptsLoaded().catch(() => {});
     setupWorkspaceIdleScreensaver();
@@ -135026,8 +135204,13 @@ async function init() {
   } catch (error) {
     showAppLandingView(`Ошибка загрузки: ${formatBootLoadErrorMessage(error)}`);
   } finally {
+    editorBootComplete = true;
     if (isAppLandingViewActive()) {
       void renderAppLandingAgents();
+    }
+    syncChannelLiveUpdates();
+    if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED && isAgentWorkspaceSessionActive()) {
+      void refreshWorkspaceNotifications(false);
     }
     window.clearTimeout(splashFailsafe);
     finishSplash();
@@ -136449,6 +136632,7 @@ agentGitPullBtn?.addEventListener("click", () => {
     try {
       const result = await postAgentGitPull();
       await renderAgentGitView();
+      void refreshAgentGitRemoteIndicator();
       await showAlertDialog(formatAgentGitPullResultDialog(result), {
         title: "Результат pull",
         icon: "⬇️",
@@ -137917,7 +138101,9 @@ if (!window.__agentCmsThreadFocusBound) {
   document.addEventListener("visibilitychange", () => {
     syncChannelLiveUpdates();
     if (document.hidden) return;
-    void refreshWorkspaceNotifications(true);
+    if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
+      void refreshWorkspaceNotifications(true);
+    }
     if (activeContentMode === NODE_DISCUSSION_MODE && activePath) {
       nodeThreadRefreshOnFocus?.();
     } else if (activeContentMode === "inbox" && activePath) {

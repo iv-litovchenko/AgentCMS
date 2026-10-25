@@ -794,16 +794,109 @@ body.is-booting {
   max-width: 36em;
 }
 
-.platform-host-chip {
-  flex: 0 1 auto;
+.platform-host-chips {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: min(100%, 420px);
+}
+
+.platform-host-chip {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 11px;
   border-radius: 12px;
   border: 1px solid rgba(20, 184, 166, 0.28);
   background: rgba(8, 16, 32, 0.55);
   min-width: 0;
+  max-width: 210px;
+}
+
+.platform-host-chip--docker {
+  border-color: rgba(36, 150, 237, 0.42);
+  background: linear-gradient(145deg, rgba(10, 24, 48, 0.88), rgba(8, 18, 36, 0.72));
+  box-shadow:
+    0 0 0 1px rgba(36, 150, 237, 0.1) inset,
+    0 8px 24px rgba(36, 150, 237, 0.08);
+}
+
+.platform-host-chip--os {
+  border-color: rgba(20, 184, 166, 0.32);
+  background: linear-gradient(145deg, rgba(8, 22, 28, 0.75), rgba(8, 16, 32, 0.62));
+}
+
+.platform-host-chip-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+.platform-host-chip-icon--docker {
+  background: rgba(36, 150, 237, 0.16);
+  box-shadow: 0 0 0 1px rgba(36, 150, 237, 0.2) inset;
+}
+
+.platform-host-chip-icon--os {
+  background: rgba(20, 184, 166, 0.1);
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.15) inset;
+}
+
+.platform-host-chip-os-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.platform-host-chip-icon-svg {
+  display: block;
+}
+
+.platform-host-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.platform-host-chip--docker .platform-host-chip-label {
+  color: #7dd3fc;
+}
+
+.platform-host-chip--os .platform-host-chip-label {
+  color: #5eead4;
+}
+
+.platform-host-chip-meta {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.platform-host-chip-meta--docker {
+  color: #86efac;
+}
+
+.platform-host-chip-meta--muted {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.platform-host-chip-meta:empty {
+  display: none;
 }
 
 .platform-host-chip-label {
@@ -815,21 +908,21 @@ body.is-booting {
 }
 
 .platform-host-chip strong {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 140px;
 }
 
 .platform-host-chip code {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 140px;
 }
 
 .platform-stage {
@@ -981,10 +1074,56 @@ body.is-booting {
   color: #fcd34d;
 }
 
+.env-file-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 820px) {
+  .env-file-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.env-file-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.env-file-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.env-file-pane-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text);
+}
+
+.env-file-pane-hint {
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.env-file-pane--example .env-file-pane-title {
+  color: color-mix(in srgb, var(--control) 70%, var(--text));
+}
+
 .env-file-editor {
   display: block;
   width: 100%;
   min-height: 220px;
+  flex: 1;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid rgba(120, 140, 180, 0.22);
@@ -1000,6 +1139,17 @@ body.is-booting {
 .env-file-editor:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.env-file-editor--readonly,
+.env-file-editor--readonly:focus {
+  opacity: 0.92;
+  cursor: default;
+  background: rgba(8, 14, 28, 0.42);
+  border-color: rgba(120, 140, 180, 0.14);
+  outline: none;
+  resize: none;
+  user-select: text;
 }
 
 .env-file-editor:focus {
@@ -1307,82 +1457,6 @@ body.is-booting {
   gap: 8px;
 }
 
-.svc-rack-bar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  height: 5px;
-}
-
-.svc-rack-seg {
-  border-radius: 999px;
-  background: rgba(120, 140, 180, 0.22);
-  transition: background 0.25s ease, box-shadow 0.25s ease;
-}
-
-.svc-rack-seg[data-on="1"][data-accent="cms"] {
-  background: var(--cms);
-  box-shadow: 0 0 10px rgba(79, 141, 253, 0.45);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="voice"] {
-  background: var(--voice);
-  box-shadow: 0 0 10px rgba(192, 38, 211, 0.4);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="commander"] {
-  background: var(--commander);
-  box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="control"] {
-  background: var(--control);
-  box-shadow: 0 0 10px rgba(13, 148, 136, 0.45);
-}
-
-.svc-rack-seg[data-on="1"][data-accent="mcp"] {
-  background: var(--mcp);
-  box-shadow: 0 0 10px rgba(129, 140, 248, 0.45);
-}
-
-.svc-rack-seg[data-on="1"] {
-  animation: svc-seg-live 2.6s ease-in-out infinite;
-}
-
-.svc-rack-seg[data-pending="1"] {
-  background: #93c5fd;
-  animation: svc-seg-pending 1.4s ease-in-out infinite;
-}
-
-@keyframes svc-seg-live {
-  0%,
-  100% {
-    opacity: 1;
-    filter: brightness(1);
-  }
-  50% {
-    opacity: 0.82;
-    filter: brightness(1.12);
-  }
-}
-
-@keyframes svc-seg-pending {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.svc-rack-meta {
-  margin: 0;
-  font-size: 0.68rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .svc-rack-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
@@ -1480,18 +1554,8 @@ body.is-booting {
   border-color: rgba(147, 197, 253, 0.35);
 }
 
-.svc-rack-card--link {
-  cursor: pointer;
-}
-
 .svc-rack-card--link:hover {
-  border-color: rgba(147, 197, 253, 0.35);
-  background: rgba(14, 20, 38, 0.95);
-}
-
-.svc-rack-card--link:focus-visible {
-  outline: 2px solid rgba(147, 197, 253, 0.75);
-  outline-offset: 2px;
+  border-color: rgba(147, 197, 253, 0.22);
 }
 
 .svc-rack-head {
@@ -1524,9 +1588,13 @@ body.is-booting {
 }
 
 .svc-rack-port {
-  font: 0.72rem/1 ui-monospace, Menlo, monospace;
+  font: 0.68rem/1.15 ui-monospace, Menlo, monospace;
   font-weight: 700;
   color: var(--muted);
+  max-width: 7.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .svc-rack-card[data-accent="cms"] .svc-rack-port {
@@ -1561,16 +1629,50 @@ body.is-booting {
   overflow: hidden;
 }
 
-.svc-rack-go {
-  flex-shrink: 0;
-  font-size: 0.78rem;
-  line-height: 1;
-  color: var(--muted);
-  opacity: 0.85;
+.svc-rack-copy {
+  margin-top: 4px;
 }
 
-.svc-rack-card--link:hover .svc-rack-go {
+.svc-rack-copy .svc-rack-copy-btn {
+  padding: 4px 6px;
+  font-size: 0.58rem;
+}
+
+.svc-rack-card--link .svc-rack-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.svc-rack-go {
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: var(--muted);
+  background: rgba(120, 140, 180, 0.08);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.svc-rack-go:hover {
   color: #bfdbfe;
+  background: rgba(96, 165, 250, 0.16);
+}
+
+.svc-rack-go:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cms) 55%, transparent);
+  outline-offset: 1px;
 }
 
 .svc-rack-foot {
@@ -2296,6 +2398,360 @@ body.is-booting {
   color: var(--muted);
 }
 
+.mcp-connectors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.mcp-connector-card {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: linear-gradient(165deg, rgba(18, 24, 38, 0.92), rgba(10, 14, 24, 0.88));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.mcp-connector-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mcp-connector-head h5 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.mcp-connector-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+}
+
+.mcp-connector-badge--remote {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.28);
+}
+
+.mcp-connector-lead {
+  margin: 0 0 8px;
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.mcp-connector-fields {
+  display: grid;
+  gap: 6px;
+}
+
+.mcp-connector-field {
+  display: grid;
+  gap: 3px;
+}
+
+.mcp-connector-field-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(180, 195, 220, 0.75);
+}
+
+.mcp-connector-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(120, 140, 180, 0.16);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(220, 230, 245, 0.85);
+  font-size: 0.64rem;
+}
+
+.mcp-connector-input--mono {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.6rem;
+}
+
+.mcp-connector-input:disabled {
+  opacity: 0.92;
+  cursor: not-allowed;
+}
+
+.mcp-connectors-actions .ghost-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workspace-mounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.workspace-mount-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.85fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.workspace-mount-row--builtin {
+  opacity: 0.92;
+}
+
+.workspace-mount-field {
+  display: grid;
+  gap: 3px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(180, 195, 220, 0.75);
+}
+
+.workspace-mount-field-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  line-height: 1.2;
+}
+
+.workspace-mount-field-title {
+  flex-shrink: 0;
+}
+
+.workspace-mount-label-container {
+  font-size: 0.52rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: rgba(160, 175, 200, 0.8);
+}
+
+.workspace-mount-label-container code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.52rem;
+  color: rgba(200, 215, 235, 0.88);
+}
+
+.workspace-mount-field-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.workspace-mount-field-icon--folder {
+  color: #facc15;
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.45));
+}
+
+.workspace-mount-field-icon--folder.workspace-mount-field-icon--builtin {
+  color: #fde047;
+}
+
+.workspace-mount-field input {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(120, 140, 180, 0.16);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(220, 230, 245, 0.9);
+  font-size: 0.64rem;
+}
+
+.workspace-mount-field--host {
+  align-self: stretch;
+}
+
+.workspace-mount-badge {
+  align-self: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: rgba(200, 210, 230, 0.8);
+  border: 1px solid rgba(140, 160, 200, 0.25);
+}
+
+.workspace-mounts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.workspace-mounts-actions-sep {
+  font-size: 0.58rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 2px;
+}
+
+.workspace-mounts-template {
+  font-size: 0.62rem;
+}
+
+@media (max-width: 720px) {
+  .workspace-mount-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mcp-instances-control-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.mcp-instances-legacy {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(120, 160, 220, 0.22);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.mcp-instances-legacy-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mcp-instances-legacy-head h5 {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.mcp-instances-legacy-badge {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: rgba(200, 210, 230, 0.75);
+  border: 1px solid rgba(140, 160, 200, 0.25);
+}
+
+.mcp-instances-legacy-lead {
+  margin: 0 0 8px;
+  font-size: 0.6rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.mcp-instances-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mcp-instance-row {
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  border-radius: 9px;
+  padding: 10px 12px 12px;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  background: rgba(8, 12, 22, 0.55);
+}
+
+.mcp-instance-row legend {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0 4px;
+  color: rgba(210, 220, 240, 0.9);
+}
+
+.mcp-instance-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(180, 195, 220, 0.75);
+}
+
+.mcp-instance-wide {
+  grid-column: 1 / -1;
+}
+
+.mcp-instance-kind {
+  grid-column: 1 / 2;
+}
+
+.mcp-instance-hint {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: rgba(160, 175, 200, 0.65);
+  font-size: 0.55rem;
+}
+
+.mcp-instance-remove {
+  justify-self: stretch;
+  margin-top: 2px;
+}
+
+.mcp-instance-row input,
+.mcp-instance-row select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(120, 140, 180, 0.16);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(220, 230, 245, 0.85);
+  font-size: 0.64rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.mcp-instance-row input:disabled,
+.mcp-instance-row select:disabled {
+  opacity: 0.88;
+  cursor: not-allowed;
+}
+
+.mcp-instance-row input[name="url"],
+.mcp-instance-row input[name="token"],
+.mcp-instance-row input[name="hubUrl"] {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.6rem;
+}
+
 .agent-prompt-box {
   display: grid;
   gap: 4px;
@@ -2588,6 +3044,10 @@ body.app-lock-active .app {
   grid-template-columns: repeat(5, 1fr);
 }
 
+.server-deck--6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
 .server-deck-btn[data-tone="autostart-on"] {
   background: rgba(52, 211, 153, 0.08);
 }
@@ -2815,6 +3275,14 @@ body.app-lock-active .app {
     0 6px 16px rgba(245, 158, 11, 0.1);
 }
 
+.server-deck-icon--update {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.35),
+    0 6px 16px rgba(59, 130, 246, 0.12);
+}
+
 .server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--play {
   transform: scale(1.05);
   box-shadow:
@@ -2840,6 +3308,13 @@ body.app-lock-active .app {
   box-shadow:
     0 0 0 1px rgba(251, 191, 36, 0.55),
     0 0 22px rgba(245, 158, 11, 0.18);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--update {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(147, 197, 253, 0.55),
+    0 0 22px rgba(59, 130, 246, 0.2);
 }
 
 .server-deck-badge {
@@ -3514,7 +3989,13 @@ body.app-lock-active .app {
     gap: 12px 8px;
   }
 
-  .platform-host-chip {
+  .platform-host-chips {
     width: 100%;
+    max-width: none;
+  }
+
+  .platform-host-chip {
+    max-width: none;
+    flex: 1 1 100%;
   }
 }

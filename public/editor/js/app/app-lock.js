@@ -6,6 +6,29 @@
   const DEFAULT_LOGIN = "admin";
   const FETCH_OPTS = { credentials: "same-origin" };
 
+  function detectAppLockAppId() {
+    const path = String(window.location.pathname || "/").replace(/\/+$/, "") || "/";
+    if (path === "/app-chat" || path.startsWith("/app-chat/") || path.startsWith("/shell")) {
+      return "chat";
+    }
+    if (path === "/app-commander" || path.startsWith("/app-commander") || path.startsWith("/commander")) {
+      return "commander";
+    }
+    if (path === "/app-control" || path.startsWith("/app-control") || path.startsWith("/control")) {
+      return "control";
+    }
+    return "editor";
+  }
+
+  function isAppLockedForThisPage(status) {
+    const appId = detectAppLockAppId();
+    const lockedApps = Array.isArray(status?.lockedApps) ? status.lockedApps : [];
+    if (lockedApps.length) {
+      return lockedApps.includes(appId);
+    }
+    return Boolean(status?.enabled);
+  }
+
   const lockNode = document.getElementById("app-lock");
   const leadNode = document.getElementById("app-lock-lead");
   const footnoteNode = document.getElementById("app-lock-footnote");
@@ -595,15 +618,21 @@
 
     try {
       const status = await fetchLockStatus();
-      lockActive = Boolean(status?.enabled || status?.needsSetup);
+      const appLockRequired = isAppLockedForThisPage(status);
+      lockActive = Boolean(appLockRequired || status?.needsSetup);
       passkeyRegistered = Boolean(status?.passkeyRegistered);
 
-      if (status?.needsSetup) {
+      if (status?.needsSetup && appLockRequired) {
         setMode("setup");
         if (loginNode && !loginNode.value.trim()) {
           loginNode.value = DEFAULT_LOGIN;
         }
         showLockScreen();
+        return;
+      }
+
+      if (status?.needsSetup && !appLockRequired) {
+        completeUnlock();
         return;
       }
 

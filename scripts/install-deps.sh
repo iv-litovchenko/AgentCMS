@@ -230,8 +230,8 @@ install_entity_gliner_python
 
 echo ""
 echo "Готово. Дальше:"
-echo "  welcome.command    — открыть Agent CMS Control"
-echo "  install.command    — этот же скрипт (ярлык в корне)"
+echo "  cms-start.command / cms-rebuild.command — Mac Docker (канон)"
+echo "  (этот скрипт — legacy npm/ci для разработки образа)"
 echo "  commands/          — отдельные ярлыки команд"
 
 pause_on_exit

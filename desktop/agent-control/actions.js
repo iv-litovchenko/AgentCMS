@@ -101,6 +101,15 @@ const ACTIONS = [
     serverRole: "restart"
   },
   {
+    id: "server-update",
+    category: "server",
+    title: "Обновить",
+    command: "bash",
+    args: ["scripts/agent-https-service.sh", "status"],
+    tone: "default",
+    serverRole: "update"
+  },
+  {
     id: "server-start-attached",
     category: "server",
     title: "Пока Control открыт",
@@ -169,11 +178,13 @@ const ACTIONS = [
     appRole: "rebuild"
   },
   {
-    id: "control-dist",
+    id: "cms-electron-build",
     category: "control",
-    title: "Пересобрать Control",
+    title: "Собрать Electron (.app)",
+    description:
+      "Editor, Shell, Control, Commander — npm run cms:electron-build. Только Mac с Node на хосте (сервер — Docker + браузер).",
     command: "npm",
-    args: ["run", "control:pack"],
+    args: ["run", "cms:electron-build"],
     tone: "default",
     controlRole: "dist"
   }
@@ -221,13 +232,13 @@ const COMMANDER_SELF = {
 
 const CONTROL_SELF = {
   title: "Agent CMS Control",
-  subtitle: "Launcher · браузер :3288",
+  subtitle: "Launcher · /app-control · опциональный .app",
   badge: "Control",
   accent: "control",
   icon: "control.svg",
   appBundle: "Agent CMS Control.app",
-  distActionId: "control-dist",
-  npmDist: "npm run control:pack"
+  distActionId: "cms-electron-build",
+  npmDist: "npm run cms:electron-build"
 };
 
 const SETUP_ACTIONS = ["install-deps", "setup-certs", "setup-desktop-shortcuts"];
@@ -243,9 +254,17 @@ const MCP_TEST = {
 };
 
 function getServerPortsPayload() {
-  const ports = getServerPorts();
+  const root = getProjectRootFromActions();
+  const { getClientFacingPorts, isSinglePublicHttpDoor } = require(path.join(
+    root,
+    "lib",
+    "platform",
+    "single-door-ports"
+  ));
+  const ports = getClientFacingPorts(process.env);
   return {
-    controlNote: "Launcher — HTTP :3288 (с npm start) или Electron на Mac",
+    controlNote: "Launcher — /app-control (Docker compose на Mac/VPS) или legacy npm/Electron",
+    singleHttpDoor: isSinglePublicHttpDoor(process.env),
     ...ports
   };
 }

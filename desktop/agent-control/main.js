@@ -40,7 +40,12 @@ const REPO_ROOT = path.join(__dirname, "..", "..");
 const LAUNCH_AGENT_LABEL = "com.agentcms.https";
 let mainWindow = null;
 const activeTasks = new Map();
-const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "commander-rebuild", "control-dist"]);
+const BUILD_ACTION_IDS = new Set([
+  "cms-rebuild",
+  "voice-rebuild",
+  "commander-rebuild",
+  "cms-electron-build"
+]);
 let attachedServerProcess = null;
 let lastServerStartMode = null;
 let controlAppLockSession = false;
@@ -525,6 +530,30 @@ async function runAction(actionId) {
     }
   }
 
+  if (action.serverRole === "update") {
+    try {
+      const { runDeployUpdate, isDeployUpdateEnabled } = requireRepo("lib/ops/ops-deploy-update");
+      if (!isDeployUpdateEnabled()) {
+        sendActionState({ actionId, running: false });
+        sendLog("Обновление из Control пока отключено (AGENT_CMS_DEPLOY_UPDATE_ENABLED=1).\n", "stderr");
+        return { ok: false, error: "deploy_update_disabled" };
+      }
+      const result = runDeployUpdate(getProjectRoot());
+      sendActionState({ actionId, running: false });
+      if (result.output) sendLog(`\n${result.output}\n`);
+      if (result.message) sendLog(`${result.message}\n`);
+      if (!result.ok && result.error) sendLog(`✕ ${result.error}\n`, "stderr");
+      return {
+        ok: Boolean(result.ok),
+        error: result.ok ? null : result.message || result.error,
+        rebuildStarted: Boolean(result.rebuildStarted)
+      };
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   if (action.serverRole === "stop") {
     stopAttachedServer();
     const autoStart = await probeLaunchAgentStatus();
@@ -736,11 +765,18 @@ if (!gotLock) {
 
     ipcMain.handle("control:get-env-file", async () => {
       const gate = resolveControlAppLockGate();
-      if (gate.enabled && !gate.sessionActive) {
-        return { ok: false, error: "app_lock_required" };
-      }
       const { readProjectEnvFile } = requireRepo("lib/ops/control-env-file.js");
-      return readProjectEnvFile(getProjectRoot());
+      const payload = readProjectEnvFile(getProjectRoot());
+      if (!payload.ok) return payload;
+      if (gate.enabled && !gate.sessionActive) {
+        return {
+          ...payload,
+          content: "",
+          locked: true,
+          message: "Войдите для редактирования .env. Справа — справочник .env.example."
+        };
+      }
+      return payload;
     });
 
     ipcMain.handle("control:save-env-file", async (_event, content) => {
@@ -755,6 +791,43 @@ if (!gotLock) {
         ok: true,
         filePath: result.filePath,
         message: "Сохранено. Перезапустите MCP и при необходимости CMS."
+      };
+    });
+
+    ipcMain.handle("control:get-workspace-mounts", async () => {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = requireRepo(
+        "lib/ops/workspace-mounts.js"
+      );
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return payload;
+      return {
+        ok: true,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        composeExists: payload.composeExists,
+        hostProject: payload.hostProject,
+        exists: payload.exists,
+        mounts: payload.document.mounts
+      };
+    });
+
+    ipcMain.handle("control:save-workspace-mounts", async (_event, document) => {
+      const gate = resolveControlAppLockGate();
+      if (gate.enabled && !gate.sessionActive) {
+        return { ok: false, error: "app_lock_required" };
+      }
+      const { writeWorkspaceMounts } = requireRepo("lib/ops/workspace-mounts.js");
+      const result = writeWorkspaceMounts(getProjectRoot(), document || {});
+      if (!result.ok) return result;
+      return {
+        ok: true,
+        jsonPath: result.jsonPath,
+        composePath: result.composePath,
+        composeWritten: result.composeWritten,
+        composeRemoved: result.composeRemoved,
+        mounts: result.document.mounts,
+        message: result.message
       };
     });
 

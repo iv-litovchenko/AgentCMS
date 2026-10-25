@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>scene3d demo — расширенная сцена</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; background: #f1f5f9; color: #0f172a; }
+    .wrap { display: flex; flex-direction: column; height: 100%; }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+      padding: 10px 14px; font-size: 13px;
+      background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+      border-bottom: 1px solid #334155;
+    }
+    header strong { color: #c4b5fd; }
+    .hint { opacity: 0.72; font-size: 12px; flex: 1 1 200px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      border: 1px solid #475569; background: #334155; color: #f1f5f9;
+      border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+    }
+    button.is-active { border-color: #818cf8; background: #4338ca; }
+    button:hover { filter: brightness(1.08); }
+    #boot-err {
+      display: none; margin: 8px 14px; padding: 10px 12px; border-radius: 8px;
+      background: #450a0a; border: 1px solid #b91c1c; color: #fecaca; font-size: 13px;
+    }
+    #boot-err.is-visible { display: block; }
+    canvas { flex: 1; width: 100%; min-height: 280px; display: block; cursor: grab; touch-action: none; }
+    canvas:active { cursor: grabbing; }
+    .scene-legend {
+      padding: 10px 14px 12px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #334155;
+    }
+    .scene-legend[hidden] { display: none; }
+    .scene-legend-title { margin: 0 0 8px; font-weight: 650; color: #4338ca; font-size: 13px; }
+    .scene-legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 6px 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .scene-legend-grid li { display: flex; align-items: flex-start; gap: 8px; }
+    .scene-legend-swatch {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      margin-top: 2px;
+      border-radius: 4px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+    }
+    .scene-legend-grid strong { color: #0f172a; font-weight: 650; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <strong>3D-сцена (demo)</strong>
+        <div class="hint">Мышь — вращение · колёсико — масштаб · «R» — автоповорот</div>
+      </div>
+      <div class="toolbar">
+        <button type="button" id="btn-simple">Простая (viz)</button>
+        <button type="button" id="btn-rich">Студия</button>
+        <button type="button" id="btn-agent">Agent CMS</button>
+        <button type="button" id="btn-planet" class="is-active">Планета</button>
+      </div>
+    </header>
+    <div id="boot-err" role="alert"></div>
+    <aside id="scene-legend-planet" class="scene-legend" aria-label="Планета">
+      <p class="scene-legend-title">Планетная система (демо сложной сцены)</p>
+      <ul class="scene-legend-grid">
+        <li><span class="scene-legend-swatch" style="background:#1e40af"></span><span><strong>Ядро</strong> — океан + «континенты» (24 patch-сферы)</span></li>
+        <li><span class="scene-legend-swatch" style="background:#fff;opacity:0.7"></span><span><strong>Облака</strong> — полупрозрачная оболочка, крутится быстрее</span></li>
+        <li><span class="scene-legend-swatch" style="background:#c4b5fd"></span><span><strong>Кольцо</strong> — тор вокруг экватора</span></li>
+        <li><span class="scene-legend-swatch" style="background:#d4d4d8"></span><span><strong>3 луны</strong> — на орбитах</span></li>
+        <li><span class="scene-legend-swatch" style="background:#78716c"></span><span><strong>Пояс</strong> — ~55 астероидов</span></li>
+        <li><span class="scene-legend-swatch" style="background:#020617"></span><span><strong>Звёзды</strong> — 2500 точек на фоне</span></li>
+      </ul>
+    </aside>
+    <aside id="scene-legend" class="scene-legend" hidden aria-label="Подписи к сцене Agent CMS">
+      <p class="scene-legend-title">Схема Agent CMS (упрощённый макет — цвета = подписи ниже)</p>
+      <ul class="scene-legend-grid">
+        <li><span class="scene-legend-swatch" style="background:#6366f1"></span><span><strong>Темы</strong> — awn-topics, стопка manifest → раздел → запись</span></li>
+        <li><span class="scene-legend-swatch" style="background:#4338ca"></span><span><strong>Workspace</strong> — корень хранилища, manifest.md</span></li>
+        <li><span class="scene-legend-swatch" style="background:#64748b"></span><span><strong>awn-storage</strong> — main/, assets/viz/, materials/</span></li>
+        <li><span class="scene-legend-swatch" style="background:#22c55e"></span><span><strong>Viz-карты</strong> — цветные плитки (mindmap, flowchart, 3D…)</span></li>
+        <li><span class="scene-legend-swatch" style="background:#c4b5fd"></span><span><strong>Редактор</strong> — UI просмотра и правки записей</span></li>
+        <li><span class="scene-legend-swatch" style="background:#06b6d4"></span><span><strong>MCP</strong> — API для агента (Cursor и др.)</span></li>
+        <li><span class="scene-legend-swatch" style="background:#7c6cff"></span><span><strong>Агент</strong> — сфера над схемой (человек + AI)</span></li>
+      </ul>
+    </aside>
+    <canvas id="c"></canvas>
+  </div>
+  <script type="module">
+    const bootErr = document.getElementById("boot-err");
+    function showBootError(msg) {
+      bootErr.textContent = msg;
+      bootErr.classList.add("is-visible");
+    }
+
+    async function importThree() {
+      const cdn = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
+      const candidates =
+        location.port === "8765"
+          ? [cdn, "/shell/vendor/three.module.js"]
+          : ["/shell/vendor/three.module.js", cdn];
+      let lastErr;
+      for (const url of candidates) {
+        try {
+          return await import(/* @vite-ignore */ url);
+        } catch (e) {
+          lastErr = e;
+          console.warn("Three import failed:", url, e);
+        }
+      }
+      throw lastErr || new Error("Three.js not found");
+    }
+
+    try {
+      const THREE = await importThree();
+      await startApp(THREE);
+    } catch (e) {
+      showBootError(
+        "Не удалось загрузить Three.js. Откройте через CMS: http://localhost:3000/scene3d-demo.html " +
+          "или npx serve из корня репо. Ошибка: " + (e?.message || e)
+      );
+    }
+
+    async function startApp(THREE) {
+      const SCENE_SIMPLE = {
+        version: 1,
+        objects: [
+          { type: "box", size: [5, 0.15, 4], position: [0, 0.075, 0], color: "#94a3b8", name: "пол" },
+          { type: "box", size: [1.2, 1.2, 1.2], position: [0, 0.75, 0], color: "#6366f1", name: "блок" },
+          { type: "sphere", radius: 0.45, position: [1.35, 0.52, 0.5], color: "#f97316", name: "шар" },
+          {
+            type: "cylinder",
+            radiusTop: 0.32,
+            radiusBottom: 0.32,
+            height: 1.1,
+            position: [-1.1, 0.62, -0.55],
+            color: "#22c55e",
+            name: "столб"
+          },
+          { type: "box", size: [0.2, 1.6, 3.8], position: [0, 0.95, -1.85], color: "#e2e8f0", name: "стена" }
+        ]
+      };
+
+      const SCENE_RICH = {
+        version: 1,
+        objects: [
+          { type: "box", size: [7, 0.12, 5.5], position: [0, 0.06, 0], color: "#64748b", roughness: 0.85 },
+          { type: "box", size: [7, 2.4, 0.12], position: [0, 1.26, -2.65], color: "#e2e8f0", roughness: 0.9 },
+          { type: "box", size: [0.12, 2.4, 5.5], position: [-3.44, 1.26, 0], color: "#cbd5e1", roughness: 0.88 },
+          { type: "box", size: [0.12, 2.4, 5.5], position: [3.44, 1.26, 0], color: "#cbd5e1", roughness: 0.88 },
+          { type: "box", size: [1.6, 0.75, 0.8], position: [-1.2, 0.495, 0.6], color: "#78716c", metalness: 0.15 },
+          { type: "box", size: [0.05, 0.45, 0.55], position: [-1.2, 0.88, 0.35], color: "#1e293b", metalness: 0.4, roughness: 0.35 },
+          { type: "box", size: [0.55, 0.04, 0.18], position: [-1.2, 0.68, 0.72], color: "#334155" },
+          { type: "box", size: [0.45, 0.5, 0.45], position: [-2.1, 0.43, 1.1], color: "#6366f1" },
+          { type: "cylinder", radiusTop: 0.22, radiusBottom: 0.28, height: 0.08, position: [-2.1, 0.14, 1.1], color: "#292524" },
+          { type: "box", size: [0.9, 1.85, 0.35], position: [2.5, 1.045, -1.8], color: "#a8a29e" },
+          { type: "box", size: [0.75, 0.22, 0.28], position: [2.5, 0.41, -1.65], color: "#57534e" },
+          { type: "box", size: [0.75, 0.22, 0.28], position: [2.5, 0.71, -1.65], color: "#57534e" },
+          { type: "box", size: [0.75, 0.22, 0.28], position: [2.5, 1.01, -1.65], color: "#57534e" },
+          { type: "sphere", radius: 0.11, position: [2.35, 0.41, -1.55], color: "#7c6cff", emissive: "#4338ca", emissiveIntensity: 0.35 },
+          { type: "sphere", radius: 0.11, position: [2.65, 0.71, -1.55], color: "#22c55e", emissive: "#15803d", emissiveIntensity: 0.3 },
+          { type: "sphere", radius: 0.11, position: [2.5, 1.01, -1.55], color: "#f97316", emissive: "#c2410c", emissiveIntensity: 0.35 },
+          { type: "cylinder", radiusTop: 0.04, radiusBottom: 0.06, height: 1.5, position: [0.8, 0.81, -1.2], color: "#94a3b8", metalness: 0.6 },
+          { type: "sphere", radius: 0.18, position: [0.8, 1.58, -1.2], color: "#fef08a", emissive: "#facc15", emissiveIntensity: 0.85 },
+          { type: "torus", radius: 0.55, tube: 0.08, position: [1.4, 1.41, 0.2], rotation: [90, 0, 15], color: "#818cf8", metalness: 0.55, roughness: 0.25 },
+          { type: "box", size: [0.7, 0.14, 0.45], position: [0.2, 0.2, -0.5], color: "#475569" },
+          { type: "box", size: [0.7, 0.14, 0.45], position: [0.2, 0.34, -0.5], color: "#64748b" },
+          { type: "box", size: [0.7, 0.14, 0.45], position: [0.2, 0.48, -0.5], color: "#94a3b8" },
+          { type: "box", size: [0.35, 0.9, 0.35], position: [-0.3, 0.51, -1.5], color: "#7c6cff" },
+          { type: "cone", radius: 0.28, height: 0.55, position: [0.5, 0.365, 1.6], color: "#ec4899" },
+          { type: "sphere", radius: 0.25, position: [-1.8, 0.31, -0.8], color: "#38bdf8", metalness: 0.7, roughness: 0.2 }
+        ]
+      };
+
+      /** Agent CMS — «острова» на светлом полу; цвета совпадают с легендой над canvas */
+      const SCENE_AGENT_CMS = {
+        version: 1,
+        objects: [
+          { type: "box", size: [9, 0.2, 7], position: [0, 0.1, 0], color: "#e2e8f0", roughness: 0.95 },
+          { type: "box", size: [7.5, 0.04, 5.5], position: [0, 0.22, 0], color: "#eef2ff" },
+          { type: "box", size: [1.4, 0.5, 1.4], position: [0, 0.47, 0], color: "#4338ca" },
+          { type: "box", size: [0.9, 0.12, 0.1], position: [0, 0.78, 0], color: "#fde047" },
+          { type: "box", size: [1.2, 0.85, 1], position: [-2.8, 0.625, 0], color: "#6366f1" },
+          { type: "box", size: [0.95, 0.55, 0.85], position: [-2.8, 1.35, 0], color: "#818cf8" },
+          { type: "box", size: [0.65, 0.35, 0.6], position: [-2.8, 1.8, 0], color: "#a5b4fc" },
+          { type: "sphere", radius: 0.2, position: [-2.8, 2.15, 0], color: "#6366f1", emissive: "#4f46e5", emissiveIntensity: 0.35 },
+          { type: "box", size: [1.6, 0.95, 1.25], position: [2.8, 0.675, 0], color: "#94a3b8" },
+          { type: "box", size: [0.45, 0.32, 0.15], position: [2.45, 0.4, 0.35], color: "#22c55e" },
+          { type: "box", size: [0.45, 0.32, 0.15], position: [2.8, 0.4, 0.35], color: "#3b82f6" },
+          { type: "box", size: [0.45, 0.32, 0.15], position: [3.15, 0.4, 0.35], color: "#06b6d4" },
+          { type: "box", size: [0.55, 0.25, 0.4], position: [2.75, 0.35, -0.35], color: "#f59e0b" },
+          { type: "sphere", radius: 0.18, position: [2.8, 1.05, 0], color: "#64748b", emissive: "#475569", emissiveIntensity: 0.2 },
+          { type: "box", size: [1.6, 1.05, 0.15], position: [0, 0.725, 2.35], color: "#8b5cf6" },
+          { type: "box", size: [1.35, 0.72, 0.06], position: [0, 0.79, 2.42], color: "#c4b5fd" },
+          { type: "sphere", radius: 0.16, position: [0, 1.35, 2.35], color: "#c4b5fd", emissive: "#a78bfa", emissiveIntensity: 0.25 },
+          {
+            type: "torus",
+            radius: 0.65,
+            tube: 0.1,
+            position: [0, 0.55, -2.45],
+            rotation: [75, 0, 0],
+            color: "#06b6d4",
+            emissive: "#0891b2",
+            emissiveIntensity: 0.45
+          },
+          { type: "cylinder", radiusTop: 0.04, radiusBottom: 0.04, height: 0.9, position: [0, 0.65, -1.35], color: "#22d3ee" },
+          { type: "sphere", radius: 0.38, position: [0, 1.75, 0], color: "#7c6cff", emissive: "#6366f1", emissiveIntensity: 0.55 },
+          { type: "box", size: [1.6, 0.06, 0.06], position: [-1.4, 0.45, 0], color: "#cbd5e1", rotation: [0, 0, 0] },
+          { type: "box", size: [1.6, 0.06, 0.06], position: [1.4, 0.45, 0], color: "#cbd5e1", rotation: [0, 0, 0] }
+        ]
+      };
+
+      function parseColor(value, fallback = 0x94a3b8) {
+        const s = String(value || "").trim();
+        if (s.startsWith("#")) return parseInt(s.slice(1), 16);
+        return fallback;
+      }
+
+      function buildMesh(spec) {
+        const color = parseColor(spec.color, 0x7c6cff);
+        const mat = new THREE.MeshStandardMaterial({
+          color,
+          roughness: Number(spec.roughness ?? 0.72),
+          metalness: Number(spec.metalness ?? 0.08),
+          emissive: spec.emissive ? parseColor(spec.emissive, 0) : 0x000000,
+          emissiveIntensity: Number(spec.emissiveIntensity ?? 0)
+        });
+        const type = String(spec.type || "box").toLowerCase();
+        let mesh;
+        if (type === "sphere") {
+          mesh = new THREE.Mesh(new THREE.SphereGeometry(Number(spec.radius ?? 0.5), 36, 28), mat);
+        } else if (type === "cylinder") {
+          const rt = Number(spec.radiusTop ?? spec.radius ?? 0.4);
+          const rb = Number(spec.radiusBottom ?? spec.radius ?? 0.4);
+          mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, Number(spec.height ?? 1), 28), mat);
+        } else if (type === "cone") {
+          mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0, Number(spec.radius ?? 0.4), Number(spec.height ?? 1), 28),
+            mat
+          );
+        } else if (type === "torus") {
+          mesh = new THREE.Mesh(
+            new THREE.TorusGeometry(Number(spec.radius ?? 0.5), Number(spec.tube ?? 0.08), 16, 48),
+            mat
+          );
+        } else {
+          const size = spec.size || [1, 1, 1];
+          mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(Number(size[0]), Number(size[1]), Number(size[2])),
+            mat
+          );
+        }
+        const pos = spec.position || [0, 0, 0];
+        mesh.position.set(pos[0], pos[1], pos[2]);
+        if (spec.rotation) {
+          const r = spec.rotation;
+          mesh.rotation.set((r[0] * Math.PI) / 180, (r[1] * Math.PI) / 180, (r[2] * Math.PI) / 180);
+        }
+        mesh.userData.pulse = Number(spec.emissiveIntensity ?? 0) > 0.5;
+        return mesh;
+      }
+
+      const canvas = document.getElementById("c");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf1f5f9);
+
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
+      const content = new THREE.Group();
+      scene.add(content);
+
+      const grid = new THREE.GridHelper(10, 20, 0x818cf8, 0x475569);
+      grid.position.y = 0.002;
+      scene.add(grid);
+      scene.add(new THREE.AxesHelper(1.2));
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x64748b, 0.9);
+      scene.add(hemi);
+      const key = new THREE.DirectionalLight(0xffffff, 1.45);
+      key.position.set(5, 10, 7);
+      scene.add(key);
+
+      const lamp = new THREE.PointLight(0xfde047, 0, 8, 2);
+      lamp.position.set(0.8, 1.58, -1.2);
+      scene.add(lamp);
+
+      let orbitY = 0.75;
+      let orbitX = 0.38;
+      let orbitDist = 6;
+      let zoom = 1;
+      let drag = false;
+      let lx = 0;
+      let ly = 0;
+      let autoSpin = true;
+      const lookTarget = new THREE.Vector3(0, 0.55, 0);
+      const clock = new THREE.Clock();
+
+      let sceneMode = "planet";
+      let planetAnim = null;
+
+      function disposeObject3D(obj) {
+        obj.traverse?.((node) => {
+          node.geometry?.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach((m) => m.dispose?.());
+            else node.material.dispose?.();
+          }
+        });
+      }
+
+      function clearContent() {
+        while (content.children.length) {
+          const ch = content.children.pop();
+          disposeObject3D(ch);
+        }
+        planetAnim = null;
+      }
+
+      function pseudoRandom(seed) {
+        const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
+        return x - Math.floor(x);
+      }
+
+      function buildPlanetSystem(group) {
+        const anim = { planet: null, clouds: null, ring: null, moons: [], asteroids: [] };
+        const planet = new THREE.Group();
+
+        const core = new THREE.Mesh(
+          new THREE.SphereGeometry(1.15, 64, 48),
+          new THREE.MeshStandardMaterial({ color: 0x1e40af, roughness: 0.82, metalness: 0.06 })
+        );
+        planet.add(core);
+
+        for (let i = 0; i < 24; i++) {
+          const u = pseudoRandom(i * 3.17);
+          const v = pseudoRandom(i * 9.03);
+          const theta = u * Math.PI * 2;
+          const phi = Math.acos(2 * v - 1);
+          const r = 1.17;
+          const px = r * Math.sin(phi) * Math.cos(theta);
+          const py = r * Math.cos(phi);
+          const pz = r * Math.sin(phi) * Math.sin(theta);
+          const patchR = 0.07 + pseudoRandom(i * 1.31) * 0.14;
+          const patch = new THREE.Mesh(
+            new THREE.SphereGeometry(patchR, 14, 10),
+            new THREE.MeshStandardMaterial({
+              color: i % 4 === 0 ? 0xa8a29e : i % 3 === 0 ? 0x166534 : 0x15803d,
+              roughness: 0.92
+            })
+          );
+          patch.position.set(px, py, pz);
+          planet.add(patch);
+        }
+
+        anim.planet = planet;
+        group.add(planet);
+
+        const clouds = new THREE.Mesh(
+          new THREE.SphereGeometry(1.24, 48, 32),
+          new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.32,
+            roughness: 1,
+            depthWrite: false
+          })
+        );
+        anim.clouds = clouds;
+        group.add(clouds);
+
+        const atmosphere = new THREE.Mesh(
+          new THREE.SphereGeometry(1.38, 36, 24),
+          new THREE.MeshBasicMaterial({
+            color: 0x7dd3fc,
+            transparent: true,
+            opacity: 0.14,
+            side: THREE.BackSide,
+            depthWrite: false
+          })
+        );
+        group.add(atmosphere);
+
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(1.9, 0.2, 2, 96),
+          new THREE.MeshStandardMaterial({
+            color: 0xe9d5ff,
+            transparent: true,
+            opacity: 0.72,
+            side: THREE.DoubleSide,
+            roughness: 0.55,
+            metalness: 0.08
+          })
+        );
+        ring.rotation.x = Math.PI / 2.35;
+        anim.ring = ring;
+        group.add(ring);
+
+        for (let m = 0; m < 3; m += 1) {
+          const orbit = new THREE.Group();
+          const moon = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1 + m * 0.035, 20, 14),
+            new THREE.MeshStandardMaterial({ color: 0xe4e4e7, roughness: 0.96, emissive: 0x27272a, emissiveIntensity: 0.15 })
+          );
+          moon.position.x = 2.15 + m * 0.65;
+          orbit.add(moon);
+          orbit.userData.orbitSpeed = 0.35 + m * 0.12;
+          orbit.rotation.y = m * 2.4;
+          anim.moons.push(orbit);
+          group.add(orbit);
+        }
+
+        for (let a = 0; a < 55; a += 1) {
+          const angle = pseudoRandom(a * 2.11) * Math.PI * 2;
+          const rad = 2.45 + pseudoRandom(a + 40) * 0.95;
+          const rock = new THREE.Mesh(
+            new THREE.BoxGeometry(
+              0.035 + pseudoRandom(a) * 0.07,
+              0.025 + pseudoRandom(a * 1.7) * 0.05,
+              0.03 + pseudoRandom(a * 2.3) * 0.06
+            ),
+            new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.95 })
+          );
+          rock.position.set(Math.cos(angle) * rad, (pseudoRandom(a * 3.3) - 0.5) * 0.4, Math.sin(angle) * rad);
+          rock.rotation.set(pseudoRandom(a * 4.1) * 6, pseudoRandom(a * 5.2) * 6, pseudoRandom(a * 6.3) * 6);
+          anim.asteroids.push({ mesh: rock, angle, rad, y: rock.position.y, speed: 0.0008 + pseudoRandom(a * 7.1) * 0.0018 });
+          group.add(rock);
+        }
+
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 2500;
+        const positions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i += 1) {
+          const radius = 35 + pseudoRandom(i) * 90;
+          const th = pseudoRandom(i + 100) * Math.PI * 2;
+          const ph = Math.acos(2 * pseudoRandom(i + 200) - 1);
+          positions[i * 3] = radius * Math.sin(ph) * Math.cos(th);
+          positions[i * 3 + 1] = radius * Math.sin(ph) * Math.sin(th);
+          positions[i * 3 + 2] = radius * Math.cos(ph);
+        }
+        starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const stars = new THREE.Points(
+          starGeo,
+          new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.85 })
+        );
+        anim.stars = stars;
+        group.add(stars);
+
+        return anim;
+      }
+
+      function updateCamera() {
+        const d = orbitDist * zoom;
+        camera.position.set(
+          lookTarget.x + d * Math.cos(orbitX) * Math.sin(orbitY),
+          lookTarget.y + d * Math.sin(orbitX),
+          lookTarget.z + d * Math.cos(orbitX) * Math.cos(orbitY)
+        );
+        camera.lookAt(lookTarget);
+      }
+
+      function fitCamera() {
+        const box = new THREE.Box3().setFromObject(content);
+        if (box.isEmpty()) return;
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        lookTarget.copy(center);
+        lookTarget.y += size.y * 0.08;
+        const maxDim = Math.max(size.x, size.y, size.z, 0.01);
+        const fov = (camera.fov * Math.PI) / 180;
+        orbitDist = Math.max(4, (maxDim / 2 / Math.tan(fov / 2)) * 1.55);
+        updateCamera();
+      }
+
+      const sceneLegend = document.getElementById("scene-legend");
+      const sceneLegendPlanet = document.getElementById("scene-legend-planet");
+
+      function loadScene(def, mode) {
+        clearContent();
+        sceneMode = mode;
+        const dark = mode === "rich";
+        const agent = mode === "agent";
+        const planet = mode === "planet";
+
+        if (planet) {
+          planetAnim = buildPlanetSystem(content);
+          lookTarget.set(0, 0, 0);
+          orbitDist = 5.8;
+          orbitX = 0.32;
+          orbitY = 0.85;
+          updateCamera();
+        } else {
+          for (const item of def.objects) content.add(buildMesh(item));
+          fitCamera();
+        }
+
+        scene.background = new THREE.Color(planet ? 0x020617 : agent || !dark ? 0xeef2ff : 0x0f172a);
+        scene.fog = dark ? new THREE.Fog(0x0f172a, 8, 22) : null;
+        grid.visible = !planet && (agent || dark);
+        if (grid.material) {
+          const op = agent ? 0.55 : 0.35;
+          if (Array.isArray(grid.material)) grid.material.forEach((m) => { m.opacity = op; m.transparent = true; });
+          else { grid.material.opacity = op; grid.material.transparent = true; }
+        }
+        lamp.intensity = planet ? 0 : dark ? 12 : agent ? 6 : 0;
+        if (sceneLegend) sceneLegend.hidden = !agent;
+        if (sceneLegendPlanet) sceneLegendPlanet.hidden = !planet;
+        key.color.setHex(planet ? 0xfff7ed : 0xffffff);
+        key.intensity = planet ? 2.4 : agent ? 1.65 : dark ? 1.45 : 1.1;
+        key.position.set(planet ? 8 : 5, planet ? 3 : 10, planet ? 4 : 7);
+        hemi.intensity = planet ? 0.35 : 0.9;
+      }
+
+      function setSceneTab(activeId) {
+        for (const id of ["btn-simple", "btn-rich", "btn-agent", "btn-planet"]) {
+          document.getElementById(id).classList.toggle("is-active", id === activeId);
+        }
+      }
+
+      updateCamera();
+      loadScene(null, "planet");
+
+      function resize() {
+        const w = Math.max(canvas.clientWidth, 1);
+        const h = Math.max(canvas.clientHeight, 1);
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      new ResizeObserver(resize).observe(canvas);
+      window.addEventListener("resize", resize);
+      resize();
+
+      canvas.addEventListener("pointerdown", (e) => {
+        drag = true;
+        autoSpin = false;
+        lx = e.clientX;
+        ly = e.clientY;
+        canvas.setPointerCapture(e.pointerId);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        orbitY += (e.clientX - lx) * 0.008;
+        orbitX += (e.clientY - ly) * 0.008;
+        orbitX = Math.max(-1.15, Math.min(1.15, orbitX));
+        lx = e.clientX;
+        ly = e.clientY;
+        updateCamera();
+      });
+      canvas.addEventListener("pointerup", () => {
+        drag = false;
+      });
+      canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        zoom *= e.deltaY > 0 ? 0.92 : 1.08;
+        zoom = Math.max(0.35, Math.min(2.5, zoom));
+        updateCamera();
+      }, { passive: false });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "r" || e.key === "R") autoSpin = !autoSpin;
+      });
+
+      document.getElementById("btn-simple").addEventListener("click", () => {
+        setSceneTab("btn-simple");
+        loadScene(SCENE_SIMPLE, "simple");
+      });
+      document.getElementById("btn-rich").addEventListener("click", () => {
+        setSceneTab("btn-rich");
+        loadScene(SCENE_RICH, "rich");
+      });
+      document.getElementById("btn-agent").addEventListener("click", () => {
+        setSceneTab("btn-agent");
+        loadScene(SCENE_AGENT_CMS, "agent");
+      });
+      document.getElementById("btn-planet").addEventListener("click", () => {
+        setSceneTab("btn-planet");
+        loadScene(null, "planet");
+      });
+
+      (function tick() {
+        requestAnimationFrame(tick);
+        const t = clock.getElapsedTime();
+        if (autoSpin && !drag) {
+          orbitY += sceneMode === "planet" ? 0.0025 : 0.004;
+          updateCamera();
+        }
+        if (planetAnim) {
+          planetAnim.planet.rotation.y += 0.0018;
+          planetAnim.clouds.rotation.y += 0.0026;
+          planetAnim.ring.rotation.z += 0.0004;
+          for (const orbit of planetAnim.moons) {
+            orbit.rotation.y += orbit.userData.orbitSpeed * 0.016;
+          }
+          for (const ast of planetAnim.asteroids) {
+            ast.angle += ast.speed;
+            ast.mesh.position.x = Math.cos(ast.angle) * ast.rad;
+            ast.mesh.position.z = Math.sin(ast.angle) * ast.rad;
+            ast.mesh.rotation.x += ast.speed * 4;
+            ast.mesh.rotation.y += ast.speed * 3;
+          }
+          if (planetAnim.stars) planetAnim.stars.rotation.y += 0.00008;
+        } else {
+          for (const mesh of content.children) {
+            if (mesh.userData.pulse && mesh.material?.emissiveIntensity != null) {
+              mesh.material.emissiveIntensity = 0.55 + Math.sin(t * 3) * 0.35;
+            }
+          }
+        }
+        if (lamp.intensity > 0) lamp.intensity = 10 + Math.sin(t * 2) * 2;
+        renderer.render(scene, camera);
+      })();
+    }
+  </script>
+</body>
+</html>

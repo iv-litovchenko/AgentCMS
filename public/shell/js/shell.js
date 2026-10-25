@@ -7492,6 +7492,10 @@ function parseShellPathAgentId() {
         "cms",
         "a",
         "api",
+        "app-chat",
+        "app-control",
+        "app-commander",
+        "app-mcp",
         "favicon.svg",
         "js"
       ]);
@@ -7519,7 +7523,7 @@ function parseShellPathAgentId() {
 
 function shellAgentPath(agentId, surfaceHost = "") {
   const id = String(agentId || "").trim();
-  if (!id) return shellVoiceStandalone ? "/" : "/shell/";
+  if (!id) return shellVoiceStandalone ? buildVoiceShellPath("", surfaceHost) : "/shell/";
   if (shellVoiceStandalone) {
     const host =
       String(surfaceHost || "").trim() ||

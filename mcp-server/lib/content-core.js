@@ -72,7 +72,6 @@ async function writeMarkdownFull(client, manifestPath, slot, ref, content) {
 async function readInternalContent(client, manifestPath, slot, file) {
   if (slot === "main-single-csv") return client.get("/api/memory/tabular", { path: manifestPath, file });
   if (slot === "todo-single" || slot === "todo") return client.get("/api/todo", { path: manifestPath });
-  if (slot === "roadmap-single" || slot === "roadmap") return client.get("/api/roadmap", { path: manifestPath });
   return client.get("/api/memory/internal", { path: manifestPath });
 }
 
@@ -81,9 +80,6 @@ async function writeInternalContent(client, manifestPath, slot, content, file) {
     return client.post("/api/memory/tabular", { path: manifestPath, content, file });
   }
   if (slot === "todo-single" || slot === "todo") return client.post("/api/todo", { path: manifestPath, content });
-  if (slot === "roadmap-single" || slot === "roadmap") {
-    return client.post("/api/roadmap", { path: manifestPath, content });
-  }
   return client.post("/api/memory/internal", { path: manifestPath, content });
 }
 
@@ -804,7 +800,13 @@ export async function writeContentBinaryFromUrl(client, args) {
 
 export async function renameContent(client, args) {
   const address = resolveArgs(args);
-  rejectRootLifecycle(address, "rename_content");
+  if (address.kind === "root") {
+    const relPath = address.workspaceFilePath;
+    const newName = args.displayName || args.title || args.newName;
+    if (!relPath) throw new Error("rename_content: placement.path is required");
+    if (!newName) throw new Error("displayName, title, or newName is required");
+    return client.post("/api/workspace/folder/rename", { path: relPath, newName });
+  }
   const { manifestPath, slot, ref } = address;
   const { displayName, title } = args;
   if (isInternalBundleSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
@@ -827,7 +829,15 @@ export async function renameContent(client, args) {
 
 export async function moveContent(client, args) {
   const address = resolveArgs(args);
-  rejectRootLifecycle(address, "move_content");
+  if (address.kind === "root") {
+    const relPath = address.workspaceFilePath;
+    if (!relPath) throw new Error("move_content: placement.path is required");
+    const parentPath = args.targetParent ?? args.targetPath ?? args.targetFolder;
+    if (parentPath === undefined || parentPath === null) {
+      throw new Error("move_content: targetParent or targetPath is required for placement.kind=root");
+    }
+    return client.post("/api/workspace/folder/move", { path: relPath, parentPath });
+  }
   const { manifestPath, slot, ref } = address;
   const { targetPath, targetRef, targetParent } = args;
   if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
@@ -927,7 +937,11 @@ export async function listContentItems(client, args) {
 
 export async function deleteContent(client, args) {
   const address = resolveArgs(args);
-  rejectRootLifecycle(address, "delete_content");
+  if (address.kind === "root") {
+    const relPath = address.workspaceFilePath;
+    if (!relPath) throw new Error("delete_content: placement.path is required");
+    return client.post("/api/workspace/folder/delete", { paths: [relPath] });
+  }
   const { manifestPath, slot, ref } = address;
   if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
   requireRef(address, "delete_content");

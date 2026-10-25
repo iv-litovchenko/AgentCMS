@@ -238,14 +238,14 @@
         }
       },
       {
-        slotKey: "roadmap-single",
+        slotKey: "atlas",
         label: "Карты",
         tabGroup: "planning",
         defaultKind: "record",
         targets: {
-          record: { id: "slot_roadmap_single" },
-          category: { id: "slot_roadmap_single_category" },
-          sidecar: { id: "slot_roadmap_single_sidecar" }
+          record: { id: "slot_atlas" },
+          category: { id: "slot_atlas_category" },
+          sidecar: { id: "slot_atlas_sidecar" }
         }
       }
     ];

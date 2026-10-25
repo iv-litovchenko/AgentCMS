@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 function registerNavReadRefreshPair(
   reg,
@@ -29,7 +29,12 @@ function registerNavReadRefreshPair(
   });
   for (const name of legacyReadNames) {
     if (name && name !== midRead && name !== canonicalRead) {
-      reg(name, `Deprecated alias for ${canonicalRead}.`, readSchema, readHandler);
+      registerDeprecatedAlias(reg, {
+        canonical: canonicalRead,
+        name,
+        schema: readSchema,
+        handler: readHandler
+      });
     }
   }
 
@@ -42,7 +47,12 @@ function registerNavReadRefreshPair(
   });
   for (const name of legacyRefreshNames) {
     if (name && name !== midRefresh && name !== canonicalRefresh) {
-      reg(name, `Deprecated alias for ${canonicalRefresh}.`, refreshSchema, refreshHandler);
+      registerDeprecatedAlias(reg, {
+        canonical: canonicalRefresh,
+        name,
+        schema: refreshSchema,
+        handler: refreshHandler
+      });
     }
   }
 }
@@ -63,12 +73,12 @@ export function registerNavTools(reg, client, pagePath) {
     schema: z.object({}),
     handler: () => client.get("/api/agent/workspace-wsmap")
   });
-  reg(
-    "read_workspace_map",
-    "Deprecated alias for nav_map_workspace_read.",
-    z.object({}),
-    () => client.get("/api/agent/workspace-wsmap")
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "nav_map_workspace_read",
+    name: "read_workspace_map",
+    schema: z.object({}),
+    handler: () => client.get("/api/agent/workspace-wsmap")
+  });
 
   const refreshWorkspaceMapSchema = z.object({
     overwrite: z
@@ -88,15 +98,15 @@ export function registerNavTools(reg, client, pagePath) {
         ...(overwrite === false ? { overwrite: false } : {})
       })
   });
-  reg(
-    "refresh_workspace_map",
-    "Deprecated alias for nav_map_workspace_refresh.",
-    refreshWorkspaceMapSchema,
-    ({ overwrite }) =>
+  registerDeprecatedAlias(reg, {
+    canonical: "nav_map_workspace_refresh",
+    name: "refresh_workspace_map",
+    schema: refreshWorkspaceMapSchema,
+    handler: ({ overwrite }) =>
       client.post("/api/agent/workspace-wsmap", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
-  );
+  });
 
   registerNavReadRefreshPair(reg, {
     hub: "topics",

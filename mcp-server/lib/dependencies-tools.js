@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const dependencyRow = z
   .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
@@ -18,7 +18,12 @@ export function registerDependenciesTools(reg, client) {
     schema: readSchema,
     handler: readFn
   });
-  reg("read_dependencies", "Deprecated alias for workspace_dependencies_read.", readSchema, readFn);
+  registerDeprecatedAlias(reg, {
+    canonical: "workspace_dependencies_read",
+    name: "read_dependencies",
+    schema: readSchema,
+    handler: readFn
+  });
 
   const writeSchema = z.object({
     content: z
@@ -41,10 +46,10 @@ export function registerDependenciesTools(reg, client) {
     schema: writeSchema,
     handler: writeFn
   });
-  reg(
-    "write_dependencies",
-    "Deprecated alias for workspace_dependencies_write.",
-    writeSchema,
-    writeFn
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "workspace_dependencies_write",
+    name: "write_dependencies",
+    schema: writeSchema,
+    handler: writeFn
+  });
 }

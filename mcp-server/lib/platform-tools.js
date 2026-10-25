@@ -68,4 +68,94 @@ export function registerPlatformTools(reg, client) {
     handler: () => client.get("/api/platform/config", {}, { agentScope: false }),
     options: { agentScope: false }
   });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_apps_list",
+    legacy: "list_platform_apps",
+    description:
+      "Registry of platform apps (editor, app-chat, app-commander, app-control, app-mcp): public URLs, kind ui|api, optional internal ports in dev.",
+    schema: z.object({
+      ui: z
+        .boolean()
+        .optional()
+        .describe("If true, only UI apps shown in Editor app switcher")
+    }),
+    handler: ({ ui }) =>
+      client.get("/api/platform/apps", ui ? { ui: "1" } : {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_keys_list",
+    legacy: "list_env_keys",
+    description:
+      "Root env: per key from .env.example — example.value (what can be) and current.* from .env (what is; secrets redacted unless app-lock).",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/env-keys", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_key_read",
+    legacy: "read_env_key",
+    description:
+      "Read one root .env value by key (key must be in platform_env_keys_list). Secrets redacted unless app-lock session.",
+    schema: z.object({
+      key: z.string().min(1).describe("Env key from .env.example, e.g. AGENT_CMS_PUBLIC_URL")
+    }),
+    handler: ({ key }) =>
+      client.get("/api/platform/env-key", { key: String(key || "").trim() }, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_env_key_write",
+    legacy: "write_env_key",
+    description:
+      "Write one root .env key (app-lock session required). Key must be in platform_env_keys_list.",
+    schema: z.object({
+      key: z.string().min(1).describe("Env key from .env.example"),
+      value: z.string().describe("New value (empty string clears to KEY=)")
+    }),
+    handler: ({ key, value }) =>
+      client.post(
+        "/api/platform/env-key",
+        { key: String(key || "").trim(), value: String(value ?? "") },
+        { agentScope: false }
+      ),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_workspace_mounts_list",
+    legacy: "list_workspace_mounts",
+    description:
+      "Docker workspace roots: host paths mounted into cms/mcp (default ./workspaces). Source: .agent-cms-global/workspace-mounts.json + generated docker-compose.workspace-mounts.yml.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/workspace-mounts", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_workspace_mounts_write",
+    legacy: "write_workspace_mounts",
+    description:
+      "Replace workspace mount list (app-lock). Regenerates docker-compose.workspace-mounts.yml; docker compose up -d required on host.",
+    schema: z.object({
+      mounts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            hostPath: z.string().min(1),
+            containerPath: z.string().optional(),
+            builtIn: z.boolean().optional()
+          })
+        )
+        .min(1)
+    }),
+    handler: ({ mounts }) =>
+      client.post("/api/platform/workspace-mounts", { mounts }, { agentScope: false }),
+    options: { agentScope: false }
+  });
 }

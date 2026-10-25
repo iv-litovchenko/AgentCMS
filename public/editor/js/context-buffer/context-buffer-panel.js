@@ -147,9 +147,12 @@
     }
   }
 
+  let bufferTextDirty = false;
+
   async function refresh() {
     const listNode = document.getElementById("context-buffer-list");
     const countNode = document.getElementById("context-buffer-count");
+    const textInput = document.getElementById("context-buffer-text-input");
     if (!listNode) return;
     try {
       const data = await global.ContextBufferClient.fetchBuffer(null, getActiveAgentId);
@@ -159,6 +162,28 @@
     } catch {
       renderItems(listNode, []);
       if (countNode) countNode.textContent = "0";
+    }
+    if (textInput && !bufferTextDirty) {
+      try {
+        const textPayload = await global.ContextBufferClient.fetchBufferText(null, getActiveAgentId);
+        textInput.value = String(textPayload?.content ?? "");
+      } catch {
+        if (!bufferTextDirty) textInput.value = "";
+      }
+    }
+  }
+
+  async function saveBufferText() {
+    const textInput = document.getElementById("context-buffer-text-input");
+    if (!textInput) return;
+    try {
+      await global.ContextBufferClient.saveBufferText(textInput.value, null, getActiveAgentId, {
+        mode: "replace"
+      });
+      bufferTextDirty = false;
+      if (typeof showToast === "function") showToast("BUFFER.md сохранён", "success");
+    } catch (error) {
+      if (typeof showToast === "function") showToast(String(error.message || error), "error");
     }
   }
 
@@ -272,6 +297,8 @@
     for (const btn of bandNode.querySelectorAll("button")) {
       btn.disabled = disabled;
     }
+    const textInput = bandNode.querySelector("#context-buffer-text-input");
+    if (textInput) textInput.disabled = disabled;
   }
 
   function syncContextBufferMount() {
@@ -304,6 +331,8 @@
     const addCurrentBtn = document.getElementById("context-buffer-add-current-btn");
     const clearBtn = document.getElementById("context-buffer-clear-btn");
     const refreshBtn = document.getElementById("context-buffer-refresh-btn");
+    const textInput = document.getElementById("context-buffer-text-input");
+    const textSaveBtn = document.getElementById("context-buffer-text-save-btn");
 
     syncContextBufferBandCollapsed();
     setupDropZone(bandNode);
@@ -323,7 +352,16 @@
     });
 
     clearBtn?.addEventListener("click", () => void clearAll());
-    refreshBtn?.addEventListener("click", () => void refresh());
+    refreshBtn?.addEventListener("click", () => {
+      bufferTextDirty = false;
+      void refresh();
+    });
+
+    textInput?.addEventListener("input", () => {
+      bufferTextDirty = true;
+    });
+
+    textSaveBtn?.addEventListener("click", () => void saveBufferText());
 
     syncContextBufferMount();
     void refresh();

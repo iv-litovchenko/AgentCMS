@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const pagePath = z
   .string()
@@ -43,12 +43,12 @@ export function registerSidecarTools(reg, client) {
     schema: sidecarAddress,
     handler: (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
   });
-  reg(
-    "resolve_sidecar_path",
-    "Deprecated alias for annotation_sidecar_path_resolve.",
-    sidecarAddress,
-    (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_path_resolve",
+    name: "resolve_sidecar_path",
+    schema: sidecarAddress,
+    handler: (args) => client.get("/api/storage/sidecar/resolve", sidecarQuery(args))
+  });
 
   const readHandler = (args) => client.get("/api/storage/sidecar", sidecarQuery(args));
   registerCanonicalWithLegacyAlias(reg, {
@@ -58,7 +58,12 @@ export function registerSidecarTools(reg, client) {
     schema: sidecarAddress,
     handler: readHandler
   });
-  reg("read_sidecar", "Deprecated alias for annotation_sidecar_read.", sidecarAddress, readHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_read",
+    name: "read_sidecar",
+    schema: sidecarAddress,
+    handler: readHandler
+  });
 
   const createSchema = sidecarAddress.extend({
     title: z.string().optional().describe("awn-name, default from source file name"),
@@ -84,7 +89,12 @@ export function registerSidecarTools(reg, client) {
     schema: createSchema,
     handler: createHandler
   });
-  reg("create_sidecar", "Deprecated alias for annotation_sidecar_create.", createSchema, createHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_create",
+    name: "create_sidecar",
+    schema: createSchema,
+    handler: createHandler
+  });
 
   const writeSchema = sidecarAddress.extend({
     content: z.string().optional().describe("Full markdown (frontmatter + body)"),
@@ -109,8 +119,18 @@ export function registerSidecarTools(reg, client) {
     schema: writeSchema,
     handler: writeHandler
   });
-  reg("sidecar_write", "Deprecated alias for annotation_sidecar_update.", writeSchema, writeHandler);
-  reg("write_sidecar", "Deprecated alias for annotation_sidecar_update.", writeSchema, writeHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_update",
+    name: "sidecar_write",
+    schema: writeSchema,
+    handler: writeHandler
+  });
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_update",
+    name: "write_sidecar",
+    schema: writeSchema,
+    handler: writeHandler
+  });
 
   const deleteHandler = (args) => client.delete("/api/storage/sidecar", sidecarQuery(args));
   registerCanonicalWithLegacyAlias(reg, {
@@ -121,5 +141,10 @@ export function registerSidecarTools(reg, client) {
     schema: sidecarAddress,
     handler: deleteHandler
   });
-  reg("delete_sidecar", "Deprecated alias for annotation_sidecar_delete.", sidecarAddress, deleteHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_sidecar_delete",
+    name: "delete_sidecar",
+    schema: sidecarAddress,
+    handler: deleteHandler
+  });
 }

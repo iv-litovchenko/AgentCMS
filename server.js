@@ -293,6 +293,7 @@ const {
   BUNDLE_LOG_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   normalizeSystemFileRequestName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
@@ -308,6 +309,7 @@ const {
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
+  STORAGE_SUBFOLDER_ATLAS,
   STORAGE_SUBFOLDER_MEDIA,
   STORAGE_SUBFOLDER_FILES,
   STORAGE_SUBFOLDER_ASSETS,
@@ -814,6 +816,7 @@ const SYSTEM_FILE_NAMES = [
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   WORKSPACE_WS_MAP_FILE
 ];
 
@@ -832,6 +835,7 @@ const CORE_SYSTEM_FILE_NAMES = new Set([
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   WORKSPACE_WS_MAP_FILE,
   ".env",
   ".gitignore"
@@ -983,7 +987,15 @@ async function resolveExistingSystemFileAbsolute(name) {
       ? [ROOT_SYSTEM_TODO_FILE, "todo.md"]
       : canonical === ROOT_SYSTEM_NOTE_FILE
         ? [ROOT_SYSTEM_NOTE_FILE, "note.md", "notes.md"]
-        : canonical === WORKSPACE_WS_MAP_FILE
+        : canonical === ROOT_SYSTEM_BUFFER_FILE
+          ? [
+              ROOT_SYSTEM_BUFFER_FILE,
+              "CONTEXT-BUFFER.md",
+              "SESSION-BUFFER.md",
+              "context-buffer.md",
+              "session-buffer.md"
+            ]
+          : canonical === WORKSPACE_WS_MAP_FILE
           ? [WORKSPACE_WS_MAP_FILE, WORKSPACE_WSMAP_LEGACY_FILE]
           : [canonical];
   for (const candidate of candidates) {
@@ -1093,7 +1105,8 @@ const APP_LOCK_PASSWORD_KEY = "APP_LOCK_PASSWORD";
 const { parseRootEnvFileContent } = require("./lib/config/agent-cms-ports");
 
 async function readRootEnvFile() {
-  const envPath = path.join(getProjectRoot(), ".env");
+  const { resolveEnvProjectRoot } = require("./lib/ops/control-env-file");
+  const envPath = path.join(resolveEnvProjectRoot(getProjectRoot()), ".env");
   try {
     const content = await fs.readFile(envPath, "utf-8");
     return parseRootEnvFileContent(content);
@@ -1103,24 +1116,43 @@ async function readRootEnvFile() {
   }
 }
 
+/** .env на диске + process.env (Docker compose env_file не создаёт /app/.env). */
+async function readEffectiveRootEnv() {
+  const fromFile = await readRootEnvFile();
+  return { ...process.env, ...fromFile };
+}
+
+/** Секрет cookie app-lock — всегда effective env (иначе Docker: login ok, cookie нет). */
+async function readAppLockSessionEnv() {
+  return readEffectiveRootEnv();
+}
+
 async function getAppLockStatus() {
-  const env = await readRootEnvFile();
-  const login = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
-  const password = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
-  const configured = Boolean(login && password);
+  const env = await readEffectiveRootEnv();
+  const { resolveAppLockPolicy, buildAppLockAppsCatalog } = require("./lib/auth/app-lock-apps");
+  const policy = resolveAppLockPolicy(env);
   return {
-    enabled: configured,
-    needsSetup: !configured
+    enabled: policy.configured,
+    needsSetup: policy.needsSetup,
+    lockedApps: policy.lockedApps,
+    lockableApps: policy.lockableApps,
+    legacyDefault: policy.legacyDefault,
+    apps: buildAppLockAppsCatalog(policy)
   };
 }
 
 async function resolveOpsAppLockGate(req) {
-  const status = await getAppLockStatus();
-  const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
+  const env = await readEffectiveRootEnv();
+  const { isOpsAppLockRequired, resolveAppLockPolicy } = require("./lib/auth/app-lock-apps");
+  const policy = resolveAppLockPolicy(env);
+  const opsLockRequired = isOpsAppLockRequired(policy);
+  const sessionActive = Boolean(await getValidAppLockSession(req, readAppLockSessionEnv));
   return {
-    enabled: status.enabled,
+    enabled: opsLockRequired,
+    configured: policy.configured,
+    lockedApps: policy.lockedApps,
     sessionActive,
-    canToggleMaintenance: !status.enabled || sessionActive
+    canToggleMaintenance: !opsLockRequired || sessionActive
   };
 }
 
@@ -1133,13 +1165,13 @@ async function getOpsMaintenanceWriteDeniedResponse(req) {
       ok: false,
       error: "app_lock_required",
       message:
-        "Нужна сессия app-lock: войдите в Editor (HTTP/HTTPS) или POST /api/app-lock/login с тем же хостом, что Control (:3288)."
+        "Нужна сессия app-lock: войдите в Editor или /app-control/ (POST /api/app-lock/login) на том же host, что Control."
     }
   };
 }
 
 async function verifyAppLockCredentials(login, password) {
-  const env = await readRootEnvFile();
+  const env = await readEffectiveRootEnv();
   const expectedLogin = String(env[APP_LOCK_LOGIN_KEY] || "").trim();
   const expectedPassword = String(env[APP_LOCK_PASSWORD_KEY] || "").trim();
   if (!expectedLogin || !expectedPassword) return false;
@@ -5472,8 +5504,8 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "todo") {
     return resolveObsidianSidecarAbsolute(nodeAbsolute, toTodoFilePath);
   }
-  if (mode === "roadmap") {
-    return resolveObsidianSidecarAbsolute(nodeAbsolute, toRoadmapFilePath);
+  if (mode === "atlas" || mode === "roadmap") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_ATLAS);
   }
   if (mode === "scripts") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_SCRIPTS);
@@ -5799,16 +5831,19 @@ async function resolveWorkspaceFreeMemoryPath(relPath) {
 
   if (stat.isFile()) {
     const parentRel = path.posix.dirname(normalized);
-    if (!parentRel || parentRel === ".") return { error: "Invalid file path", status: 400 };
-    const parentAbsolute = path.dirname(absolute);
+    const atVaultRoot = !parentRel || parentRel === ".";
+    const parentAbsolute = atVaultRoot ? getAgentRoot() : path.dirname(absolute);
     if (!(await isFreeMemoryFolderAbsolute(parentAbsolute))) {
       return { error: "Path is not free memory", status: 400 };
+    }
+    if (atVaultRoot && isCoreSystemFileName(path.basename(normalized))) {
+      return { error: "Cannot modify core workspace system file via folder tools", status: 403 };
     }
     return {
       absolute,
       relPath: normalized,
       isDirectory: false,
-      parentRel,
+      parentRel: atVaultRoot ? "." : parentRel,
       parentAbsolute
     };
   }
@@ -6143,6 +6178,8 @@ const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/ops/server/action",
   "/api/ops/server/status",
   "/api/ops/env-file",
+  "/api/platform/env-keys",
+  "/api/platform/env-key",
   "/api/agent/mcp-ping"
 ]);
 
@@ -6616,7 +6653,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   if (bundleMatch) {
     return {
       error:
-        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|roadmap-single|main-single-csv, no ref) for internal single-file slots",
+        "Use write_content (part=body, placement.kind=topic, slot=main-single|todo-single|main-single-csv, no ref) for internal single-file slots; atlas uses folder atlas/ with ref",
       status: 400
     };
   }
@@ -6734,6 +6771,12 @@ const WORKSPACE_PAD_SPECS = {
     kind: "workspace-todo",
     hint:
       "Shared workspace TODO.md (footer) — agreements and tasks with user. Not topic todo-single slot."
+  },
+  "context-buffer-text": {
+    fileName: ROOT_SYSTEM_BUFFER_FILE,
+    kind: "context-buffer-text",
+    hint:
+      "BUFFER.md — free text for the context buffer strip (textarea). Not NOTE.md, not context-buffer.json items."
   }
 };
 
@@ -11427,8 +11470,7 @@ async function scanStorageRootBundleSlots(storageRootAbs) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const bundleSlots = {};
   if (!storageRootAbs) {
@@ -11838,6 +11880,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_QUICK_NOTES, slot: "notes" },
   { folder: STORAGE_SUBFOLDER_NOTE, slot: "notes" },
   { folder: STORAGE_SUBFOLDER_REFERENCES, slot: "references" },
+  { folder: STORAGE_SUBFOLDER_ATLAS, slot: "atlas" },
   { folder: STORAGE_SUBFOLDER_ARTEFACTS, slot: "artefacts" },
   { folder: STORAGE_SUBFOLDER_SCRIPTS, slot: "scripts" },
   { folder: STORAGE_SUBFOLDER_TEMPLATES, slot: "templates" },
@@ -13036,15 +13079,13 @@ const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundle
 const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
-  "todo-single": "TODO",
-  "roadmap-single": "Карты"
+  "todo-single": "TODO"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {
   "main-single": BUNDLE_CONTENT_FILE,
   "main-single-csv": BUNDLE_TABULAR_FILE,
-  "todo-single": BUNDLE_TODO_FILE,
-  "roadmap-single": BUNDLE_ROADMAP_FILE
+  "todo-single": BUNDLE_TODO_FILE
 };
 
 function isMarkdownBundleBodyFilled(content) {
@@ -13094,20 +13135,6 @@ async function resolveBundleSlotIndexRow(manifestRelPath, slotKey) {
       label,
       fileName,
       linkPath: hit.path || toTodoFilePath(manifestRelPath),
-      filled,
-      status: filled ? "заполнено" : "не заполнено"
-    };
-  }
-
-  if (normalizedSlot === "roadmap-single") {
-    const hit = await readRoadmapContent(manifestRelPath);
-    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
-    const filled = hit.exists && isMarkdownBundleBodyFilled(hit.content);
-    return {
-      slot: normalizedSlot,
-      label,
-      fileName,
-      linkPath: hit.path || toRoadmapFilePath(manifestRelPath),
       filled,
       status: filled ? "заполнено" : "не заполнено"
     };
@@ -14609,8 +14636,7 @@ async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "roadmap-single", fileName: BUNDLE_ROADMAP_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const spec = specs.find((row) => row.slotKey === slotKey);
   if (!spec) return [];
@@ -14943,7 +14969,7 @@ const SESSION_CONTEXT_API_MAP = {
   opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
   opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
   opsServerAction:
-    "POST /api/ops/server/action — Web Control: start|stop|restart|install-npm (app-lock session). GET /api/ops/server/status",
+    "POST /api/ops/server/action — Web Control: start|stop|restart|deploy-update|install-npm (app-lock session). GET /api/ops/server/status",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -15088,6 +15114,11 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content, mode? }",
   workspaceFsPatch: "POST /api/workspace/fs/patch — patch_file MCP { path, old_string, new_string, replaceAll? }",
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
+  workspaceBinaryUploadBegin:
+    "POST /api/workspace/binary-upload/begin — content_binary_upload_begin { placement, sizeBytes, mimeType? }",
+  workspaceBinaryUploadPut:
+    "PUT /api/workspace/binary-upload/{uploadId} — raw body (not base64); then POST …/complete",
+  workspaceBinaryUploadComplete: "POST /api/workspace/binary-upload/complete — { uploadId }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
   workspaceNote: "GET/POST /api/workspace/note — session_note_read / session_note_write (shared NOTE.md)",
@@ -15100,13 +15131,17 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
-    "GET /api/workspace/context-buffer — session_context_buffer_read MCP (.agent-cms/state/context-buffer.json)",
+    "GET /api/workspace/context-buffer — session_context_buffer_items_read MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
-    "POST /api/workspace/context-buffer/add — session_context_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
+    "POST /api/workspace/context-buffer/add — session_context_buffer_items_append MCP { type?, ref|path, title?, icon?, meta? }",
   workspaceContextBufferRemove:
-    "POST /api/workspace/context-buffer/remove — session_context_buffer_remove MCP { id?, ref|path? }",
+    "POST /api/workspace/context-buffer/remove — session_context_buffer_items_remove MCP { id?, ref|path? }",
   workspaceContextBufferClear:
-    "POST /api/workspace/context-buffer/clear — session_context_buffer_clear MCP",
+    "POST /api/workspace/context-buffer/clear — session_context_buffer_items_clear MCP",
+  workspaceContextBufferTextRead:
+    "GET /api/workspace/context-buffer/text — session_context_buffer_text_read MCP (BUFFER.md)",
+  workspaceContextBufferTextWrite:
+    "POST /api/workspace/context-buffer/text — session_context_buffer_text_write MCP { content, mode?: replace|append }",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
@@ -15452,7 +15487,8 @@ const TIMELINE_SLOT_FOLDER_TRACKS = [
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
   { subfolder: STORAGE_SUBFOLDER_REPOSITORY, fileKind: "repository", label: "Репозиторий" },
   { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
-  { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" }
+  { subfolder: STORAGE_SUBFOLDER_REFERENCES, fileKind: "references", label: "Источники" },
+  { subfolder: STORAGE_SUBFOLDER_ATLAS, fileKind: "atlas", label: "Карты" }
 ];
 
 async function buildAgentTimeline(limit = 150) {
@@ -17669,6 +17705,7 @@ const {
   initModuleGitRepo,
   setModuleGitRemote,
   removeModuleGitRemote,
+  fetchModuleGitRemote,
   pushModuleGitRepo,
   pullModuleGitRepo,
   commitModuleGitChanges,
@@ -18229,8 +18266,20 @@ async function buildAgentGitStatus(options = {}) {
   // Список для отображения status всегда = union партий коммита (не узкий legacy-фильтр с клиента).
   const normalizedExtensions = commitBatchSettings.unionExtensions;
   const includeCommits = options.includeCommits !== false;
+  const fetchRemote = options.fetchRemote === true;
+  let remoteFetch = null;
 
   try {
+    if (fetchRemote) {
+      const remotesForFetch = await listModuleGitRemotes(repoAbsolute).catch(() => []);
+      const hasFetchUrl = remotesForFetch.some((item) => String(item?.fetchUrl || "").trim());
+      if (hasFetchUrl) {
+        remoteFetch = await fetchModuleGitRemote(repoAbsolute, { remote: "origin" });
+      } else {
+        remoteFetch = { remote: "origin", ok: false, skipped: true, reason: "no_remote" };
+      }
+    }
+
     const statusRaw = await runGitInRepo(repoAbsolute, [
       "status",
       "--porcelain=v1",
@@ -18317,7 +18366,8 @@ async function buildAgentGitStatus(options = {}) {
       outOfBatch,
       emptyFolderHints,
       remotes,
-      moduleConfig
+      moduleConfig,
+      remoteFetch
     };
   } catch (error) {
     return {
@@ -18945,6 +18995,16 @@ async function serveVoiceShellHtml(res) {
       '<head>\n    <meta name="agent-cms-voice-app" content="1" />'
     );
   }
+  const { getClientFacingPorts } = require("./lib/platform/single-door-ports");
+  if (!content.includes("__AGENT_CMS_PORTS__")) {
+    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getClientFacingPorts())};</script>`;
+    content = content.replace("<head>", `<head>\n    ${portsScript}`);
+  }
+  let voiceBase = voicePublicBaseUrl();
+  if (voiceBase && !content.includes("__AGENT_CMS_VOICE_URL__")) {
+    const voiceScript = `<script>window.__AGENT_CMS_VOICE_URL__=${JSON.stringify(voiceBase)};</script>`;
+    content = content.replace("<head>", `<head>\n    ${voiceScript}`);
+  }
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -19001,8 +19061,12 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/maintenance") return false;
 
-  // Web Control (/control) — ops-пульт остаётся доступен в maintenance.
+  // Web Control — ops-пульт остаётся доступен в maintenance.
   if (normalized === "/control" || normalized.startsWith("/control/")) return false;
+  if (normalized === "/app-control" || normalized.startsWith("/app-control/")) return false;
+  if (normalized === "/app-chat" || normalized.startsWith("/app-chat/")) return false;
+  if (normalized === "/app-commander" || normalized.startsWith("/app-commander/")) return false;
+  if (normalized === "/app-mcp" || normalized.startsWith("/app-mcp/")) return false;
   if (String(safePath || "").startsWith("control/")) return false;
 
   if (safePath === "index.html" || normalized === "/") return true;
@@ -19036,8 +19100,8 @@ async function serveIndexHtml(res, reqHost = "") {
     content = content.replace("<head>", `<head>\n    ${script}`);
   }
   if (!content.includes("__AGENT_CMS_PORTS__")) {
-    const { getAgentCmsPorts } = require("./lib/config/agent-cms-ports");
-    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getAgentCmsPorts())};</script>`;
+    const { getClientFacingPorts } = require("./lib/platform/single-door-ports");
+    const portsScript = `<script>window.__AGENT_CMS_PORTS__=${JSON.stringify(getClientFacingPorts())};</script>`;
     content = content.replace("<head>", `<head>\n    ${portsScript}`);
   }
   res.writeHead(200, {
@@ -19050,6 +19114,15 @@ async function serveIndexHtml(res, reqHost = "") {
 }
 
 function voicePublicBaseUrl() {
+  const {
+    isSinglePublicHttpDoor,
+    resolveVoicePublicBaseUrl
+  } = require("./lib/platform/single-door-ports");
+  const { resolvePublicBaseUrl } = require("./lib/platform/platform-apps");
+  if (isSinglePublicHttpDoor()) {
+    const door = resolveVoicePublicBaseUrl(process.env, resolvePublicBaseUrl(undefined, process.env));
+    if (door) return door;
+  }
   const explicit = String(process.env.VOICE_PUBLIC_URL || process.env.VOICE_BASE_URL || "").trim();
   if (explicit) return explicit.replace(/\/+$/, "");
   if (voiceServerInfo?.httpsUrl) return voiceServerInfo.httpsUrl.replace(/\/+$/, "");
@@ -19069,6 +19142,10 @@ function voicePublicBaseUrl() {
 }
 
 function shellToVoiceRedirect(pathname) {
+  const bare = String(pathname || "/").replace(/\/+$/, "") || "/";
+  if (bare === "/shell") return null;
+  const { isSinglePublicHttpDoor } = require("./lib/platform/single-door-ports");
+  if (isSinglePublicHttpDoor()) return null;
   if (process.env.VOICE_REDIRECT_SHELL === "0") return null;
   if (!voiceServerInfo && !process.env.VOICE_PUBLIC_URL && !process.env.VOICE_BASE_URL) return null;
   const targetPath = shellLegacyRedirectTarget(pathname);
@@ -19114,7 +19191,22 @@ function resolvePublicStaticCacheControl(diskPath) {
 async function serveStatic(reqPath, res, req) {
   const rawPath = String(reqPath || "/");
   if (rawPath === "/control") {
-    res.writeHead(301, { Location: "/control/" });
+    res.writeHead(301, { Location: "/app-control/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/shell" || rawPath === "/shell/") {
+    res.writeHead(301, { Location: "/app-chat/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/commander" || rawPath === "/commander/") {
+    res.writeHead(301, { Location: "/app-commander/" });
+    res.end();
+    return;
+  }
+  if (rawPath === "/app-control") {
+    res.writeHead(301, { Location: "/app-control/" });
     res.end();
     return;
   }
@@ -22368,9 +22460,11 @@ async function handleApiForAgent(req, res, url) {
     try {
       const extensionsParam = url.searchParams.get("extensions");
       const includeCommits = url.searchParams.get("includeCommits") !== "false";
+      const fetchRemote = url.searchParams.get("fetchRemote") === "true";
       const status = await buildAgentGitStatus({
         extensions: extensionsParam ?? MODULE_GIT_DEFAULT_EXTENSIONS.join(","),
-        includeCommits
+        includeCommits,
+        fetchRemote
       });
       return sendJson(res, 200, status);
     } catch (error) {
@@ -22897,6 +22991,91 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/platform/env-keys") {
+    try {
+      const { listPlatformEnvKeys } = require("./lib/ops/platform-root-env");
+      const gate = await resolveOpsAppLockGate(req);
+      const payload = listPlatformEnvKeys(getProjectRoot(), {
+        revealSecrets: gate.canToggleMaintenance
+      });
+      if (!payload.ok) return sendJson(res, payload.error === "env_example_missing" ? 404 : 500, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list env keys",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/env-key") {
+    try {
+      const key = String(url.searchParams.get("key") || "").trim();
+      const { readPlatformEnvKey } = require("./lib/ops/platform-root-env");
+      const gate = await resolveOpsAppLockGate(req);
+      const revealSecrets = gate.canToggleMaintenance;
+      const payload = readPlatformEnvKey(getProjectRoot(), key, { revealSecrets });
+      if (!payload.ok) {
+        const status =
+          payload.error === "unknown_key" || payload.error === "missing_key" ? 400 : 500;
+        return sendJson(res, status, payload);
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read env key",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/env-key") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 32_000);
+      const key = String(body?.key || "").trim();
+      if (!key) return sendJson(res, 400, { ok: false, error: "missing_key" });
+      if (body?.value === undefined) return sendJson(res, 400, { ok: false, error: "missing_value" });
+      const { writePlatformEnvKey } = require("./lib/ops/platform-root-env");
+      const payload = writePlatformEnvKey(getProjectRoot(), key, body.value);
+      if (!payload.ok) {
+        const status =
+          payload.error === "unknown_key" ? 400 : payload.error === "env_too_large" ? 413 : 500;
+        return sendJson(res, status, payload);
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write env key",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/apps") {
+    try {
+      const { buildPlatformAppsPayload } = require("./lib/platform/platform-apps");
+      const uiOnly = String(url.searchParams.get("ui") || "").trim() === "1";
+      const payload = await buildPlatformAppsPayload({
+        projectRoot: getProjectRoot(),
+        req,
+        uiOnly,
+        runtime: {
+          voice: Boolean(voiceServerInfo),
+          commander: Boolean(commanderServerInfo),
+          control: Boolean(controlServerInfo)
+        }
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build platform apps",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/platform/health") {
     try {
       const [monitor, disk] = await Promise.all([
@@ -22924,6 +23103,7 @@ async function handleApiForAgent(req, res, url) {
           server: payload.server,
           mcpConnect: payload.mcpConnect,
           setupFlags: payload.setupFlags,
+          deployment: payload.deployment,
           appLock: await resolveOpsAppLockGate(req)
         });
       }
@@ -23027,11 +23207,18 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/ops/env-file") {
     try {
-      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
-      if (denied) return sendJson(res, denied.status, denied.body);
+      const gate = await resolveOpsAppLockGate(req);
       const { readProjectEnvFile } = require("./lib/ops/control-env-file");
       const payload = readProjectEnvFile(getProjectRoot());
       if (!payload.ok) return sendJson(res, 500, payload);
+      if (!gate.canToggleMaintenance) {
+        return sendJson(res, 200, {
+          ...payload,
+          content: "",
+          locked: true,
+          message: "Войдите для редактирования .env. Справа — справочник .env.example."
+        });
+      }
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -23061,6 +23248,93 @@ async function handleApiForAgent(req, res, url) {
         error: "Failed to write .env",
         details: String(error.message || error)
       });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ops/workspace-mounts") {
+    try {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = require("./lib/ops/workspace-mounts");
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, {
+        ok: true,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        composeExists: payload.composeExists,
+        hostProject: payload.hostProject,
+        exists: payload.exists,
+        mounts: payload.document.mounts
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read workspace mounts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/workspace-mounts") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 64_000);
+      const { writeWorkspaceMounts } = require("./lib/ops/workspace-mounts");
+      const result = writeWorkspaceMounts(getProjectRoot(), { mounts: body?.mounts });
+      if (!result.ok) return sendJson(res, 400, result);
+      return sendJson(res, 200, {
+        ok: true,
+        jsonPath: result.jsonPath,
+        composePath: result.composePath,
+        composeWritten: result.composeWritten,
+        composeRemoved: result.composeRemoved,
+        mounts: result.document.mounts,
+        message: result.message
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to write workspace mounts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/workspace-mounts") {
+    try {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = require("./lib/ops/workspace-mounts");
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, {
+        ok: true,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeExists: payload.composeExists,
+        mounts: payload.document.mounts
+      });
+    } catch (error) {
+      return sendJson(res, 500, { ok: false, error: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/workspace-mounts") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 64_000);
+      const { writeWorkspaceMounts } = require("./lib/ops/workspace-mounts");
+      const result = writeWorkspaceMounts(getProjectRoot(), { mounts: body?.mounts });
+      if (!result.ok) return sendJson(res, 400, result);
+      return sendJson(res, 200, {
+        ok: true,
+        mounts: result.document.mounts,
+        composePath: result.composePath,
+        message: result.message
+      });
+    } catch (error) {
+      return sendJson(res, 500, { ok: false, error: String(error.message || error) });
     }
   }
 
@@ -24882,6 +25156,36 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to clear context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/context-buffer/text") {
+    try {
+      const payload = await readWorkspacePad("context-buffer-text");
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read BUFFER.md",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/text") {
+    try {
+      const body = await readJsonBody(req);
+      const content = typeof body.content === "string" ? body.content : null;
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      const mode = body.mode === "append" ? "append" : "replace";
+      const payload = await writeWorkspacePad("context-buffer-text", content, { mode });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write BUFFER.md",
         details: String(error.message || error)
       });
     }
@@ -31441,6 +31745,102 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  const binaryUploadIdMatch = url.pathname.match(/^\/api\/workspace\/binary-upload\/([^/]+)$/);
+  if (req.method === "PUT" && binaryUploadIdMatch) {
+    const { putBinaryUploadBody } = require("./lib/workspace/binary-upload-handlers");
+    const uploadId = decodeURIComponent(binaryUploadIdMatch[1]);
+    try {
+      const session = await putBinaryUploadBody(req, uploadId);
+      return sendJson(res, 200, {
+        uploadId: session.uploadId,
+        receivedBytes: session.receivedBytes,
+        sizeBytes: session.sizeBytes,
+        status: session.status,
+        complete: session.receivedBytes >= session.sizeBytes
+      });
+    } catch (error) {
+      return sendJson(res, error.status || 500, {
+        error: String(error.message || error),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/begin") {
+    const { beginBinaryUpload } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 256_000);
+      const data = await beginBinaryUpload(req, payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, error.status || 400, {
+        error: String(error.message || error),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/complete") {
+    const { completeBinaryUpload } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 64_000);
+      const uploadId = String(payload.uploadId || "").trim();
+      if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+      const data = await completeBinaryUpload(uploadId, {
+        uploadWorkspaceFsFile,
+        persistMediaUploadBuffer,
+        resolveApiStorageContext,
+        validateContentSlotAccess,
+        getProjectRoot,
+        getAgentRoot,
+        readManifestAwnTypeId,
+        slotKeyFromStorageFolder
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, error.status || 500, {
+        error: String(error.message || error),
+        ...(error.hint ? { hint: error.hint } : {}),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/abort") {
+    const { removeBinaryUploadSession, getBinaryUploadSession } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 64_000);
+      const uploadId = String(payload.uploadId || "").trim();
+      if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+      const session = getBinaryUploadSession(uploadId);
+      if (!session) return sendJson(res, 404, { error: "Upload session not found or expired" });
+      await removeBinaryUploadSession(uploadId);
+      return sendJson(res, 200, { ok: true, uploadId });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to abort upload",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/binary-upload/status") {
+    const { getBinaryUploadSession } = require("./lib/workspace/binary-upload-handlers");
+    const uploadId = String(url.searchParams.get("uploadId") || "").trim();
+    if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+    const session = getBinaryUploadSession(uploadId);
+    if (!session) return sendJson(res, 404, { error: "Upload session not found or expired" });
+    return sendJson(res, 200, {
+      uploadId: session.uploadId,
+      status: session.status,
+      receivedBytes: session.receivedBytes,
+      sizeBytes: session.sizeBytes,
+      expiresAt: new Date(session.expiresAt).toISOString(),
+      placement: session.target?.placement,
+      result: session.result || undefined
+    });
+  }
+
   if (req.method === "POST" && url.pathname === "/api/workspace/fs/import") {
     try {
       const payload = await readJsonBody(req, 256_000);
@@ -32496,7 +32896,7 @@ async function handleApi(req, res, url) {
     try {
       const status = await getAppLockStatus();
       const passkeyStatus = await getAppLockPasskeyService().getStatus();
-      const sessionActive = Boolean(await getValidAppLockSession(req, readRootEnvFile));
+      const sessionActive = Boolean(await getValidAppLockSession(req, readAppLockSessionEnv));
       return sendJson(res, 200, { ...status, ...passkeyStatus, sessionActive });
     } catch (error) {
       return sendJson(res, 500, {
@@ -32530,9 +32930,14 @@ async function handleApi(req, res, url) {
       if (!ok) {
         return sendJson(res, 401, { error: "Неверный логин или пароль" });
       }
-      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
-      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
-      return sendJson(res, 200, { ok: true, remember }, headers);
+      const setCookie = await issueAppLockSession(req, readAppLockSessionEnv, { remember });
+      if (!setCookie) {
+        return sendJson(res, 500, {
+          ok: false,
+          error: "Не удалось создать сессию (APP_LOCK_LOGIN/APP_LOCK_PASSWORD в .env или env compose)."
+        });
+      }
+      return sendJson(res, 200, { ok: true, remember }, { "Set-Cookie": setCookie });
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to verify app lock credentials",
@@ -32562,9 +32967,11 @@ async function handleApi(req, res, url) {
       }
       await saveAppLockCredentials(login, password);
       const remember = payload?.remember !== false;
-      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
-      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
-      return sendJson(res, 200, { ok: true, remember }, headers);
+      const setCookie = await issueAppLockSession(req, readAppLockSessionEnv, { remember });
+      if (!setCookie) {
+        return sendJson(res, 500, { ok: false, error: "Не удалось создать сессию app-lock." });
+      }
+      return sendJson(res, 200, { ok: true, remember }, { "Set-Cookie": setCookie });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Не удалось сохранить пароль",
@@ -32626,9 +33033,11 @@ async function handleApi(req, res, url) {
       const payload = await readJsonBody(req, 128_000);
       const remember = payload?.remember !== false;
       const result = await getAppLockPasskeyService().verifyAuthentication(req, payload);
-      const setCookie = await issueAppLockSession(req, readRootEnvFile, { remember });
-      const headers = setCookie ? { "Set-Cookie": setCookie } : null;
-      return sendJson(res, 200, { ...result, remember }, headers);
+      const setCookie = await issueAppLockSession(req, readAppLockSessionEnv, { remember });
+      if (!setCookie) {
+        return sendJson(res, 500, { ok: false, error: "Не удалось создать сессию app-lock." });
+      }
+      return sendJson(res, 200, { ...result, remember }, { "Set-Cookie": setCookie });
     } catch (error) {
       return sendJson(res, error?.statusCode || 500, {
         error: error?.message || "Failed to verify passkey authentication",
@@ -33948,6 +34357,18 @@ function createRequestHandler() {
       }
     }
 
+    const {
+      legacyAppRedirect,
+      rewriteAppPublicPath,
+      isPublicStaticAssetPath
+    } = require("./lib/platform/platform-apps");
+    const legacyTarget = legacyAppRedirect(url.pathname);
+    if (legacyTarget) {
+      res.writeHead(301, { Location: `${legacyTarget}${url.search}` });
+      res.end();
+      return;
+    }
+
     const voiceRedirect = shellToVoiceRedirect(url.pathname);
     if (voiceRedirect) {
       res.writeHead(302, { Location: `${voiceRedirect}${url.search}` });
@@ -33955,7 +34376,59 @@ function createRequestHandler() {
       return;
     }
 
-    if (isVoiceShellSpaRoute(url.pathname)) {
+    if (url.pathname === "/app-control") {
+      const dest = url.search ? `/app-control/${url.search}` : "/app-control/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+    if (url.pathname.startsWith("/app-control/")) {
+      const { proxyAppControlRequest } = require("./lib/http/app-control-proxy");
+      proxyAppControlRequest(req, res, url);
+      return;
+    }
+
+    if (url.pathname === "/app-mcp" || url.pathname.startsWith("/app-mcp/")) {
+      const { proxyAppMcpRequest } = require("./lib/http/app-mcp-proxy");
+      proxyAppMcpRequest(req, res, url);
+      return;
+    }
+
+    if (url.pathname === "/app-commander") {
+      const dest = url.search ? `/app-commander/${url.search}` : "/app-commander/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+    if (url.pathname.startsWith("/app-commander/")) {
+      const { proxyAppCommanderRequest } = require("./lib/http/app-commander-proxy");
+      proxyAppCommanderRequest(req, res, url);
+      return;
+    }
+
+    if (url.pathname === "/app-chat") {
+      const dest = url.search ? `/app-chat/${url.search}` : "/app-chat/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+
+    const appRewrite = rewriteAppPublicPath(url.pathname);
+    const staticPath = appRewrite || url.pathname;
+
+    if (appRewrite && isPublicStaticAssetPath(url.pathname)) {
+      return serveStatic(staticPath, res, req);
+    }
+
+    const isAppChatPublicPath =
+      (url.pathname === "/app-chat" ||
+        url.pathname.startsWith("/app-chat/") ||
+        staticPath === "/shell" ||
+        staticPath === "/shell/" ||
+        staticPath.startsWith("/shell/")) &&
+      !isPublicStaticAssetPath(url.pathname) &&
+      !isPublicStaticAssetPath(staticPath);
+    if (isAppChatPublicPath) {
       if (await isPlatformMaintenanceActive()) {
         await serveMaintenanceHtml(res);
         return;
@@ -33964,7 +34437,16 @@ function createRequestHandler() {
       return;
     }
 
-    return serveStatic(url.pathname, res, req);
+    if (isVoiceShellSpaRoute(staticPath)) {
+      if (await isPlatformMaintenanceActive()) {
+        await serveMaintenanceHtml(res);
+        return;
+      }
+      await serveVoiceShellHtml(res);
+      return;
+    }
+
+    return serveStatic(staticPath, res, req);
   };
 }
 
@@ -34117,8 +34599,10 @@ async function startServer(options = {}) {
   }
 
   function commanderHttpsViaEditorUrl(httpsBase) {
+    const { isSinglePublicHttpDoor } = require("./lib/platform/single-door-ports");
     const base = String(httpsBase || "").trim().replace(/\/+$/, "");
-    return base ? `${base}/commander/` : null;
+    if (!base) return null;
+    return isSinglePublicHttpDoor() ? `${base}/app-commander/` : `${base}/commander/`;
   }
 
   if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {

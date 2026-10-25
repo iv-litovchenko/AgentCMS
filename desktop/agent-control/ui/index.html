@@ -121,7 +121,7 @@
         <div class="section-cap">
           <div class="section-cap-text">
             <h2>Мониторинг</h2>
-            <p>Editor · Chat · Commander · MCP — localhost</p>
+            <p>Одна HTTP-дверь: <code>/</code>, <code>/app-chat</code>, <code>/app-commander</code>, <code>/app-control</code>, <code>/app-mcp</code></p>
           </div>
           <div class="section-cap-actions">
             <button type="button" class="ghost-btn" id="refresh-services-monitor">Обновить</button>
@@ -134,11 +134,44 @@
 
       <main class="actions-layout" id="actions-root"></main>
 
+      <section class="panel section-block" data-section="workspace-mounts" hidden>
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Папки хранилищ (Docker)</h2>
+            <p>
+              Какие каталоги с хоста видит CMS в контейнере. По умолчанию
+              <code>./workspaces</code> (в базовом compose). Доп. пути →
+              <code>docker-compose.workspace-mounts.yml</code> + рестарт stack.
+            </p>
+          </div>
+          <div class="section-cap-actions">
+            <button type="button" class="ghost-btn" id="workspace-mounts-reload">Обновить</button>
+            <button type="button" class="ghost-btn env-file-save" id="workspace-mounts-save">Сохранить</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <p class="env-file-meta" id="workspace-mounts-meta"></p>
+          <p class="env-file-lock-hint" id="workspace-mounts-lock-hint" hidden>Сохранение — после входа (app-lock).</p>
+          <div class="workspace-mounts-list" id="workspace-mounts-list" aria-label="Список mount-корней"></div>
+          <div class="workspace-mounts-actions">
+            <button type="button" class="ghost-btn" id="workspace-mounts-add">+ Папка</button>
+            <span class="workspace-mounts-actions-sep" aria-hidden="true">шаблоны Mac</span>
+            <button type="button" class="ghost-btn workspace-mounts-template" data-mount-template="desktop">
+              Рабочий стол
+            </button>
+            <button type="button" class="ghost-btn workspace-mounts-template" data-mount-template="downloads">
+              Загрузки
+            </button>
+          </div>
+          <p class="env-file-status" id="workspace-mounts-status" aria-live="polite"></p>
+        </div>
+      </section>
+
       <section class="panel section-block" data-section="env-file">
         <div class="section-cap">
           <div class="section-cap-text">
             <h2>Файл .env</h2>
-            <p>Переменные на сервере (MCP token, APP_LOCK, порты). После сохранения — рестарт MCP / CMS.</p>
+            <p>Корневой <code>.env</code> в репозитории (APP_LOCK, MCP token, PUBLIC_URL). В Docker — файл на хосте (<code>AGENT_CMS_HOST_PROJECT</code>). После сохранения — рестарт CMS / MCP.</p>
           </div>
           <div class="section-cap-actions env-file-actions">
             <button type="button" class="ghost-btn" id="env-file-reload">Обновить</button>
@@ -147,16 +180,42 @@
         </div>
         <div class="section-body">
           <p class="env-file-meta" id="env-file-meta"></p>
-          <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты.</p>
-          <textarea
-            class="env-file-editor"
-            id="env-file-editor"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            rows="14"
-            placeholder="# APP_LOCK_LOGIN=&#10;# AGENT_CMS_MCP_TOKEN=&#10;# AGENT_CMS_MCP_ALLOWED_HOSTS=maptex.ru,localhost,127.0.0.1"
-          ></textarea>
+          <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты. Справочник .env.example справа доступен без входа.</p>
+          <div class="env-file-split">
+            <div class="env-file-pane">
+              <div class="env-file-pane-head">
+                <span class="env-file-pane-title">.env</span>
+                <span class="env-file-pane-hint">рабочий файл</span>
+              </div>
+              <textarea
+                class="env-file-editor"
+                id="env-file-editor"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                rows="14"
+                placeholder="# ваши значения — сохранить создаст .env на хосте"
+              ></textarea>
+            </div>
+            <div class="env-file-pane env-file-pane--example">
+              <div class="env-file-pane-head">
+                <span class="env-file-pane-title">.env.example</span>
+                <span class="env-file-pane-hint">только чтение</span>
+              </div>
+              <textarea
+                class="env-file-editor env-file-editor--readonly"
+                id="env-file-example"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                rows="14"
+                readonly
+                tabindex="-1"
+                aria-readonly="true"
+                placeholder="# нет .env.example в репозитории"
+              ></textarea>
+            </div>
+          </div>
           <p class="env-file-status" id="env-file-status" aria-live="polite"></p>
         </div>
       </section>

@@ -36,6 +36,7 @@ import "../../../_resources/vendor/channel-preset-icons/map.js";
 import "../panels/discuss-panel.js";
 import "../app/privacy-mode.js";
 import "../app/header-ui-locale.js";
+import "../app/header-ui-apps.js";
 import "../app/sensitive-input.js";
 import "../panels/page-picker-extract.js";
 import "../editor/page-snapshot.js";
@@ -47,6 +48,7 @@ import "../app/app-footer-voice-cmd.js";
 
 import "../panels/languagetool-panel.js";
 import "../panels/viz-maps-aside.js";
+import "../viz/scene3d-preview.js";
 import "../panels/file-find-bar.js";
 import "../editor/marker-blocks-preview.js";
 import "../panels/mcp-docs-primitives-help.js";

@@ -45,6 +45,7 @@ function syncAppLockScreen() {
   document.body.classList.toggle("app-lock-active", show);
   syncAppLockLogoutButton();
   syncEnvFileEditorAccess();
+  syncWorkspaceMountsAccess();
   if (show) {
     void refreshAppLockLoginHint();
     window.requestAnimationFrame(() => {
@@ -56,12 +57,14 @@ function syncAppLockScreen() {
 
 function syncEnvFileEditorAccess() {
   const editor = document.getElementById("env-file-editor");
+  const example = document.getElementById("env-file-example");
   const saveBtn = document.getElementById("env-file-save");
   const reloadBtn = document.getElementById("env-file-reload");
   const hint = document.getElementById("env-file-lock-hint");
   const canUse = Boolean(window.agentControl?.getEnvFile);
   const locked = canUse && needsAppLockLogin();
   if (editor) editor.disabled = !canUse || locked;
+  if (example) example.disabled = false;
   if (saveBtn) saveBtn.disabled = !canUse || locked;
   if (reloadBtn) reloadBtn.disabled = !canUse;
   if (hint) hint.hidden = !locked;
@@ -69,14 +72,11 @@ function syncEnvFileEditorAccess() {
 
 async function loadEnvFileEditor() {
   const editor = document.getElementById("env-file-editor");
+  const example = document.getElementById("env-file-example");
   const meta = document.getElementById("env-file-meta");
   const status = document.getElementById("env-file-status");
   if (!editor || !window.agentControl?.getEnvFile) return;
   syncEnvFileEditorAccess();
-  if (needsAppLockLogin()) {
-    if (status) status.textContent = "";
-    return;
-  }
   if (status) status.textContent = "Загрузка…";
   try {
     const data = await window.agentControl.getEnvFile();
@@ -84,17 +84,282 @@ async function loadEnvFileEditor() {
       if (status) status.textContent = data.error || "Не удалось прочитать .env";
       return;
     }
+
+    if (example) {
+      example.value = data.exampleContent ?? "";
+    }
+
+    const locked = Boolean(data.locked) || needsAppLockLogin();
+    if (locked) {
+      editor.value = "";
+      if (meta) {
+        meta.textContent = data.projectRoot
+          ? `.env · ${data.projectRoot} (скрыт до входа)`
+          : ".env (скрыт до входа)";
+      }
+      if (status) status.textContent = "Войдите, чтобы редактировать .env";
+      return;
+    }
+
     editor.value = data.content ?? "";
     if (meta) {
       const pathLabel = data.filePath || ".env";
-      meta.textContent = data.exists
-        ? pathLabel
-        : `${pathLabel} (будет создан при сохранении)`;
+      const exampleLabel = data.examplePath
+        ? String(data.examplePath).split(/[/\\]/).pop()
+        : ".env.example";
+      const parts = [];
+      if (data.projectRoot) parts.push(data.projectRoot);
+      parts.push(data.exists ? pathLabel : `${pathLabel} (создастся при сохранении)`);
+      if (data.exampleExists && data.examplePath) parts.push(exampleLabel);
+      meta.textContent = parts.join(" · ");
     }
-    if (status) status.textContent = data.message || "Загружено";
+    if (status) {
+      status.textContent = data.message || (data.exists ? "Загружено" : "Файла .env пока нет");
+    }
   } catch (error) {
     if (status) status.textContent = String(error.message || error);
   }
+}
+
+let workspaceMountsDraft = [];
+
+const WORKSPACE_MOUNT_MAC_TEMPLATES = {
+  desktop: {
+    id: "mac-desktop",
+    label: "Mac · Рабочий стол",
+    hostPath: "~/Desktop",
+    containerPath: "~/Desktop"
+  },
+  downloads: {
+    id: "mac-downloads",
+    label: "Mac · Загрузки",
+    hostPath: "~/Downloads",
+    containerPath: "~/Downloads"
+  }
+};
+
+function effectiveWorkspaceMountContainerPath(mount) {
+  if (mount?.builtIn) {
+    return String(mount.containerPath || "/app/workspaces").trim() || "/app/workspaces";
+  }
+  return String(mount?.hostPath || "").trim();
+}
+
+function addWorkspaceMountEntry(entry) {
+  const hostPath = entry.hostPath || "";
+  workspaceMountsDraft.push({
+    id: entry.id || `mount-${Date.now()}`,
+    label: entry.label || "Доп. папка",
+    hostPath,
+    containerPath: entry.builtIn ? entry.containerPath || "/app/workspaces" : hostPath,
+    builtIn: Boolean(entry.builtIn)
+  });
+  renderWorkspaceMountsList();
+}
+
+function renderWorkspaceMountHostPathLabel(builtIn, containerHintText) {
+  const title = builtIn
+    ? "Дефолтный корень: ./workspaces или AGENT_CMS_WORKSPACES_DIR в .env (docker-compose.mac.yml / linux.yml). Сюда не пишется в workspace-mounts.yml."
+    : "Путь на хосте. На Mac: Docker Desktop → Settings → Resources → File sharing — папка должна быть разрешена.";
+  const iconClass = builtIn ? " workspace-mount-field-icon--builtin" : "";
+  const containerLabel = builtIn
+    ? `→ <code>${escapeAttr(containerHintText)}</code>`
+    : `· в контейнере 1:1 <code class="workspace-mount-label-container-live">${escapeAttr(containerHintText)}</code>`;
+  return `
+    <span class="workspace-mount-field-label">
+      <span class="workspace-mount-field-icon workspace-mount-field-icon--folder${iconClass}" role="img" aria-label="Папка на хосте" title="${escapeAttr(title)}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path fill="currentColor" d="M10 4H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7.5L12 4h-2Z"/>
+        </svg>
+      </span>
+      <span class="workspace-mount-field-title">Путь на хосте</span>
+      <span class="workspace-mount-label-container">${containerLabel}</span>
+    </span>`;
+}
+
+function addWorkspaceMountFromTemplate(templateKey) {
+  const template = WORKSPACE_MOUNT_MAC_TEMPLATES[templateKey];
+  if (!template) return;
+  const hostNorm = String(template.hostPath || "").trim();
+  const already = workspaceMountsDraft.some(
+    (m) => !m.builtIn && String(m.hostPath || "").trim() === hostNorm
+  );
+  if (already) return;
+  addWorkspaceMountEntry({ ...template });
+}
+
+function syncWorkspaceMountsSectionVisibility() {
+  const section = document.querySelector('[data-section="workspace-mounts"]');
+  if (!section) return;
+  const docker = bootstrap?.deployment?.mode === "docker";
+  const hasApi = Boolean(window.agentControl?.getWorkspaceMounts);
+  section.hidden = !docker || !hasApi;
+}
+
+function syncWorkspaceMountsAccess() {
+  syncWorkspaceMountsSectionVisibility();
+  const saveBtn = document.getElementById("workspace-mounts-save");
+  const addBtn = document.getElementById("workspace-mounts-add");
+  const reloadBtn = document.getElementById("workspace-mounts-reload");
+  const hint = document.getElementById("workspace-mounts-lock-hint");
+  const locked = needsAppLockLogin();
+  if (saveBtn) saveBtn.disabled = locked;
+  if (addBtn) addBtn.disabled = locked;
+  if (reloadBtn) reloadBtn.disabled = false;
+  if (hint) hint.hidden = !locked;
+  document.querySelectorAll(".workspace-mounts-template").forEach((btn) => {
+    btn.disabled = locked;
+  });
+  const list = document.getElementById("workspace-mounts-list");
+  list?.querySelectorAll("input, select, button[data-remove-mount]").forEach((el) => {
+    if (el.closest("[data-built-in='1']")) return;
+    el.disabled = locked;
+  });
+}
+
+function renderWorkspaceMountsList() {
+  const list = document.getElementById("workspace-mounts-list");
+  if (!list) return;
+  list.innerHTML = workspaceMountsDraft
+    .map((mount, index) => {
+      const builtIn = Boolean(mount.builtIn);
+      const host = escapeAttr(mount.hostPath || "");
+      const label = escapeAttr(mount.label || mount.id || "");
+      const containerHint = builtIn
+        ? effectiveWorkspaceMountContainerPath(mount)
+        : String(mount.hostPath || "").trim() || "как на хосте";
+      return `
+        <div class="workspace-mount-row${builtIn ? " workspace-mount-row--builtin" : ""}" data-index="${index}" ${
+          builtIn ? 'data-built-in="1"' : ""
+        }>
+          <label class="workspace-mount-field workspace-mount-field--host">
+            ${renderWorkspaceMountHostPathLabel(builtIn, containerHint)}
+            <input type="text" name="hostPath" value="${host}" spellcheck="false" autocomplete="off" ${
+              builtIn ? "disabled" : ""
+            } placeholder="./workspaces или /Users/…/my-ws" />
+          </label>
+          <label class="workspace-mount-field">
+            <span>Метка</span>
+            <input type="text" name="label" value="${label}" ${builtIn ? "disabled" : ""} />
+          </label>
+          ${
+            builtIn
+              ? `<span class="workspace-mount-badge">default</span>`
+              : `<button type="button" class="ghost-btn workspace-mount-remove" data-remove-mount="${index}">Удалить</button>`
+          }
+        </div>`;
+    })
+    .join("");
+
+  list.querySelectorAll(".workspace-mount-row:not([data-built-in='1']) input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const row = input.closest(".workspace-mount-row");
+      const idx = Number(row?.dataset.index);
+      if (!Number.isFinite(idx) || !workspaceMountsDraft[idx]) return;
+      const name = input.name;
+      workspaceMountsDraft[idx][name] = input.value;
+      if (name === "hostPath" && !workspaceMountsDraft[idx].builtIn) {
+        workspaceMountsDraft[idx].containerPath = input.value;
+        const hintCode = row?.querySelector(".workspace-mount-label-container-live");
+        if (hintCode) {
+          hintCode.textContent = input.value.trim() || "как на хосте";
+        }
+      }
+    });
+  });
+  list.querySelectorAll("[data-remove-mount]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (needsAppLockLogin()) return;
+      const idx = Number(btn.dataset.removeMount);
+      workspaceMountsDraft.splice(idx, 1);
+      renderWorkspaceMountsList();
+      syncWorkspaceMountsAccess();
+    });
+  });
+  syncWorkspaceMountsAccess();
+}
+
+async function loadWorkspaceMountsEditor() {
+  const meta = document.getElementById("workspace-mounts-meta");
+  const status = document.getElementById("workspace-mounts-status");
+  syncWorkspaceMountsSectionVisibility();
+  if (!window.agentControl?.getWorkspaceMounts) return;
+  if (status) status.textContent = "Загрузка…";
+  try {
+    const data = await window.agentControl.getWorkspaceMounts();
+    if (!data.ok) throw new Error(data.error || "read_failed");
+    workspaceMountsDraft = (data.mounts || []).map((m) => ({ ...m }));
+    renderWorkspaceMountsList();
+    if (meta) {
+      const parts = [];
+      if (data.hostProject) parts.push(data.hostProject);
+      if (data.jsonPath) parts.push(String(data.jsonPath).split(/[/\\]/).slice(-2).join("/"));
+      if (data.composeBasename) {
+        parts.push(data.composeExists ? data.composeBasename : `${data.composeBasename} (создастся при сохранении)`);
+      }
+      meta.textContent = parts.join(" · ");
+    }
+    if (status) status.textContent = "После сохранения — «Рестарт» stack или docker compose up -d.";
+  } catch (error) {
+    if (status) status.textContent = String(error.message || error);
+  }
+}
+
+function bindWorkspaceMountsEditor() {
+  const saveBtn = document.getElementById("workspace-mounts-save");
+  const reloadBtn = document.getElementById("workspace-mounts-reload");
+  const addBtn = document.getElementById("workspace-mounts-add");
+  const status = document.getElementById("workspace-mounts-status");
+  if (!saveBtn || saveBtn.dataset.bound) return;
+  if (!window.agentControl?.getWorkspaceMounts || !window.agentControl?.saveWorkspaceMounts) {
+    syncWorkspaceMountsSectionVisibility();
+    return;
+  }
+  saveBtn.dataset.bound = "1";
+  reloadBtn?.addEventListener("click", () => loadWorkspaceMountsEditor());
+  addBtn?.addEventListener("click", () => {
+    if (needsAppLockLogin()) return;
+    addWorkspaceMountEntry({
+      id: `mount-${Date.now()}`,
+      label: "Доп. папка",
+      hostPath: "",
+      containerPath: ""
+    });
+  });
+  document.querySelectorAll(".workspace-mounts-template").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (needsAppLockLogin()) return;
+      addWorkspaceMountFromTemplate(btn.dataset.mountTemplate);
+    });
+  });
+  saveBtn.addEventListener("click", async () => {
+    if (needsAppLockLogin()) return;
+    saveBtn.disabled = true;
+    if (status) status.textContent = "Сохранение…";
+    try {
+      const mounts = workspaceMountsDraft.map((mount) => {
+        const { id, label, hostPath, builtIn } = mount;
+        const row = {
+          id: String(id || "").trim() || undefined,
+          label: String(label || "").trim(),
+          hostPath: String(hostPath || "").trim(),
+          containerPath: effectiveWorkspaceMountContainerPath(mount)
+        };
+        if (builtIn) row.builtIn = true;
+        return row;
+      });
+      const result = await window.agentControl.saveWorkspaceMounts({ mounts });
+      if (!result.ok) throw new Error(result.error || "save_failed");
+      if (status) status.textContent = result.message || "Сохранено";
+      appendLog(`\n■ Папки хранилищ сохранены\n${result.message || ""}\n`);
+      await loadWorkspaceMountsEditor();
+    } catch (error) {
+      if (status) status.textContent = String(error.message || error);
+      appendLog(`Ошибка workspace mounts: ${error.message}\n`, "stderr");
+    } finally {
+      syncWorkspaceMountsAccess();
+    }
+  });
 }
 
 function bindEnvFileEditor() {
@@ -160,8 +425,7 @@ function bindAppLockLogout() {
       appendLog("Сессия завершена.\n");
       syncAppLockScreen();
       await renderLayout();
-      const editor = document.getElementById("env-file-editor");
-      if (editor) editor.value = "";
+      await loadEnvFileEditor();
       syncServerUi(lastServer || bootstrap?.server);
     } catch (error) {
       appendLog(`Выход: ${error.message}\n`, "stderr");
@@ -185,6 +449,14 @@ function maintenanceStubSummaryText(enabled = maintenanceModeEnabled) {
 
 const SERVER_POLL_MS = 8000;
 
+const SINGLE_DOOR_PUBLIC_PATHS = {
+  editor: "/",
+  voice: "/app-chat",
+  commander: "/app-commander",
+  control: "/app-control",
+  mcp: "/app-mcp"
+};
+
 const SERVICE_MONITOR_DEFS = [
   {
     id: "editor",
@@ -192,17 +464,19 @@ const SERVICE_MONITOR_DEFS = [
     shortName: "Editor",
     accent: "cms",
     icon: "cms.svg",
-    portKey: "editorHttps",
-    portLabel: "HTTPS"
+    portKey: "editorHttp",
+    portKeyLegacyHttps: "editorHttps",
+    portLabel: "HTTP"
   },
   {
     id: "voice",
     title: "Agent CMS Voice-Chat",
-    shortName: "Chat",
+    shortName: "Chat (Flow window)",
     accent: "voice",
     icon: "voice.svg",
-    portKey: "voiceHttps",
-    portLabel: "HTTPS"
+    portKey: "voiceHttp",
+    portKeyLegacyHttps: "voiceHttps",
+    portLabel: "HTTP"
   },
   {
     id: "commander",
@@ -216,7 +490,7 @@ const SERVICE_MONITOR_DEFS = [
   {
     id: "control",
     title: "Agent CMS Control",
-    shortName: "Control",
+    shortName: "Control (Launcher)",
     accent: "control",
     icon: "control.svg",
     portKey: "controlHttp",
@@ -229,7 +503,7 @@ const SERVICE_MONITOR_DEFS = [
     accent: "mcp",
     icon: "mcp.svg",
     portKey: "mcpHttp",
-    portLabel: "HTTP"
+    portLabel: "API"
   }
 ];
 
@@ -255,6 +529,8 @@ const ENV_TOOL_HINTS = {
 };
 
 /** Зависимости, всегда видимые в блоке «Система» (без раскрытия). */
+const ENV_PREVIEW_ROW_COUNT = 5;
+
 const ENV_TECH_VISIBLE_IDS = new Set(["node", "python", "mkcert", "npm", "git", "https"]);
 /** Порядок дополнительных технологий при полном списке. */
 const ENV_TECH_EXTRA_ORDER = ["openssl", "whisper", "claude", "codex", "electron"];
@@ -278,7 +554,7 @@ const ACTION_LABELS = {
   "voice-rebuild": "Собрать",
   "commander-open": "Открыть",
   "commander-rebuild": "Собрать",
-  "control-dist": "Собрать",
+  "cms-electron-build": "Electron",
   "server-autostart-enable": "Автостарт",
   "server-autostart-disable": "Автостарт",
   "server-start-bg": "В фоне",
@@ -294,7 +570,7 @@ const BUILD_DURATION_HINTS = {
   "cms-rebuild": "~1–2 мин",
   "voice-rebuild": "~1 мин",
   "commander-rebuild": "~1 мин",
-  "control-dist": "~1 мин"
+  "cms-electron-build": "~3–5 мин"
 };
 
 function formatActionButtonContent(actionId) {
@@ -486,6 +762,7 @@ function getServerStatusDisplay(server) {
   }
 
   if (server.running) {
+    if (server.mode === "docker") return { state: "on", label: "Контейнер CMS" };
     const label = server.mode === "background" ? "Запущен (фон)" : "Запущен";
     return { state: "on", label };
   }
@@ -552,13 +829,55 @@ function isWebLauncher() {
   return document.documentElement.dataset.controlLauncher === "web";
 }
 
+function isDockerDeployment() {
+  if (bootstrap?.deployment?.mode === "docker") return true;
+  const server = lastServer || bootstrap?.server;
+  if (server?.deploymentProbe === "docker-http" || server?.mode === "docker") return true;
+  if (usesSingleHttpDoor(server) && String(server?.modeLabel || "").includes("контейнер")) {
+    return true;
+  }
+  return false;
+}
+
+function isServerUpdateEnabled() {
+  return bootstrap?.deployment?.updateEnabled === true;
+}
+
+function getServerBtnTitle(actionId) {
+  if (!isDockerDeployment()) return SERVER_BTN_TITLES[actionId] || "Запуск";
+  const dockerTitles = {
+    "server-start-bg": "Compose up",
+    "server-start-attached": "Compose up",
+    "server-stop": "Stop cms",
+    "server-restart": "Restart cms",
+    "server-update": "Pull + build"
+  };
+  return dockerTitles[actionId] || SERVER_BTN_TITLES[actionId] || "Запуск";
+}
+
+function getServerBtnHint(actionId, hintOverride) {
+  if (hintOverride != null) return hintOverride;
+  if (isDockerDeployment()) {
+    const up = (bootstrap?.deployment?.upServices || ["cms", "mcp"]).join(", ");
+    const dockerHints = {
+      "server-start-bg": `docker compose up -d ${up} · контейнеры cms, mcp`,
+      "server-stop": "docker compose stop cms · Control и Caddy не трогаем",
+      "server-restart": `docker compose restart ${up}`,
+      "server-update": "git pull на хосте → compose up -d --build"
+    };
+    return dockerHints[actionId] ?? SERVER_BTN_HINTS[actionId] ?? "";
+  }
+  return SERVER_BTN_HINTS[actionId] ?? "";
+}
+
 function getClientLinkHost() {
   if (!isWebLauncher()) return "localhost";
   return window.location.hostname || "localhost";
 }
 
 function preferHttpServiceLinks() {
-  return isWebLauncher() && window.location.protocol === "http:";
+  if (isWebLauncher() && window.location.protocol === "http:") return true;
+  return usesSingleHttpDoor(lastServer || bootstrap?.server);
 }
 
 function rewriteUrlHostForClient(url) {
@@ -579,69 +898,410 @@ function buildServiceUrl(scheme, port, path = "/") {
   return `${scheme}://${host}:${port}${normalizedPath}`;
 }
 
-function getServiceMonitorOpenUrl(def, server, ports) {
-  const urls = server?.urls || {};
-  const host = getClientLinkHost();
-  const httpFirst = preferHttpServiceLinks();
+function shouldUseCanonicalHttpDoor() {
+  const server = lastServer || bootstrap?.server;
+  return usesSingleHttpDoor(server) || isDockerDeployment();
+}
 
-  if (def.id === "editor") {
-    if (httpFirst && server?.cms && ports.editorHttp) {
-      return buildServiceUrl("http", ports.editorHttp, "/");
-    }
-    if (urls.cms) return rewriteUrlHostForClient(urls.cms);
-    if (ports.editorHttps) return buildServiceUrl("https", ports.editorHttps, "/");
-    if (ports.editorHttp) return buildServiceUrl("http", ports.editorHttp, "/");
-    return "";
+function getPublicDoorBase() {
+  const server = lastServer || bootstrap?.server;
+  if (shouldUseCanonicalHttpDoor()) {
+    const door = getClientDoorHttpOrigin();
+    if (door) return rewriteUrlHostForClient(door.replace(/\/+$/, ""));
   }
-  if (def.id === "voice") {
-    if (httpFirst && server?.voice && ports.voiceHttp) {
-      return buildServiceUrl("http", ports.voiceHttp, "/");
-    }
-    if (urls.voice) return rewriteUrlHostForClient(urls.voice);
-    if (ports.voiceHttps) return buildServiceUrl("https", ports.voiceHttps, "/");
-    return "";
+
+  if (isWebLauncher()) {
+    return `${window.location.protocol}//${window.location.host}`.replace(/\/+$/, "");
   }
-  if (def.id === "commander") {
-    if (httpFirst && server?.commander && ports.commanderHttp) {
-      return buildServiceUrl("http", ports.commanderHttp, "/");
+
+  const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+  if (fromBootstrap) {
+    if (usesSingleHttpDoor(server) && fromBootstrap.startsWith("https:") && preferHttpServiceLinks()) {
+      try {
+        const parsed = new URL(fromBootstrap);
+        return `http://${parsed.host}`.replace(/\/+$/, "");
+      } catch {
+        /* fall through */
+      }
     }
-    if (urls.commanderHttps) return rewriteUrlHostForClient(urls.commanderHttps);
-    if (urls.commanderHttp) return rewriteUrlHostForClient(urls.commanderHttp);
-    if (server?.cms && ports.editorHttps) {
-      return buildServiceUrl("https", ports.editorHttps, "/commander/");
-    }
-    return ports.commanderHttp ? buildServiceUrl("http", ports.commanderHttp, "/") : "";
-  }
-  if (def.id === "control") {
-    if (isWebLauncher() && ports.controlHttp) {
-      const port =
-        window.location.port ||
-        (window.location.protocol === "https:" ? "443" : String(ports.controlHttp));
-      return `${window.location.protocol}//${host}:${port}/`;
-    }
-    if (urls.controlHttp) return rewriteUrlHostForClient(urls.controlHttp);
-    if (server?.controlHttp && ports.controlHttp) {
-      return buildServiceUrl("http", ports.controlHttp, "/");
-    }
-    if (urls.controlEditor) return rewriteUrlHostForClient(urls.controlEditor);
-    if (server?.cms && ports.editorHttps) {
-      return buildServiceUrl("https", ports.editorHttps, "/control/");
-    }
-    return "";
-  }
-  if (def.id === "mcp") {
-    if (server?.mcpHttp && ports.mcpHttp) {
-      return buildServiceUrl("http", ports.mcpHttp, "/health");
-    }
-    if (server?.cms && ports.editorHttps) return getTestUrl("mcp");
-    return ports.mcpHttp ? buildServiceUrl("http", ports.mcpHttp, "/health") : "";
+    return fromBootstrap;
   }
   return "";
 }
 
+function buildPublicAppUrl(publicPath) {
+  const base = getPublicDoorBase();
+  if (!base) return "";
+  const segment = publicPath.startsWith("/") ? publicPath : `/${publicPath}`;
+  return `${base}${segment}`;
+}
+
+function usesSingleHttpDoor(server) {
+  if (server?.singleHttpDoor === true) return true;
+  const ports = getPorts();
+  if (ports.singleHttpDoor === true) return true;
+  if (bootstrap?.deployment?.mode === "docker") return true;
+  return false;
+}
+
+function parseDoorOriginParts(originOrUrl) {
+  const raw = String(originOrUrl || "").trim();
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw.includes("://") ? raw : `http://${raw}`);
+    const port =
+      parsed.port ||
+      (parsed.protocol === "https:" ? "443" : parsed.protocol === "http:" ? "80" : "");
+    return {
+      host: parsed.hostname,
+      port: port === "80" || port === "443" ? String(port) : port,
+      origin: parsed.origin.replace(/\/+$/, "")
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getSingleDoorHostPort(ports) {
+  const fromClient = getClientDoorHostPort(ports);
+  if (fromClient) return fromClient;
+  const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
+  return { host: getClientLinkHost(), port };
+}
+
+/** Host:port публичной «одной двери» — из вкладки, AGENT_CMS_PUBLIC_URL или probe urls. */
+function getClientDoorHostPort(ports) {
+  if (isWebLauncher()) {
+    const locPort =
+      window.location.port ||
+      (window.location.protocol === "https:" ? "443" : window.location.protocol === "http:" ? "80" : "");
+    return {
+      host: window.location.hostname,
+      port: locPort
+    };
+  }
+
+  const server = lastServer || bootstrap?.server;
+  const urlCandidates = [
+    server?.urls?.controlHttp,
+    server?.urls?.cms,
+    bootstrap?.mcpConnect?.cmsBaseUrl
+  ];
+  for (const candidate of urlCandidates) {
+    const parts = parseDoorOriginParts(candidate);
+    if (parts) {
+      return {
+        host: getClientLinkHost() === "localhost" ? parts.host : getClientLinkHost(),
+        port: parts.port === "80" || parts.port === "443" ? parts.port : parts.port || "3000"
+      };
+    }
+  }
+
+  const port = ports?.editorHttp ?? ports?.editorHttps ?? 3000;
+  return { host: getClientLinkHost(), port };
+}
+
+function getClientDoorHttpOrigin() {
+  const server = lastServer || bootstrap?.server;
+  if (isWebLauncher() && shouldUseCanonicalHttpDoor()) {
+    const fromBootstrap = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+    if (fromBootstrap) {
+      let base = fromBootstrap.startsWith("https:") ? fromBootstrap.replace(/^https:/, "http:") : fromBootstrap;
+      try {
+        const parsed = new URL(base.includes("://") ? base : `http://${base}`);
+        const ports = getPorts();
+        const doorPort = String(ports.editorHttp ?? 3000);
+        if (!parsed.port || parsed.port === "3443" || parsed.port === String(ports.editorHttps ?? 3443)) {
+          parsed.protocol = "http:";
+          parsed.port = doorPort;
+        }
+        return parsed.origin.replace(/\/+$/, "");
+      } catch {
+        /* fall through */
+      }
+    }
+    const ports = getPorts();
+    const doorPort = String(ports.editorHttp ?? 3000);
+    const host = window.location.hostname || "127.0.0.1";
+    const locPort =
+      window.location.port ||
+      (window.location.protocol === "https:" ? "443" : window.location.protocol === "http:" ? "80" : "");
+    if (window.location.protocol === "http:" && locPort === doorPort) {
+      return window.location.origin.replace(/\/+$/, "");
+    }
+    return `http://${host}:${doorPort}`.replace(/\/+$/, "");
+  }
+
+  if (isWebLauncher()) {
+    return window.location.origin.replace(/\/+$/, "");
+  }
+
+  const pathKeys = {
+    editor: "cms",
+    voice: "voice",
+    commander: "commanderHttp",
+    control: "controlHttp",
+    mcp: "mcpHttp"
+  };
+  for (const key of Object.keys(pathKeys)) {
+    const probeUrl = server?.urls?.[pathKeys[key]];
+    const parts = parseDoorOriginParts(probeUrl);
+    if (parts?.origin) {
+      return parts.origin.startsWith("https:")
+        ? parts.origin.replace(/^https:/, "http:")
+        : parts.origin;
+    }
+  }
+
+  const ports = getPorts();
+  const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
+  return buildServiceUrl("http", port, "/").replace(/\/+$/, "");
+}
+
+function singleDoorProbeUrl(def, server) {
+  const urls = server?.urls || {};
+  const key =
+    def.id === "editor"
+      ? "cms"
+      : def.id === "voice"
+        ? "voice"
+        : def.id === "commander"
+          ? "commanderHttp"
+          : def.id === "control"
+            ? "controlHttp"
+            : def.id === "mcp"
+              ? "mcpHttp"
+              : "";
+  const raw = key ? urls[key] : "";
+  return raw ? rewriteUrlHostForClient(String(raw).trim()) : "";
+}
+
+function getServiceMonitorBadge(def, server, ports) {
+  if (usesSingleHttpDoor(server)) {
+    const path = SINGLE_DOOR_PUBLIC_PATHS[def.id] || "/";
+    return path === "/" ? "/" : path;
+  }
+  const key = def.portKeyLegacyHttps && !preferHttpServiceLinks() ? def.portKeyLegacyHttps : def.portKey;
+  const port = ports[key] ?? ports[def.portKey];
+  return port != null ? `:${port}` : "—";
+}
+
+function getServiceMonitorUrlPair(def, server, ports) {
+  const singleDoor = usesSingleHttpDoor(server);
+  const path = SINGLE_DOOR_PUBLIC_PATHS[def.id] ?? "/";
+
+  if (def.id === "mcp") {
+    const ping = getTestUrl("mcp");
+    return {
+      openUrl: ping,
+      httpUrl: ping,
+      httpsUrl: "",
+      httpLabel: "MCP ping",
+      httpsLabel: "",
+      mcpPing: true
+    };
+  }
+
+  if (singleDoor) {
+    const probed = singleDoorProbeUrl(def, server);
+    const httpBase = getClientDoorHttpOrigin();
+    let httpUrl = probed && !probed.startsWith("https:")
+      ? probed
+      : joinCmsBaseAndPath(httpBase, path);
+    if (httpUrl.startsWith("https:")) {
+      httpUrl = httpUrl.replace(/^https:/, "http:");
+    }
+    let httpsUrl = "";
+    if (probed && probed.startsWith("https://")) {
+      httpsUrl = probed;
+    } else {
+      const pub = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+      if (pub.startsWith("https://")) {
+        httpsUrl = joinCmsBaseAndPath(pub, path);
+      }
+    }
+    const openUrl = preferHttpServiceLinks() || !httpsUrl ? httpUrl : httpsUrl;
+    return {
+      openUrl,
+      httpUrl,
+      httpsUrl,
+      httpLabel: `${def.shortName} HTTP`,
+      httpsLabel: `${def.shortName} HTTPS`
+    };
+  }
+
+  return legacyServiceMonitorUrlPair(def, server, ports);
+}
+
+function legacyServiceMonitorUrlPair(def, server, ports) {
+  const urls = server?.urls || {};
+  const httpFirst = preferHttpServiceLinks();
+
+  const finish = (openUrl, httpUrl, httpsUrl, extras = {}) => ({
+    openUrl: openUrl || "",
+    httpUrl: httpUrl || openUrl || "",
+    httpsUrl: httpsUrl || "",
+    httpLabel: extras.httpLabel || `${def.shortName} HTTP`,
+    httpsLabel: extras.httpsLabel || `${def.shortName} HTTPS`,
+    mcpPing: Boolean(extras.mcpPing)
+  });
+
+  if (def.id === "editor") {
+    const httpUrl = ports.editorHttp ? buildServiceUrl("http", ports.editorHttp, "/") : "";
+    let httpsUrl = ports.editorHttps ? buildServiceUrl("https", ports.editorHttps, "/") : "";
+    if (urls.cms) httpsUrl = rewriteUrlHostForClient(urls.cms);
+    const openUrl = httpFirst && httpUrl ? httpUrl : httpsUrl || httpUrl;
+    return finish(openUrl, httpUrl, httpsUrl);
+  }
+  if (def.id === "voice") {
+    const door = buildPublicAppUrl("/app-chat/");
+    const httpUrl =
+      door ||
+      (ports.voiceHttp && server?.voice ? buildServiceUrl("http", ports.voiceHttp, "/") : "");
+    let httpsUrl = urls.voice ? rewriteUrlHostForClient(urls.voice) : "";
+    if (!httpsUrl && ports.voiceHttps) httpsUrl = buildServiceUrl("https", ports.voiceHttps, "/");
+    const openUrl = door || (httpFirst && httpUrl ? httpUrl : httpsUrl || httpUrl);
+    return finish(openUrl, httpUrl || openUrl, httpsUrl || openUrl);
+  }
+  if (def.id === "commander") {
+    const door = buildPublicAppUrl("/app-commander/");
+    let httpUrl = urls.commanderHttp ? rewriteUrlHostForClient(urls.commanderHttp) : "";
+    if (!httpUrl && ports.commanderHttp) httpUrl = buildServiceUrl("http", ports.commanderHttp, "/");
+    let httpsUrl = urls.commanderHttps ? rewriteUrlHostForClient(urls.commanderHttps) : "";
+    if (!httpsUrl && server?.cms && ports.editorHttps) {
+      httpsUrl =
+        buildPublicAppUrl("/app-commander/") ||
+        buildServiceUrl("https", ports.editorHttps, "/app-commander/");
+    }
+    const openUrl = door || (httpFirst && httpUrl ? httpUrl : httpsUrl || httpUrl);
+    return finish(openUrl, httpUrl || door || openUrl, httpsUrl || door || openUrl);
+  }
+  if (def.id === "control") {
+    const door =
+      buildPublicAppUrl("/app-control/") ||
+      (isWebLauncher() ? `${window.location.origin}/app-control/` : "");
+    let httpUrl = urls.controlHttp ? rewriteUrlHostForClient(urls.controlHttp) : "";
+    if (!httpUrl && server?.controlHttp && ports.controlHttp) {
+      httpUrl = buildServiceUrl("http", ports.controlHttp, "/");
+    }
+    let httpsUrl = urls.controlEditor ? rewriteUrlHostForClient(urls.controlEditor) : "";
+    if (!httpsUrl && server?.cms && ports.editorHttps) {
+      httpsUrl = buildServiceUrl("https", ports.editorHttps, "/control/");
+    }
+    const openUrl = door || (httpFirst && httpUrl ? httpUrl : httpsUrl || httpUrl);
+    return finish(openUrl, httpUrl || door || openUrl, httpsUrl || door || openUrl);
+  }
+  if (def.id === "mcp") {
+    const ping = getTestUrl("mcp");
+    const httpUrl =
+      buildPublicAppUrl("/app-mcp") ||
+      (server?.mcpHttp && ports.mcpHttp ? buildServiceUrl("http", ports.mcpHttp, "/health") : ping);
+    return finish(ping, httpUrl, "", { httpLabel: "MCP ping", mcpPing: true });
+  }
+  return finish("", "", "");
+}
+
+function getServiceMonitorOpenUrl(def, server, ports) {
+  return getServiceMonitorUrlPair(def, server, ports).openUrl;
+}
+
+function isOnControlAppPath() {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  return path === "/app-control" || path.startsWith("/app-control/");
+}
+
+/** ↗ только для UI в браузере; MCP — Ping; Control не дублирует текущую вкладку. */
+function serviceMonitorShowsOpenAffordance(def, row, openUrl) {
+  if (row.state !== "on" || !openUrl) return false;
+  if (def.id === "mcp") return false;
+  if (def.id === "control" && isOnControlAppPath()) return false;
+  return true;
+}
+
+function openServiceMonitorUrl(url) {
+  const target = String(url || "").trim();
+  if (!target) return;
+  if (window.agentControl?.openExternal) {
+    void window.agentControl.openExternal(target);
+  } else {
+    window.open(target, "_blank", "noopener,noreferrer");
+  }
+}
+
+function renderServiceMonitorCopyPair(urls, canCopy) {
+  const disabled = canCopy ? "" : " disabled";
+  if (urls.mcpPing) {
+    return `
+      <div class="svc-rack-copy browser-link-copy-pair" data-svc-copy-stop>
+        <button type="button" class="ghost-btn browser-link-copy svc-rack-copy-btn" data-copy-url="${escapeAttr(urls.httpUrl)}" data-copy-label="${escapeAttr(urls.httpLabel)}" title="Копировать ping URL"${disabled}>Ping</button>
+      </div>`;
+  }
+  const httpsDisabled = !urls.httpsUrl || !canCopy ? " disabled" : "";
+  const httpsTitle = urls.httpsUrl ? "Копировать HTTPS" : "HTTPS недоступен";
+  return `
+    <div class="svc-rack-copy browser-link-copy-pair" data-svc-copy-stop>
+      <button type="button" class="ghost-btn browser-link-copy svc-rack-copy-btn" data-copy-url="${escapeAttr(urls.httpUrl)}" data-copy-label="${escapeAttr(urls.httpLabel)}" title="Копировать HTTP"${disabled}>HTTP</button>
+      <button type="button" class="ghost-btn browser-link-copy svc-rack-copy-btn" data-copy-url="${escapeAttr(urls.httpsUrl)}" data-copy-label="${escapeAttr(urls.httpsLabel)}" title="${escapeAttr(httpsTitle)}"${httpsDisabled}>HTTPS</button>
+    </div>`;
+}
+
 function getServiceMonitorRowState(def, server, ports) {
+  const singleDoor = usesSingleHttpDoor(server);
   const port = ports[def.portKey];
   const portText = port != null ? String(port) : "—";
+  const hostPort = getSingleDoorHostPort(ports);
+  const doorDetail = `${hostPort.host}:${hostPort.port}`;
+
+  if (singleDoor) {
+    if (def.id === "mcp") {
+      const httpUp = Boolean(server?.mcpHttp);
+      const pingOk = mcpOk === true;
+      const pingFail = mcpOk === false;
+      const detailArgs = { pingOk, httpUp, portText, singleDoor: true, hostPort };
+      if (server?.cms && mcpOk === null) {
+        return {
+          state: "pending",
+          label: "Проверка…",
+          detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText, singleDoor: true, hostPort }),
+          protocol: def.portLabel
+        };
+      }
+      if (pingOk || (httpUp && server?.cms)) {
+        return { state: "on", label: "В сети", detail: formatMcpMonitorDetail(detailArgs), protocol: def.portLabel };
+      }
+      if (server?.cms && pingFail) {
+        return {
+          state: "off",
+          label: "Не отвечает",
+          detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText, singleDoor: true, hostPort }),
+          protocol: def.portLabel
+        };
+      }
+      return { state: "off", label: "Не запущен", detail: "CMS offline", protocol: def.portLabel };
+    }
+
+    const viaCms =
+      def.id === "editor"
+        ? Boolean(server?.cms)
+        : def.id === "voice"
+          ? Boolean(server?.voice)
+          : def.id === "commander"
+            ? Boolean(server?.commander)
+            : def.id === "control"
+              ? Boolean(server?.controlHttp)
+              : false;
+
+    if (viaCms) {
+      return {
+        state: "on",
+        label: "В сети",
+        detail: doorDetail,
+        protocol: preferHttpServiceLinks() ? "HTTP" : def.portLabel
+      };
+    }
+    return { state: "off", label: "Не запущен", detail: "CMS offline", protocol: def.portLabel };
+  }
 
   if (def.id === "control") {
     const dedicated = Boolean(server?.controlHttp);
@@ -650,7 +1310,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "on",
         label: "В сети",
         detail: "HTTP localhost",
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -658,18 +1317,11 @@ function getServiceMonitorRowState(def, server, ports) {
       return {
         state: "on",
         label: "Через Editor",
-        detail: `/control/ · :${ports.editorHttps}`,
-        port: portText,
+        detail: `/control/ · :${ports.editorHttps ?? portText}`,
         protocol: def.portLabel
       };
     }
-    return {
-      state: "off",
-      label: "Не запущен",
-      detail: "порт свободен",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "off", label: "Не запущен", detail: "порт свободен", protocol: def.portLabel };
   }
 
   if (def.id === "mcp") {
@@ -681,7 +1333,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "pending",
         label: "Проверка…",
         detail: formatMcpMonitorDetail({ pingOk: null, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -690,7 +1341,6 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "on",
         label: "В сети",
         detail: formatMcpMonitorDetail({ pingOk, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
@@ -699,102 +1349,73 @@ function getServiceMonitorRowState(def, server, ports) {
         state: "off",
         label: "Не отвечает",
         detail: formatMcpMonitorDetail({ pingOk: false, httpUp, portText }),
-        port: portText,
         protocol: def.portLabel
       };
     }
-    return {
-      state: "off",
-      label: "Не запущен",
-      detail: "нужен запущенный сервер",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "off", label: "Не запущен", detail: "нужен запущенный сервер", protocol: def.portLabel };
   }
 
   const flag = def.id === "editor" ? "cms" : def.id === "voice" ? "voice" : "commander";
   const listening = Boolean(server?.[flag]);
   if (listening) {
-    return {
-      state: "on",
-      label: "В сети",
-      detail: "localhost",
-      port: portText,
-      protocol: def.portLabel
-    };
+    return { state: "on", label: "В сети", detail: "localhost", protocol: def.portLabel };
   }
   if (def.id === "commander" && server?.cms) {
     return {
       state: "on",
       label: "Через Editor",
-      detail: `/commander/ · :${ports.editorHttps}`,
-      port: portText,
+      detail: `/app-commander/ · :${ports.editorHttps ?? portText}`,
       protocol: def.portLabel
     };
   }
-  return {
-    state: "off",
-    label: "Не запущен",
-    detail: "порт свободен",
-    port: portText,
-    protocol: def.portLabel
-  };
+  return { state: "off", label: "Не запущен", detail: "порт свободен", protocol: def.portLabel };
 }
 
-function formatMcpMonitorDetail({ pingOk, httpUp, portText }) {
+function formatMcpMonitorDetail({ pingOk, httpUp, portText, singleDoor, hostPort }) {
   const parts = [];
-  if (pingOk === true) parts.push("API OK");
-  else if (pingOk === false) parts.push("API нет");
-  else if (pingOk === null) parts.push("API …");
+  if (pingOk === true) parts.push("ping OK");
+  else if (pingOk === false) parts.push("ping нет");
+  else if (pingOk === null) parts.push("ping …");
+  if (singleDoor) {
+    parts.push(SINGLE_DOOR_PUBLIC_PATHS.mcp);
+    if (hostPort) parts.push(`${hostPort.host}:${hostPort.port}`);
+    parts.push("Bearer");
+    return parts.join(" · ");
+  }
   if (httpUp) parts.push(`HTTP :${portText}`);
   return parts.join(" · ") || `HTTP :${portText}`;
 }
 
-function getServicesMonitorSummary(server, ports) {
-  let online = 0;
-  for (const def of SERVICE_MONITOR_DEFS) {
-    const { state } = getServiceMonitorRowState(def, server, ports);
-    if (state === "on") online += 1;
-  }
-  return { online, total: SERVICE_MONITOR_DEFS.length };
-}
-
-function formatMonitorProbedAt(server) {
-  const ts = Number(server?.probedAt);
-  if (!Number.isFinite(ts) || ts <= 0) return "";
-  try {
-    return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  } catch {
-    return "";
-  }
-}
-
 function renderServiceMonitorRackCard(def, server, ports) {
   const row = getServiceMonitorRowState(def, server, ports);
-  const openUrl = getServiceMonitorOpenUrl(def, server, ports);
-  const canOpen = row.state === "on" && Boolean(openUrl);
+  const urls = getServiceMonitorUrlPair(def, server, ports);
+  const openUrl = urls.openUrl;
+  const showOpen = serviceMonitorShowsOpenAffordance(def, row, openUrl);
+  const canCopy = row.state === "on" && Boolean(urls.httpUrl || urls.httpsUrl);
+  const badge = getServiceMonitorBadge(def, server, ports);
   const subline = row.detail ? `${row.protocol} · ${row.detail}` : row.protocol;
-  const openAttr = canOpen ? ` data-svc-open="${escapeAttr(openUrl)}"` : "";
-  const interactive = canOpen ? ` tabindex="0" role="link" aria-label="Открыть ${escapeAttr(def.shortName)}"` : "";
+  const openBtn = showOpen
+    ? `<button type="button" class="svc-rack-go" data-svc-open="${escapeAttr(openUrl)}" title="Открыть в новой вкладке" aria-label="Открыть ${escapeAttr(def.shortName)}">↗</button>`
+    : "";
 
   return `
     <article
-      class="svc-rack-card${canOpen ? " svc-rack-card--link" : ""}"
+      class="svc-rack-card${showOpen ? " svc-rack-card--link" : ""}"
       data-service-id="${def.id}"
       data-accent="${def.accent}"
       data-state="${row.state}"
-      title="${escapeAttr(def.title)}${canOpen ? " · клик — открыть" : ""}"
-      ${openAttr}${interactive}
+      title="${escapeAttr(def.title)}"
     >
       <div class="svc-rack-head">
         <img class="svc-rack-icon" src="assets/${def.icon}" alt="" width="28" height="28" />
         <div class="svc-rack-head-text">
           <strong class="svc-rack-name">${def.shortName}</strong>
-          <code class="svc-rack-port">:${row.port}</code>
+          <code class="svc-rack-port">${escapeAttr(badge)}</code>
         </div>
-        ${canOpen ? `<span class="svc-rack-go" aria-hidden="true">↗</span>` : ""}
+        ${openBtn}
       </div>
       <p class="svc-rack-sub">${subline}</p>
+      ${renderServiceMonitorCopyPair(urls, canCopy)}
       <footer class="svc-rack-foot">
         <span class="svc-rack-led" aria-hidden="true"></span>
         <span class="svc-rack-status">${row.label}</span>
@@ -803,36 +1424,19 @@ function renderServiceMonitorRackCard(def, server, ports) {
   `;
 }
 
-function renderServiceMonitorRackBar(server, ports) {
-  return SERVICE_MONITOR_DEFS.map((def) => {
-    const { state } = getServiceMonitorRowState(def, server, ports);
-    const on = state === "on" ? "1" : "0";
-    const pending = state === "pending" ? "1" : "0";
-    return `<span class="svc-rack-seg" data-accent="${def.accent}" data-on="${on}" data-pending="${pending}" title="${escapeAttr(def.shortName)}"></span>`;
-  }).join("");
-}
-
 function renderServicesMonitor() {
   const root = document.getElementById("services-monitor");
   if (!root) return;
 
   const server = lastServer || bootstrap?.server;
   const ports = getPorts();
-  const { online, total } = getServicesMonitorSummary(server, ports);
-  const probed = formatMonitorProbedAt(server);
-  const modeLabel = String(server?.modeLabel || "").trim();
-  const metaParts = [`${online}/${total} online`];
-  if (probed) metaParts.push(probed);
-  if (modeLabel) metaParts.push(modeLabel);
 
   root.innerHTML = `
     <div class="svc-rack">
-      <div class="svc-rack-bar" role="img" aria-label="${online} из ${total} сервисов в сети">${renderServiceMonitorRackBar(server, ports)}</div>
-      <p class="svc-rack-meta">${metaParts.join(" · ")} · авто 8 с</p>
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
       <details class="svc-rack-note">
-        <summary>Launcher · Mac и Linux</summary>
-        <p>Один UI: Electron на Mac (<code>welcome.command</code>) или браузер на Linux/VPS — <code>http://host:3288/</code> (поднимается с <code>npm start</code>). На Mac можно открыть тот же URL.</p>
+        <summary>Одна дверь (app-*)</summary>
+        <p>Снаружи один host:port (<code>AGENT_CMS_PUBLIC_URL</code>). UI: <code>/</code>, <code>/app-chat</code>, <code>/app-commander</code>, <code>/app-control</code>; агенты: <code>/app-mcp</code> + Bearer. Electron .app на Mac (опционально): <code>npm run cms:electron-build</code> на хосте. Legacy: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code>.</p>
       </details>
     </div>
   `;
@@ -870,18 +1474,48 @@ function bindServicesMonitorActions() {
   root.dataset.actionsBound = "1";
 
   root.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-svc-open]");
-    if (target?.dataset.svcOpen) {
-      window.agentControl.openExternal(target.dataset.svcOpen);
+    const copyBtn = event.target.closest("[data-copy-url]");
+    if (copyBtn && root.contains(copyBtn)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (copyBtn.disabled) return;
+      copyText(copyBtn.dataset.copyUrl || "", { label: copyBtn.dataset.copyLabel || "" });
+      return;
+    }
+    if (event.target.closest("[data-svc-copy-stop]")) return;
+
+    const openBtn = event.target.closest("[data-svc-open]");
+    if (openBtn && root.contains(openBtn)) {
+      event.preventDefault();
+      event.stopPropagation();
+      openServiceMonitorUrl(openBtn.dataset.svcOpen);
     }
   });
+}
 
-  root.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const target = event.target.closest("[data-svc-open]");
-    if (!target?.dataset.svcOpen) return;
-    event.preventDefault();
-    window.agentControl.openExternal(target.dataset.svcOpen);
+function renderSetupDiskStatItems() {
+  const diskState = getDiskStatState();
+  return Object.keys(DISK_STAT_LABELS).map((id) => {
+    const refreshBtn =
+      id === "diskFree"
+        ? `<button
+        type="button"
+        class="ghost-btn ghost-btn--icon setup-check-disk-refresh"
+        data-disk-stats-refresh
+        title="Обновить данные о диске"
+        aria-label="Обновить данные о диске"
+      >↻</button>`
+        : "";
+
+    return `
+      <div class="setup-check-item setup-check-item--stat${id === "diskFree" ? " setup-check-item--stat-refresh" : ""}" data-state="stat">
+        ${refreshBtn}
+        <span class="setup-check-copy">
+          <span class="setup-check-label">${DISK_STAT_LABELS[id]}</span>
+          <span class="setup-check-value">${diskState[id]}</span>
+        </span>
+      </div>
+    `;
   });
 }
 
@@ -889,8 +1523,20 @@ function renderSetupChecklist() {
   const root = document.getElementById("setup-checklist");
   if (!root) return;
 
+  const docker = isDockerDeployment();
+  const diskBlock = `
+    <div class="setup-checklist-grid setup-checklist-grid--disk">
+      ${renderSetupDiskStatItems().join("")}
+    </div>`;
+
+  if (docker) {
+    root.hidden = false;
+    root.innerHTML = diskBlock;
+    return;
+  }
+  root.hidden = false;
+
   const state = getSetupCheckState();
-  const diskState = getDiskStatState();
   const hints = {
     deps: "Шаг 1 → Установить зависимости",
     certs: "Шаг 1 → Выпустить сертификаты HTTPS",
@@ -916,36 +1562,11 @@ function renderSetupChecklist() {
     `;
   });
 
-  const statItems = Object.keys(DISK_STAT_LABELS).map((id) => {
-    const refreshBtn =
-      id === "diskFree"
-        ? `<button
-        type="button"
-        class="ghost-btn ghost-btn--icon setup-check-disk-refresh"
-        data-disk-stats-refresh
-        title="Обновить данные о диске"
-        aria-label="Обновить данные о диске"
-      >↻</button>`
-        : "";
-
-    return `
-      <div class="setup-check-item setup-check-item--stat${id === "diskFree" ? " setup-check-item--stat-refresh" : ""}" data-state="stat">
-        ${refreshBtn}
-        <span class="setup-check-copy">
-          <span class="setup-check-label">${DISK_STAT_LABELS[id]}</span>
-          <span class="setup-check-value">${diskState[id]}</span>
-        </span>
-      </div>
-    `;
-  });
-
   root.innerHTML = `
     <div class="setup-checklist-grid setup-checklist-grid--checks">
       ${checkItems.join("")}
     </div>
-    <div class="setup-checklist-grid setup-checklist-grid--disk">
-      ${statItems.join("")}
-    </div>
+    ${diskBlock}
   `;
 }
 
@@ -1117,6 +1738,60 @@ function setEnvExpandAll(next) {
   renderEnvironmentRows(bootstrap?.environment);
 }
 
+function buildEnvironmentHeaderRows(environment) {
+  if (!environment) return [];
+
+  const rows = [];
+  const dep = bootstrap?.deployment || {};
+  const server = lastServer || bootstrap?.server;
+
+  if (isDockerDeployment()) {
+    const project = String(dep.composeProject || "agent-cms").trim();
+    const services = (dep.upServices || ["cms", "mcp"]).join(", ");
+    const composeFile =
+      String(dep.hostComposeFile || "").trim() ||
+      String(dep.composeFile || "")
+        .trim()
+        .replace(/^.*\//, "");
+    const stackHint = server?.running
+      ? String(server.modeLabel || "online").trim()
+      : "offline";
+
+    rows.push(
+      renderEnvRow({
+        mark: server?.running ? "✓" : "○",
+        label: "Docker",
+        detail: composeFile || "compose",
+        value: `${project} · ${services} · ${stackHint}`,
+        status: server?.running ? "ok" : "warn",
+        hover: `Docker Compose · ${project} · ${services} · ${stackHint}`
+      })
+    );
+  }
+
+  const platformId = resolveActivePlatformId(environment);
+  const hostOsName = hostPlatformDisplayName(platformId);
+  const runtimeOs = environment.host?.platformLabel || "—";
+  const kernel = environment.host?.release ? `kernel ${environment.host.release}` : "";
+
+  rows.push(
+    renderEnvRow({
+      mark: "·",
+      label: isDockerDeployment() ? "ОС хоста" : "ОС",
+      value: hostOsName !== "—" ? hostOsName : runtimeOs,
+      detail: isDockerDeployment()
+        ? [runtimeOs, kernel].filter(Boolean).join(" · ")
+        : kernel || "",
+      status: "neutral",
+      hover: isDockerDeployment()
+        ? `Платформа хоста: ${hostOsName} · runtime Control: ${runtimeOs}${kernel ? ` · ${kernel}` : ""}`
+        : `${runtimeOs}${kernel ? ` · ${kernel}` : ""}`
+    })
+  );
+
+  return rows;
+}
+
 function renderEnvironmentRows(environment) {
   if (!envRows) return;
 
@@ -1125,12 +1800,20 @@ function renderEnvironmentRows(environment) {
     return;
   }
 
-  let html = "";
+  const headerHtml = buildEnvironmentHeaderRows(environment).join("");
+  const bodyRows = buildFullEnvironmentRows(environment);
+
+  let html = headerHtml;
   if (envExpandAll) {
-    html = buildFullEnvironmentRows(environment).join("");
+    html += bodyRows.join("");
     html += `<button type="button" class="env-expand-trigger" data-env-expand="0">Свернуть список технологий</button>`;
   } else {
-    html = `<button type="button" class="env-expand-trigger" data-env-expand="1">Показать полный список технологий</button>`;
+    html += bodyRows.slice(0, ENV_PREVIEW_ROW_COUNT).join("");
+    if (bodyRows.length > ENV_PREVIEW_ROW_COUNT) {
+      html += `<button type="button" class="env-expand-trigger" data-env-expand="1">Ещё ${bodyRows.length - ENV_PREVIEW_ROW_COUNT} технологий…</button>`;
+    } else if (bodyRows.length === 0) {
+      html += `<button type="button" class="env-expand-trigger" data-env-expand="1">Показать полный список технологий</button>`;
+    }
   }
 
   envRows.innerHTML = html;
@@ -1179,10 +1862,128 @@ function buildPlatformHostChipLines(host) {
   if (hostname && computer && computer !== hostname) {
     secondary = `${hostname} · ${platformLabel || "—"}`;
   }
-  return { primary, secondary };
+  return { primary, secondary, hostname, platformLabel };
+}
+
+function dockerHostChipIconSvg() {
+  return `
+    <svg class="platform-host-chip-icon-svg platform-host-chip-icon-svg--docker" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+      <path fill="#2496ED" d="M28 15.5h-2.1v-2.1h-2.1v2.1h-2.1v-2.1h-2.1v2.1h-2.1v-2.1h-2.1v2.1h-2.1v-2.1H11v2.1H8.9v-2.1H6.8v2.1H4.7V18c0 5.2 4.2 9.4 9.4 9.4h3.2c5.7 0 10.3-4.6 10.3-10.3V15.5H28z"/>
+      <path fill="#1D7CE8" d="M5.2 14.2c.5 2.8 2.1 5.2 4.4 6.8 2.3 1.6 5.1 2.3 7.9 2.1 2.8-.2 5.4-1.2 7.4-2.9-3.7-.2-6.8-1.6-9.1-4.2-2.3-2.6-3.4-5.8-3.3-9.1-2.2.9-4 2.5-5.1 4.6-.6 1.1-.9 2.3-.8 3.5l-.4-.8z"/>
+    </svg>`;
+}
+
+function hostPlatformDisplayName(platformId) {
+  const card = PLATFORM_CARDS.find((entry) => entry.id === platformId);
+  return card?.name || platformId || "—";
+}
+
+function renderPlatformDockerChip(environment) {
+  const host = environment?.host || {};
+  const hostLines = buildPlatformHostChipLines(host);
+  const dep = bootstrap?.deployment || {};
+  const server = lastServer || bootstrap?.server;
+  const project = String(dep.composeProject || "agent-cms").trim();
+  const services = (dep.upServices || ["cms", "mcp"]).join(", ");
+  const composeFile =
+    String(dep.hostComposeFile || "").trim() ||
+    String(dep.composeFile || "")
+      .trim()
+      .replace(/^.*\//, "");
+  const container =
+    String(dep.containerShort || dep.containerHostname || hostLines.hostname || "").trim() ||
+    "—";
+  const stackHint = server?.running
+    ? String(server.modeLabel || "stack online").trim()
+    : "stack offline";
+  const title = [
+    "Docker Compose",
+    `project ${project}`,
+    `services ${services}`,
+    composeFile ? composeFile : "",
+    `container ${container}`
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return `
+    <div class="platform-host-chip platform-host-chip--docker" title="${escapeAttr(title)}">
+      <div class="platform-host-chip-icon platform-host-chip-icon--docker">${dockerHostChipIconSvg()}</div>
+      <div class="platform-host-chip-text">
+        <span class="platform-host-chip-label">Docker</span>
+        <strong>${escapePlatformText(`${project} · ${services}`)}</strong>
+        <code>${escapePlatformText(composeFile || "compose")}</code>
+        <span class="platform-host-chip-meta platform-host-chip-meta--docker">${escapePlatformText(stackHint)}</span>
+      </div>
+    </div>`;
+}
+
+function renderPlatformOsChip(environment) {
+  const host = environment?.host || {};
+  const hostLines = buildPlatformHostChipLines(host);
+  const platformId = resolveActivePlatformId(environment);
+  const hostName = hostPlatformDisplayName(platformId);
+  const dep = bootstrap?.deployment || {};
+  const composeFile = String(dep.hostComposeFile || "").trim();
+  const container =
+    String(dep.containerShort || dep.containerHostname || hostLines.hostname || "").trim() ||
+    hostLines.primary;
+  const runtimeOs = hostLines.platformLabel || "—";
+  const icon = platformId
+    ? `<img class="platform-host-chip-os-img" src="assets/${PLATFORM_ICON_FILES[platformId] || PLATFORM_ICON_FILES.linux}" alt="" width="32" height="32" decoding="async" />`
+    : "";
+
+  if (isDockerDeployment()) {
+    const title = [
+      "Платформа хоста (AGENT_CMS_DEPLOY_PLATFORM / compose)",
+      hostName,
+      composeFile,
+      `Control runtime: ${runtimeOs}`,
+      `container ${container}`
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return `
+      <div class="platform-host-chip platform-host-chip--os" title="${escapeAttr(title)}">
+        <div class="platform-host-chip-icon platform-host-chip-icon--os">${icon}</div>
+        <div class="platform-host-chip-text">
+          <span class="platform-host-chip-label">ОС хоста</span>
+          <strong>${escapePlatformText(hostName)}</strong>
+          <code>${escapePlatformText(composeFile || runtimeOs)}</code>
+          <span class="platform-host-chip-meta platform-host-chip-meta--muted">${escapePlatformText(`Control · ${runtimeOs}`)}</span>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="platform-host-chip platform-host-chip--os" title="Определено на сервере">
+      <div class="platform-host-chip-icon platform-host-chip-icon--os">${icon}</div>
+      <div class="platform-host-chip-text">
+        <span class="platform-host-chip-label">Хост</span>
+        <strong>${escapePlatformText(hostLines.primary)}</strong>
+        <code>${escapePlatformText(hostLines.secondary)}</code>
+      </div>
+    </div>`;
+}
+
+function renderPlatformHostChip(environment) {
+  if (isDockerDeployment()) {
+    return `
+      <div class="platform-host-chips">
+        ${renderPlatformDockerChip(environment)}
+        ${renderPlatformOsChip(environment)}
+      </div>`;
+  }
+  return renderPlatformOsChip(environment);
 }
 
 function resolveActivePlatformId(environment) {
+  const fromDeploy = String(bootstrap?.deployment?.hostPlatform || "").trim().toLowerCase();
+  if (fromDeploy === "mac") return "mac";
+  if (fromDeploy === "linux") return "linux";
+  if (fromDeploy === "windows") return "windows";
+
   const raw = String(environment?.host?.platform || "").toLowerCase();
   if (raw === "darwin") return "mac";
   if (raw === "linux") return "linux";
@@ -1197,6 +1998,19 @@ function escapePlatformText(value) {
     .replace(/>/g, "&gt;");
 }
 
+function platformCoverSubline() {
+  if (isDockerDeployment()) {
+    const dep = bootstrap?.deployment || {};
+    const file = String(dep.hostComposeFile || dep.composeFile || "").trim();
+    const platform = String(dep.hostPlatform || "").trim();
+    if (file && platform) {
+      return `Docker: активная платформа «${platform}» из ${file} (AGENT_CMS_DEPLOY_PLATFORM или compose).`;
+    }
+    return "Docker: платформа хоста из compose, не Linux внутри контейнера.";
+  }
+  return "Один Launcher — разные способы запуска под ОС хоста";
+}
+
 function launcherModeLabel() {
   const mode = document.documentElement.dataset.controlLauncher;
   if (mode === "web") return "Launcher в браузере";
@@ -1209,9 +2023,9 @@ function renderPlatformCover(environment) {
   if (!root) return;
 
   const activeId = resolveActivePlatformId(environment);
-  const host = environment?.host || {};
-  const hostLines = buildPlatformHostChipLines(host);
-  const modeLine = launcherModeLabel();
+  const modeLine = isDockerDeployment()
+    ? `${launcherModeLabel()} · Docker compose`
+    : launcherModeLabel();
 
   const cards = PLATFORM_CARDS.map((card) => {
     const isActive = !card.disabled && card.id === activeId;
@@ -1239,13 +2053,9 @@ function renderPlatformCover(environment) {
         <div class="platform-cover-head-main">
           <p class="platform-cover-kicker">${escapePlatformText(modeLine)}</p>
           <h2 class="platform-cover-title">Где работает Agent CMS</h2>
-          <p class="platform-cover-sub">Один Launcher — разные способы запуска под ОС хоста</p>
+          <p class="platform-cover-sub">${escapePlatformText(platformCoverSubline())}</p>
         </div>
-        <div class="platform-host-chip" title="Определено на сервере">
-          <span class="platform-host-chip-label">Хост</span>
-          <strong>${escapePlatformText(hostLines.primary)}</strong>
-          <code>${escapePlatformText(hostLines.secondary)}</code>
-        </div>
+        ${renderPlatformHostChip(environment)}
       </header>
       <div class="platform-stage">
         <div class="platform-pick-grid" role="list">${cards}</div>
@@ -1263,6 +2073,13 @@ function renderEnvironment(environment) {
 function syncServerUi(server) {
   const isRunning = Boolean(server?.running);
   applyServerStatusChip(document.getElementById("server-status-inline"), server);
+  const dockerMeta = document.querySelector(".platform-host-chip-meta--docker");
+  if (dockerMeta && isDockerDeployment()) {
+    const stackHint = server?.running
+      ? String(server.modeLabel || "stack online").trim()
+      : "stack offline";
+    dockerMeta.textContent = stackHint;
+  }
 
   document.querySelectorAll(".browser-link, .browser-link-copy").forEach((button) => {
     button.disabled = !isRunning;
@@ -1274,7 +2091,8 @@ function syncServerUi(server) {
     runningActions.has("server-start-bg") ||
     runningActions.has("server-start-attached") ||
     runningActions.has("server-stop") ||
-    runningActions.has("server-restart");
+    runningActions.has("server-restart") ||
+    runningActions.has("server-update");
   const opsLocked = needsAppLockLogin();
 
   document
@@ -1288,6 +2106,10 @@ function syncServerUi(server) {
   });
   document.querySelectorAll('[data-action="server-restart"]').forEach((button) => {
     button.disabled = opsLocked || !isRunning || serverActionBusy;
+  });
+  document.querySelectorAll('[data-action="server-update"]').forEach((button) => {
+    button.disabled =
+      !isServerUpdateEnabled() || opsLocked || serverActionBusy || runningActions.has("server-update");
   });
 
   const autostartOn = Boolean(server?.autoStart?.enabled);
@@ -1324,6 +2146,9 @@ async function handleServerStatusUpdate(server, options = {}) {
   }
 
   syncServerUi(server);
+  if (bootstrap?.environment && isDockerDeployment()) {
+    renderPlatformCover(bootstrap.environment);
+  }
   patchControlOpenButton();
   renderSetupChecklist();
   renderServicesMonitor();
@@ -1338,7 +2163,7 @@ function patchControlOpenButton() {
   const canOpen =
     Boolean(url) &&
     (Boolean(server?.controlHttp) || Boolean(server?.cms));
-  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  const title = canOpen ? url : "Сначала поднимите CMS (Docker compose или «Старт» в Control)";
   openBtn.dataset.openUrl = url || "";
   openBtn.disabled = !canOpen;
   openBtn.title = title;
@@ -1358,13 +2183,23 @@ function startServerPoll() {
   serverPollTimer = window.setInterval(pollServerStatus, SERVER_POLL_MS);
 }
 
-function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
+function actionButton(
+  actionId,
+  tone = "default",
+  extraClass = "",
+  disabled = false,
+  labelOverride = "",
+  titleOverride = ""
+) {
   const label = labelOverride || formatActionButtonContent(actionId);
   const disabledAttr = disabled ? " disabled" : "";
   const durationClass = BUILD_DURATION_HINTS[actionId] ? " has-duration" : "";
-  const titleAttr = BUILD_DURATION_HINTS[actionId]
-    ? ` title="Примерное время сборки: ${BUILD_DURATION_HINTS[actionId]}. Прогресс — в журнале внизу."`
-    : "";
+  let titleAttr = "";
+  if (titleOverride) {
+    titleAttr = ` title="${escapeAttr(titleOverride)}"`;
+  } else if (BUILD_DURATION_HINTS[actionId]) {
+    titleAttr = ` title="Примерное время сборки: ${BUILD_DURATION_HINTS[actionId]}. Прогресс — в журнале внизу."`;
+  }
   return `<button type="button" class="run-btn ${extraClass}${durationClass}" data-tone="${tone}" data-action="${actionId}"${titleAttr}${disabledAttr}>${label}</button>`;
 }
 
@@ -1380,7 +2215,8 @@ const SERVER_BTN_TITLES = {
   "server-start-bg": "Старт в фоне",
   "server-start-attached": "Старт",
   "server-stop": "Стоп",
-  "server-restart": "Рестарт"
+  "server-restart": "Рестарт",
+  "server-update": "Обновить"
 };
 
 const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
@@ -1395,7 +2231,8 @@ const SERVER_BTN_HINTS = {
   "server-start-bg": "Останется после закрытия",
   "server-start-attached": "Пока окно открыто",
   "server-stop": "Остановить сервер",
-  "server-restart": "Тот же режим запуска"
+  "server-restart": "Тот же режим запуска",
+  "server-update": "git pull и пересборка (Docker) или только pull"
 };
 
 const SERVER_PLAY_ICON = `
@@ -1429,20 +2266,39 @@ const SERVER_RESTART_ICON = `
   </svg>
 `;
 
+const SERVER_UPDATE_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M12 7v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+    <path d="M9.5 10.5 12 13l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M8.5 16.5h7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+  </svg>
+`;
+
 function serverButton(actionId, tone, disabled = false, hintOverride) {
   const disabledAttr = disabled ? " disabled" : "";
-  const title = SERVER_BTN_TITLES[actionId] || "Запуск";
-  const hint = hintOverride ?? SERVER_BTN_HINTS[actionId] ?? "";
+  const title = getServerBtnTitle(actionId);
+  const hint = getServerBtnHint(actionId, hintOverride);
   const icon =
-    tone === "stop" ? SERVER_STOP_ICON : tone === "restart" ? SERVER_RESTART_ICON : SERVER_PLAY_ICON;
+    tone === "stop"
+      ? SERVER_STOP_ICON
+      : tone === "restart"
+        ? SERVER_RESTART_ICON
+        : tone === "update"
+          ? SERVER_UPDATE_ICON
+          : SERVER_PLAY_ICON;
   const iconClass =
     tone === "stop"
       ? "server-deck-icon--stop"
       : tone === "restart"
         ? "server-deck-icon--restart"
-        : "server-deck-icon--play";
+        : tone === "update"
+          ? "server-deck-icon--update"
+          : "server-deck-icon--play";
   const badge =
-    tone === "start-bg"
+    tone === "start-bg" && isDockerDeployment()
+      ? `<span class="server-deck-badge">docker</span>`
+      : tone === "start-bg"
       ? `<span class="server-deck-badge">фон</span>`
       : tone === "autostart-on"
         ? `<span class="server-deck-badge">вкл</span>`
@@ -1470,9 +2326,19 @@ function isDesktopShortcutsSupported() {
   return raw === "darwin" || raw === "win32";
 }
 
-function setupButton(actionId, title, hint, disabled = false) {
+function isSetupActionDisabled(actionId) {
+  if (actionId === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported()) return true;
+  if (actionId === "install-deps" || actionId === "setup-certs") {
+    return isDockerDeployment() || isWebLauncher();
+  }
+  return false;
+}
+
+function setupButton(actionId, title, hint, disabled = false, disabledTitle = "") {
   const disabledAttr = disabled ? " disabled" : "";
-  const titleAttr = disabled ? ' title="Только macOS и Windows"' : "";
+  const titleAttr = disabled
+    ? ` title="${escapeAttr(disabledTitle || "Недоступно в этом режиме")}"`
+    : "";
   return `
     <button type="button" class="setup-btn" data-action="${actionId}"${disabledAttr}${titleAttr}>
       <span class="setup-btn-spinner" aria-hidden="true"></span>
@@ -1496,30 +2362,75 @@ function actionCard(actionId, title, hint, tone = "default", disabled = false, w
 function getPorts() {
   return (
     bootstrap?.serverPorts || {
-      editorHttps: 3443,
+      singleHttpDoor: true,
+      editorHttps: 3000,
       editorHttp: 3000,
-      voiceHttps: 3488,
-      voiceHttp: 3088,
-      commanderHttp: 3188,
-      controlHttp: 3288,
-      mcpHttp: 3490
+      voiceHttps: 3000,
+      voiceHttp: 3000,
+      commanderHttp: 3000,
+      controlHttp: 3000,
+      mcpHttp: 3000
     }
   );
+}
+
+function joinCmsBaseAndPath(base, testPath) {
+  const b = String(base || "").replace(/\/+$/, "");
+  const p = String(testPath || "/");
+  const pathPart = p.startsWith("/") ? p : `/${p}`;
+  if (pathPart === "/") return `${b}/`;
+  return `${b}${pathPart}`;
 }
 
 function getEffectiveCmsBaseUrl() {
   const server = lastServer || bootstrap?.server;
   const ports = getPorts();
-  const fromProbe = String(server?.urls?.cms || "").trim();
-  if (server?.cms && fromProbe) return rewriteUrlHostForClient(fromProbe.replace(/\/+$/, ""));
+  const singleDoor = usesSingleHttpDoor(server);
+
+  if (shouldUseCanonicalHttpDoor()) {
+    const door =
+      getClientDoorHttpOrigin() ||
+      getPublicDoorBase() ||
+      String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim().replace(/\/+$/, "");
+    if (door) {
+      let base = door.replace(/\/+$/, "");
+      if (base.startsWith("https:")) base = base.replace(/^https:/, "http:");
+      return rewriteUrlHostForClient(base);
+    }
+  }
+
+  if (isWebLauncher()) {
+    return window.location.origin.replace(/\/+$/, "");
+  }
+
+  const doorBase = getPublicDoorBase();
+  if (doorBase) return rewriteUrlHostForClient(doorBase.replace(/\/+$/, ""));
+
+  const fromProbe = String(server?.urls?.cms || server?.urls?.controlHttp || "").trim();
+  if (server?.cms && fromProbe) {
+    let base = fromProbe.replace(/\/+$/, "");
+    if (singleDoor && base.startsWith("https:")) {
+      base = base.replace(/^https:/, "http:");
+    }
+    return rewriteUrlHostForClient(base);
+  }
+
+  if (singleDoor || preferHttpServiceLinks()) {
+    const port = ports.editorHttp ?? ports.editorHttps ?? 3000;
+    return buildServiceUrl("http", port, "/").replace(/\/+$/, "");
+  }
 
   const mcpUrl = String(bootstrap?.mcpConnect?.cmsBaseUrl || "").trim();
   if (mcpUrl) return rewriteUrlHostForClient(mcpUrl.replace(/\/+$/, ""));
 
-  if (preferHttpServiceLinks() && ports.editorHttp) {
-    return buildServiceUrl("http", ports.editorHttp, "/").replace(/\/+$/, "");
-  }
   return buildServiceUrl("https", ports.editorHttps, "/").replace(/\/+$/, "");
+}
+
+function usesHttpMcpConnect() {
+  const mode = String(bootstrap?.mcpConnect?.mcpConnectMode || "").trim();
+  if (mode === "http") return true;
+  if (mode === "stdio") return false;
+  return isDockerDeployment() || usesSingleHttpDoor(lastServer || bootstrap?.server);
 }
 
 function getMcpTlsInsecureEnv() {
@@ -1536,18 +2447,41 @@ function getMcpTlsInsecureEnv() {
   return {};
 }
 
-function buildMcpConfigObject({ useAbsPath = false } = {}) {
-  const mcp = bootstrap?.mcpConnect || {};
-  const root = String(bootstrap?.projectRoot || "").trim();
-  const scriptPath = useAbsPath
-    ? "<ABS_PATH>/mcp-server/index.js"
-    : mcp.mcpServerPath || `${root}/mcp-server/index.js`;
+function getMcpHttpConnectUrl() {
+  const computed = joinCmsBaseAndPath(getEffectiveCmsBaseUrl(), "/app-mcp").replace(/\/+$/, "");
+  if (shouldUseCanonicalHttpDoor()) return computed;
 
+  const fromBootstrap = String(bootstrap?.mcpConnect?.mcpHttpUrl || "").trim();
+  if (!fromBootstrap) return computed;
+
+  if (usesSingleHttpDoor(lastServer || bootstrap?.server)) {
+    try {
+      const parsed = new URL(fromBootstrap);
+      const ports = getPorts();
+      const doorPort = String(ports.editorHttp ?? 3000);
+      if (parsed.port === "3443" || parsed.port === String(ports.editorHttps ?? 3443)) {
+        return computed;
+      }
+    } catch {
+      return computed;
+    }
+  }
+  return fromBootstrap;
+}
+
+function buildMcpConfigObject({ includeToken = false } = {}) {
+  const mcp = bootstrap?.mcpConnect || {};
+  const url = getMcpHttpConnectUrl();
+  const token = includeToken
+    ? String(mcp.mcpToken || bootstrap?.mcpToken || "YOUR_MCP_TOKEN")
+    : "<AGENT_CMS_MCP_TOKEN>";
   return {
     mcpServers: {
       "agent-cms": {
-        command: "node",
-        args: [scriptPath]
+        url,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
     }
   };
@@ -1559,11 +2493,13 @@ function getTestUrl(kind) {
       ? bootstrap?.mcpTest?.path || "/api/agent/mcp-ping"
       : bootstrap?.serverTest?.path || "/";
   const base = getEffectiveCmsBaseUrl();
-  return `${base}${testPath.startsWith("/") ? testPath : `/${testPath}`}`;
+  return joinCmsBaseAndPath(base, testPath);
 }
 
 function getCurlCommand(kind) {
-  return `curl -sk ${getTestUrl(kind)}`;
+  const url = getTestUrl(kind);
+  const flags = url.startsWith("https:") ? "-sk" : "-s";
+  return `curl ${flags} ${url}`;
 }
 
 function renderCmdRow(kind, tag) {
@@ -1590,18 +2526,34 @@ function renderGuideStepSetup() {
   const ids = bootstrap?.setupActionIds || [];
   const actions = (bootstrap?.actions || []).filter((entry) => ids.includes(entry.id));
 
+  const dockerSetupSkip = isDockerDeployment() || isWebLauncher();
   const cards = actions
     .map((action) => {
       const shortcutsOnly =
         action.id === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported();
-      const hint = shortcutsOnly
-        ? "Только macOS и Windows — на Linux/VPS не нужно."
-        : action.description || "";
+      const dockerNativeOnly =
+        dockerSetupSkip && (action.id === "install-deps" || action.id === "setup-certs");
+      let hint = action.description || "";
+      if (shortcutsOnly) {
+        hint = "Только macOS и Windows — на Linux/VPS не нужно.";
+      } else if (dockerNativeOnly) {
+        hint =
+          action.id === "install-deps"
+            ? "В Docker не нужно: зависимости уже в образе. Канон — браузер на :3000 (VPS — Caddy 443)."
+            : "В Docker не нужно: dev-сертификаты для legacy npm start. Mac/VPS — HTTP или Caddy HTTPS.";
+      }
+      const blocked = shortcutsOnly || dockerNativeOnly;
+      const blockedTitle = dockerNativeOnly
+        ? "В Docker / web Control не нужно — зависимости в образе, HTTPS через Caddy или HTTP :3000"
+        : shortcutsOnly
+          ? "Только macOS и Windows"
+          : "";
       return setupButton(
         action.id,
         SETUP_SHORT_TITLES[action.id] || action.title,
         hint,
-        shortcutsOnly
+        blocked,
+        blockedTitle
       );
     })
     .join("");
@@ -1612,7 +2564,11 @@ function renderGuideStepSetup() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>Установка</h3>
-          <p>Один раз: зависимости проекта и HTTPS-сертификаты для localhost</p>
+          <p>${
+            isDockerDeployment()
+              ? "Docker: шаги ниже для legacy npm start на Mac — в compose уже не актуальны."
+              : "Один раз: зависимости проекта и HTTPS-сертификаты для localhost"
+          }</p>
         </div>
         <div class="setup-btn-grid">
           ${cards}
@@ -1627,11 +2583,38 @@ function renderMobileVoiceBlock() {
   const ports = getPorts();
   const server = lastServer || bootstrap?.server;
   const isRunning = Boolean(server?.running);
+  const singleDoor = usesSingleHttpDoor(server) || isDockerDeployment();
   const lanIp = mobile.lanIp || bootstrap?.environment?.host?.lanIp || "";
-  const voiceUrl = mobile.voiceUrl || (lanIp ? `https://${lanIp}:${ports.voiceHttps}/` : "");
+  const voiceUrl =
+    mobile.voiceUrl ||
+    (singleDoor
+      ? buildPublicAppUrl("/app-chat/") || joinCmsBaseAndPath(getEffectiveCmsBaseUrl(), "/app-chat/")
+      : lanIp
+        ? `https://${lanIp}:${ports.voiceHttps}/`
+        : "");
   const mkcertUrl =
-    mobile.mkcertCaUrl ||
-    (lanIp ? `http://${lanIp}:${ports.voiceHttp}/dev/mkcert-root-ca.pem` : "");
+    singleDoor
+      ? ""
+      : mobile.mkcertCaUrl ||
+        (lanIp ? `http://${lanIp}:${ports.voiceHttp}/dev/mkcert-root-ca.pem` : "");
+
+  if (isDockerDeployment()) {
+    const doorBase = getClientDoorHttpOrigin() || getEffectiveCmsBaseUrl();
+    const sample =
+      voiceUrl ||
+      joinCmsBaseAndPath(doorBase, "/app-chat/") ||
+      "http://192.168.x.x:3000/app-chat/";
+    return `
+    <div class="mobile-voice-block" id="mobile-voice-block">
+      <p class="mobile-voice-note">${VOICE_UI_LABEL} на телефоне: подставьте <strong>IP Mac в Wi‑Fi</strong> (не localhost, не 172.x контейнера). Порт как в <code>AGENT_CMS_PUBLIC_URL</code>, путь <code>/app-chat/</code>.</p>
+      <div class="mobile-voice-url-row">
+        <code class="mobile-voice-url" id="mobile-voice-url">${escapeAttr(sample)}</code>
+        <button type="button" class="ghost-btn cmd-btn" data-copy-target="mobile-voice-url"${voiceUrl ? "" : " disabled"}>Копировать</button>
+      </div>
+      ${!isRunning ? `<p class="mobile-voice-warn">Сначала поднимите CMS.</p>` : ""}
+    </div>
+  `;
+  }
 
   let note = `Откройте ${VOICE_UI_LABEL} на iPhone — Mac и телефон в одной сети или Mac на точке доступа iPhone.`;
   if (!lanIp) {
@@ -1669,7 +2652,7 @@ function renderMobileVoiceBlock() {
       `
           : ""
       }
-      ${!isRunning ? `<p class="mobile-voice-warn">Сначала запустите сервер.</p>` : ""}
+      ${!isRunning ? `<p class="mobile-voice-warn">Сначала поднимите CMS.</p>` : ""}
     </div>
   `;
 }
@@ -1710,13 +2693,18 @@ function renderGuideStepServer() {
   const ports = getPorts();
   const cmsHttps = buildServiceUrl("https", ports.editorHttps, "/");
   const cmsHttp = buildServiceUrl("http", ports.editorHttp, "/");
-  const voiceHttps = buildServiceUrl("https", ports.voiceHttps, "/");
-  const voiceHttp = buildServiceUrl("http", ports.voiceHttp, "/");
-  const commanderHttp = buildServiceUrl("http", ports.commanderHttp, "/");
-  const commanderHttps = buildServiceUrl("https", ports.editorHttps, "/commander/");
-  const commanderOpenUrl = isRunning ? commanderHttps : commanderHttp;
+  const chatPublic = buildPublicAppUrl("/app-chat/") || buildServiceUrl("http", ports.editorHttp, "/app-chat/");
+  const cmdPublic = buildPublicAppUrl("/app-commander/") || buildServiceUrl("http", ports.editorHttp, "/app-commander/");
+  const voiceHttps = chatPublic;
+  const voiceHttp = chatPublic;
+  const commanderHttp = cmdPublic;
+  const commanderHttps = cmdPublic;
+  const commanderOpenUrl = isRunning ? cmdPublic : cmdPublic;
   const linkDisabled = isRunning ? "" : " disabled";
-  const browserLinks = `
+  const showBrowserLinks = !isDockerDeployment() && !usesSingleHttpDoor(server);
+  const browserLinks = !showBrowserLinks
+    ? ""
+    : `
     <div class="server-browser-row" role="group" aria-label="Открыть или скопировать ссылки">
       <div class="browser-link-wrap">
         <button type="button" class="link-btn browser-link link-btn--cms" data-open-url="${escapeAttr(cmsHttps)}"${linkDisabled}>
@@ -1736,7 +2724,7 @@ function renderGuideStepServer() {
           <span class="browser-link-icon">${BROWSER_ICON}</span>
           <span class="browser-link-text">
             <span>${VOICE_UI_LABEL}</span>
-            <code>:${ports.voiceHttps}</code>
+            <code>/app-chat</code>
           </span>
         </button>
         <div class="browser-link-copy-pair">
@@ -1749,12 +2737,11 @@ function renderGuideStepServer() {
           <span class="browser-link-icon">${BROWSER_ICON}</span>
           <span class="browser-link-text">
             <span>Commander</span>
-            <code>:${ports.commanderHttp}</code>
+            <code>/app-commander</code>
           </span>
         </button>
         <div class="browser-link-copy-pair">
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander HTTP" title="Копировать HTTP (отдельный порт)"${linkDisabled}>HTTP</button>
-          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttps)}" data-copy-label="Commander HTTPS" title="Копировать HTTPS (/commander/ на Editor)"${linkDisabled}>HTTPS</button>
+          <button type="button" class="ghost-btn browser-link-copy" data-copy-url="${escapeAttr(commanderHttp)}" data-copy-label="Commander URL" title="Копировать /app-commander"${linkDisabled}>URL</button>
         </div>
       </div>
     </div>
@@ -1763,34 +2750,57 @@ function renderGuideStepServer() {
   const maintenanceDisabled = maintenanceModeBusy;
   const maintenanceChecked = maintenanceModeEnabled ? " checked" : "";
   const autoStart = server?.autoStart;
-  const autostartSupported = autoStart?.supported !== false && !isWebLauncher();
+  const autostartSupported =
+    autoStart?.supported !== false && !isWebLauncher() && !isDockerDeployment();
   const autostartOn = Boolean(autoStart?.enabled);
   const autostartActionId = autostartOn ? "server-autostart-disable" : "server-autostart-enable";
   const autostartTone = autostartOn ? "autostart-on" : "autostart";
   const autostartButton = autostartSupported
     ? serverButton(autostartActionId, autostartTone, false)
     : "";
-  const startBgHint = isWebLauncher()
-    ? "Фоновый start-direct (npm start)"
-    : SERVER_BTN_HINTS["server-start-bg"];
-  const startAttachedHint = isWebLauncher()
-    ? "Тот же запуск, пока вкладка открыта"
-    : SERVER_BTN_HINTS["server-start-attached"];
+  const startBgHint = isDockerDeployment()
+    ? null
+    : isWebLauncher()
+      ? "Фоновый start-direct (npm start)"
+      : SERVER_BTN_HINTS["server-start-bg"];
+  const startAttachedHint = isDockerDeployment()
+    ? null
+    : isWebLauncher()
+      ? "Тот же запуск, пока вкладка открыта"
+      : SERVER_BTN_HINTS["server-start-attached"];
   const deckButtons = [
     autostartButton,
     serverButton("server-start-bg", "start-bg", isRunning || opsLocked, startBgHint),
-    serverButton("server-start-attached", "start", isRunning || opsLocked, startAttachedHint),
+    isDockerDeployment()
+      ? ""
+      : serverButton("server-start-attached", "start", isRunning || opsLocked, startAttachedHint),
     serverButton("server-stop", "stop", !isRunning || opsLocked),
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
+      : "",
+    isControlActionAvailable("server-update")
+      ? serverButton(
+          "server-update",
+          "update",
+          opsLocked || !isServerUpdateEnabled(),
+          isServerUpdateEnabled() ? null : "Пока отключено"
+        )
       : ""
   ].filter(Boolean);
   const deckCount = deckButtons.length;
-  const deckSizeClass = deckCount >= 5 ? " server-deck--5" : "";
+  const deckSizeClass =
+    deckCount > 4 && deckCount <= 6 ? ` server-deck--${deckCount}` : deckCount > 6 ? " server-deck--6" : "";
+  const serverDeckAria = isDockerDeployment()
+    ? "Docker compose: cms и mcp"
+    : "Управление сервером";
+  const dockerDeployNote = isDockerDeployment()
+    ? `<p class="server-docker-note">${escapePlatformText(bootstrap?.deployment?.electronNote || "")}</p>`
+    : "";
 
   const controlBlock = `
     <div class="server-controls">
-      <div class="server-deck${deckSizeClass}" role="group" aria-label="Управление сервером">
+      ${dockerDeployNote}
+      <div class="server-deck${deckSizeClass}" role="group" aria-label="${escapeAttr(serverDeckAria)}">
         ${deckButtons.join("")}
       </div>
       <div class="maintenance-toggle-card" id="maintenance-toggle-card" data-state="${maintenanceModeEnabled ? "on" : "off"}">
@@ -1813,10 +2823,14 @@ function renderGuideStepServer() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3 class="server-step-title">
-            Сервер
+            ${isDockerDeployment() ? "Контейнер CMS (compose)" : "Сервер"}
             <span id="server-status-inline"></span>
           </h3>
-          <p>Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome</p>
+          <p>${
+            isDockerDeployment()
+              ? "Кнопки — docker compose для cms/mcp на этом хосте. Не npm start: Node уже внутри образов. Control-контейнер и (на VPS) Caddy этими кнопками не останавливаются."
+              : `Запустите CMS и ${VOICE_UI_LABEL} — без сервера не работают Editor, ${VOICE_UI_LABEL}, Commander и расширение Chrome`
+          }</p>
         </div>
         ${controlBlock}
         ${renderMobileVoiceBlock()}
@@ -1843,36 +2857,39 @@ function renderGuideStepMcp() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>MCP к агенту</h3>
-          <p>Подключите Cursor или Claude Desktop к CMS по MCP</p>
+          <p>Канон: HTTP MCP на <code>/app-mcp</code> + Bearer <code>AGENT_CMS_MCP_TOKEN</code> (Cursor / Claude Desktop).</p>
         </div>
         <ol class="guide-list">
           <li>Запустите <strong>сервер</strong> (шаг 2)</li>
           <li><strong>Cursor:</strong> Settings → MCP или <code>.cursor/mcp.json</code></li>
           <li><strong>Claude Desktop:</strong> <code>claude_desktop_config.json</code></li>
-          <li>Вставьте JSON ниже (без URL — local и remote из <code>instances.json</code>)</li>
-          <li>Удалённые CMS: блок <strong>Инстансы MCP</strong> ниже или в Editor → MCP Server → Инстансы MCP</li>
+          <li>Вставьте JSON ниже: <code>url</code> → <code>/app-mcp</code> + <code>Authorization: Bearer …</code></li>
+          <li>Удалённый хост — второй коннектор (ниже); полноценное редактирование — позже</li>
           <li>Перезапустите MCP-клиент</li>
         </ol>
         <div class="mcp-instances-control panel-inset" id="mcp-instances-control-root">
           <p class="mcp-config-note">
-            Единственное место для URL и token удалённых CMS. Editor показывает список без секретов; MCP stdio читает этот файл с диска.
+            Канон: только <strong>HTTP MCP</strong> (<code>/app-mcp</code>). Коннекторы — локальная машина и удалённый сервер; реестр
+            <code>instances.json</code> — позже (идеи Q6 сохранены в TODO).
           </p>
-          <h4>Инстансы MCP</h4>
+          <h4>Коннекторы MCP</h4>
           <p class="mcp-config-note" id="mcp-instances-control-file"></p>
           <div id="mcp-instances-control-list"></div>
-          <div class="guide-actions">
-            <button type="button" class="ghost-btn" id="mcp-instances-control-add">+ Remote</button>
-            <button type="button" class="ghost-btn" id="mcp-instances-control-reload">Обновить</button>
-            <button type="button" class="ghost-btn" id="mcp-instances-control-save">Сохранить</button>
+          <div class="guide-actions mcp-connectors-actions">
+            <button type="button" class="ghost-btn" id="mcp-instances-control-add" disabled title="Скоро">+ Удалённый</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-reload" disabled title="Скоро">Обновить</button>
+            <button type="button" class="ghost-btn" id="mcp-instances-control-save" disabled title="Скоро">Сохранить</button>
           </div>
-          <p class="mcp-config-note" id="mcp-instances-control-status" role="status"></p>
+          <p class="mcp-config-note" id="mcp-instances-control-status" role="status">Просмотр. Редактирование коннекторов временно отключено.</p>
         </div>
         <div class="mcp-config-box">
           <div class="cmd-row">
             <pre class="mcp-config-json" id="mcp-config-json" aria-label="Пример MCP-конфига"></pre>
-            <button type="button" class="ghost-btn cmd-btn" data-copy-mcp-config title="Скопировать с путём этого проекта">Копировать</button>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-mcp-config title="Скопировать HTTP MCP (/app-mcp)">Копировать</button>
           </div>
-          <p class="mcp-config-note">Копировать подставит реальный путь <code>mcp-server</code> этого проекта.</p>
+          <p class="mcp-config-note">
+            Копировать — URL <code>/app-mcp</code> и плейсхолдер токена; подставьте <code>AGENT_CMS_MCP_TOKEN</code> из .env.
+          </p>
         </div>
         <div class="guide-actions">
           <button type="button" class="ghost-btn" data-open-url="${escapeAttr(docsUrl)}">Полная документация MCP</button>
@@ -1887,43 +2904,165 @@ function syncMcpConfigPreview() {
   const node = document.getElementById("mcp-config-json");
   if (!node) return;
 
-  node.textContent = JSON.stringify(buildMcpConfigObject({ useAbsPath: true }), null, 2);
+  node.textContent = JSON.stringify(buildMcpConfigObject({ includeToken: false }), null, 2);
+  if (document.getElementById("mcp-instances-control-list")) {
+    renderMcpInstancesControlRows();
+  }
 }
 
 let mcpInstancesControlState = { instances: [] };
 
+function getDefaultMcpInstancesPreview() {
+  return [
+    {
+      id: "local",
+      kind: "local",
+      label: "local",
+      url: "",
+      token: "",
+      deviceId: "",
+      hubUrl: "",
+      auto: true
+    },
+    {
+      id: "server",
+      kind: "remote",
+      label: "VPS",
+      url: "https://",
+      token: "AGENT_CMS_MCP_TOKEN",
+      deviceId: "server",
+      hubUrl: ""
+    }
+  ];
+}
+
+function normalizeMcpInstanceForLegacyDisplay(inst) {
+  if (!inst || typeof inst !== "object") return inst;
+  const row = { ...inst };
+  if (!row.token && row.hasToken) row.token = "AGENT_CMS_MCP_TOKEN";
+  delete row.hasToken;
+  return row;
+}
+
+function displayMcpInstanceToken(inst) {
+  const token = String(inst?.token || "").trim();
+  if (token) return token;
+  if (inst?.kind === "remote" || inst?.id === "server") return "AGENT_CMS_MCP_TOKEN";
+  return "";
+}
+
+function renderMcpConnectorField(label, value, mono = false) {
+  const cls = mono ? " mcp-connector-input--mono" : "";
+  return `
+    <label class="mcp-connector-field">
+      <span class="mcp-connector-field-label">${escapeAttr(label)}</span>
+      <input class="mcp-connector-input${cls}" type="text" value="${escapeAttr(value)}" disabled />
+    </label>`;
+}
+
+function renderMcpInstanceRowLegacy(inst, index) {
+  const kind = inst.kind || "local";
+  const isPinnedLocal = kind === "local" && inst.id === "local";
+  const urlValue =
+    String(inst.url || "").trim() || (kind === "remote" ? "https://" : "");
+  const hubValue = String(inst.hubUrl || "").trim();
+  const hubPlaceholder = "https://hub / http://localhost:3001";
+  const deviceIdValue =
+    kind === "tunnel" ? String(inst.deviceId || inst.id || "").trim() : String(inst.deviceId || "").trim();
+
+  return `
+    <fieldset class="mcp-instance-row" data-index="${index}">
+      <legend>${escapeAttr(inst.label || inst.id)}</legend>
+      <label>id <input name="id" value="${escapeAttr(inst.id || "")}" disabled autocomplete="off" /></label>
+      <label>label <input name="label" value="${escapeAttr(inst.label || inst.id || "")}" disabled autocomplete="off" /></label>
+      <label class="mcp-instance-kind">kind
+        <select name="kind" disabled>
+          <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
+          <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
+          <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
+        </select>
+      </label>
+      <label class="mcp-instance-wide">
+        url <span class="mcp-instance-hint">(remote CMS)</span>
+        <input name="url" value="${escapeAttr(urlValue)}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="mcp-instance-wide">
+        token
+        <input name="token" value="${escapeAttr(displayMcpInstanceToken(inst))}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label>
+        deviceId <span class="mcp-instance-hint">(tunnel)</span>
+        <input name="deviceId" value="${escapeAttr(deviceIdValue)}" disabled autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="mcp-instance-wide">
+        hubUrl <span class="mcp-instance-hint">(tunnel)</span>
+        <input
+          name="hubUrl"
+          value="${escapeAttr(hubValue)}"
+          placeholder="${escapeAttr(hubPlaceholder)}"
+          disabled
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </label>
+      ${
+        isPinnedLocal
+          ? ""
+          : `<button type="button" class="ghost-btn mcp-instance-remove mcp-instance-wide" disabled>Удалить</button>`
+      }
+    </fieldset>`;
+}
+
 function renderMcpInstancesControlRows() {
   const list = document.getElementById("mcp-instances-control-list");
   if (!list) return;
-  list.innerHTML = (mcpInstancesControlState.instances || [])
-    .map((inst, index) => {
-      const kind = inst.kind || "local";
-      const ro = kind === "local" && inst.id === "local";
-      return `
-        <fieldset class="mcp-instance-row" data-index="${index}">
-          <legend>${escapeAttr(inst.label || inst.id)}</legend>
-          <label>id <input name="id" value="${escapeAttr(inst.id || "")}" ${ro ? "readonly" : ""} /></label>
-          <label>kind
-            <select name="kind" ${ro ? "disabled" : ""}>
-              <option value="local" ${kind === "local" ? "selected" : ""}>local</option>
-              <option value="remote" ${kind === "remote" ? "selected" : ""}>remote</option>
-              <option value="tunnel" ${kind === "tunnel" ? "selected" : ""}>tunnel</option>
-            </select>
-          </label>
-          <label class="mcp-instance-wide">url <input name="url" value="${escapeAttr(inst.url || "")}" /></label>
-          <label class="mcp-instance-wide">token <input name="token" value="${escapeAttr(inst.token || "")}" /></label>
-          <label>deviceId <input name="deviceId" value="${escapeAttr(inst.deviceId || inst.id || "")}" /></label>
-          <label class="mcp-instance-wide">hubUrl <input name="hubUrl" value="${escapeAttr(inst.hubUrl || "")}" /></label>
-          ${ro ? "" : `<button type="button" class="ghost-btn mcp-instance-remove" data-index="${index}">Удалить</button>`}
-        </fieldset>`;
-    })
-    .join("");
-  list.querySelectorAll(".mcp-instance-remove").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      mcpInstancesControlState.instances.splice(Number(btn.dataset.index), 1);
-      renderMcpInstancesControlRows();
-    });
-  });
+
+  const localUrl = getMcpHttpConnectUrl().replace(/\/+$/, "");
+  const remoteUrl = "https://ваш-домен/app-mcp";
+  const rawInstances = (mcpInstancesControlState.instances || []).length
+    ? mcpInstancesControlState.instances
+    : getDefaultMcpInstancesPreview();
+  const instances = rawInstances.map((inst) => normalizeMcpInstanceForLegacyDisplay(inst));
+  const legacyRows = instances.map((inst, index) => renderMcpInstanceRowLegacy(inst, index)).join("");
+
+  list.innerHTML = `
+    <div class="mcp-instances-control-stack">
+      <div class="mcp-connectors-grid">
+        <article class="mcp-connector-card" data-connector="local">
+          <header class="mcp-connector-head">
+            <span class="mcp-connector-badge">local</span>
+            <h5>Локальная машина</h5>
+          </header>
+          <p class="mcp-connector-lead">Docker / Mac · тот же хост, что Editor и Control</p>
+          <div class="mcp-connector-fields">
+            ${renderMcpConnectorField("MCP URL", localUrl, true)}
+            ${renderMcpConnectorField("Токен", "<AGENT_CMS_MCP_TOKEN>", true)}
+            ${renderMcpConnectorField("Источник (справочно)", "local — данные в ./workspaces")}
+          </div>
+        </article>
+        <article class="mcp-connector-card" data-connector="remote">
+          <header class="mcp-connector-head">
+            <span class="mcp-connector-badge mcp-connector-badge--remote">server</span>
+            <h5>Удалённый сервер</h5>
+          </header>
+          <p class="mcp-connector-lead">VPS · HTTPS + Bearer (как в JSON ниже)</p>
+          <div class="mcp-connector-fields">
+            ${renderMcpConnectorField("MCP URL", remoteUrl, true)}
+            ${renderMcpConnectorField("Токен", "<AGENT_CMS_MCP_TOKEN>", true)}
+            ${renderMcpConnectorField("Источник (справочно)", "server — хранилище на VPS")}
+          </div>
+        </article>
+      </div>
+      <section class="mcp-instances-legacy" aria-labelledby="mcp-instances-legacy-heading">
+        <header class="mcp-instances-legacy-head">
+          <h5 id="mcp-instances-legacy-heading">Реестр instances.json</h5>
+          <span class="mcp-instances-legacy-badge">скоро</span>
+        </header>
+        <p class="mcp-instances-legacy-lead">Превью полей из Editor / sidecar; редактирование временно отключено.</p>
+        <div class="mcp-instances-list">${legacyRows}</div>
+      </section>
+    </div>
+  `;
 }
 
 function collectMcpInstancesControlForm() {
@@ -1947,17 +3086,28 @@ function collectMcpInstancesControlForm() {
 async function loadMcpInstancesControl() {
   const status = document.getElementById("mcp-instances-control-status");
   const fileNode = document.getElementById("mcp-instances-control-file");
-  if (!window.agentControl?.getMcpInstances) return;
-  if (status) status.textContent = "Загрузка…";
-  const data = await window.agentControl.getMcpInstances();
-  if (!data.ok) {
-    if (status) status.textContent = data.error || "Ошибка загрузки";
+  renderMcpInstancesControlRows();
+
+  if (!window.agentControl?.getMcpInstances) {
+    if (fileNode) fileNode.textContent = "Файл instances.json — подключим при редактировании коннекторов.";
     return;
   }
-  mcpInstancesControlState = { instances: data.instances || [] };
-  renderMcpInstancesControlRows();
-  if (fileNode) fileNode.textContent = data.filePath || "";
-  if (status) status.textContent = "Готово";
+
+  if (status) status.textContent = "Загрузка реестра…";
+  const data = await window.agentControl.getMcpInstances();
+  if (!data.ok) {
+    if (status) status.textContent = "Просмотр. Редактирование коннекторов временно отключено.";
+    if (fileNode) fileNode.textContent = data.error || "instances.json недоступен";
+    return;
+  }
+  if (Array.isArray(data.instances) && data.instances.length) {
+    mcpInstancesControlState = {
+      instances: data.instances.map((inst) => normalizeMcpInstanceForLegacyDisplay(inst))
+    };
+    renderMcpInstancesControlRows();
+  }
+  if (fileNode) fileNode.textContent = data.filePath ? `Файл: ${data.filePath}` : "";
+  if (status) status.textContent = "Просмотр. Редактирование коннекторов временно отключено.";
 }
 
 async function bindMcpInstancesControl() {
@@ -1967,34 +3117,6 @@ async function bindMcpInstancesControl() {
     return;
   }
   root.dataset.bound = "1";
-  const add = document.getElementById("mcp-instances-control-add");
-  const reload = document.getElementById("mcp-instances-control-reload");
-  const save = document.getElementById("mcp-instances-control-save");
-  const status = document.getElementById("mcp-instances-control-status");
-  add?.addEventListener("click", () => {
-    mcpInstancesControlState.instances.push({
-      id: "server",
-      kind: "remote",
-      label: "VPS",
-      url: "https://",
-      token: ""
-    });
-    renderMcpInstancesControlRows();
-  });
-  reload?.addEventListener("click", () => loadMcpInstancesControl());
-  save?.addEventListener("click", async () => {
-    if (!window.agentControl?.saveMcpInstances) return;
-    if (status) status.textContent = "Сохранение…";
-    const payload = collectMcpInstancesControlForm();
-    const data = await window.agentControl.saveMcpInstances(payload);
-    if (!data.ok) {
-      if (status) status.textContent = data.error || "Ошибка";
-      return;
-    }
-    mcpInstancesControlState = { instances: data.instances || [] };
-    renderMcpInstancesControlRows();
-    if (status) status.textContent = "Сохранено. Перезапустите Claude Desktop.";
-  });
   await loadMcpInstancesControl();
 }
 
@@ -2181,17 +3303,29 @@ function renderControlOpenUrl() {
   const canOpen =
     Boolean(url) &&
     (Boolean(server?.controlHttp) || Boolean(server?.cms));
-  const title = canOpen ? url : "Сначала запустите сервер (npm start или «В фоне»)";
+  const title = canOpen ? url : "Сначала поднимите CMS (Docker compose или «Старт» в Control)";
   return `<button type="button" class="run-btn compact-btn" data-control-open-btn="1" data-tone="primary" data-open-url="${escapeAttr(url || "")}" ${canOpen ? "" : "disabled"} title="${escapeAttr(title)}">Открыть</button>`;
 }
 
 function renderControlCard(control) {
   if (!control) return "";
 
+  const electronBuildDisabled = isWebLauncher() && isDockerDeployment();
+  const buildTitle = electronBuildDisabled
+    ? "Сборка .app только на Mac в Terminal: npm run cms:electron-build (Node на хосте, не в Docker)"
+    : undefined;
+
   return launchTile(
     control,
     `${renderControlOpenUrl()}
-     ${actionButton(control.distActionId, "default", "compact-btn")}`
+     ${actionButton(
+       control.distActionId,
+       "default",
+       "compact-btn",
+       electronBuildDisabled,
+       electronBuildDisabled ? "Electron" : "",
+       buildTitle
+     )}`
   );
 }
 
@@ -2205,6 +3339,9 @@ function renderCommanderCard(commander) {
 }
 
 function renderAppsSection() {
+  if (isWebLauncher() || isDockerDeployment()) {
+    return null;
+  }
   const products = bootstrap?.appProducts || [];
   const commander = bootstrap?.commanderSelf;
   const control = bootstrap?.controlSelf;
@@ -2213,7 +3350,10 @@ function renderAppsSection() {
   section.dataset.section = "apps";
 
   section.innerHTML = `
-    ${renderSectionCap("Приложения", "Desktop-приложения проекта — открыть или пересобрать")}
+    ${renderSectionCap(
+      "Electron · Mac (опционально)",
+      "Сервер — Docker + браузер (app-*). Здесь — .app-клиенты: «Открыть» / пересобрать по одному; на Control — «Electron» = npm run cms:electron-build (все четыре .app на хосте)."
+    )}
     <div class="section-body">
       <div class="launchpad-grid">
         ${products.map(renderAppCard).join("")}
@@ -2228,7 +3368,8 @@ function renderAppsSection() {
 
 async function renderLayout() {
   actionsRoot.innerHTML = "";
-  actionsRoot.appendChild(renderAppsSection());
+  const appsSection = renderAppsSection();
+  if (appsSection) actionsRoot.appendChild(appsSection);
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
   await bindMaintenanceToggle();
@@ -2349,20 +3490,34 @@ function bindAppLockGate() {
       if (loginResult && loginResult.ok === false) {
         throw new Error(loginResult.error || "Неверный логин или пароль");
       }
+      bootstrap.appLock = {
+        ...(bootstrap.appLock || {}),
+        enabled: true,
+        sessionActive: true,
+        canToggleMaintenance: true
+      };
+      syncAppLockScreen();
       if (window.agentControl.getBootstrap) {
-        bootstrap = await window.agentControl.getBootstrap();
+        let merged = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, 100));
+          }
+          merged = await window.agentControl.getBootstrap();
+          bootstrap = merged;
+          if (!needsAppLockLogin()) break;
+        }
         if (needsAppLockLogin()) {
+          bootstrap.appLock = {
+            ...(bootstrap.appLock || {}),
+            sessionActive: false,
+            canToggleMaintenance: false
+          };
+          syncAppLockScreen();
           throw new Error(
             "Пароль принят, но сессия не сохранилась. Открывайте Control по тому же адресу (http/https), без смешения IP и домена; отключите блокировку cookies для этого сайта."
           );
         }
-      } else {
-        bootstrap.appLock = {
-          ...(bootstrap.appLock || {}),
-          enabled: true,
-          sessionActive: true,
-          canToggleMaintenance: true
-        };
       }
       appendLog("Вход выполнен.\n");
       syncAppLockScreen();
@@ -2455,7 +3610,7 @@ function bindActionHandlers() {
 
   actionsRoot.querySelectorAll("[data-copy-mcp-config]").forEach((button) => {
     button.addEventListener("click", () => {
-      copyText(JSON.stringify(buildMcpConfigObject({ useAbsPath: false }), null, 2));
+      copyText(JSON.stringify(buildMcpConfigObject(), null, 2));
     });
   });
 
@@ -2495,7 +3650,10 @@ function waitForControlServerReload(maxWaitMs = 120000) {
 
 async function runAction(actionId) {
   if (!actionId || runningActions.has(actionId)) return;
-  if (actionId === "server-stop" || actionId === "server-restart") suppressServerDownNotify = true;
+  if (isSetupActionDisabled(actionId)) return;
+  if (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") {
+    suppressServerDownNotify = true;
+  }
   runningActions.add(actionId);
   updateRunningButtons();
   try {
@@ -2503,7 +3661,7 @@ async function runAction(actionId) {
     if (result?.error) appendLog(`${result.error}\n`, "stderr");
 
     if (result?.serverDisconnectExpected) {
-      if (actionId === "server-restart" && isWebLauncher()) {
+      if ((actionId === "server-restart" || (actionId === "server-update" && result?.rebuildStarted)) && isWebLauncher()) {
         waitForControlServerReload();
       } else if (actionId === "server-stop") {
         lastServer = { ...(lastServer || bootstrap?.server || {}), running: false };
@@ -2518,20 +3676,22 @@ async function runAction(actionId) {
     } catch (error) {
       if (
         isWebLauncher() &&
-        (actionId === "server-stop" || actionId === "server-restart") &&
+        (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") &&
         /failed to fetch|networkerror|load failed/i.test(String(error.message || error))
       ) {
-        if (actionId === "server-restart") waitForControlServerReload();
+        if (actionId === "server-restart" || actionId === "server-update") waitForControlServerReload();
         return;
       }
       throw error;
     }
     await handleServerStatusUpdate(status.server, {
-      skipNotify: actionId === "server-stop" || actionId === "server-restart"
+      skipNotify:
+        actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update"
     });
     if (actionId === "install-deps" || actionId === "setup-certs") {
       const data = await window.agentControl.refreshBootstrap();
       if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
+      window.__controlBootstrap = bootstrap;
       if (data.environment) {
         bootstrap.environment = data.environment;
         renderEnvironment(data.environment);
@@ -2556,13 +3716,14 @@ const ACTION_CARD_BUSY = {
   "cms-rebuild": "Сборка…",
   "commander-rebuild": "Сборка…",
   "voice-rebuild": "Сборка…",
-  "control-dist": "Сборка…",
+  "cms-electron-build": "Electron…",
   "server-autostart-enable": "Автостарт…",
   "server-autostart-disable": "Выключение…",
   "server-start-bg": "Запуск…",
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",
   "server-restart": "Перезапуск…",
+  "server-update": "Обновление…",
   "install-deps": "Установка…",
   "setup-certs": "Настройка…",
   "setup-desktop-shortcuts": "Создание…"
@@ -2600,9 +3761,8 @@ function updateRunningButtons() {
   actionsRoot.querySelectorAll(".setup-btn").forEach((button) => {
     const actionId = button.dataset.action;
     const isRunning = isActionRunning(actionId);
-    const platformBlocked =
-      actionId === "setup-desktop-shortcuts" && !isDesktopShortcutsSupported();
-    button.disabled = isRunning || platformBlocked;
+    const blocked = isSetupActionDisabled(actionId);
+    button.disabled = isRunning || blocked;
     button.classList.toggle("is-running", isRunning);
     const title = button.querySelector(".setup-btn-title");
     if (!title) return;
@@ -2620,7 +3780,7 @@ function updateRunningButtons() {
       if (title) title.textContent = ACTION_CARD_BUSY[actionId] || "…";
       return;
     }
-    if (title) title.textContent = SERVER_BTN_TITLES[actionId] || title.textContent;
+    if (title) title.textContent = getServerBtnTitle(actionId) || title.textContent;
   });
 
   syncServerUi(lastServer || { running: false });
@@ -2658,6 +3818,7 @@ async function init() {
   await playSplash();
 
   bootstrap = await window.agentControl.getBootstrap();
+  window.__controlBootstrap = bootstrap;
   bindAppLockGate();
   bindAppLockLogout();
   syncAppLockScreen();
@@ -2676,6 +3837,8 @@ async function init() {
   renderServicesMonitor();
   bindEnvFileEditor();
   await loadEnvFileEditor();
+  bindWorkspaceMountsEditor();
+  await loadWorkspaceMountsEditor();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {
@@ -2714,6 +3877,8 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.appLock) bootstrap.appLock = data.appLock;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
+    if (data.deployment) bootstrap.deployment = data.deployment;
+    syncAppLockScreen();
     syncAppLockLogoutButton();
     await handleServerStatusUpdate(data.server, { skipNotify: true });
     await refreshMaintenanceModeState();

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { isLegacyMcpAliasesEnabled } from "./mcp-legacy-tools.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
   .string()
@@ -374,12 +375,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entityQuerySchema,
     handler: entityQueryHandler
   });
-  reg(
-    "query_workspace_entities",
-    "Deprecated alias for index_6_entity_query.",
-    entityQuerySchema,
-    entityQueryHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_query",
+    name: "query_workspace_entities",
+    schema: entityQuerySchema,
+    handler: entityQueryHandler
+  });
 
   const entityCatalogSchema = z.object({
     limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
@@ -406,12 +407,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entityCatalogSchema,
     handler: entityCatalogHandler
   });
-  reg(
-    "list_workspace_entity_catalog",
-    "Deprecated alias for index_6_entity_catalog_list.",
-    entityCatalogSchema,
-    entityCatalogHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_catalog_list",
+    name: "list_workspace_entity_catalog",
+    schema: entityCatalogSchema,
+    handler: entityCatalogHandler
+  });
 
   const entitySearchExplainSchema = z.object({
     entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
@@ -438,12 +439,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entitySearchExplainSchema,
     handler: entitySearchExplainHandler
   });
-  reg(
-    "explain_workspace_entity_search",
-    "Deprecated alias for index_6_entity_query_explain.",
-    entitySearchExplainSchema,
-    entitySearchExplainHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_query_explain",
+    name: "explain_workspace_entity_search",
+    schema: entitySearchExplainSchema,
+    handler: entitySearchExplainHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "index_6_entity_alias_merge",
@@ -709,12 +710,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: indexRebuildSchema,
     handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   });
-  reg(
-    "rebuild_workspace_indexes",
-    "Deprecated alias for index_rebuild_all.",
-    indexRebuildSchema,
-    (payload) => client.post("/api/workspace-index/pipeline", payload || {})
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_rebuild_all",
+    name: "rebuild_workspace_indexes",
+    schema: indexRebuildSchema,
+    handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
+  });
 
 }
 
@@ -728,31 +729,31 @@ export function registerMapTools(reg, client, pagePath) {
       ...(includeSlots === false ? { includeSlots: "false" } : {})
     });
 
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_topic_map",
-    description:
-      "Deprecated. Prefer nav_index_toc_topics_read (workspace overview) + contents_list (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
-    schema: getTopicMapSchema,
-    handler: getTopicMapHandler
-  });
-
-  reg(
-    "get_content_map",
-    "Deprecated. Prefer nav_index_toc_contents_read (overview) and content_read with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
-    z.object({
-      path: pagePath,
-      slot: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Optional slot filter, e.g. main, inbox, media. Omit for all slots.")
-    }),
-    ({ path, slot }) =>
-      client.get("/api/agent/content-map", {
-        path,
-        ...(slot ? { slot } : {})
-      })
-  );
+  if (isLegacyMcpAliasesEnabled()) {
+    reg(
+      "get_topic_map",
+      "Deprecated. Prefer nav_index_toc_topics_read + topics_list + contents_list (kind: root). Legacy page-map API.",
+      getTopicMapSchema,
+      getTopicMapHandler
+    );
+    reg(
+      "get_content_map",
+      "Deprecated. Prefer nav_index_toc_contents_read + content_read (part=properties|meta). Legacy content-map API.",
+      z.object({
+        path: pagePath,
+        slot: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Optional slot filter, e.g. main, inbox, media. Omit for all slots.")
+      }),
+      ({ path, slot }) =>
+        client.get("/api/agent/content-map", {
+          path,
+          ...(slot ? { slot } : {})
+        })
+    );
+  }
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topics_list",

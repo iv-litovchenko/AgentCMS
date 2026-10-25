@@ -1,5 +1,32 @@
 # AGENT CMS (0.0.1-beta)
 
+<p align="center">
+  <a href="docs/deploy/DOCKER.md"><img src="docs/images/badges/badge-docker.svg" alt="Docker" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-установка--macos-gb-install--macos"><img src="docs/images/badges/badge-macos.svg" alt="macOS" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server"><img src="docs/images/badges/badge-linux.svg" alt="Linux" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="docs/deploy/DOCKER.md" title="Windows (beta, WSL)"><img src="docs/images/badges/badge-windows-beta.svg" alt="Windows beta" height="28"></a>
+</p>
+
+<p align="center">
+  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-claude.svg" alt="Claude" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-codex.svg" alt="Codex" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="mcp-server/README.md"><img src="docs/images/badges/badge-qwenpaw.svg" alt="QwenPaw" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-подключение-mcp-gb-mcp-connection"><img src="docs/images/badges/badge-mcp.svg" alt="MCP (Model Context Protocol)" height="28"></a>
+</p>
+
+<p align="center">
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-nodejs.svg" alt="Node.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-express.svg" alt="Express" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-sqlite.svg" alt="SQLite" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-markdown.svg" alt="Markdown" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-electron.svg" alt="Electron" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-mermaid.svg" alt="Mermaid" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-threejs.svg" alt="Three.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="docs/deploy/vps-caddy-letsencrypt.md"><img src="docs/images/badges/badge-caddy.svg" alt="Caddy" height="28"></a>
+</p>
+
+---
+
 ## 🇷🇺 Содержание (🇬🇧 Table of contents)
 
 🇷🇺 **[ru]**
@@ -13,9 +40,9 @@
 - [Принципы](#-принципы-gb-principles)
 - [Стек](#-стек-gb-stack)
 - [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
-- [Порты по умолчанию](#-порты-по-умолчанию-gb-default-ports)
 - [Установка — macOS](#-установка--macos-gb-install--macos)
 - [Установка — Ubuntu VPS / сервер](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+- [Настройка — `.env`](#-настройка--env-gb-configuration--env)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 - [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
 - [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
@@ -38,9 +65,9 @@
 > - [Principles](#-принципы-gb-principles)
 > - [Stack](#-стек-gb-stack)
 > - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
-> - [Default ports](#-порты-по-умолчанию-gb-default-ports)
 > - [Install — macOS](#-установка--macos-gb-install--macos)
 > - [Install — Ubuntu VPS / server](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
+> - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 > - [MCP connection](#-подключение-mcp-gb-mcp-connection)
 > - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
@@ -251,10 +278,10 @@
 | | **macOS (локально)** | **Ubuntu VPS / сервер** |
 | --- | --- | --- |
 | **ОС** | macOS (Apple Silicon / Intel) | Ubuntu 22.04+ / Debian 12+; не Alpine на первом заходе |
-| **Node.js** | через **`install.command`** (22+) | **22+** обязательно (NodeSource `setup_22.x`); Node 20 — не использовать |
+| **Docker** | **Docker Desktop** + [`docker-compose.mac.yml`](docker-compose.mac.yml) | **Engine + Compose plugin** + [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **RAM** | 8 GB+ комфортно | мин. **2 GB**; комфорт **4 GB** |
 | **Диск** | место под репо и workspaces | **30 GB+** NVMe; код в **`/opt/agent-cms`** |
-| **Сеть** | localhost / LAN | публичный IPv4; открыть порты (см. ниже) |
+| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установка Linux](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server) |
 | **Не на сервере** | — | Electron, Control desktop, GUI |
 
 Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
@@ -263,29 +290,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 > 🇬🇧 **[en]**
 >
-> macOS: **`install.command`**. VPS: **Node 22+**, **2 GB+** RAM, **`/opt/agent-cms`**, open firewall ports. No Electron on the server. Prod: [TODO.SERVER.md](TODO.SERVER.md).
-
-## 🇷🇺 Порты по умолчанию (🇬🇧 Default ports)
-
-🇷🇺 **[ru]**
-
-Меняются в `.env` (`AGENT_CMS_*_HTTP_PORT`, legacy `PORT` / `VOICE_PORT`). Канон: `lib/config/agent-cms-ports.js`.
-
-| Сервис | HTTP | HTTPS | Переменная (пример) |
-| --- | ---: | ---: | --- |
-| **Editor (CMS)** | 3000 | 3443 | `AGENT_CMS_EDITOR_HTTP_PORT` |
-| **Voice** | 3088 | 3488 | `AGENT_CMS_VOICE_HTTP_PORT` |
-| **Commander** | 3188 | — | `AGENT_CMS_COMMANDER_HTTP_PORT` |
-| **Control (Launcher)** | 3288 | — | `AGENT_CMS_CONTROL_HTTP_PORT` |
-| **MCP HTTP** | 3490 | — | `AGENT_CMS_MCP_HTTP_PORT` → `…/mcp` |
-
-**VPS — открыть наружу (панель + ufw):** **22** (SSH); **3000** (Editor); **3490** (MCP); позже **443** за proxy. **Сначала `ufw allow 22`, потом `ufw enable`.**
-
----
-
-> 🇬🇧 **[en]**
->
-> Defaults in `.env` / `agent-cms-ports.js`. VPS: open **22**, **3000**, **3490**; allow **22** before `ufw enable`.
+> macOS: **Docker Desktop**, **`cms-start.command`**. Config: **`.env` in the repo**. VPS: one install block below, [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only.
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -293,119 +298,142 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 🇷🇺 **[ru]**
 
+**Docker Compose V2** — команда `docker compose` (с пробелом). **`.env`** уже в репозитории. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+
 ```bash
+# 1) Docker Desktop — https://www.docker.com/products/docker-desktop/
+#    Установить, запустить, дождаться Running в меню. Compose V2 уже внутри Desktop.
+
 git clone https://github.com/iv-litovchenko/AgentCMS.git
 cd AgentCMS
-```
+docker compose version
 
-1. Склонируйте репозиторий (Desktop или любая папка).
-2. В **`.env`** — `APP_LOCK_LOGIN`, `APP_LOCK_PASSWORD`; порты — [по умолчанию](#-порты-по-умолчанию-gb-default-ports).
-3. **`install.command`** (двойной клик) — зависимости, HTTPS.
-4. **`welcome.command`** → **Agent CMS Control** → при необходимости **Ярлыки**.
-5. **Старт** в Control → Editor: `https://localhost:3443`.
-6. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection) → workspace в UI.
+# 2) Mac: cms-start.command (up) · cms-rebuild.command (первый раз / после server.js)
+# ./cms-start.command
+
+docker compose -f docker-compose.mac.yml up -d --build
+# npm run docker:mac · npm run docker:down
+# Control: http://127.0.0.1:3000/app-control/ · Editor: тот же хост (AGENT_CMS_PUBLIC_URL)
+# Первый rebuild часто 10–30+ мин. Legacy npm: AGENT_CMS_WELCOME_LEGACY=1 cms-start.command
+```
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> ```bash
-> git clone https://github.com/iv-litovchenko/AgentCMS.git
-> cd AgentCMS
-> ```
->
-> 1. Clone → `.env` → **`install.command`** → **`welcome.command`** → **Start** → `https://localhost:3443`.
-> 2. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+> [Docker Desktop](https://www.docker.com/products/docker-desktop/) → clone → **`cms-rebuild.command`** then **`cms-start.command`**. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ## 🇷🇺 Установка — Ubuntu VPS / сервер (🇬🇧 Install — Ubuntu VPS / server)
 
 🇷🇺 **[ru]**
 
-Editor по HTTP, опционально MCP HTTP. **Docker не обязателен** (вариант A — Node **22+**). Требования и [порты](#-порты-по-умолчанию-gb-default-ports) — выше. **`npm ci`** без `--omit=dev`. Node 20 → `apt purge -y nodejs`, затем `setup_22.x` и `npm ci` заново. Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
-
-> [!CAUTION]
-> **Установка на VPS:** на типичном тарифе **1–2 vCPU / 2 GB RAM** команда **`npm ci`** (сборка native-модулей и postinstall) в среднем занимает **от 15 до 30 минут**, иногда дольше. Терминал может «висеть» на одном символе — не прерывайте, если в `top` виден `node` / `gcc`. Если в конце **`Killed`** — не хватило памяти: добавьте **swap 2 GB** и запустите `npm ci` снова.
+**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). **`.env` в git**. Наружу только **22, 80, 443** (панель + `ufw` — в блоке ниже). Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ```bash
-# === Agent CMS на Ubuntu (VPS) — первый запуск ===
-# Подключение (IP и пароль — из панели хостинга):
+# === Ubuntu VPS — Docker Engine + Agent CMS ===
 ssh root@ВАШ_IP
-
-# Обновление и базовые пакеты
 apt update && apt upgrade -y
-apt install -y git curl
+apt install -y git curl ca-certificates
 
-# Порты: в панели хостинга открыть 22, 3000, (3490 для MCP). На сервере — до ufw enable:
-# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
+# Docker Engine + Compose plugin (Ubuntu 22.04/24.04; Debian 12+ — docs.docker.com/engine/install/debian/)
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+docker compose version
 
-# На 1–2 GB RAM при npm install / сборке Docker полезен swap (опционально):
-# fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+# --- Открытие портов (prod: Editor/Control/MCP только через Caddy на 443) ---
+# 1) Панель хостинга (Timeweb, Hetzner…): inbound TCP 22, 80, 443
+# 2) UFW на сервере — сначала SSH (22), потом enable; 3000/3288/3490 наружу не открываем
+apt install -y ufw
+ufw allow 22/tcp comment 'SSH'
+ufw allow 80/tcp comment 'HTTP Caddy'
+ufw allow 443/tcp comment 'HTTPS Caddy'
+ufw status numbered
+ufw enable
+# SSH пропал — консоль/VNC провайдера: ufw allow 22/tcp && ufw reload
 
-# Каталог на сервере (принято: /opt/<имя-приложения>)
-mkdir -p /opt/agent-cms
-cd /opt/agent-cms
+# swap 2G на 1–2 GB RAM (опционально): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 
-# Клонирование в текущую папку (или свой fork / private repo)
+mkdir -p /opt/agent-cms && cd /opt/agent-cms
 git clone https://github.com/iv-litovchenko/AgentCMS.git .
+# .env в репо — DOMAIN, PUBLIC_URL, APP_LOCK_*, AGENT_CMS_MCP_TOKEN (git pull на сервере)
 
-# Настройка окружения: скопировать и отредактировать пароли и MCP-token
-cp .env.example .env
-nano .env
-# Обязательно сменить: APP_LOCK_PASSWORD (не changeme)
-# Для доступа к MCP снаружи: AGENT_CMS_MCP_TOKEN=<длинная-случайная-строка>
+docker compose -f docker-compose.linux.yml up -d --build
+docker compose -f docker-compose.linux.yml ps
+# npm run docker:linux · npm run docker:down:linux · docs/deploy/DOCKER.md
+# https://ваш-домен/ · https://ваш-домен/control/ · https://ваш-домен/mcp (Bearer token)
 
-# --- Вариант A: без Docker (Node 22+) — если Docker не установлен ---
-# Если уже стоял Node 20: apt purge -y nodejs && apt autoremove -y
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs build-essential   # build-essential для sharp / better-sqlite3
-node -v   # ожидается v22.x
-
-# postinstall копирует vendor-иконки из devDependencies — не используйте npm ci --omit=dev
-npm ci
-# (как в Dockerfile после установки можно: npm prune --omit=dev — только если postinstall уже отработал)
-
-# Смена Node 20 → 22 в том же каталоге: purge nodejs → setup_22.x → npm ci заново
-
-# Editor + Control Launcher (3288). Для LAN/VPS:
-# HOST=0.0.0.0 CONTROL_HOST=0.0.0.0 npm start
-# Локально на сервере: bash welcome.command — откроет тот же Launcher в браузере
-HOST=0.0.0.0 npm start
-# Держать процесс после выхода из SSH: tmux new -s cms → команда выше; отсоединиться: Ctrl+B, D
-
-# MCP HTTP — второй сеанс (tmux/SSH):
-# cd /opt/agent-cms
-# AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
-# Позже: systemd или pm2 — см. TODO.SERVER.md
-
-# --- Вариант B: Docker (опционально, если Engine уже стоит) ---
-# Установка: https://docs.docker.com/engine/install/ubuntu/
-# docker compose version
-# HOST/VOICE_HOST=0.0.0.0 заданы в docker-compose.yml
-# docker compose up -d --build
-# docker compose ps && docker compose logs -f cms
-
-# Фаервол: сначала разрешить SSH (22), потом enable — иначе потеряете SSH (Connection refused)
-# ufw allow 22/tcp && ufw allow 3000/tcp && ufw allow 3490/tcp && ufw enable
-# Если SSH уже refused: консоль/VNC в панели хостинга (Timeweb) → ufw allow 22 → ufw disable или reboot
-
-# Проверка в браузере:
-#   http://ВАШ_IP:3000   — вход по APP_LOCK_LOGIN / APP_LOCK_PASSWORD (нужен для кнопок ops)
-#   http://ВАШ_IP:3288   — Agent CMS Control (Launcher), тот же UI что welcome.command на Mac
-# Cursor (remote MCP, Bearer = AGENT_CMS_MCP_TOKEN):
-#   http://ВАШ_IP:3490/mcp
-# Коннекторы: docs/connectors/README.md
-
-# Prod: TODO.SERVER.md
 ```
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> VPS: Node **22+**, `npm ci`, `HOST=0.0.0.0 npm start`. Requirements and ports above. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+> VPS: one block above — Docker CE, **ufw 22/80/443**, compose up. [DOCKER.md](docs/deploy/DOCKER.md).
+
+## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
+
+🇷🇺 **[ru]**
+
+Рабочий файл — **`.env` в корне репозитория** (шаблон — [`.env.example`](.env.example)). Его читают **Docker Compose**, **CMS / Control / MCP** и клиенты (публичный URL, токены). На **VPS** обязательно задайте **`AGENT_CMS_PUBLIC_URL`**, **`AGENT_CMS_PUBLIC_DOMAIN`**, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`**. На **Mac** чаще достаточно пароля и MCP-токена; остальное — по умолчанию из example.
+
+После правок: `docker compose … up -d` (пересоздать контейнеры, если меняли mount или секреты). В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
+
+**Несколько папок с хранилищами (Docker):** по умолчанию один корень **`./workspaces`** (или **`AGENT_CMS_WORKSPACES_DIR`** в `.env`). Дополнительные каталоги на Mac/VPS — секция **«Папки хранилищ (Docker)»** в Control или MCP **`platform_workspace_mounts_list`** / **`platform_workspace_mounts_write`** (запись — app-lock). CMS пишет **`.agent-cms-global/workspace-mounts.json`** и обновляет **`docker-compose.workspace-mounts.yml`** (в git, один файл на Mac и VPS); после сохранения — **рестарт stack** (`docker compose -f … -f docker-compose.workspace-mounts.yml up -d`). Подробнее: [docs/deploy/DOCKER.md](docs/deploy/DOCKER.md#docker-workspace-mounts).
+
+**Ключи из `.env.example`** (whitelist платформы):
+
+| Ключ | 🇷🇺 Назначение | 🇬🇧 Purpose | Пример / Example |
+| --- | --- | --- | --- |
+| **`APP_LOCK_LOGIN`** | Логин app-lock (Control, ops, запись `.env` через MCP) | App-lock login | `admin` |
+| **`APP_LOCK_PASSWORD`** | Пароль app-lock | App-lock password | смените с `changeme` |
+| **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | Password-gated apps | `editor,chat,commander,control` |
+| **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | In-CMS HTTP→HTTPS redirect | `0` |
+| **`AGENT_CMS_WORKSPACES_DIR`** | Основной каталог на **хосте** → `/app/workspaces` (workspace = **подпапки**). Доп. корни — **workspace-mounts** (Control / MCP), не правка базового compose | Primary host workspaces mount | `./workspaces` или `/Users/…/AgentCMS-workspaces` |
+| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac: `http://127.0.0.1:3000` · VPS: `https://ваш-домен` |
+| **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
+| **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
+| **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
+| **`AGENT_CMS_PUBLIC_DOMAIN`** | Домен для **Caddy** (VPS) | Caddy site domain | `example.com` |
+| **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
+| **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
+| **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
+| **`AGENT_CMS_DEPLOY_UPDATE_ENABLED`** | `1` — кнопка «Обновить» в Control (**git pull + rebuild**) | Control deploy update button | `0` / `1` на VPS по желанию |
+| **`AGENT_CMS_DEPLOY_PLATFORM`** | Подпись платформы в Control: **`mac`** \| **`linux`** \| **`windows`** | Control platform chip | в compose часто уже задано |
+| **`WEB_SEARCH_MODE`** | Режим веб-поиска в MCP | Web search mode | `direct` |
+| **`GOOGLE_SEARCH_API_KEY`** | Google Custom Search API key (если используете) | Google CSE API key | пусто / ключ |
+| **`GOOGLE_SEARCH_ENGINE_ID`** | ID поисковой машины (cx) | Google CSE engine ID | пусто / id |
+| **`GOOGLE_SEARCH_LANG`** | Язык запросов | Query language | `ru` |
+| **`GOOGLE_SEARCH_COUNTRY`** | Страна (регион) | Country bias | `RU` |
+| **`GOOGLE_SEARCH_GL`** | Параметр `gl` | Google `gl` | `ru` |
+| **`GOOGLE_SEARCH_SAFE`** | SafeSearch | SafeSearch level | `active` |
+
+**Дополнительно в Compose** (можно задать в `.env`, в `.env.example` не дублируются):
+
+| Ключ | 🇷🇺 · 🇬🇧 | Пример |
+| --- | --- | --- |
+| **`AGENT_CMS_EDITOR_HTTP_PORT`** | Порт CMS на localhost (Mac) · CMS host port | `3000` |
+| **`AGENT_CMS_HOST_PROJECT`** | Путь к репо на хосте (mount `.env`, compose) · Repo path on host | `.` |
+| **`AGENT_CMS_IMAGE_TAG`** | Тег образа · Image tag | `local` |
+| **`VOICE_AUTOSTART`** | Автостарт Voice в контейнере cms · Voice autostart in cms | `1` |
+| **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP за reverse-proxy (Mac `0`, Linux `1`) · MCP behind proxy | Mac `0` |
+| **`MCP_LEGACY_ALIASES`** | `1` — deprecated MCP names (aliases + `get_topic_map`, `get_content_map`); по умолчанию **выкл.** (~270 канон.) · Deprecated MCP tool names | пусто / `0` |
+| **`MCP_LEGACY_TOOLS`** | `1` — legacy FS/path tools (`read_file`, `upload_file`, `read_content_body`, …); по умолчанию **выкл.** · Legacy MCP FS tools | пусто / `0` |
+
+> **NOTE**
+> - 💡 Не используйте устаревшие **`PORT` / `TLS_PORT` / `MAPTEX_DOMAIN`** как главный URL — канон **`AGENT_CMS_PUBLIC_URL`** ([docs/env-reference.md](docs/env-reference.md)).
+> - ⚠️ Секреты (**`APP_LOCK_PASSWORD`**, **`AGENT_CMS_MCP_TOKEN`**, **`GOOGLE_SEARCH_API_KEY`**) не коммитьте; на VPS — уникальные значения.
+
+---
+
+> 🇬🇧 **[en]**
 >
-> > [!CAUTION]
-> > On a typical **1–2 vCPU / 2 GB RAM** VPS, **`npm ci`** usually takes **15–30 minutes** (sometimes longer). A frozen spinner is normal while `node`/`gcc` work in `top`. **`Killed`** means OOM — add **2 GB swap** and retry.
+> Edit **`.env`** at the repo root ([`.env.example`](.env.example)). Table above lists every **whitelist** key; use **`AGENT_CMS_PUBLIC_URL`**, domain, app-lock, and MCP token on production. Optional Compose / MCP-process keys in the second table (**`MCP_LEGACY_*`** — [mcp-server/README.md](mcp-server/README.md)). MCP: **`platform_env_keys_list`**. Details: [docs/env-reference.md](docs/env-reference.md).
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
@@ -465,33 +493,46 @@ HOST=0.0.0.0 npm start
 {
   "mcpServers": {
     "agent-cms": {
-      "url": "http://localhost:3490/mcp"
+      "url": "http://localhost:3000/app-mcp",
+      "headers": {
+        "Authorization": "Bearer ВАШ_AGENT_CMS_MCP_TOKEN"
+      }
     }
   }
 }
 ```
 
-На VPS: `http://ВАШ_IP:3490/mcp`, в `.env` задайте **`AGENT_CMS_MCP_TOKEN`**, в Cursor — Bearer token. Запуск MCP на сервере: `AGENT_CMS_BASE_URL=http://127.0.0.1:3000 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http`.
+На VPS: `https://ваш-домен/app-mcp` (порт **3490** наружу не открываем), в `.env` — **`AGENT_CMS_MCP_TOKEN`** и **`AGENT_CMS_PUBLIC_URL`** (нужен для `putUrl` при загрузке больших файлов и иконки MCP). Dev без Docker: `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` → `http://localhost:3490/mcp`.
+
+**Большие файлы (фото, pdf):** без base64 в чате — `content_binary_upload_begin` → **PUT** `putUrl` → `content_binary_upload_complete` (подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5).
+
+Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#-настройка--env-gb-configuration--env) (блок «Дополнительно в Compose»).
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `http://localhost:3490/mcp` or VPS URL + token. See [docs/connectors/README.md](docs/connectors/README.md).
+> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token; set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env).
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 219** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 227** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа (Platform) · 7
+├── ⚙️ Платформа (Platform) · 10
 │   ├── 🟢 platform_info_get
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
 │   ├── 🟢 platform_doc_read
 │   ├── 🟢 platform_config_list
+│   ├── 🟢 platform_apps_list
+│   ├── 🟢 platform_env_keys_list
+│   ├── 🟢 platform_env_key_read
+│   ├── 🟢 platform_env_key_write
+│   ├── 🟢 platform_workspace_mounts_list
+│   ├── 🟢 platform_workspace_mounts_write
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │
@@ -538,11 +579,13 @@ user-agent-cms
 │   ├── Todo (Todo) · 2
 │   │   ├── 🟢 session_todo_read
 │   │   └── 🟢 session_todo_write
-│   ├── Буфер контекста (Context buffer) · 4
-│   │   ├── 🟢 session_context_buffer_read
-│   │   ├── 🟢 session_context_buffer_append
-│   │   ├── 🟢 session_context_buffer_remove
-│   │   └── 🟢 session_context_buffer_clear
+│   ├── Буфер контекста (Context buffer) · 6
+│   │   ├── 🟢 session_context_buffer_items_read
+│   │   ├── 🟢 session_context_buffer_items_append
+│   │   ├── 🟢 session_context_buffer_items_remove
+│   │   ├── 🟢 session_context_buffer_items_clear
+│   │   ├── 🟢 session_context_buffer_text_read
+│   │   └── 🟢 session_context_buffer_text_write
 │   ├── Буфер обмена (Clipboard) · 5
 │   │   ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
 │   │   ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит
@@ -619,13 +662,18 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 18
+├── 📄 Контент (Content) · 23
 │   ├── 🟢 contents_list
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
 │   ├── 🟢 content_binary_read
 │   ├── 🟢 content_binary_write
 │   ├── 🟢 content_binary_write_from_url
+│   ├── 🟢 content_binary_upload_begin
+│   ├── 🟢 content_binary_upload_complete
+│   ├── 🟢 content_binary_upload_abort
+│   ├── 🟢 content_binary_upload_status
+│   ├── 🟢 content_binary_metadata_get
 │   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get
 │   ├── 🟢 content_property_read

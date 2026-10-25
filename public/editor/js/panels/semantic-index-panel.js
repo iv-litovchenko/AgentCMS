@@ -254,6 +254,7 @@
   }
 
   function getActiveAgentId() {
+    if (panelCtx.isAgentWorkspaceSessionActive?.() === false) return "";
     const fromCtx = panelCtx.getActiveAgentId?.();
     if (fromCtx) return fromCtx;
     return resolveActiveAgentIdFromLocation();

@@ -1,4 +1,4 @@
-/** ЧПУ Agent CMS Voice: /\<agent-id>/ или /\<agent-id>/\<surface-host>/ */
+/** ЧПУ Agent CMS Voice: /\<agent-id>/ или /\<agent-id>/\<surface-host>/ (single-door: /app-chat/…). */
 
 export const VOICE_SHELL_HOSTS = [
   "desktop-cms",
@@ -17,11 +17,56 @@ function normalizePathname(pathname) {
   return String(pathname || "/").replace(/\/+$/, "") || "/";
 }
 
+/** Префикс Voice на одной двери CMS (`/app-chat`), иначе ``. */
+export function resolveVoicePublicPathPrefix() {
+  if (typeof window === "undefined") return "";
+  try {
+    const injected = String(window.__AGENT_CMS_VOICE_URL__ || "").trim();
+    if (injected) {
+      const pathname = new URL(injected, window.location.origin).pathname.replace(/\/+$/, "");
+      if (pathname && pathname !== "/") return pathname;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const path = window.location.pathname;
+    if (path === "/app-chat" || path.startsWith("/app-chat/")) return "/app-chat";
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+function stripVoicePublicPrefix(pathname) {
+  const base = resolveVoicePublicPathPrefix().replace(/\/+$/, "");
+  if (!base) return String(pathname || "/");
+
+  const normalized = normalizePathname(pathname);
+  if (normalized === base) return "/";
+  if (normalized.startsWith(`${base}/`)) {
+    const rest = normalized.slice(base.length);
+    return rest ? rest : "/";
+  }
+  return String(pathname || "/");
+}
+
+function applyVoicePublicPrefix(innerPath) {
+  const base = resolveVoicePublicPathPrefix().replace(/\/+$/, "");
+  let inner = String(innerPath || "/");
+  if (!inner.startsWith("/")) inner = `/${inner}`;
+  if (!base) return inner.endsWith("/") ? inner : `${inner.replace(/\/+$/, "")}/`;
+
+  if (inner === "/") return `${base}/`;
+  const withSlash = inner.endsWith("/") ? inner : `${inner}/`;
+  return `${base}${withSlash}`;
+}
+
 export function isVoiceShellHostSegment(segment) {
   return VOICE_SHELL_HOSTS.includes(String(segment || "").trim());
 }
 
-export function parseVoiceShellPath(pathname) {
+function parseVoiceShellPathInner(pathname) {
   const normalized = normalizePathname(pathname);
   if (normalized === "/") {
     return { agentId: "", surfaceHost: VOICE_DEFAULT_HOST, extraSegments: [] };
@@ -49,7 +94,11 @@ export function parseVoiceShellPath(pathname) {
   return { agentId, surfaceHost: VOICE_DEFAULT_HOST, extraSegments: parts.slice(1) };
 }
 
-export function buildVoiceShellPath(agentId, surfaceHost) {
+export function parseVoiceShellPath(pathname) {
+  return parseVoiceShellPathInner(stripVoicePublicPrefix(pathname));
+}
+
+function buildVoiceShellPathInner(agentId, surfaceHost) {
   const id = String(agentId || "").trim();
   const host = String(surfaceHost || "").trim() || VOICE_DEFAULT_HOST;
   if (!id) return "/";
@@ -58,6 +107,10 @@ export function buildVoiceShellPath(agentId, surfaceHost) {
     return `/${encoded}/`;
   }
   return `/${encoded}/${host}/`;
+}
+
+export function buildVoiceShellPath(agentId, surfaceHost) {
+  return applyVoicePublicPrefix(buildVoiceShellPathInner(agentId, surfaceHost));
 }
 
 export function isEmbeddedVoiceHost(surfaceHost) {
@@ -73,9 +126,16 @@ export function isVoiceStandaloneAppLocation() {
   }
 }
 
+function isVoiceEntryPath(pathname) {
+  const n = normalizePathname(pathname);
+  if (n === "/") return true;
+  const prefix = resolveVoicePublicPathPrefix().replace(/\/+$/, "");
+  return Boolean(prefix && n === prefix);
+}
+
 function isVoiceAgentSpaPath(pathname) {
   const parsed = parseVoiceShellPath(pathname);
-  if (!parsed.agentId) return normalizePathname(pathname) === "/";
+  if (!parsed.agentId) return isVoiceEntryPath(pathname);
   if (parsed.agentId.includes(".")) return false;
   if (parsed.extraSegments.length > 0) return false;
   if (parsed.surfaceHost !== VOICE_DEFAULT_HOST) {

@@ -16,7 +16,7 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-Порты **3000 / 3288 / 3490** наружу **не открывать** — только через Caddy.
+Наружу только **80/443** (Caddy → CMS **:3000**). UI/API: `/`, `/app-chat`, `/app-control`, `/app-commander`, `/app-mcp`. Порты **3000 / 3288 / 3490** на firewall **не открывать**.
 
 ## 3. Caddy (Ubuntu/Debian)
 

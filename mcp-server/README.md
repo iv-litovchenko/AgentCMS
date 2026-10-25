@@ -23,10 +23,15 @@ npm install
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если workspaceId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
-| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — legacy tools: `list_folder`, `patch_file`, `list/read/write_root_file`, `read_file`, `upload_file`, `read_content_body`, … |
+| `MCP_LEGACY_ALIASES` | _(пусто)_ | `1` / `true` — deprecated names: aliases (`read_content`, `list_settings`, …) and legacy maps `get_topic_map`, `get_content_map`. Default: ~270 canonical tools. |
+| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — legacy FS/path tools: `list_folder`, `patch_file`, `list/read/write_root_file`, `read_file`, `upload_file`, `read_content_body`, … |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
 | `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | _(inline по умолчанию)_ | Полностью заменить текст MCP `instructions` файлом (читается при старте процесса) |
 | `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |
+| `AGENT_CMS_PUBLIC_URL` | — | Для **Streamable HTTP** (`http.js`): `serverInfo.icons` → `{origin}/favicon.png` и `.svg` |
+| `AGENT_CMS_MCP_ICON_URL` | — | Одна картинка вместо favicon (полный URL); опционально `AGENT_CMS_MCP_ICON_BASE_URL` |
+
+**Большие файлы (без base64):** `content_binary_upload_begin` → **PUT** `putUrl` (сырые байты) → `content_binary_upload_complete`.
 
 ## Термины
 

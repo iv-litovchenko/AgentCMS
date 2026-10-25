@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const discussionReadSchema = (pagePath) =>
   z.object({
@@ -55,7 +55,12 @@ export function registerIntakeTools({ reg, client, pagePath }) {
     schema: readSchema,
     handler: readDiscussion
   });
-  reg("read_dialogs", "Deprecated alias for discussion_read.", readSchema, readDiscussion);
+  registerDeprecatedAlias(reg, {
+    canonical: "discussion_read",
+    name: "read_dialogs",
+    schema: readSchema,
+    handler: readDiscussion
+  });
 
   const appendDiscussion = ({ path, body, role, author, linkedFiles, mode, file, name }) =>
     client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name });
@@ -68,5 +73,10 @@ export function registerIntakeTools({ reg, client, pagePath }) {
     schema: appendSchema,
     handler: appendDiscussion
   });
-  reg("append_dialog", "Deprecated alias for discussion_append.", appendSchema, appendDiscussion);
+  registerDeprecatedAlias(reg, {
+    canonical: "discussion_append",
+    name: "append_dialog",
+    schema: appendSchema,
+    handler: appendDiscussion
+  });
 }

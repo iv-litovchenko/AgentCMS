@@ -1,14 +1,12 @@
-# Caddy внутри Docker Compose (docker-compose.prod.yml / docker-compose.caddy.yml)
-# Env: MAPTEX_DOMAIN, CADDY_EMAIL
+# Caddy внутри Docker Compose (docker-compose.linux.yml)
+# Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
+# Одна дверь снаружи: весь HTTP(S) → CMS; /app-mcp и остальные app-* проксирует server.js.
 
 {
-	email {$CADDY_EMAIL}
+	email {$AGENT_CMS_CADDY_EMAIL}
 }
 
-{$MAPTEX_DOMAIN} {
-	handle /mcp* {
-		reverse_proxy mcp:3490
-	}
+{$AGENT_CMS_PUBLIC_DOMAIN} {
 	handle {
 		reverse_proxy cms:3000
 	}
@@ -16,9 +14,6 @@
 
 # Локально без DNS:
 :80 {
-	handle /mcp* {
-		reverse_proxy mcp:3490
-	}
 	handle {
 		reverse_proxy cms:3000
 	}

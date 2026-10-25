@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const writeMode = z
   .enum(["append", "replace"])
@@ -16,7 +16,12 @@ export function registerWorkspacePadTools(reg, client) {
     schema: z.object({}),
     handler: noteRead
   });
-  reg("read_workspace_note", "Deprecated alias for session_note_read.", z.object({}), noteRead);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_note_read",
+    name: "read_workspace_note",
+    schema: z.object({}),
+    handler: noteRead
+  });
 
   const noteWrite = ({ content, mode }) =>
     client.post("/api/workspace/note", { content, mode: mode || "append" });
@@ -30,12 +35,12 @@ export function registerWorkspacePadTools(reg, client) {
     }),
     handler: noteWrite
   });
-  reg(
-    "write_workspace_note",
-    "Deprecated alias for session_note_write.",
-    z.object({ content: z.string().min(1), mode: writeMode }),
-    noteWrite
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "session_note_write",
+    name: "write_workspace_note",
+    schema: z.object({ content: z.string().min(1), mode: writeMode }),
+    handler: noteWrite
+  });
 
   const todoRead = () => client.get("/api/workspace/todo");
   registerCanonicalWithLegacyAlias(reg, {
@@ -46,7 +51,12 @@ export function registerWorkspacePadTools(reg, client) {
     schema: z.object({}),
     handler: todoRead
   });
-  reg("read_workspace_todo", "Deprecated alias for session_todo_read.", z.object({}), todoRead);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_todo_read",
+    name: "read_workspace_todo",
+    schema: z.object({}),
+    handler: todoRead
+  });
 
   const todoWrite = ({ content, mode }) =>
     client.post("/api/workspace/todo", { content, mode: mode || "append" });
@@ -60,10 +70,10 @@ export function registerWorkspacePadTools(reg, client) {
     }),
     handler: todoWrite
   });
-  reg(
-    "write_workspace_todo",
-    "Deprecated alias for session_todo_write.",
-    z.object({ content: z.string().min(1), mode: writeMode }),
-    todoWrite
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "session_todo_write",
+    name: "write_workspace_todo",
+    schema: z.object({ content: z.string().min(1), mode: writeMode }),
+    handler: todoWrite
+  });
 }

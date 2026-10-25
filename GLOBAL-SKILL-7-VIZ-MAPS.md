@@ -14,7 +14,7 @@ description: Живые карты визуализации в Agent CMS — ф�
 | Где | Как называть |
 |-----|----------------|
 | UI редактора | «Атлас», «Виды карт» |
-| Файлы | `awn-storage/assets/viz/{awn-id}/{kind}.viz.md` |
+| Файлы | `{хост}/awn-storage/assets/viz/{awn-id}/{kind}.viz.md` — рядом с записью, как `assets/materials/{awn-id}/` |
 | YAML | `viz-kind`, `viz-about`, `awn-name` (из записи при создании), `awn-type` (фикс. для карты) |
 | MCP / HTTP | `viz_map_*`, `viz_maps_*` — без слова *atlas* |
 
@@ -22,16 +22,16 @@ description: Живые карты визуализации в Agent CMS — ф�
 
 ## Файлы и привязка к записи
 
-- **Канон:** `awn-storage/assets/viz/{awn-id}/{kind}.viz.md` — как `assets/materials/{awn-id}/`, связь по **`awn-id`** записи (не по имени файла).
+- **Канон:** `{topic}/awn-storage/assets/viz/{awn-id}/{kind}.viz.md` — в bundle хранилища записи (тот же принцип, что `assets/materials/{awn-id}/`), связь по **`awn-id`** и **`viz-about`**.
 - **Создание** — только если у записи уже есть `awn-id` (иначе API вернёт ошибку; сначала присвоить id).
-- **Legacy (чтение):** старые `{stem}.{kind}.viz.md` рядом с записью всё ещё открываются и удаляются; новые создавай только в `assets/viz/`.
+- **Legacy (чтение):** workspace-root `assets/viz/{awn-id}/` (ранний канон), colocated `{stem}.{kind}.viz.md`; новые — только в bundle `…/awn-storage/assets/viz/`. Миграция: `node scripts/migrate-viz-maps-to-bundle-assets.js [workspacePath]`.
 - **`viz-about`** — путь записи в frontmatter (MCP: **`recordPath`**).
 - **`viz-kind`** — вид карты; заголовок в UI — **`awn-name`** (при создании копируется с записи; **`viz-title`** опционален, legacy).
 - **`awn-type`** на карте — свой (`awn.content.record`), **не** с родительской записи.
 
-Пример: запись `…/main/note.md` с `awn-id: 45` → mindmap: `assets/viz/45/mindmap.viz.md`.
+Пример: запись `awn-topics/foo/awn-storage/main/note.md` с `awn-id: 45` → mindmap: `awn-topics/foo/awn-storage/assets/viz/45/mindmap.viz.md`.
 
-## Реестр видов (6 разделов · 10 kinds)
+## Реестр видов (7 разделов · 11 kinds)
 
 Каталог: `awn-system/types/viz/` (`registry.yml` + `*.yml`).
 
@@ -43,6 +43,7 @@ description: Живые карты визуализации в Agent CMS — ф�
 | Время (`time`) | timeline |
 | Люди (`people`) | people |
 | Места (`places`) | geo |
+| Пространство (`space`) | scene3d — JSON в блоке ` ```scene3d `, превью Three.js (примитивы + glTF) |
 
 Полный список с подписями и шаблонами — **`viz_map_types_list`**.
 

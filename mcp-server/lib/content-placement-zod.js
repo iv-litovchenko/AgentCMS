@@ -9,7 +9,7 @@ export function buildContentSlotSchema(listSectionCapableSlotKeys) {
     .string()
     .min(1)
     .describe(
-      `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, data (database), repository, main-single, main-single-csv, todo-single, roadmap-single, inbox, outbox, files, assets`
+      `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, data (database), repository, main-single, main-single-csv, todo-single, atlas (folder atlas/, ref=file; aliases roadmap-single, roadmap), inbox, outbox, files, assets`
     );
 }
 

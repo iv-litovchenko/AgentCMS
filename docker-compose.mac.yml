@@ -1,5 +1,8 @@
 # Mac / Docker Desktop — порты на localhost
 #   docker compose -f docker-compose.mac.yml up -d --build
+# Доп. корни workspace: docker-compose.workspace-mounts.yml — Control / MCP
+#
+# Bind-mount dev (без rebuild): public, desktop/agent-control, lib, mcp-server, .agent-cms-global
 
 name: agent-cms
 
@@ -11,7 +14,6 @@ services:
       - .env
     ports:
       - "${AGENT_CMS_EDITOR_HTTP_PORT:-3000}:3000"
-      - "${AGENT_CMS_VOICE_HTTP_PORT:-3088}:3088"
     environment:
       HOST: "0.0.0.0"
       VOICE_HOST: "0.0.0.0"
@@ -19,12 +21,28 @@ services:
       VOICE_PORT: "3088"
       AGENT_CMS_HTTP_TO_HTTPS: "0"
       CONTROL_AUTOSTART: "0"
+      AGENT_CMS_CONTROL_INTERNAL_URL: "http://control:3288"
+      AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
+      AGENT_CMS_COMMANDER_INTERNAL_URL: "http://127.0.0.1:3188"
+      AGENT_CMS_SINGLE_HTTP_DOOR: "1"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
+      AGENT_CMS_DOCKER_OPS: "1"
+      AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.mac.yml"
+      AGENT_CMS_DEPLOY_PLATFORM: "mac"
+      COMPOSE_PROJECT_NAME: "agent-cms"
       VOICE_AUTOSTART: "${VOICE_AUTOSTART:-1}"
       APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
       APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
+      AGENT_CMS_HOST_PROJECT: "/host-project"
     volumes:
-      - cms-workspaces:/app/workspaces
-      - cms-global:/app/.agent-cms-global
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces
+      - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
+      - ./.agent-cms-global:/app/.agent-cms-global
+      - ./public:/app/public:ro
+      - ./desktop/agent-control:/app/desktop/agent-control:ro
+      - ./lib:/app/lib:ro
+      - ./server.js:/app/server.js:ro
+      - ./control-server.js:/app/control-server.js:ro
     healthcheck:
       test:
         [
@@ -47,14 +65,19 @@ services:
     depends_on:
       cms:
         condition: service_healthy
-    ports:
-      - "${AGENT_CMS_MCP_HTTP_PORT:-3490}:3490"
+    expose:
+      - "3490"
     environment:
       AGENT_CMS_MCP_HTTP_HOST: "0.0.0.0"
       AGENT_CMS_MCP_HTTP_PORT: "3490"
       AGENT_CMS_MCP_BEHIND_PROXY: "${AGENT_CMS_MCP_BEHIND_PROXY:-0}"
       AGENT_CMS_BASE_URL: "http://cms:3000"
       AGENT_CMS_MCP_TOKEN: "${AGENT_CMS_MCP_TOKEN:-}"
+    volumes:
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces:ro
+      - ./.agent-cms-global:/app/.agent-cms-global
+      - ./mcp-server:/app/mcp-server:ro
+      - ./lib:/app/lib:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:3490/health"]
       interval: 15s
@@ -71,24 +94,31 @@ services:
     depends_on:
       cms:
         condition: service_started
-    ports:
-      - "${AGENT_CMS_CONTROL_HTTP_PORT:-3288}:3288"
+    expose:
+      - "3288"
     environment:
       CONTROL_HOST: "0.0.0.0"
       CONTROL_AUTOSTART: "0"
       CMS_API_URL: "http://cms:3000"
       AGENT_CMS_BASE_URL: "http://cms:3000"
       AGENT_CMS_DOCKER_OPS: "1"
+      AGENT_CMS_SINGLE_HTTP_DOOR: "1"
       AGENT_CMS_COMPOSE_FILE: "/app/docker-compose.mac.yml"
       AGENT_CMS_COMPOSE_SERVICE: "cms"
+      AGENT_CMS_DOCKER_UP_SERVICES: "cms mcp"
+      AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
+      AGENT_CMS_HOST_PROJECT: "/host-project"
+      AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.mac.yml"
+      AGENT_CMS_DEPLOY_PLATFORM: "mac"
       COMPOSE_PROJECT_NAME: "agent-cms"
       APP_LOCK_LOGIN: "${APP_LOCK_LOGIN:-admin}"
       APP_LOCK_PASSWORD: "${APP_LOCK_PASSWORD:-changeme}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-compose.mac.yml:/app/docker-compose.mac.yml:ro
+      - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
+      - ./desktop/agent-control:/app/desktop/agent-control:ro
+      - ./lib:/app/lib:ro
+      - ./control-server.js:/app/control-server.js:ro
     restart: unless-stopped
-
-volumes:
-  cms-workspaces:
-  cms-global:

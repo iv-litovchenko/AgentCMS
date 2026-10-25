@@ -215,7 +215,9 @@
         await loadScript("/editor/js/panels/discuss-panel.js?v=0.5.259");
         await loadScript("/editor/js/app/privacy-mode.js?v=5");
         await loadScript("/editor/js/app/header-ui-locale.js?v=1");
+        await loadScript("/editor/js/app/header-ui-apps.js?v=2");
         await loadScript("/editor/js/panels/viz-maps-aside.js?v=1");
+        await loadModuleScript("/editor/js/viz/scene3d-preview.js?v=2");
         await loadScript("/editor/js/app/sensitive-input.js?v=3");
         await loadScript("/editor/js/panels/page-picker-extract.js?v=0.5.5");
         await loadScript("/editor/js/editor/page-snapshot.js?v=0.1.0");
@@ -405,8 +407,8 @@
     "/editor/js/core/editor-chpu-path-runtime.js?v=1",
     "/editor/js/core/editor-system-files-runtime.js?v=1",
     "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
-    "/editor/js/context-buffer/context-buffer-client.js?v=1",
-    "/editor/js/context-buffer/context-buffer-panel.js?v=1",
+    "/editor/js/context-buffer/context-buffer-client.js?v=2",
+    "/editor/js/context-buffer/context-buffer-panel.js?v=2",
     "/editor/js/file-hub/file-hub-band-panel.js?v=1"
   ];
 

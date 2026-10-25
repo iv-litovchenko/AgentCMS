@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const factKind = z
   .enum(["decision", "preference", "entity", "procedure", "open-question", "note", "fact"])
@@ -77,7 +77,12 @@ export function registerFactsTools(reg, client) {
     schema: createFactSchema,
     handler: createHandler
   });
-  reg("create_workspace_fact", "Deprecated alias for fact_create.", createFactSchema, createHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "fact_create",
+    name: "create_workspace_fact",
+    schema: createFactSchema,
+    handler: createHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "fact_update",
@@ -86,7 +91,12 @@ export function registerFactsTools(reg, client) {
     schema: updateFactSchema,
     handler: updateHandler
   });
-  reg("update_workspace_fact", "Deprecated alias for fact_update.", updateFactSchema, updateHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "fact_update",
+    name: "update_workspace_fact",
+    schema: updateFactSchema,
+    handler: updateHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "facts_list",
@@ -96,7 +106,12 @@ export function registerFactsTools(reg, client) {
     schema: listFactsSchema,
     handler: listHandler
   });
-  reg("list_workspace_facts", "Deprecated alias for facts_list.", listFactsSchema, listHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "facts_list",
+    name: "list_workspace_facts",
+    schema: listFactsSchema,
+    handler: listHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "facts_search",
@@ -106,5 +121,10 @@ export function registerFactsTools(reg, client) {
     schema: searchFactsSchema,
     handler: searchHandler
   });
-  reg("search_workspace_facts", "Deprecated alias for facts_search.", searchFactsSchema, searchHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "facts_search",
+    name: "search_workspace_facts",
+    schema: searchFactsSchema,
+    handler: searchHandler
+  });
 }
