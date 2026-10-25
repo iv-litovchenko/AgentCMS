@@ -185,6 +185,27 @@ agent_cms_log_services() {
   fi
 }
 
+# Одноразовый снимок логов (без -f) — для копирования в чат / агенту.
+agent_cms_logs_snap() {
+  local tail_n="${1:-200}"
+  local svc
+  local ts
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u)"
+  echo "=== Agent CMS logs snap ($ts) ==="
+  echo "platform=$(agent_cms_platform)"
+  echo "AGENT_CMS_HOME=$AGENT_CMS_HOME"
+  echo ""
+  echo "=== docker compose ps ==="
+  agent_cms_compose ps 2>&1 || true
+  echo ""
+  for svc in $(agent_cms_log_services); do
+    echo "========== logs: $svc (last $tail_n lines) =========="
+    agent_cms_compose logs --timestamps --tail "$tail_n" "$svc" 2>&1 || true
+    echo ""
+  done
+  echo "=== end snap ==="
+}
+
 agent_cms_write_config() {
   local home="${1:?home}"
   mkdir -p "$AGENT_CMS_CONFIG_DIR"

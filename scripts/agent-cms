@@ -28,7 +28,7 @@ Agent CMS — CLI для Docker-стека (без npm).
   version, doctor, paths, status
   electron-app build … | electron-app shortcuts
   (синоним: electron build … | electron shortcuts)
-  start, stop, restart, down, ps, logs
+  start, stop, restart, down, ps, logs [snap]
   rebuild
   update               только git pull --ff-only (без rebuild)
   open editor|chat|control|commander|mcp-url
@@ -194,8 +194,57 @@ case "$cmd" in
     agent_cms_ensure_home
     agent_cms_ensure_docker
     shift || true
-    # shellcheck disable=SC2046
-    agent_cms_compose logs -f $(agent_cms_log_services) "$@"
+    case "${1:-}" in
+      snap | dump | once)
+        shift || true
+        tail_n=200
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --tail)
+              tail_n="${2:-200}"
+              shift 2
+              ;;
+            --tail=*)
+              tail_n="${1#*=}"
+              shift
+              ;;
+            -h | --help)
+              cat <<'EOF'
+agent-cms-cli logs snap [--tail N]
+
+  Снимок логов Docker (cms, mcp, control, caddy на Linux) без -f.
+  Скопируйте весь вывод в чат — для разбора падений.
+
+  N по умолчанию 200 строк на сервис.
+
+Пример:
+  agent-cms-cli logs snap
+  agent-cms-cli logs snap --tail 400
+EOF
+              exit 0
+              ;;
+            *)
+              echo "logs snap: неизвестный аргумент: $1" >&2
+              exit 1
+              ;;
+          esac
+        done
+        agent_cms_logs_snap "$tail_n"
+        ;;
+      -h | --help)
+        cat <<'EOF'
+agent-cms-cli logs          — поток логов (-f), cms + mcp + control (+ caddy на Linux)
+agent-cms-cli logs snap     — снимок для отправки (без -f)
+agent-cms-cli logs snap --tail 400
+agent-cms-cli logs cms      — только сервис cms (-f)
+EOF
+        exit 0
+        ;;
+      *)
+        # shellcheck disable=SC2046
+        agent_cms_compose logs -f $(agent_cms_log_services) "$@"
+        ;;
+    esac
     ;;
   rebuild)
     agent_cms_ensure_home

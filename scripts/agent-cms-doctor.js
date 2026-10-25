@@ -151,8 +151,8 @@ async function main() {
     } else if (result.status) {
       fail(`${url} → ${detail}`);
       if (result.status === 503 || result.status === 502) {
-        console.log("    → docker compose logs caddy cms --tail 40");
-        console.log("    → docker compose ps");
+        console.log("    → agent-cms-cli logs snap");
+        console.log("    → agent-cms-cli logs snap --tail 400");
       }
     } else {
       fail(`${url} → ${detail}`);

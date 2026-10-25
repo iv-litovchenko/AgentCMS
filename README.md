@@ -490,7 +490,9 @@ agent-cms-cli stop
 agent-cms-cli restart
 agent-cms-cli down            # compose down (как npm run docker:down)
 agent-cms-cli ps
-agent-cms-cli logs            # logs -f cms mcp control …
+agent-cms-cli logs            # поток (-f): cms, mcp, control, caddy (Linux)
+agent-cms-cli logs snap       # снимок логов для чата (без -f, ~200 строк/сервис)
+agent-cms-cli logs snap --tail 400
 
 agent-cms-cli rebuild         # up -d --build (первый раз / после server.js)
 agent-cms-cli update          # только git pull --ff-only (стек: rebuild)
