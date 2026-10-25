@@ -123,6 +123,71 @@ async function loadEnvFileEditor() {
 
 let workspaceMountsDraft = [];
 
+const WORKSPACE_MOUNT_MAC_TEMPLATES = {
+  desktop: {
+    id: "mac-desktop",
+    label: "Mac · Рабочий стол",
+    hostPath: "~/Desktop",
+    containerPath: "~/Desktop"
+  },
+  downloads: {
+    id: "mac-downloads",
+    label: "Mac · Загрузки",
+    hostPath: "~/Downloads",
+    containerPath: "~/Downloads"
+  }
+};
+
+function effectiveWorkspaceMountContainerPath(mount) {
+  if (mount?.builtIn) {
+    return String(mount.containerPath || "/app/workspaces").trim() || "/app/workspaces";
+  }
+  return String(mount?.hostPath || "").trim();
+}
+
+function addWorkspaceMountEntry(entry) {
+  const hostPath = entry.hostPath || "";
+  workspaceMountsDraft.push({
+    id: entry.id || `mount-${Date.now()}`,
+    label: entry.label || "Доп. папка",
+    hostPath,
+    containerPath: entry.builtIn ? entry.containerPath || "/app/workspaces" : hostPath,
+    builtIn: Boolean(entry.builtIn)
+  });
+  renderWorkspaceMountsList();
+}
+
+function renderWorkspaceMountHostPathLabel(builtIn, containerHintText) {
+  const title = builtIn
+    ? "Дефолтный корень: ./workspaces или AGENT_CMS_WORKSPACES_DIR в .env (docker-compose.mac.yml / linux.yml). Сюда не пишется в workspace-mounts.yml."
+    : "Путь на хосте. На Mac: Docker Desktop → Settings → Resources → File sharing — папка должна быть разрешена.";
+  const iconClass = builtIn ? " workspace-mount-field-icon--builtin" : "";
+  const containerLabel = builtIn
+    ? `→ <code>${escapeAttr(containerHintText)}</code>`
+    : `· в контейнере 1:1 <code class="workspace-mount-label-container-live">${escapeAttr(containerHintText)}</code>`;
+  return `
+    <span class="workspace-mount-field-label">
+      <span class="workspace-mount-field-icon workspace-mount-field-icon--folder${iconClass}" role="img" aria-label="Папка на хосте" title="${escapeAttr(title)}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path fill="currentColor" d="M10 4H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7.5L12 4h-2Z"/>
+        </svg>
+      </span>
+      <span class="workspace-mount-field-title">Путь на хосте</span>
+      <span class="workspace-mount-label-container">${containerLabel}</span>
+    </span>`;
+}
+
+function addWorkspaceMountFromTemplate(templateKey) {
+  const template = WORKSPACE_MOUNT_MAC_TEMPLATES[templateKey];
+  if (!template) return;
+  const hostNorm = String(template.hostPath || "").trim();
+  const already = workspaceMountsDraft.some(
+    (m) => !m.builtIn && String(m.hostPath || "").trim() === hostNorm
+  );
+  if (already) return;
+  addWorkspaceMountEntry({ ...template });
+}
+
 function syncWorkspaceMountsSectionVisibility() {
   const section = document.querySelector('[data-section="workspace-mounts"]');
   if (!section) return;
@@ -142,6 +207,9 @@ function syncWorkspaceMountsAccess() {
   if (addBtn) addBtn.disabled = locked;
   if (reloadBtn) reloadBtn.disabled = false;
   if (hint) hint.hidden = !locked;
+  document.querySelectorAll(".workspace-mounts-template").forEach((btn) => {
+    btn.disabled = locked;
+  });
   const list = document.getElementById("workspace-mounts-list");
   list?.querySelectorAll("input, select, button[data-remove-mount]").forEach((el) => {
     if (el.closest("[data-built-in='1']")) return;
@@ -157,13 +225,15 @@ function renderWorkspaceMountsList() {
       const builtIn = Boolean(mount.builtIn);
       const host = escapeAttr(mount.hostPath || "");
       const label = escapeAttr(mount.label || mount.id || "");
-      const container = escapeAttr(mount.containerPath || "");
+      const containerHint = builtIn
+        ? effectiveWorkspaceMountContainerPath(mount)
+        : String(mount.hostPath || "").trim() || "как на хосте";
       return `
         <div class="workspace-mount-row${builtIn ? " workspace-mount-row--builtin" : ""}" data-index="${index}" ${
           builtIn ? 'data-built-in="1"' : ""
         }>
-          <label class="workspace-mount-field">
-            <span>Путь на хосте</span>
+          <label class="workspace-mount-field workspace-mount-field--host">
+            ${renderWorkspaceMountHostPathLabel(builtIn, containerHint)}
             <input type="text" name="hostPath" value="${host}" spellcheck="false" autocomplete="off" ${
               builtIn ? "disabled" : ""
             } placeholder="./workspaces или /Users/…/my-ws" />
@@ -171,12 +241,6 @@ function renderWorkspaceMountsList() {
           <label class="workspace-mount-field">
             <span>Метка</span>
             <input type="text" name="label" value="${label}" ${builtIn ? "disabled" : ""} />
-          </label>
-          <label class="workspace-mount-field workspace-mount-field--mono">
-            <span>В контейнере</span>
-            <input type="text" name="containerPath" value="${container}" spellcheck="false" ${
-              builtIn ? "disabled" : ""
-            } placeholder="как на Mac — 1:1, или /app/workspaces" />
           </label>
           ${
             builtIn
@@ -194,6 +258,13 @@ function renderWorkspaceMountsList() {
       if (!Number.isFinite(idx) || !workspaceMountsDraft[idx]) return;
       const name = input.name;
       workspaceMountsDraft[idx][name] = input.value;
+      if (name === "hostPath" && !workspaceMountsDraft[idx].builtIn) {
+        workspaceMountsDraft[idx].containerPath = input.value;
+        const hintCode = row?.querySelector(".workspace-mount-label-container-live");
+        if (hintCode) {
+          hintCode.textContent = input.value.trim() || "как на хосте";
+        }
+      }
     });
   });
   list.querySelectorAll("[data-remove-mount]").forEach((btn) => {
@@ -248,25 +319,31 @@ function bindWorkspaceMountsEditor() {
   reloadBtn?.addEventListener("click", () => loadWorkspaceMountsEditor());
   addBtn?.addEventListener("click", () => {
     if (needsAppLockLogin()) return;
-    workspaceMountsDraft.push({
+    addWorkspaceMountEntry({
       id: `mount-${Date.now()}`,
       label: "Доп. папка",
       hostPath: "",
       containerPath: ""
     });
-    renderWorkspaceMountsList();
+  });
+  document.querySelectorAll(".workspace-mounts-template").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (needsAppLockLogin()) return;
+      addWorkspaceMountFromTemplate(btn.dataset.mountTemplate);
+    });
   });
   saveBtn.addEventListener("click", async () => {
     if (needsAppLockLogin()) return;
     saveBtn.disabled = true;
     if (status) status.textContent = "Сохранение…";
     try {
-      const mounts = workspaceMountsDraft.map(({ id, label, hostPath, containerPath, builtIn }) => {
+      const mounts = workspaceMountsDraft.map((mount) => {
+        const { id, label, hostPath, builtIn } = mount;
         const row = {
           id: String(id || "").trim() || undefined,
           label: String(label || "").trim(),
           hostPath: String(hostPath || "").trim(),
-          containerPath: String(containerPath || "").trim() || undefined
+          containerPath: effectiveWorkspaceMountContainerPath(mount)
         };
         if (builtIn) row.builtIn = true;
         return row;

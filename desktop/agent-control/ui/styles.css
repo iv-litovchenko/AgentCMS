@@ -2508,7 +2508,7 @@ body.is-booting {
 
 .workspace-mount-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr 1.2fr auto;
+  grid-template-columns: 1.5fr 0.85fr auto;
   gap: 8px;
   align-items: end;
   padding: 8px 10px;
@@ -2531,6 +2531,47 @@ body.is-booting {
   color: rgba(180, 195, 220, 0.75);
 }
 
+.workspace-mount-field-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  line-height: 1.2;
+}
+
+.workspace-mount-field-title {
+  flex-shrink: 0;
+}
+
+.workspace-mount-label-container {
+  font-size: 0.52rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: rgba(160, 175, 200, 0.8);
+}
+
+.workspace-mount-label-container code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.52rem;
+  color: rgba(200, 215, 235, 0.88);
+}
+
+.workspace-mount-field-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.workspace-mount-field-icon--folder {
+  color: #facc15;
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.45));
+}
+
+.workspace-mount-field-icon--folder.workspace-mount-field-icon--builtin {
+  color: #fde047;
+}
+
 .workspace-mount-field input {
   font-weight: 400;
   text-transform: none;
@@ -2543,9 +2584,8 @@ body.is-booting {
   font-size: 0.64rem;
 }
 
-.workspace-mount-field--mono input {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 0.6rem;
+.workspace-mount-field--host {
+  align-self: stretch;
 }
 
 .workspace-mount-badge {
@@ -2560,7 +2600,23 @@ body.is-booting {
 }
 
 .workspace-mounts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-top: 4px;
+}
+
+.workspace-mounts-actions-sep {
+  font-size: 0.58rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 2px;
+}
+
+.workspace-mounts-template {
+  font-size: 0.62rem;
 }
 
 @media (max-width: 720px) {
