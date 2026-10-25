@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { legacyAgentIdField, resolveWorkspaceId, workspaceIdField } from "./agent-scope.js";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const workspaceRegistryTargetShape = {
   workspaceId: workspaceIdField.optional(),
@@ -94,13 +94,13 @@ export function registerWorkspaceTools(reg, client) {
     handler: workspacesScanHandler,
     options: noWorkspaceScope
   });
-  reg(
-    "discover_workspaces",
-    "Deprecated alias for workspaces_scan.",
-    workspacesScanSchema,
-    workspacesScanHandler,
-    noWorkspaceScope
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "workspaces_scan",
+    name: "discover_workspaces",
+    schema: workspacesScanSchema,
+    handler: workspacesScanHandler,
+    options: noWorkspaceScope
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspace_update",

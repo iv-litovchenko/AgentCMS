@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { registerContextBufferTools } from "./context-buffer-tools.js";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 import { registerWorkspacePadTools } from "./workspace-pad-tools.js";
 
 const emptySchema = z.object({});
@@ -32,12 +32,12 @@ export function registerSessionTools(reg, client) {
     "get_user_active_context_now",
     "get_ui_open_location"
   ]) {
-    reg(
-      legacyName,
-      "Deprecated alias for session_context_get_user_open_url_location_in_ui.",
-      emptySchema,
-      userOpenInUiHandler
-    );
+    registerDeprecatedAlias(reg, {
+      canonical: "session_context_get_user_open_url_location_in_ui",
+      name: legacyName,
+      schema: emptySchema,
+      handler: userOpenInUiHandler
+    });
   }
 
   const alwaysContextHandler = () => client.get("/api/agent/always-context");
@@ -57,7 +57,12 @@ export function registerSessionTools(reg, client) {
     "refresh_workspace_always_context",
     "session_always_registry_get"
   ]) {
-    reg(name, "Deprecated alias for session_list_always_context.", emptySchema, alwaysContextHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_list_always_context",
+      name,
+      schema: emptySchema,
+      handler: alwaysContextHandler
+    });
   }
 
   const cronRegistryHandler = () => client.get("/api/agent/cron-registry");
@@ -76,7 +81,12 @@ export function registerSessionTools(reg, client) {
     "list_workspace_cron",
     "session_cron_registry_get"
   ]) {
-    reg(name, "Deprecated alias for session_list_cron.", emptySchema, cronRegistryHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_list_cron",
+      name,
+      schema: emptySchema,
+      handler: cronRegistryHandler
+    });
   }
 
   const heartbeatRegistryHandler = () => client.get("/api/agent/heartbeat-registry");
@@ -95,7 +105,12 @@ export function registerSessionTools(reg, client) {
     "list_workspace_heartbeat",
     "session_heartbeat_registry_get"
   ]) {
-    reg(name, "Deprecated alias for session_list_heartbeat.", emptySchema, heartbeatRegistryHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_list_heartbeat",
+      name,
+      schema: emptySchema,
+      handler: heartbeatRegistryHandler
+    });
   }
 
   const sessionAgentProfileHandler = () => client.get("/api/agent/identity/agent");
@@ -107,8 +122,18 @@ export function registerSessionTools(reg, client) {
     schema: emptySchema,
     handler: sessionAgentProfileHandler
   });
-  reg("get_agent_identity", "Deprecated alias for session_agent_profile_get.", emptySchema, sessionAgentProfileHandler);
-  reg("session_agent_get", "Deprecated alias for session_agent_profile_get.", emptySchema, sessionAgentProfileHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_agent_profile_get",
+    name: "get_agent_identity",
+    schema: emptySchema,
+    handler: sessionAgentProfileHandler
+  });
+  registerDeprecatedAlias(reg, {
+    canonical: "session_agent_profile_get",
+    name: "session_agent_get",
+    schema: emptySchema,
+    handler: sessionAgentProfileHandler
+  });
 
   const sessionUserProfileHandler = () => client.get("/api/agent/identity/user");
   registerCanonicalWithLegacyAlias(reg, {
@@ -118,8 +143,18 @@ export function registerSessionTools(reg, client) {
     schema: emptySchema,
     handler: sessionUserProfileHandler
   });
-  reg("get_user_identity", "Deprecated alias for session_user_profile_get.", emptySchema, sessionUserProfileHandler);
-  reg("session_user_get", "Deprecated alias for session_user_profile_get.", emptySchema, sessionUserProfileHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_user_profile_get",
+    name: "get_user_identity",
+    schema: emptySchema,
+    handler: sessionUserProfileHandler
+  });
+  registerDeprecatedAlias(reg, {
+    canonical: "session_user_profile_get",
+    name: "session_user_get",
+    schema: emptySchema,
+    handler: sessionUserProfileHandler
+  });
 
   const registryQueriesListHandler = () => client.get("/api/agent/registry-queries");
   registerCanonicalWithLegacyAlias(reg, {
@@ -130,12 +165,12 @@ export function registerSessionTools(reg, client) {
     schema: emptySchema,
     handler: registryQueriesListHandler
   });
-  reg(
-    "session_registry_queries_list",
-    "Deprecated alias for registry_queries_list.",
-    emptySchema,
-    registryQueriesListHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "registry_queries_list",
+    name: "session_registry_queries_list",
+    schema: emptySchema,
+    handler: registryQueriesListHandler
+  });
 
   const registryQueryRunSchema = z.object({
     id: z.string().min(1).describe("Query id, e.g. always-context, cron, nav-focus, nav-main, topics"),
@@ -152,12 +187,12 @@ export function registerSessionTools(reg, client) {
     schema: registryQueryRunSchema,
     handler: registryQueryRunHandler
   });
-  reg(
-    "session_registry_query_run",
-    "Deprecated alias for registry_query_run.",
-    registryQueryRunSchema,
-    registryQueryRunHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "registry_query_run",
+    name: "session_registry_query_run",
+    schema: registryQueryRunSchema,
+    handler: registryQueryRunHandler
+  });
 
   const navFocusListHandler = () => client.post("/api/agent/registry-queries/run", { id: "nav-focus" });
   registerCanonicalWithLegacyAlias(reg, {
@@ -168,7 +203,12 @@ export function registerSessionTools(reg, client) {
     schema: emptySchema,
     handler: navFocusListHandler
   });
-  reg("session_nav_focus_get", "Deprecated alias for session_list_in_focus.", emptySchema, navFocusListHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_list_in_focus",
+    name: "session_nav_focus_get",
+    schema: emptySchema,
+    handler: navFocusListHandler
+  });
 
   const navMainListHandler = () => client.post("/api/agent/registry-queries/run", { id: "nav-main" });
   registerCanonicalWithLegacyAlias(reg, {
@@ -179,7 +219,12 @@ export function registerSessionTools(reg, client) {
     schema: emptySchema,
     handler: navMainListHandler
   });
-  reg("session_nav_main_get", "Deprecated alias for session_list_on_main.", emptySchema, navMainListHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "session_list_on_main",
+    name: "session_nav_main_get",
+    schema: emptySchema,
+    handler: navMainListHandler
+  });
 
   registerWorkspacePadTools(reg, client);
   registerContextBufferTools(reg, client);

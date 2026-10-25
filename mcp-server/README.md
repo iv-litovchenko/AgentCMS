@@ -23,7 +23,8 @@ npm install
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если workspaceId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
-| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — legacy tools: `list_folder`, `patch_file`, `list/read/write_root_file`, `read_file`, `upload_file`, `read_content_body`, … |
+| `MCP_LEGACY_ALIASES` | _(пусто)_ | `1` / `true` — deprecated duplicate tool names (`read_content`, `list_settings`, `tool_web_*`, …). Default: only canonical names (~270 tools). |
+| `MCP_LEGACY_TOOLS` | _(пусто)_ | `1` / `true` — legacy FS/path tools: `list_folder`, `patch_file`, `list/read/write_root_file`, `read_file`, `upload_file`, `read_content_body`, … |
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
 | `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | _(inline по умолчанию)_ | Полностью заменить текст MCP `instructions` файлом (читается при старте процесса) |
 | `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |

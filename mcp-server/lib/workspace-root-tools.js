@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { readFileHandler, readFileInputSchema, formatReadFileToolResult } from "./workspace-fs-tools.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
+import { registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const rootFileName = z
   .string()
@@ -28,12 +29,12 @@ export function registerWorkspaceRootTools(reg, client, { jsonText } = {}) {
 
   reg("list_root_files", listRootFilesDescription, z.object({}), listHandler);
 
-  reg(
-    "list_system_files",
-    "Deprecated alias for list_root_files.",
-    z.object({}),
-    listHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "list_root_files",
+    name: "list_system_files",
+    schema: z.object({}),
+    handler: listHandler
+  });
 
   const readRootSchema = readFileInputSchema.omit({ path: true }).extend({
     name: rootFileName
@@ -48,15 +49,15 @@ export function registerWorkspaceRootTools(reg, client, { jsonText } = {}) {
     formatResult: jsonText ? (data) => formatReadFileToolResult(data, jsonText) : undefined
   });
 
-  reg(
-    "read_system_file",
-    "Deprecated alias for read_root_file (use name, not path).",
-    readRootSchema,
-    readRootHandler,
-    {
+  registerDeprecatedAlias(reg, {
+    canonical: "read_root_file",
+    name: "read_system_file",
+    schema: readRootSchema,
+    handler: readRootHandler,
+    options: {
       formatResult: jsonText ? (data) => formatReadFileToolResult(data, jsonText) : undefined
     }
-  );
+  });
 
   const writeRootSchema = z.object({
     name: rootFileName,
@@ -69,10 +70,10 @@ export function registerWorkspaceRootTools(reg, client, { jsonText } = {}) {
 
   reg("write_root_file", writeRootFileDescription, writeRootSchema, writeRootHandler);
 
-  reg(
-    "write_system_file",
-    "Deprecated alias for write_root_file (use name, not path).",
-    writeRootSchema,
-    writeRootHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "write_root_file",
+    name: "write_system_file",
+    schema: writeRootSchema,
+    handler: writeRootHandler
+  });
 }

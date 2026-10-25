@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const bufferRef = z
   .string()
@@ -17,7 +17,12 @@ export function registerContextBufferTools(reg, client) {
     handler: readHandler
   });
   for (const name of ["context_buffer_read", "read_context_buffer"]) {
-    reg(name, "Deprecated alias for session_context_buffer_read.", z.object({}), readHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_context_buffer_read",
+      name,
+      schema: z.object({}),
+      handler: readHandler
+    });
   }
 
   const appendSchema = z.object({
@@ -41,7 +46,12 @@ export function registerContextBufferTools(reg, client) {
     handler: appendHandler
   });
   for (const name of ["context_buffer_append", "append_context_buffer"]) {
-    reg(name, "Deprecated alias for session_context_buffer_append.", appendSchema, appendHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_context_buffer_append",
+      name,
+      schema: appendSchema,
+      handler: appendHandler
+    });
   }
 
   const removeSchema = z.object({
@@ -59,7 +69,12 @@ export function registerContextBufferTools(reg, client) {
     handler: removeHandler
   });
   for (const name of ["context_buffer_item_remove", "remove_context_buffer_item"]) {
-    reg(name, "Deprecated alias for session_context_buffer_remove.", removeSchema, removeHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_context_buffer_remove",
+      name,
+      schema: removeSchema,
+      handler: removeHandler
+    });
   }
 
   const clearHandler = () => client.post("/api/workspace/context-buffer/clear", {});
@@ -71,7 +86,12 @@ export function registerContextBufferTools(reg, client) {
     handler: clearHandler
   });
   for (const name of ["context_buffer_clear", "clear_context_buffer"]) {
-    reg(name, "Deprecated alias for session_context_buffer_clear.", z.object({}), clearHandler);
+    registerDeprecatedAlias(reg, {
+      canonical: "session_context_buffer_clear",
+      name,
+      schema: z.object({}),
+      handler: clearHandler
+    });
   }
 
   const clipboardItemSchema = z.object({

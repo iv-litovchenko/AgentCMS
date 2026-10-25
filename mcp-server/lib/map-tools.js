@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
   .string()
@@ -374,12 +374,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entityQuerySchema,
     handler: entityQueryHandler
   });
-  reg(
-    "query_workspace_entities",
-    "Deprecated alias for index_6_entity_query.",
-    entityQuerySchema,
-    entityQueryHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_query",
+    name: "query_workspace_entities",
+    schema: entityQuerySchema,
+    handler: entityQueryHandler
+  });
 
   const entityCatalogSchema = z.object({
     limit: z.number().int().min(1).max(200).optional().describe("Page size (default 40)"),
@@ -406,12 +406,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entityCatalogSchema,
     handler: entityCatalogHandler
   });
-  reg(
-    "list_workspace_entity_catalog",
-    "Deprecated alias for index_6_entity_catalog_list.",
-    entityCatalogSchema,
-    entityCatalogHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_catalog_list",
+    name: "list_workspace_entity_catalog",
+    schema: entityCatalogSchema,
+    handler: entityCatalogHandler
+  });
 
   const entitySearchExplainSchema = z.object({
     entityIds: z.array(z.string().min(1)).optional().describe("AND: files must mention all listed entity ids"),
@@ -438,12 +438,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: entitySearchExplainSchema,
     handler: entitySearchExplainHandler
   });
-  reg(
-    "explain_workspace_entity_search",
-    "Deprecated alias for index_6_entity_query_explain.",
-    entitySearchExplainSchema,
-    entitySearchExplainHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_6_entity_query_explain",
+    name: "explain_workspace_entity_search",
+    schema: entitySearchExplainSchema,
+    handler: entitySearchExplainHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "index_6_entity_alias_merge",
@@ -709,12 +709,12 @@ function registerSearchWorkspaceTools(reg, client) {
     schema: indexRebuildSchema,
     handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   });
-  reg(
-    "rebuild_workspace_indexes",
-    "Deprecated alias for index_rebuild_all.",
-    indexRebuildSchema,
-    (payload) => client.post("/api/workspace-index/pipeline", payload || {})
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "index_rebuild_all",
+    name: "rebuild_workspace_indexes",
+    schema: indexRebuildSchema,
+    handler: (payload) => client.post("/api/workspace-index/pipeline", payload || {})
+  });
 
 }
 

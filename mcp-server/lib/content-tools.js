@@ -36,7 +36,7 @@ import {
 } from "./content-binary-upload.js";
 import { jsonText } from "./client.js";
 import { formatReadFileToolResult } from "./workspace-fs-tools.js";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 import {
   buildContentSlotSchema,
   withContentAddress,
@@ -456,12 +456,12 @@ export function registerContentTools({ reg, client, pagePath }) {
     schema: writeContentBinaryFromUrlSchema,
     handler: writeContentBinaryFromUrlHandler
   });
-  reg(
-    "import_content_from_url",
-    "Deprecated alias for content_binary_write_from_url.",
-    writeContentBinaryFromUrlSchema,
-    writeContentBinaryFromUrlHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "content_binary_write_from_url",
+    name: "import_content_from_url",
+    schema: writeContentBinaryFromUrlSchema,
+    handler: writeContentBinaryFromUrlHandler
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_rename",

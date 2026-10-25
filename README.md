@@ -393,6 +393,8 @@ docker compose -f docker-compose.linux.yml ps
 | **`AGENT_CMS_IMAGE_TAG`** | Тег образа · Image tag | `local` |
 | **`VOICE_AUTOSTART`** | Автостарт Voice в контейнере cms · Voice autostart in cms | `1` |
 | **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP за reverse-proxy (Mac `0`, Linux `1`) · MCP behind proxy | Mac `0` |
+| **`MCP_LEGACY_ALIASES`** | `1` — deprecated дубли имён MCP tools (`read_content`, `list_settings`, …); по умолчанию **выкл.** (~270 канонических tools) · Deprecated MCP tool name aliases | пусто / `0` |
+| **`MCP_LEGACY_TOOLS`** | `1` — legacy FS/path tools (`read_file`, `upload_file`, `read_content_body`, …); по умолчанию **выкл.** · Legacy MCP FS tools | пусто / `0` |
 
 > **NOTE**
 > - 💡 Не используйте устаревшие **`PORT` / `TLS_PORT` / `MAPTEX_DOMAIN`** как главный URL — канон **`AGENT_CMS_PUBLIC_URL`** ([docs/env-reference.md](docs/env-reference.md)).
@@ -402,7 +404,7 @@ docker compose -f docker-compose.linux.yml ps
 
 > 🇬🇧 **[en]**
 >
-> Edit **`.env`** at the repo root ([`.env.example`](.env.example)). Table above lists every **whitelist** key; use **`AGENT_CMS_PUBLIC_URL`**, domain, app-lock, and MCP token on production. Optional Compose-only keys in the second table. MCP: **`platform_env_keys_list`**. Details: [docs/env-reference.md](docs/env-reference.md).
+> Edit **`.env`** at the repo root ([`.env.example`](.env.example)). Table above lists every **whitelist** key; use **`AGENT_CMS_PUBLIC_URL`**, domain, app-lock, and MCP token on production. Optional Compose / MCP-process keys in the second table (**`MCP_LEGACY_*`** — [mcp-server/README.md](mcp-server/README.md)). MCP: **`platform_env_keys_list`**. Details: [docs/env-reference.md](docs/env-reference.md).
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
@@ -475,11 +477,13 @@ docker compose -f docker-compose.linux.yml ps
 
 **Большие файлы (фото, pdf):** без base64 в чате — `content_binary_upload_begin` → **PUT** `putUrl` → `content_binary_upload_complete` (подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5).
 
+Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#-настройка--env-gb-configuration--env) (блок «Дополнительно в Compose»).
+
 ---
 
 > 🇬🇧 **[en]**
 >
-> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token; set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md).
+> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token; set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env).
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 export function registerCommentTools(reg, client, { pagePath }) {
   const listSchema = z.object({
@@ -22,7 +22,12 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: listSchema,
     handler: listHandler
   });
-  reg("list_comments", "Deprecated alias for annotation_comments_list.", listSchema, listHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comments_list",
+    name: "list_comments",
+    schema: listSchema,
+    handler: listHandler
+  });
 
   const appendSchema = z.object({
     path: pagePath,
@@ -44,7 +49,12 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: appendSchema,
     handler: appendHandler
   });
-  reg("append_comment", "Deprecated alias for annotation_comment_append.", appendSchema, appendHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comment_append",
+    name: "append_comment",
+    schema: appendSchema,
+    handler: appendHandler
+  });
 
   const reactionSchema = z.object({
     path: pagePath,
@@ -65,12 +75,12 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: reactionSchema,
     handler: reactionHandler
   });
-  reg(
-    "toggle_comment_reaction",
-    "Deprecated alias for annotation_comment_reaction_toggle.",
-    reactionSchema,
-    reactionHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comment_reaction_toggle",
+    name: "toggle_comment_reaction",
+    schema: reactionSchema,
+    handler: reactionHandler
+  });
 
   const commentTargetFields = {
     path: pagePath,
@@ -89,7 +99,12 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: z.object(commentTargetFields),
     handler: readHandler
   });
-  reg("read_comment", "Deprecated alias for annotation_comment_read.", z.object(commentTargetFields), readHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comment_read",
+    name: "read_comment",
+    schema: z.object(commentTargetFields),
+    handler: readHandler
+  });
 
   const updateSchema = z.object({
     ...commentTargetFields,
@@ -104,7 +119,12 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: updateSchema,
     handler: updateHandler
   });
-  reg("update_comment", "Deprecated alias for annotation_comment_update.", updateSchema, updateHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comment_update",
+    name: "update_comment",
+    schema: updateSchema,
+    handler: updateHandler
+  });
 
   const deleteSchema = z.object({
     ...commentTargetFields,
@@ -119,5 +139,10 @@ export function registerCommentTools(reg, client, { pagePath }) {
     schema: deleteSchema,
     handler: deleteHandler
   });
-  reg("delete_comment", "Deprecated alias for annotation_comment_delete.", deleteSchema, deleteHandler);
+  registerDeprecatedAlias(reg, {
+    canonical: "annotation_comment_delete",
+    name: "delete_comment",
+    schema: deleteSchema,
+    handler: deleteHandler
+  });
 }

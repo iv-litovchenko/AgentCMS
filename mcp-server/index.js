@@ -56,7 +56,7 @@ import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 import { loadMcpServerInstructions } from "./lib/mcp-instructions.js";
 import { getMcpServerInfo } from "./lib/server-info.js";
-import { registerCanonicalWithLegacyAlias } from "./lib/register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./lib/register-tool-alias.js";
 
 const pagePath = z
   .string()
@@ -179,13 +179,15 @@ function createServer(options = {}) {
     options: { agentScope: false }
   });
 
-  reg(
-    "list_vaults",
-    "Deprecated alias for workspaces_list — same registry of agents / vaults / хранилища.",
-    listWorkspacesSchema,
-    listWorkspacesHandler,
-    { agentScope: false }
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "workspaces_list",
+    name: "list_vaults",
+    description:
+      "Deprecated alias for workspaces_list — same registry of agents / vaults / хранилища.",
+    schema: listWorkspacesSchema,
+    handler: listWorkspacesHandler,
+    options: { agentScope: false }
+  });
 
   registerWorkspaceTools(reg, client);
   registerDependenciesTools(reg, client);

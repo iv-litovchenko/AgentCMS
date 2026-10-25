@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const storePath = z
   .string()
@@ -17,9 +17,7 @@ function registerDatabaseTool(reg, { canonical, verbLegacy, legacyFrameName, des
   });
   if (legacyFrameName) {
     const frameName = `database_frame_${legacyFrameName}`;
-    if (frameName !== canonical && frameName !== verbLegacy) {
-      reg(frameName, `Deprecated alias for ${canonical}.`, schema, handler);
-    }
+    registerDeprecatedAlias(reg, { canonical, name: frameName, schema, handler });
   }
 }
 
@@ -85,13 +83,18 @@ export function registerDatabaseTools(reg, client) {
     schema: registerDatabaseSchema,
     handler: registerDatabaseHandler
   });
-  reg("create_database", "Deprecated alias for database_register.", registerDatabaseSchema, registerDatabaseHandler);
-  reg(
-    "database_frame_create",
-    "Deprecated alias for database_register.",
-    registerDatabaseSchema,
-    registerDatabaseHandler
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "database_register",
+    name: "create_database",
+    schema: registerDatabaseSchema,
+    handler: registerDatabaseHandler
+  });
+  registerDeprecatedAlias(reg, {
+    canonical: "database_register",
+    name: "database_frame_create",
+    schema: registerDatabaseSchema,
+    handler: registerDatabaseHandler
+  });
 
   const updateDatabaseSchema = z
     .object({

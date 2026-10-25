@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
+import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const pageUrl = z.string().url().describe("Public http(s) URL");
 
@@ -19,13 +19,13 @@ export function registerAgentUtilsTools(reg, client) {
     handler: workspaceSummaryHandler,
     options: workspaceSummaryOptions
   });
-  reg(
-    "workspace_storage_info_get",
-    "Deprecated alias for workspace_summary_get.",
-    workspaceSummarySchema,
-    workspaceSummaryHandler,
-    workspaceSummaryOptions
-  );
+  registerDeprecatedAlias(reg, {
+    canonical: "workspace_summary_get",
+    name: "workspace_storage_info_get",
+    schema: workspaceSummarySchema,
+    handler: workspaceSummaryHandler,
+    options: workspaceSummaryOptions
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "workspace_activity_list",
