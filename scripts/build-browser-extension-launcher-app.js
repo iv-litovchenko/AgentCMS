@@ -11,7 +11,39 @@ const repoRoot = path.join(__dirname, "..");
 const EXT_DIR = path.join(repoRoot, "browser-extension");
 const OUT_DIR = path.join(repoRoot, "dist/browser-extension-launcher");
 const APP_NAME = "ACMS Browser Extension.app";
-const ICON_PNG = path.join(EXT_DIR, "icons/icon128.png");
+const LAUNCHER_ICON_REL = "icons/launcher-desktop-icon.png";
+const LAUNCHER_ICON_SVG = "icons/launcher-desktop-icon.svg";
+
+function resolveLauncherIconPng(extFolder) {
+  const png = path.join(extFolder, LAUNCHER_ICON_REL);
+  if (fs.existsSync(png)) return png;
+  const svg = path.join(extFolder, LAUNCHER_ICON_SVG);
+  if (fs.existsSync(svg) && process.platform === "darwin") {
+    const tmpPng = path.join(extFolder, "icons", ".launcher-desktop-icon.generated.png");
+    if (svgToPngMac(svg, tmpPng)) return tmpPng;
+  }
+  const brand = path.join(extFolder, "icons/companion-brand.svg");
+  if (fs.existsSync(brand) && process.platform === "darwin") {
+    const tmpPng = path.join(extFolder, "icons", ".launcher-brand.generated.png");
+    if (svgToPngMac(brand, tmpPng)) return tmpPng;
+  }
+  return path.join(extFolder, "icons/icon128.png");
+}
+
+/** macOS Quick Look → PNG (512px) for .app icns */
+function svgToPngMac(svgPath, outPng) {
+  try {
+    const outDir = path.dirname(outPng);
+    fs.mkdirSync(outDir, { recursive: true });
+    execFileSync("qlmanage", ["-t", "-s", "512", "-o", outDir, svgPath], { stdio: "ignore" });
+    const generated = path.join(outDir, `${path.basename(svgPath)}.png`);
+    if (!fs.existsSync(generated)) return false;
+    fs.renameSync(generated, outPng);
+    return fs.existsSync(outPng);
+  } catch {
+    return false;
+  }
+}
 
 function ensureExtensionDir() {
   if (!fs.existsSync(path.join(EXT_DIR, "manifest.json"))) {
@@ -89,9 +121,7 @@ open "$FOLDER"
   fs.writeFileSync(binPath, launcher, { mode: 0o755 });
 
   const icnsPath = path.join(resDir, "AppIcon.icns");
-  const iconSrc = fs.existsSync(path.join(extFolder, "icons/icon128.png"))
-    ? path.join(extFolder, "icons/icon128.png")
-    : ICON_PNG;
+  const iconSrc = resolveLauncherIconPng(extFolder);
   const hasIcon = buildIcns(iconSrc, icnsPath);
   writePlist(appPath, hasIcon);
 

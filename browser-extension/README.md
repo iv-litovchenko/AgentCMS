@@ -10,6 +10,8 @@
 
 ## Установка
 
+Ярлык **ACMS-Browser-Extension** на Desktop (macOS) — отдельная иконка **`icons/launcher-desktop-icon.*`** (папка в Finder), не путать с **`icon128.png`** в Chrome.
+
 1. `chrome://extensions` → **Режим разработчика** → **Загрузить распакованное расширение**
 2. Выберите эту папку: `browser-extension/`
 3. **Параметры расширения** → URL CMS (`http://127.0.0.1:3000`, без `/app-chat`) и при необходимости `agent` id

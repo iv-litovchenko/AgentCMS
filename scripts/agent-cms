@@ -60,6 +60,13 @@ case "$cmd" in
     ;;
   paths)
     agent_cms_ensure_home
+    if command -v node >/dev/null 2>&1; then
+      export AGENT_CMS_CLI_PLATFORM="$(agent_cms_platform)"
+      export AGENT_CMS_CLI_COMPOSE="$(agent_cms_compose_file)"
+      export AGENT_CMS_CLI_BIN="$(agent_cms_cli_bin_path)"
+      node "$AGENT_CMS_HOME/scripts/agent-cms-paths.js"
+      exit $?
+    fi
     echo "AGENT_CMS_HOME=$AGENT_CMS_HOME"
     echo "platform=$(agent_cms_platform)"
     echo "compose=$(agent_cms_compose_file) + docker-compose.workspace-mounts.yml"

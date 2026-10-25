@@ -479,7 +479,7 @@ docker compose -f docker-compose.linux.yml ps
 ```bash
 agent-cms --version
 agent-cms doctor          # Docker, compose, каталог, порты
-agent-cms paths           # HOME, compose file, public URL
+agent-cms paths           # HOME, CLI, public URL + список workspace bind-mount (host → container)
 agent-cms status          # HTTP ping + docker compose ps (стек жив?)
 
 agent-cms start           # up -d (с workspace-mounts, если есть)
