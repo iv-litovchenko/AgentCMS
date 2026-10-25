@@ -14,10 +14,12 @@ Agent CMS — CLI для Docker-стека (без npm).
 
 Команды:
   version, doctor, paths, status
-  start, stop, restart, ps, logs
+  start, stop, restart, down, ps, logs
   rebuild, update
   open editor|control|chat|mcp-url
+  env show [--reveal] [KEY]   env set KEY=VALUE
   install              повторный запуск install.sh из AGENT_CMS_HOME
+  uninstall [--purge]  symlink + config; --purge = down stack
   help
 
 Переменные: AGENT_CMS_HOME, AGENT_CMS_CONFIG_DIR
@@ -117,6 +119,12 @@ case "$cmd" in
       agent_cms_compose restart cms mcp control caddy 2>/dev/null || agent_cms_compose restart cms mcp control
     fi
     ;;
+  down)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    echo "→ docker compose down"
+    agent_cms_compose down "$@"
+    ;;
   logs)
     agent_cms_ensure_home
     agent_cms_ensure_docker
@@ -183,6 +191,29 @@ case "$cmd" in
     fi
     echo "install.sh не найден рядом с CLI." >&2
     exit 1
+    ;;
+  env)
+    agent_cms_ensure_home
+    if ! command -v node >/dev/null 2>&1; then
+      echo "Нужен Node.js для env show/set." >&2
+      exit 1
+    fi
+    export AGENT_CMS_HOME
+    exec node "$AGENT_CMS_HOME/scripts/agent-cms-env-cli.js" "${@:2}"
+    ;;
+  uninstall)
+    purge=0
+    for arg in "${@:2}"; do
+      case "$arg" in
+        --purge) purge=1 ;;
+        -h | --help)
+          echo "Usage: agent-cms uninstall [--purge]"
+          exit 0
+          ;;
+        *) echo "Unknown: $arg" >&2; exit 1 ;;
+      esac
+    done
+    agent_cms_uninstall "$purge"
     ;;
   *)
     echo "Неизвестная команда: $cmd" >&2

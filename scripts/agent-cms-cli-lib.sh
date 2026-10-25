@@ -188,3 +188,43 @@ agent_cms_link_cli() {
   ln -sf "$home/scripts/agent-cms" "$bin/agent-cms"
   echo "$bin/agent-cms"
 }
+
+agent_cms_cli_bin_path() {
+  echo "${HOME}/.local/bin/agent-cms"
+}
+
+agent_cms_uninstall() {
+  local purge="${1:-0}"
+  local home
+  home="$(agent_cms_read_config_home)"
+
+  if [[ "$purge" == "1" ]]; then
+    if [[ -d "$home" && -f "$home/scripts/agent-cms" ]]; then
+      export AGENT_CMS_HOME="$home"
+      export DOCKER_MAC_NO_PAUSE=1
+      bash "$home/scripts/agent-cms" down 2>/dev/null || true
+    fi
+  fi
+
+  local link
+  link="$(agent_cms_cli_bin_path)"
+  if [[ -L "$link" || -f "$link" ]]; then
+    rm -f "$link"
+    echo "→ удалён $link"
+  fi
+
+  if [[ -f "$AGENT_CMS_CONFIG_FILE" ]]; then
+    rm -f "$AGENT_CMS_CONFIG_FILE"
+    echo "→ удалён $AGENT_CMS_CONFIG_FILE"
+  fi
+
+  echo ""
+  echo "CLI снят с PATH."
+  if [[ -d "$home" ]]; then
+    echo "Код и данные остались: $home"
+    echo "  удалить каталог вручную: rm -rf $(printf '%q' "$home")"
+    if [[ "$purge" != "1" ]]; then
+      echo "  полный down stack перед удалением: agent-cms uninstall --purge"
+    fi
+  fi
+}

@@ -275,7 +275,29 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 
 **Не в v1 CLI:** полный MCP, правка workspaces — остаётся Editor/Control/MCP.
 
-**Артефакты:** ✅ bash CLI; install.sh → `~/.local/bin/agent-cms`. Позже: completion, `env show`, uninstall.
+### Q9.2 — что уже в CLI (v1)
+
+Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|update|logs|ps`** — обёртки над `docker-mac-*.sh`, `docker-prod-up.sh`, compose + `workspace-mounts`. **`env show/set`**, **`uninstall [--purge]`** — [`agent-cms-env-cli.js`](scripts/agent-cms-env-cli.js) + bash.
+
+**Запасной путь (не удалять):** `cms-*.command`, **`npm run docker:*`** ([package.json](package.json)).
+
+### Q9.2 — что не перенесено (пока только старые пути)
+
+| Пробел | Сейчас |
+| --- | --- |
+| **Control «Обновить»** (`deploy-update`, app-lock, journal) | CLI **`update`** = только `git pull --ff-only` + rebuild, **не** тот же HTTP-ops (Q3) |
+| **Legacy npm-стек** | `AGENT_CMS_WELCOME_LEGACY`, **`agent-cms-stack.sh`** — не в CLI |
+| **app-lock на CLI `env set`** | запись в `.env` с хоста без пароля (доверенный оператор); MCP/Control — с lock |
+
+**TODO (v1.1):**
+
+- [x] **`agent-cms down`** — compose down + `workspace-mounts`.
+- [ ] **`agent-cms update`** — выровнять с Q3: опционально deploy-update (app-lock, лог).
+- [x] **`env show` / `env set`** — Node + `platform-root-env.js` (whitelist `.env.example`).
+- [x] **`uninstall`** — symlink + config; **`--purge`** = down stack, репо вручную.
+- [ ] Legacy welcome/stack — **`agent-cms legacy …`** (низкий приоритет).
+
+**Артефакты:** ✅ bash CLI + `agent-cms-env-cli.js`; install.sh → `~/.local/bin/agent-cms`. Позже: completion, update≈Q3.
 
 > **NOTE**
 > - 💡 **`agent-cms update`** должен совпадать по политике с Q3 (`--ff-only`, app-lock на prod).
