@@ -33,7 +33,7 @@ const {
 const OFFLINE_UI_VERSION = "3";
 
 const APP_PATHS = {
-  editor: { path: "/", title: "Agent CMS", short: "Editor" },
+  editor: { path: "/", title: "Agent CMS Editor", short: "Editor" },
   voice: { path: "/app-chat/", title: "Agent Shell", short: "Chat" },
   control: { path: "/app-control/", title: "Agent CMS Control", short: "Control" },
   commander: { path: "/app-commander/", title: "Agent CMS Commander", short: "Commander" }
