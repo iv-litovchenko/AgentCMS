@@ -46,6 +46,7 @@ services:
       AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-}"
       AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
+      AGENT_CMS_HOST_HOME: "${HOME}"
     volumes:
       - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces
       - ${AGENT_CMS_HOST_PROJECT:-.}:/host-project
@@ -117,6 +118,7 @@ services:
       AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
       AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
+      AGENT_CMS_HOST_HOME: "${HOME}"
       AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.linux.yml"
       AGENT_CMS_DEPLOY_PLATFORM: "linux"
       COMPOSE_PROJECT_NAME: "agent-cms"

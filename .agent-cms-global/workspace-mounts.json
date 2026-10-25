@@ -7,18 +7,6 @@
       "hostPath": "./workspaces",
       "containerPath": "/app/workspaces",
       "builtIn": true
-    },
-    {
-      "id": "mac-desktop",
-      "label": "Mac · Рабочий стол",
-      "hostPath": "~/Desktop",
-      "containerPath": "~/Desktop"
-    },
-    {
-      "id": "mac-downloads",
-      "label": "Mac · Загрузки",
-      "hostPath": "~/Downloads",
-      "containerPath": "~/Downloads"
     }
   ]
 }

@@ -2,7 +2,19 @@
 # Agent CMS CLI — обёртка над docker compose / git (без npm publish).
 set -euo pipefail
 
-CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Symlink ~/.local/bin/agent-cms → scripts/agent-cms: dirname без readlink = .local/bin
+_agent_cms_script_dir() {
+  local script="${BASH_SOURCE[0]}"
+  while [[ -L "$script" ]]; do
+    local dir
+    dir="$(cd "$(dirname "$script")" && pwd)"
+    script="$(readlink "$script")"
+    [[ "$script" != /* ]] && script="$dir/$script"
+  done
+  cd "$(dirname "$script")" && pwd
+}
+
+CLI_DIR="$(_agent_cms_script_dir)"
 # shellcheck source=agent-cms-cli-lib.sh
 source "$CLI_DIR/agent-cms-cli-lib.sh"
 
@@ -27,7 +39,7 @@ EOF
 }
 
 cmd="${1:-help}"
-if [[ "$cmd" == "--version" || "$cmd" == "-V" || "$cmd" == "version" ]]; then
+if [[ "$cmd" == "--version" || "$cmd" == "-version" || "$cmd" == "-V" || "$cmd" == "-v" || "$cmd" == "version" ]]; then
   _home="$(agent_cms_read_config_home)"
   if [[ -d "$_home" && -f "$_home/package.json" ]]; then
     cd "$_home"
