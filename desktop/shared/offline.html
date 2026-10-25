@@ -3,11 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agent CMS — ожидание сервера</title>
+  <title>Ожидание сервера</title>
   <style>
     :root {
       color-scheme: light;
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --accent: #6366f1;
+      --accent-soft: #e0e7ff;
+      --gradient-top: #6366f1;
+      --gradient-mid: #7c3aed;
     }
     * { box-sizing: border-box; }
     body {
@@ -19,23 +23,47 @@
       padding: 32px 20px;
       background: linear-gradient(
         165deg,
-        #6366f1 0%,
-        #7c3aed 22%,
-        #3b9fd9 48%,
-        #9fdcf3 72%,
+        var(--gradient-top) 0%,
+        var(--gradient-mid) 24%,
+        #3b9fd9 50%,
+        #9fdcf3 74%,
         #f0f9ff 100%
       );
     }
+    body[data-app="editor"] {
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --gradient-top: #2563eb;
+      --gradient-mid: #1d4ed8;
+    }
+    body[data-app="voice"] {
+      --accent: #7c3aed;
+      --accent-soft: #ede9fe;
+      --gradient-top: #7c3aed;
+      --gradient-mid: #c026d3;
+    }
+    body[data-app="control"] {
+      --accent: #0d9488;
+      --accent-soft: #ccfbf1;
+      --gradient-top: #0d9488;
+      --gradient-mid: #0891b2;
+    }
+    body[data-app="commander"] {
+      --accent: #db2777;
+      --accent-soft: #fce7f3;
+      --gradient-top: #db2777;
+      --gradient-mid: #be185d;
+    }
     .card {
       width: min(440px, 100%);
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(12px);
       border-radius: 24px;
       padding: 36px 32px 32px;
       text-align: center;
       box-shadow:
-        0 24px 48px rgba(30, 58, 138, 0.18),
-        0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+        0 24px 48px rgba(30, 58, 138, 0.16),
+        0 0 0 1px rgba(255, 255, 255, 0.65) inset;
     }
     .badge {
       display: inline-flex;
@@ -43,8 +71,8 @@
       gap: 8px;
       padding: 6px 14px;
       border-radius: 999px;
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--accent-soft);
+      color: color-mix(in srgb, var(--accent) 75%, #000);
       font-size: 0.75rem;
       font-weight: 600;
       letter-spacing: 0.02em;
@@ -55,17 +83,29 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #f59e0b;
+      background: var(--accent);
       animation: pulse 1.6s ease-in-out infinite;
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.85); }
+      50% { opacity: 0.45; transform: scale(0.85); }
     }
-    .icon {
+    .icon-wrap {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 18px;
+      border-radius: 22px;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .icon-wrap img {
       width: 72px;
       height: 72px;
-      margin: 0 auto 20px;
+      border-radius: 16px;
+      object-fit: contain;
     }
     h1 {
       margin: 0 0 10px;
@@ -119,13 +159,12 @@
       font-weight: 600;
       color: #fff;
       cursor: pointer;
-      background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
-      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+      background: linear-gradient(135deg, var(--accent) 0%, var(--gradient-mid) 100%);
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 35%, transparent);
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
     button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 12px 28px rgba(99, 102, 241, 0.4);
     }
     button:active { transform: translateY(0); }
     .hint {
@@ -136,37 +175,43 @@
     }
   </style>
 </head>
-<body>
+<body data-app="">
   <div class="card">
     <div class="badge"><span class="badge-dot"></span> сервер не отвечает</div>
-    <svg class="icon" viewBox="0 0 72 72" fill="none" aria-hidden="true">
-      <rect x="8" y="14" width="56" height="40" rx="10" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
-      <circle cx="20" cy="26" r="3" fill="#f87171"/>
-      <circle cx="28" cy="26" r="3" fill="#fbbf24"/>
-      <circle cx="36" cy="26" r="3" fill="#4ade80"/>
-      <path d="M22 38h28M22 44h20" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
-      <circle cx="52" cy="52" r="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
-      <path d="M52 44v8M48 48h8" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
-    </svg>
-    <h1 id="title">Agent CMS Control</h1>
+    <div class="icon-wrap">
+      <img id="app-icon" alt="" width="72" height="72" hidden />
+    </div>
+    <h1 id="title">Agent CMS</h1>
     <p class="lead">
-      Приложение открывает сайт по адресу ниже, но CMS сейчас недоступен.
+      Приложение открывает CMS по адресу ниже, но сервер сейчас недоступен.
       <span class="url" id="base">…</span>
     </p>
     <div class="steps">
       <strong>Что сделать:</strong><br />
-      1. Запустите Docker на этой машине<br />
+      1. Запустите Docker на этой машине (или проверьте VPS)<br />
       2. В терминале: <code>agent-cms-cli start</code><br />
-      3. Или поднимите стек на VPS и проверьте URL в <code>.env</code>
+      3. URL в <code>.env</code>: <code>AGENT_CMS_PUBLIC_URL</code>
     </div>
     <button type="button" id="retry">Повторить подключение</button>
-    <p class="hint">Electron не содержит сервер — только окно к вашему Agent CMS.</p>
+    <p class="hint">Electron — окно к серверу; CMS работает в Docker, не внутри .app.</p>
   </div>
   <script>
     const params = new URLSearchParams(location.search);
+    const appId = params.get("appId") || "";
     const app = params.get("app");
-    if (app) document.getElementById("title").textContent = app;
+    if (appId) document.body.dataset.app = appId;
+    if (app) {
+      document.getElementById("title").textContent = app;
+      document.title = app + " — ожидание сервера";
+    }
     document.getElementById("base").textContent = params.get("base") || "—";
+    const iconParam = params.get("icon");
+    const iconEl = document.getElementById("app-icon");
+    if (iconParam) {
+      iconEl.src = iconParam.startsWith("file:") ? iconParam : "file://" + iconParam;
+      iconEl.hidden = false;
+      iconEl.onerror = () => { iconEl.hidden = true; };
+    }
     document.getElementById("retry").addEventListener("click", () => {
       if (window.electronBridge && window.electronBridge.retryLoad) {
         window.electronBridge.retryLoad();

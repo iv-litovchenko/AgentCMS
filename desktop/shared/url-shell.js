@@ -30,10 +30,10 @@ const {
 } = loadPublicUrlModule();
 
 const APP_PATHS = {
-  editor: { path: "/", title: "Agent CMS" },
-  voice: { path: "/app-chat/", title: "Agent CMS Voice" },
-  control: { path: "/app-control/", title: "Agent CMS Control" },
-  commander: { path: "/app-commander/", title: "Agent CMS Commander" }
+  editor: { path: "/", title: "Agent CMS", short: "Editor" },
+  voice: { path: "/app-chat/", title: "Agent Shell", short: "Chat" },
+  control: { path: "/app-control/", title: "Agent CMS Control", short: "Control" },
+  commander: { path: "/app-commander/", title: "Agent CMS Commander", short: "Commander" }
 };
 
 function isUrlOnlyMode() {
@@ -63,14 +63,16 @@ function resolveIcon(desktopDir) {
   return undefined;
 }
 
-function loadOfflinePage(win, appTitle, baseUrl) {
+function loadOfflinePage(win, meta, baseUrl, desktopDir) {
   const offlinePath = path.join(__dirname, "offline.html");
-  return win.loadFile(offlinePath, {
-    query: {
-      app: appTitle,
-      base: baseUrl || "—"
-    }
-  });
+  const iconPath = resolveIcon(desktopDir);
+  const query = {
+    app: meta.title,
+    appId: meta.appId || "",
+    base: baseUrl || "—"
+  };
+  if (iconPath) query.icon = iconPath;
+  return win.loadFile(offlinePath, { query });
 }
 
 /**
@@ -84,8 +86,8 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
   const electron = require("electron");
   if (!electron.app) return false;
 
-  const meta = APP_PATHS[appId];
-  if (!meta) return false;
+  if (!APP_PATHS[appId]) return false;
+  const meta = { ...APP_PATHS[appId], appId };
 
   const { app, BrowserWindow, shell, screen, ipcMain } = electron;
   const repoRoot = findRepoRoot(desktopDir);
@@ -110,7 +112,16 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
       await mainWindow.loadURL(targetUrl);
       return;
     }
-    await loadOfflinePage(mainWindow, meta.title, publicBase);
+    await loadOfflinePage(mainWindow, meta, publicBase, desktopDir);
+  }
+
+  function bindWindowTitle(win) {
+    win.webContents.on("page-title-updated", (event) => {
+      event.preventDefault();
+    });
+    win.webContents.on("did-finish-load", () => {
+      if (!win.isDestroyed()) win.setTitle(meta.title);
+    });
   }
 
   function createWindow() {
@@ -130,7 +141,7 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
       minHeight: 600,
       show: false,
       title: meta.title,
-      backgroundColor: "#0f1117",
+      backgroundColor: "#e8f4fc",
       icon: resolveIcon(desktopDir),
       webPreferences: {
         contextIsolation: true,
@@ -140,7 +151,10 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
       }
     });
 
+    bindWindowTitle(mainWindow);
+
     mainWindow.once("ready-to-show", () => {
+      mainWindow.setTitle(meta.title);
       mainWindow.show();
       mainWindow.focus();
     });
@@ -161,6 +175,7 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
   ipcMain.handle("url-shell:retry", () => loadMainContent());
 
   app.whenReady().then(() => {
+    if (typeof app.setName === "function") app.setName(meta.title);
     createWindow();
   });
 
