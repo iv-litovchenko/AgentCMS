@@ -349,8 +349,8 @@ agent-cms-cli open control    # http://127.0.0.1:3000/app-control/
 Опционально (macOS, не для работы CMS в Docker):
 
 ```bash
-agent-cms-cli electron-app build      # .app Editor, Chat, Control, Commander
-agent-cms-cli electron-app shortcuts    # ярлыки ACMS-* на Desktop
+agent-cms-cli electron-app build pack all   # все четыре .app в dist/ (то же, что build без аргументов)
+agent-cms-cli electron-app shortcuts        # ярлыки ACMS-* на Desktop
 ```
 
 Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.1:3000`** (без `/app-chat`).
@@ -505,7 +505,8 @@ agent-cms-cli open chat
 agent-cms-cli open commander
 agent-cms-cli open mcp-url    # URL + напоминание про Bearer token
 
-agent-cms-cli electron-app build              # все .app (pack)
+agent-cms-cli electron-app build pack all     # все .app в dist/ (канон после update)
+agent-cms-cli electron-app build              # то же (pack + all по умолчанию)
 agent-cms-cli electron-app build dist         # dmg/zip …
 agent-cms-cli electron-app build pack editor  # одно приложение
 agent-cms-cli electron-app shortcuts          # ярлыки ACMS-* на Desktop (macOS)
@@ -554,7 +555,8 @@ agent-cms-cli start          # Docker: CMS + MCP + Control
 agent-cms-cli status         # HTTP + docker ps
 
 # --- pack (по умолчанию): только .app в dist/ — себе, ярлыки, двойной клик ---
-agent-cms-cli electron-app build
+agent-cms-cli electron-app build pack all
+# (короче: agent-cms-cli electron-app build)
 # → dist/agent-cms/Agent CMS.app
 # → dist/agent-shell/Agent Shell.app
 # → dist/agent-control/Agent CMS Control.app
@@ -574,8 +576,8 @@ agent-cms-cli electron-app shortcuts
 # ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander, ACMS-Browser-Extension (папка chrome)
 agent-cms-cli electron shortcuts
 
-# типично: start → status → electron-app build → electron-app shortcuts
-# один модуль: electron-app build editor
+# типично: start → status → electron-app build pack all → electron-app shortcuts
+# один модуль: electron-app build pack editor
 ```
 
 Control в браузере: «Приложения» → «Собрать» / «Ярлыки Desktop». **`agent-cms-cli electron-app help`**

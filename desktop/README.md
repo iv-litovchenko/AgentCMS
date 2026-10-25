@@ -14,7 +14,7 @@
 
 Electron `.app` по умолчанию — **только URL** (`desktop/shared/url-shell.js`): Editor `/`, Voice `/app-chat/`, Control `/app-control/`, Commander `/app-commander/`. Сервер не поднимается; если стек выключен — экран «офлайн» с кнопкой «Повторить». Встроенный сервер (legacy): **`AGENT_CMS_ELECTRON_LEGACY=1`**.
 
-CLI: **`agent-cms status`**, **`agent-cms electron-app build`**, **`agent-cms electron-app shortcuts`** (короче: **`electron build`** / **`electron shortcuts`**).
+CLI: **`agent-cms-cli status`**, **`agent-cms-cli electron-app build pack all`**, **`agent-cms-cli electron-app shortcuts`** (короче: **`electron build pack all`** / **`electron shortcuts`**; **`build`** без аргументов = то же).
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control):
 - `ACMS-Editor` → `dist/agent-cms/Agent CMS.app`
