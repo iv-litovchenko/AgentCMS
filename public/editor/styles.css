@@ -84449,6 +84449,42 @@ body.is-cms-page-picker-active #discuss-aside * {
   outline: none;
 }
 
+.context-buffer-text-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  min-width: 0;
+}
+
+.context-buffer-text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.5rem;
+  max-height: 6rem;
+  resize: vertical;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.95);
+  font: inherit;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: #1e293b;
+}
+
+.context-buffer-text-input:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.45);
+  outline-offset: 1px;
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.context-buffer-text-save-btn {
+  flex-shrink: 0;
+  align-self: flex-end;
+  white-space: nowrap;
+}
+
 .context-buffer-caption {
   margin: 0.35rem 0 0;
   font-size: 0.5625rem;

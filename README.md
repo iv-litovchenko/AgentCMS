@@ -548,11 +548,13 @@ user-agent-cms
 │   ├── Todo (Todo) · 2
 │   │   ├── 🟢 session_todo_read
 │   │   └── 🟢 session_todo_write
-│   ├── Буфер контекста (Context buffer) · 4
-│   │   ├── 🟢 session_context_buffer_read
-│   │   ├── 🟢 session_context_buffer_append
-│   │   ├── 🟢 session_context_buffer_remove
-│   │   └── 🟢 session_context_buffer_clear
+│   ├── Буфер контекста (Context buffer) · 6
+│   │   ├── 🟢 session_context_buffer_items_read
+│   │   ├── 🟢 session_context_buffer_items_append
+│   │   ├── 🟢 session_context_buffer_items_remove
+│   │   ├── 🟢 session_context_buffer_items_clear
+│   │   ├── 🟢 session_context_buffer_text_read
+│   │   └── 🟢 session_context_buffer_text_write
 │   ├── Буфер обмена (Clipboard) · 5
 │   │   ├── 🟡 session_clipboard_copy_zzz — идея: положить запись/файл в буфер
 │   │   ├── 🟡 session_clipboard_cut_zzz — идея: как copy, при вставке переносит

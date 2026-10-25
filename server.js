@@ -293,6 +293,7 @@ const {
   BUNDLE_LOG_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
+  ROOT_SYSTEM_SESSION_BUFFER_FILE,
   normalizeSystemFileRequestName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
@@ -6760,6 +6761,12 @@ const WORKSPACE_PAD_SPECS = {
     kind: "workspace-todo",
     hint:
       "Shared workspace TODO.md (footer) — agreements and tasks with user. Not topic todo-single slot."
+  },
+  "session-buffer": {
+    fileName: ROOT_SYSTEM_SESSION_BUFFER_FILE,
+    kind: "session-buffer-text",
+    hint:
+      "SESSION-BUFFER.md — free text for the context buffer strip (textarea). Not NOTE.md, not context-buffer.json items."
   }
 };
 
@@ -15114,13 +15121,17 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/workspace/file-hub/remove — module_file_hub_outbound_remove MCP { id?, path? }",
   workspaceFileHubClear: "POST /api/workspace/file-hub/clear — module_file_hub_outbound_clear MCP",
   workspaceContextBuffer:
-    "GET /api/workspace/context-buffer — session_context_buffer_read MCP (.agent-cms/state/context-buffer.json)",
+    "GET /api/workspace/context-buffer — session_context_buffer_items_read MCP (.agent-cms/state/context-buffer.json)",
   workspaceContextBufferAdd:
-    "POST /api/workspace/context-buffer/add — session_context_buffer_append MCP { type?, ref|path, title?, icon?, meta? }",
+    "POST /api/workspace/context-buffer/add — session_context_buffer_items_append MCP { type?, ref|path, title?, icon?, meta? }",
   workspaceContextBufferRemove:
-    "POST /api/workspace/context-buffer/remove — session_context_buffer_remove MCP { id?, ref|path? }",
+    "POST /api/workspace/context-buffer/remove — session_context_buffer_items_remove MCP { id?, ref|path? }",
   workspaceContextBufferClear:
-    "POST /api/workspace/context-buffer/clear — session_context_buffer_clear MCP",
+    "POST /api/workspace/context-buffer/clear — session_context_buffer_items_clear MCP",
+  workspaceContextBufferTextRead:
+    "GET /api/workspace/context-buffer/text — session_context_buffer_text_read MCP (SESSION-BUFFER.md)",
+  workspaceContextBufferTextWrite:
+    "POST /api/workspace/context-buffer/text — session_context_buffer_text_write MCP { content, mode?: replace|append }",
   moduleGit:
     "GET /api/git/status|diff|logs|module-config + POST /api/git/init|commit|push|pull|remote|module-config|logs/clear — module_git_* (module-git)",
   execRunScript:
@@ -25048,6 +25059,36 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to clear context buffer",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/context-buffer/text") {
+    try {
+      const payload = await readWorkspacePad("session-buffer");
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read SESSION-BUFFER.md",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/context-buffer/text") {
+    try {
+      const body = await readJsonBody(req);
+      const content = typeof body.content === "string" ? body.content : null;
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      const mode = body.mode === "append" ? "append" : "replace";
+      const payload = await writeWorkspacePad("session-buffer", content, { mode });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write SESSION-BUFFER.md",
         details: String(error.message || error)
       });
     }

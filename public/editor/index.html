@@ -6750,8 +6750,28 @@
         </div>
         <div id="context-buffer-body" class="context-buffer-body">
           <div id="context-buffer-list" class="context-buffer-list" role="list"></div>
+          <div class="context-buffer-text-row">
+            <textarea
+              id="context-buffer-text-input"
+              class="context-buffer-text-input"
+              rows="2"
+              spellcheck="true"
+              placeholder="Текст для агента к буферу (SESSION-BUFFER.md)…"
+              aria-label="Текст буфера контекста"
+            ></textarea>
+            <button
+              type="button"
+              id="context-buffer-text-save-btn"
+              class="context-buffer-action-btn context-buffer-text-save-btn"
+              title="Сохранить в SESSION-BUFFER.md"
+            >
+              Сохранить
+            </button>
+          </div>
           <p class="context-buffer-caption">
-            Drop из overview / меню / слотов · агент: <code>read_context_buffer</code>
+            Drop — items · агент:
+            <code>session_context_buffer_items_read</code>,
+            <code>session_context_buffer_text_read</code>
           </p>
         </div>
       </aside>
@@ -9256,8 +9276,8 @@ awn-type: awn.page.ws
             "/editor/js/core/editor-chpu-path-runtime.js?v=1",
             "/editor/js/core/editor-system-files-runtime.js?v=1",
             "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
-            "/editor/js/context-buffer/context-buffer-client.js?v=1",
-            "/editor/js/context-buffer/context-buffer-panel.js?v=1",
+            "/editor/js/context-buffer/context-buffer-client.js?v=2",
+            "/editor/js/context-buffer/context-buffer-panel.js?v=2",
             "/editor/js/file-hub/file-hub-band-panel.js?v=1"
           ];
           loadScriptChain(preMain, 0, function () {

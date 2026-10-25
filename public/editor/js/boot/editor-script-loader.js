@@ -407,8 +407,8 @@
     "/editor/js/core/editor-chpu-path-runtime.js?v=1",
     "/editor/js/core/editor-system-files-runtime.js?v=1",
     "/editor/js/core/editor-shared-theme-presets-runtime.js?v=1",
-    "/editor/js/context-buffer/context-buffer-client.js?v=1",
-    "/editor/js/context-buffer/context-buffer-panel.js?v=1",
+    "/editor/js/context-buffer/context-buffer-client.js?v=2",
+    "/editor/js/context-buffer/context-buffer-panel.js?v=2",
     "/editor/js/file-hub/file-hub-band-panel.js?v=1"
   ];
 
