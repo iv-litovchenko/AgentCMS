@@ -298,6 +298,8 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 ## 🇷🇺 Установка — установщик (Mac / Windows / Linux) (🇬🇧 Install — installer)
 
+![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
+
 🇷🇺 **[ru]**
 
 **Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)** — `start`, `status`, `update` и т.д.
@@ -337,8 +339,6 @@ irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/insta
 > **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms`** for daily ops. No npm publish. Manual blocks below = fallback.
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
-
-![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
 
 🇷🇺 **[ru]**
 
