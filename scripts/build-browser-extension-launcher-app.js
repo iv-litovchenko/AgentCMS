@@ -30,25 +30,44 @@ function resolveLauncherIconPng(extFolder) {
   return path.join(extFolder, "icons/icon128.png");
 }
 
-/** SVG → PNG (512px) for .app icns — без белой подложки qlmanage */
+/** SVG → PNG. qlmanage держит градиент; magick только убирает белые углы превью. */
 function svgToPngMac(svgPath, outPng) {
   const outDir = path.dirname(outPng);
   fs.mkdirSync(outDir, { recursive: true });
-  for (const cmd of ["magick", "convert"]) {
-    try {
-      execFileSync(cmd, ["-background", "none", svgPath, "-resize", "512x512", outPng], {
-        stdio: "ignore"
-      });
-      if (fs.existsSync(outPng)) return true;
-    } catch {
-      /* try next */
-    }
-  }
   try {
-    execFileSync("qlmanage", ["-t", "-s", "512", "-o", outDir, svgPath], { stdio: "ignore" });
+    execFileSync("qlmanage", ["-t", "-s", "1024", "-o", outDir, svgPath], { stdio: "ignore" });
     const generated = path.join(outDir, `${path.basename(svgPath)}.png`);
     if (!fs.existsSync(generated)) return false;
     fs.renameSync(generated, outPng);
+    for (const cmd of ["magick", "convert"]) {
+      try {
+        execFileSync(
+          cmd,
+          [
+            outPng,
+            "-alpha",
+            "set",
+            "-fuzz",
+            "12%",
+            "-fill",
+            "none",
+            "-draw",
+            "color 0,0 floodfill",
+            "-draw",
+            "color %[fx:w-1],0 floodfill",
+            "-draw",
+            "color 0,%[fx:h-1] floodfill",
+            "-draw",
+            "color %[fx:w-1],%[fx:h-1] floodfill",
+            outPng
+          ],
+          { stdio: "ignore" }
+        );
+        break;
+      } catch {
+        /* углы останутся белыми, цвет иконки не трогаем */
+      }
+    }
     return fs.existsSync(outPng);
   } catch {
     return false;
