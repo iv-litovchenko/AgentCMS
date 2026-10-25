@@ -12,6 +12,7 @@
 | 6 | Instances / источники | 📌 пока без полной модели |
 | 7 | Electron | 📌 решение зафиксировано |
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
+| 9 | Установка Mac + Linux одной командой (`curl \| bash`) | 📌 открыт |
 
 ---
 
@@ -219,3 +220,36 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 > **NOTE**
 > - ✅ Решение зафиксировано; доработки — только по операционному чеклисту ниже (mount / register / индекс).
 > - 💡 Q6: **`local:ws-id`** — справочный source, не заменяет mount на диске.
+
+---
+
+## Вопрос 9 — установка Mac + Linux одной командой (без ручного `git clone`)
+
+**Статус:** 📌 **открыт** — сейчас в README отдельные блоки с `git clone`; нужен канон «вставил команду — стоит».
+
+**Зачем:** пользователь не клонирует репо руками; один entry point для Mac и Linux (как у self-hosted Docker-проектов: `curl -fsSL …/install.sh | bash`).
+
+**Куда класть (convention):**
+
+| | Путь |
+| --- | --- |
+| **macOS (локально)** | `~/Projects/AgentCMS` (или `~/Developer/…`) — не `/Applications` (стек Docker, не `.app`) |
+| **Linux VPS** | `/opt/agent-cms` (как в README) |
+
+**Что делает install-скрипт (черновик):**
+
+1. `uname` → ветка Mac vs Linux.
+2. Проверка **Docker** (Desktop на Mac / Engine + compose plugin на Linux); при отсутствии — ссылка или минимальная подсказка из README.
+3. **`git clone`** в фиксированный каталог (если папка уже есть — `git pull --ff-only` или спрос/флаг).
+4. `docker compose -f docker-compose.mac.yml` или `docker-compose.linux.yml` → `up -d --build`.
+5. В конце — URL Control/Editor и ссылка на [скиллы / MCP](README.md).
+
+**Артефакты (TODO):**
+
+- `scripts/install.sh` (или `docs/deploy/install.sh`) + одна строка в README для Mac и для VPS.
+- Опционально позже: Homebrew tap / formula (Mac) — второй канал, та же логика.
+
+> **NOTE**
+> - 💡 Согласовано с Q2 (Docker как база) и путями из README.
+> - ⚠️ `curl | bash` — только с доверенного URL (raw GitHub release/tag или свой домен); документировать checksum при желании.
+> - 📌 Windows — отдельно (`docker-compose.windows.yml`), в Q9 не смешивать без явного решения.
