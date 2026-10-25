@@ -794,6 +794,43 @@ if (!gotLock) {
       };
     });
 
+    ipcMain.handle("control:get-workspace-mounts", async () => {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = requireRepo(
+        "lib/ops/workspace-mounts.js"
+      );
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return payload;
+      return {
+        ok: true,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        composeExists: payload.composeExists,
+        hostProject: payload.hostProject,
+        exists: payload.exists,
+        mounts: payload.document.mounts
+      };
+    });
+
+    ipcMain.handle("control:save-workspace-mounts", async (_event, document) => {
+      const gate = resolveControlAppLockGate();
+      if (gate.enabled && !gate.sessionActive) {
+        return { ok: false, error: "app_lock_required" };
+      }
+      const { writeWorkspaceMounts } = requireRepo("lib/ops/workspace-mounts.js");
+      const result = writeWorkspaceMounts(getProjectRoot(), document || {});
+      if (!result.ok) return result;
+      return {
+        ok: true,
+        jsonPath: result.jsonPath,
+        composePath: result.composePath,
+        composeWritten: result.composeWritten,
+        composeRemoved: result.composeRemoved,
+        mounts: result.document.mounts,
+        message: result.message
+      };
+    });
+
     ipcMain.handle("control:reload-ui", () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.reload();

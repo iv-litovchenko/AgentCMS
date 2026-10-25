@@ -384,6 +384,8 @@ docker compose -f docker-compose.linux.yml ps
 
 После правок: `docker compose … up -d` (пересоздать контейнеры, если меняли mount или секреты). В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
 
+**Несколько папок с хранилищами (Docker):** по умолчанию один корень **`./workspaces`** (или **`AGENT_CMS_WORKSPACES_DIR`** в `.env`). Дополнительные каталоги на Mac/VPS — секция **«Папки хранилищ (Docker)»** в Control или MCP **`platform_workspace_mounts_list`** / **`platform_workspace_mounts_write`** (запись — app-lock). CMS пишет **`.agent-cms-global/workspace-mounts.json`** и обновляет **`docker-compose.workspace-mounts.yml`** (в git, один файл на Mac и VPS); после сохранения — **рестарт stack** (`docker compose -f … -f docker-compose.workspace-mounts.yml up -d`). Подробнее: [docs/deploy/DOCKER.md](docs/deploy/DOCKER.md#docker-workspace-mounts).
+
 **Ключи из `.env.example`** (whitelist платформы):
 
 | Ключ | 🇷🇺 Назначение | 🇬🇧 Purpose | Пример / Example |
@@ -392,7 +394,7 @@ docker compose -f docker-compose.linux.yml ps
 | **`APP_LOCK_PASSWORD`** | Пароль app-lock | App-lock password | смените с `changeme` |
 | **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | Password-gated apps | `editor,chat,commander,control` |
 | **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | In-CMS HTTP→HTTPS redirect | `0` |
-| **`AGENT_CMS_WORKSPACES_DIR`** | Каталог на **хосте** → `/app/workspaces` (все workspace — **подпапки**, compose не меняем) | Host workspaces root mount | `/opt/agent-cms/workspaces` или Mac: `/Users/…/AgentCMS-workspaces` |
+| **`AGENT_CMS_WORKSPACES_DIR`** | Основной каталог на **хосте** → `/app/workspaces` (workspace = **подпапки**). Доп. корни — **workspace-mounts** (Control / MCP), не правка базового compose | Primary host workspaces mount | `./workspaces` или `/Users/…/AgentCMS-workspaces` |
 | **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac: `http://127.0.0.1:3000` · VPS: `https://ваш-домен` |
 | **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
 | **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
@@ -529,6 +531,8 @@ user-agent-cms
 │   ├── 🟢 platform_env_keys_list
 │   ├── 🟢 platform_env_key_read
 │   ├── 🟢 platform_env_key_write
+│   ├── 🟢 platform_workspace_mounts_list
+│   ├── 🟢 platform_workspace_mounts_write
 │   ├── 🟢 platform_types_list
 │   └── 🟢 platform_type_get
 │

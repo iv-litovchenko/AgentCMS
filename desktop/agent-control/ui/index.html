@@ -134,6 +134,32 @@
 
       <main class="actions-layout" id="actions-root"></main>
 
+      <section class="panel section-block" data-section="workspace-mounts" hidden>
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Папки хранилищ (Docker)</h2>
+            <p>
+              Какие каталоги с хоста видит CMS в контейнере. По умолчанию
+              <code>./workspaces</code> (в базовом compose). Доп. пути →
+              <code>docker-compose.workspace-mounts.yml</code> + рестарт stack.
+            </p>
+          </div>
+          <div class="section-cap-actions">
+            <button type="button" class="ghost-btn" id="workspace-mounts-reload">Обновить</button>
+            <button type="button" class="ghost-btn env-file-save" id="workspace-mounts-save">Сохранить</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <p class="env-file-meta" id="workspace-mounts-meta"></p>
+          <p class="env-file-lock-hint" id="workspace-mounts-lock-hint" hidden>Сохранение — после входа (app-lock).</p>
+          <div class="workspace-mounts-list" id="workspace-mounts-list" aria-label="Список mount-корней"></div>
+          <div class="workspace-mounts-actions">
+            <button type="button" class="ghost-btn" id="workspace-mounts-add">+ Папка</button>
+          </div>
+          <p class="env-file-status" id="workspace-mounts-status" aria-live="polite"></p>
+        </div>
+      </section>
+
       <section class="panel section-block" data-section="env-file">
         <div class="section-cap">
           <div class="section-cap-text">

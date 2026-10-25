@@ -84,6 +84,14 @@
         body: JSON.stringify({ content: String(content ?? "") })
       }),
 
+    getWorkspaceMounts: () => fetchJson("/api/ops/workspace-mounts"),
+
+    saveWorkspaceMounts: (document) =>
+      fetchJson("/api/ops/workspace-mounts", {
+        method: "POST",
+        body: JSON.stringify(document || {})
+      }),
+
     reloadUi: () => {
       window.location.reload();
       return Promise.resolve({ ok: true });

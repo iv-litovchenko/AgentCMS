@@ -2499,6 +2499,76 @@ body.is-booting {
   cursor: not-allowed;
 }
 
+.workspace-mounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.workspace-mount-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 1.2fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.workspace-mount-row--builtin {
+  opacity: 0.92;
+}
+
+.workspace-mount-field {
+  display: grid;
+  gap: 3px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(180, 195, 220, 0.75);
+}
+
+.workspace-mount-field input {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(120, 140, 180, 0.16);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(220, 230, 245, 0.9);
+  font-size: 0.64rem;
+}
+
+.workspace-mount-field--mono input {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.6rem;
+}
+
+.workspace-mount-badge {
+  align-self: center;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: rgba(200, 210, 230, 0.8);
+  border: 1px solid rgba(140, 160, 200, 0.25);
+}
+
+.workspace-mounts-actions {
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .workspace-mount-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mcp-instances-control-stack {
   display: grid;
   gap: 14px;

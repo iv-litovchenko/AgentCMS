@@ -82,6 +82,29 @@ Mac/VPS bind-mount (без rebuild для UI/кода):
 
 Перенос: **`./workspaces`**, **`./.agent-cms-global`**, `.env` → новый сервер → `linux.yml up`. (Старые Docker volumes `cms-workspaces` / `cms-global` — скопируйте в эти папки на хосте.)
 
+## Docker workspace mounts
+
+Несколько каталогов с workspace на хосте (Desktop, Downloads, второй диск) без правки **`docker-compose.mac.yml`** / **`docker-compose.linux.yml`**.
+
+| Артеfact | Назначение |
+|----------|------------|
+| **`.agent-cms-global/workspace-mounts.json`** | Список корней (источник правды) |
+| **`docker-compose.workspace-mounts.yml`** | В git; CMS дописывает `cms`/`mcp` volumes при сохранении списка |
+
+**По умолчанию:** `./workspaces` → `/app/workspaces` (строка в базовом compose или **`AGENT_CMS_WORKSPACES_DIR`**).
+
+**Доп. папки:** Control → **«Папки хранилищ (Docker)»** или MCP **`platform_workspace_mounts_list`** / **`platform_workspace_mounts_write`** (write — app-lock). После сохранения — **рестарт** cms/mcp:
+
+```bash
+docker compose -f docker-compose.mac.yml -f docker-compose.workspace-mounts.yml up -d
+# Linux:
+docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml up -d
+```
+
+`npm run cms:start` / **`docker-mac-lib.sh`** и **`docker-prod-up.sh`** всегда подключают второй `-f`. На Mac для совпадения путей в manifest удобно mount **1:1** (`/Users/you/ws:/Users/you/ws`).
+
+Discover в Docker сканирует **только** смонтированные корни (не весь `$HOME`).
+
 ## Что внутри образа
 
 | Компонент | Зачем |

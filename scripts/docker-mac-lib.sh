@@ -60,7 +60,8 @@ docker_mac_read_env_var() {
 }
 
 docker_mac_compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  local -a compose_args=(-f "$COMPOSE_FILE" -f docker-compose.workspace-mounts.yml)
+  docker compose "${compose_args[@]}" "$@"
 }
 
 docker_mac_open_urls() {

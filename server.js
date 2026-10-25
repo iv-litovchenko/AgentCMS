@@ -23251,6 +23251,93 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/ops/workspace-mounts") {
+    try {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = require("./lib/ops/workspace-mounts");
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, {
+        ok: true,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        composeExists: payload.composeExists,
+        hostProject: payload.hostProject,
+        exists: payload.exists,
+        mounts: payload.document.mounts
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to read workspace mounts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ops/workspace-mounts") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 64_000);
+      const { writeWorkspaceMounts } = require("./lib/ops/workspace-mounts");
+      const result = writeWorkspaceMounts(getProjectRoot(), { mounts: body?.mounts });
+      if (!result.ok) return sendJson(res, 400, result);
+      return sendJson(res, 200, {
+        ok: true,
+        jsonPath: result.jsonPath,
+        composePath: result.composePath,
+        composeWritten: result.composeWritten,
+        composeRemoved: result.composeRemoved,
+        mounts: result.document.mounts,
+        message: result.message
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        ok: false,
+        error: "Failed to write workspace mounts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/workspace-mounts") {
+    try {
+      const { readWorkspaceMounts, WORKSPACE_MOUNTS_COMPOSE_BASENAME } = require("./lib/ops/workspace-mounts");
+      const payload = readWorkspaceMounts(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, {
+        ok: true,
+        composeBasename: WORKSPACE_MOUNTS_COMPOSE_BASENAME,
+        jsonPath: payload.jsonPath,
+        composePath: payload.composePath,
+        composeExists: payload.composeExists,
+        mounts: payload.document.mounts
+      });
+    } catch (error) {
+      return sendJson(res, 500, { ok: false, error: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/workspace-mounts") {
+    try {
+      const denied = await getOpsMaintenanceWriteDeniedResponse(req);
+      if (denied) return sendJson(res, denied.status, denied.body);
+      const body = await readJsonBody(req, 64_000);
+      const { writeWorkspaceMounts } = require("./lib/ops/workspace-mounts");
+      const result = writeWorkspaceMounts(getProjectRoot(), { mounts: body?.mounts });
+      if (!result.ok) return sendJson(res, 400, result);
+      return sendJson(res, 200, {
+        ok: true,
+        mounts: result.document.mounts,
+        composePath: result.composePath,
+        message: result.message
+      });
+    } catch (error) {
+      return sendJson(res, 500, { ok: false, error: String(error.message || error) });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/ops/server/action") {
     try {
       const denied = await getOpsMaintenanceWriteDeniedResponse(req);

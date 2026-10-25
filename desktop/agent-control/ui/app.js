@@ -45,6 +45,7 @@ function syncAppLockScreen() {
   document.body.classList.toggle("app-lock-active", show);
   syncAppLockLogoutButton();
   syncEnvFileEditorAccess();
+  syncWorkspaceMountsAccess();
   if (show) {
     void refreshAppLockLoginHint();
     window.requestAnimationFrame(() => {
@@ -118,6 +119,170 @@ async function loadEnvFileEditor() {
   } catch (error) {
     if (status) status.textContent = String(error.message || error);
   }
+}
+
+let workspaceMountsDraft = [];
+
+function syncWorkspaceMountsSectionVisibility() {
+  const section = document.querySelector('[data-section="workspace-mounts"]');
+  if (!section) return;
+  const docker = bootstrap?.deployment?.mode === "docker";
+  const hasApi = Boolean(window.agentControl?.getWorkspaceMounts);
+  section.hidden = !docker || !hasApi;
+}
+
+function syncWorkspaceMountsAccess() {
+  syncWorkspaceMountsSectionVisibility();
+  const saveBtn = document.getElementById("workspace-mounts-save");
+  const addBtn = document.getElementById("workspace-mounts-add");
+  const reloadBtn = document.getElementById("workspace-mounts-reload");
+  const hint = document.getElementById("workspace-mounts-lock-hint");
+  const locked = needsAppLockLogin();
+  if (saveBtn) saveBtn.disabled = locked;
+  if (addBtn) addBtn.disabled = locked;
+  if (reloadBtn) reloadBtn.disabled = false;
+  if (hint) hint.hidden = !locked;
+  const list = document.getElementById("workspace-mounts-list");
+  list?.querySelectorAll("input, select, button[data-remove-mount]").forEach((el) => {
+    if (el.closest("[data-built-in='1']")) return;
+    el.disabled = locked;
+  });
+}
+
+function renderWorkspaceMountsList() {
+  const list = document.getElementById("workspace-mounts-list");
+  if (!list) return;
+  list.innerHTML = workspaceMountsDraft
+    .map((mount, index) => {
+      const builtIn = Boolean(mount.builtIn);
+      const host = escapeAttr(mount.hostPath || "");
+      const label = escapeAttr(mount.label || mount.id || "");
+      const container = escapeAttr(mount.containerPath || "");
+      return `
+        <div class="workspace-mount-row${builtIn ? " workspace-mount-row--builtin" : ""}" data-index="${index}" ${
+          builtIn ? 'data-built-in="1"' : ""
+        }>
+          <label class="workspace-mount-field">
+            <span>Путь на хосте</span>
+            <input type="text" name="hostPath" value="${host}" spellcheck="false" autocomplete="off" ${
+              builtIn ? "disabled" : ""
+            } placeholder="./workspaces или /Users/…/my-ws" />
+          </label>
+          <label class="workspace-mount-field">
+            <span>Метка</span>
+            <input type="text" name="label" value="${label}" ${builtIn ? "disabled" : ""} />
+          </label>
+          <label class="workspace-mount-field workspace-mount-field--mono">
+            <span>В контейнере</span>
+            <input type="text" name="containerPath" value="${container}" spellcheck="false" ${
+              builtIn ? "disabled" : ""
+            } placeholder="как на Mac — 1:1, или /app/workspaces" />
+          </label>
+          ${
+            builtIn
+              ? `<span class="workspace-mount-badge">default</span>`
+              : `<button type="button" class="ghost-btn workspace-mount-remove" data-remove-mount="${index}">Удалить</button>`
+          }
+        </div>`;
+    })
+    .join("");
+
+  list.querySelectorAll(".workspace-mount-row:not([data-built-in='1']) input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const row = input.closest(".workspace-mount-row");
+      const idx = Number(row?.dataset.index);
+      if (!Number.isFinite(idx) || !workspaceMountsDraft[idx]) return;
+      const name = input.name;
+      workspaceMountsDraft[idx][name] = input.value;
+    });
+  });
+  list.querySelectorAll("[data-remove-mount]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (needsAppLockLogin()) return;
+      const idx = Number(btn.dataset.removeMount);
+      workspaceMountsDraft.splice(idx, 1);
+      renderWorkspaceMountsList();
+      syncWorkspaceMountsAccess();
+    });
+  });
+  syncWorkspaceMountsAccess();
+}
+
+async function loadWorkspaceMountsEditor() {
+  const meta = document.getElementById("workspace-mounts-meta");
+  const status = document.getElementById("workspace-mounts-status");
+  syncWorkspaceMountsSectionVisibility();
+  if (!window.agentControl?.getWorkspaceMounts) return;
+  if (status) status.textContent = "Загрузка…";
+  try {
+    const data = await window.agentControl.getWorkspaceMounts();
+    if (!data.ok) throw new Error(data.error || "read_failed");
+    workspaceMountsDraft = (data.mounts || []).map((m) => ({ ...m }));
+    renderWorkspaceMountsList();
+    if (meta) {
+      const parts = [];
+      if (data.hostProject) parts.push(data.hostProject);
+      if (data.jsonPath) parts.push(String(data.jsonPath).split(/[/\\]/).slice(-2).join("/"));
+      if (data.composeBasename) {
+        parts.push(data.composeExists ? data.composeBasename : `${data.composeBasename} (создастся при сохранении)`);
+      }
+      meta.textContent = parts.join(" · ");
+    }
+    if (status) status.textContent = "После сохранения — «Рестарт» stack или docker compose up -d.";
+  } catch (error) {
+    if (status) status.textContent = String(error.message || error);
+  }
+}
+
+function bindWorkspaceMountsEditor() {
+  const saveBtn = document.getElementById("workspace-mounts-save");
+  const reloadBtn = document.getElementById("workspace-mounts-reload");
+  const addBtn = document.getElementById("workspace-mounts-add");
+  const status = document.getElementById("workspace-mounts-status");
+  if (!saveBtn || saveBtn.dataset.bound) return;
+  if (!window.agentControl?.getWorkspaceMounts || !window.agentControl?.saveWorkspaceMounts) {
+    syncWorkspaceMountsSectionVisibility();
+    return;
+  }
+  saveBtn.dataset.bound = "1";
+  reloadBtn?.addEventListener("click", () => loadWorkspaceMountsEditor());
+  addBtn?.addEventListener("click", () => {
+    if (needsAppLockLogin()) return;
+    workspaceMountsDraft.push({
+      id: `mount-${Date.now()}`,
+      label: "Доп. папка",
+      hostPath: "",
+      containerPath: ""
+    });
+    renderWorkspaceMountsList();
+  });
+  saveBtn.addEventListener("click", async () => {
+    if (needsAppLockLogin()) return;
+    saveBtn.disabled = true;
+    if (status) status.textContent = "Сохранение…";
+    try {
+      const mounts = workspaceMountsDraft.map(({ id, label, hostPath, containerPath, builtIn }) => {
+        const row = {
+          id: String(id || "").trim() || undefined,
+          label: String(label || "").trim(),
+          hostPath: String(hostPath || "").trim(),
+          containerPath: String(containerPath || "").trim() || undefined
+        };
+        if (builtIn) row.builtIn = true;
+        return row;
+      });
+      const result = await window.agentControl.saveWorkspaceMounts({ mounts });
+      if (!result.ok) throw new Error(result.error || "save_failed");
+      if (status) status.textContent = result.message || "Сохранено";
+      appendLog(`\n■ Папки хранилищ сохранены\n${result.message || ""}\n`);
+      await loadWorkspaceMountsEditor();
+    } catch (error) {
+      if (status) status.textContent = String(error.message || error);
+      appendLog(`Ошибка workspace mounts: ${error.message}\n`, "stderr");
+    } finally {
+      syncWorkspaceMountsAccess();
+    }
+  });
 }
 
 function bindEnvFileEditor() {
@@ -3595,6 +3760,8 @@ async function init() {
   renderServicesMonitor();
   bindEnvFileEditor();
   await loadEnvFileEditor();
+  bindWorkspaceMountsEditor();
+  await loadWorkspaceMountsEditor();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ actionId, running }) => {

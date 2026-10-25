@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("agentControl", {
     appLockLogout: () => ipcRenderer.invoke("control:app-lock-logout"),
     getEnvFile: () => ipcRenderer.invoke("control:get-env-file"),
     saveEnvFile: (content) => ipcRenderer.invoke("control:save-env-file", content),
+  getWorkspaceMounts: () => ipcRenderer.invoke("control:get-workspace-mounts"),
+  saveWorkspaceMounts: (document) => ipcRenderer.invoke("control:save-workspace-mounts", document),
   getMcpInstances: () => ipcRenderer.invoke("control:get-mcp-instances"),
   saveMcpInstances: (document) => ipcRenderer.invoke("control:save-mcp-instances", document),
   onLog: (callback) => {

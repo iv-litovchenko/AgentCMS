@@ -25,11 +25,12 @@ fi
 export AGENT_CMS_PUBLIC_DOMAIN="${AGENT_CMS_PUBLIC_DOMAIN:-localhost}"
 
 COMPOSE_FILE="docker-compose.linux.yml"
-echo "→ docker compose -f ${COMPOSE_FILE} up -d --build"
-docker compose -f "${COMPOSE_FILE}" up -d --build
+compose_args=(-f "${COMPOSE_FILE}" -f docker-compose.workspace-mounts.yml)
+echo "→ docker compose ${compose_args[*]} up -d --build"
+docker compose "${compose_args[@]}" up -d --build
 
 echo ""
-docker compose -f "${COMPOSE_FILE}" ps
+docker compose "${compose_args[@]}" ps
 echo ""
 if [[ "$AGENT_CMS_PUBLIC_DOMAIN" != "localhost" ]]; then
   echo "Editor:  https://${AGENT_CMS_PUBLIC_DOMAIN}/"

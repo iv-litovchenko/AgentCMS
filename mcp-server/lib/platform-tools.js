@@ -125,4 +125,37 @@ export function registerPlatformTools(reg, client) {
       ),
     options: { agentScope: false }
   });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_workspace_mounts_list",
+    legacy: "list_workspace_mounts",
+    description:
+      "Docker workspace roots: host paths mounted into cms/mcp (default ./workspaces). Source: .agent-cms-global/workspace-mounts.json + generated docker-compose.workspace-mounts.yml.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/workspace-mounts", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_workspace_mounts_write",
+    legacy: "write_workspace_mounts",
+    description:
+      "Replace workspace mount list (app-lock). Regenerates docker-compose.workspace-mounts.yml; docker compose up -d required on host.",
+    schema: z.object({
+      mounts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            label: z.string().optional(),
+            hostPath: z.string().min(1),
+            containerPath: z.string().optional(),
+            builtIn: z.boolean().optional()
+          })
+        )
+        .min(1)
+    }),
+    handler: ({ mounts }) =>
+      client.post("/api/platform/workspace-mounts", { mounts }, { agentScope: false }),
+    options: { agentScope: false }
+  });
 }

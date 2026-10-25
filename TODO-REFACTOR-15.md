@@ -183,43 +183,27 @@ MCP со списком приложений: что где работает, п
 
 ## Вопрос 8 — не видно хранилищ (`ws-aya`, `ws-medsente`, `DOWNLOADWS`)
 
-**Статус:** 📌 **диагностика / чеклист** (не баг Control UI — данные и реестр).
+**Статус:** ✅ **закрыто** — один дефолтный корень + **доп. mount-корни** через Control / MCP; базовый compose не трогаем.
 
-**Факт (Mac + compose):** CMS видит только то, что лежит в **`./workspaces`** репозитория (mount `→ /app/workspaces`). Если папок `ws-aya` / `ws-medsente` / `DOWNLOADWS` там нет — в Editor / `workspaces_list` их не будет.
+**Канон (Docker):**
+
+- Дефолт: **`./workspaces`** → `/app/workspaces` (или **`AGENT_CMS_WORKSPACES_DIR`** в `.env`).
+- Доп. каталоги на хосте: **`.agent-cms-global/workspace-mounts.json`** + **`docker-compose.workspace-mounts.yml`** → второй `-f` при `compose up`; UI **Control «Папки хранилищ (Docker)»**; MCP **`platform_workspace_mounts_list`** / **`platform_workspace_mounts_write`** (write — app-lock). Док: **`docs/deploy/DOCKER.md`** (#docker-workspace-mounts), **README** (.env).
+- Discover в контейнере — **только смонтированные** корни (не весь Mac).
+
+**Если id всё ещё не видно** (операционный чеклист, не баг UI):
 
 ```
-Почему не видно ws-aya / ws-medsente / DOWNLOADWS
-│
-├─ A. Данные не в том каталоге (часто)
-│   ├─ лежат на Mac в другом пути или в старом Docker volume `cms-workspaces`
-│   └─ → скопировать / symlink в `YamlCMS/workspaces/<id>/`
-│
-├─ B. Docker mount
-│   ├─ контейнер видит один каталог → `/app/workspaces`
-│   └─ → **`AGENT_CMS_WORKSPACES_DIR`** в `.env` (стабильный родитель на Mac); новые id = новые **подпапки**, compose не трогаем
-│   └─ (legacy) symlink в `./workspaces` — для Docker на путь вне репо часто битый; не «каждый ws = строка в compose»
-│
-├─ C. Папка есть, но нет в реестре CMS
-│   ├─ недостаточно «просто папка на диске» — нужен manifest / register
-│   └─ → `workspaces_scan` → `workspace_register` (MCP или UI)
-│
-├─ D. Смотрим не тот UI
-│   ├─ Control ≠ дерево хранилищ
-│   └─ → Editor, MCP `workspaces_list`, настройки workspace
-│
-└─ E. Индекс / кэш
-    └─ → после появления папок: scan + rebuild indexes при необходимости
+├─ A. Папки не смонтированы → добавить корень в workspace-mounts + restart stack
+├─ B. Папка есть, нет manifest → workspaces_scan / workspace_register
+├─ C. Реестр .agent-cms-global устарел после миграции с named volumes
+└─ D. Индекс → rebuild при необходимости
 ```
-
-**Быстрая проверка:**
 
 ```bash
 ls ./workspaces
 docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 ```
 
-Если id нет в **обоих** списках — сначала **A/B**, затем **C**.
-
 > **NOTE**
-> - 💡 Связь с Q6: имена вида **`local:ws-aya`** — про source/instance, не заменяют физический каталог в `workspaces/`.
-> - ⚠️ `.agent-cms-global` — отдельный mount; реестр workspace может ссылаться на id, которого нет на диске после миграции с named volumes.
+> - 💡 Q6: **`local:ws-id`** — справочный source, не заменяет mount на диске.

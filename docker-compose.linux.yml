@@ -1,5 +1,6 @@
 # Linux VPS — CMS + MCP + Control + Caddy (80/443)
 #   docker compose -f docker-compose.linux.yml up -d --build
+# Доп. mount корней: docker-compose.workspace-mounts.yml (Control / MCP)
 
 name: agent-cms
 

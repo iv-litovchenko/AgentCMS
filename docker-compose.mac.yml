@@ -1,5 +1,6 @@
 # Mac / Docker Desktop — порты на localhost
 #   docker compose -f docker-compose.mac.yml up -d --build
+# Доп. корни workspace: docker-compose.workspace-mounts.yml — Control / MCP
 #
 # Bind-mount dev (без rebuild): public, desktop/agent-control, lib, mcp-server, .agent-cms-global
 
