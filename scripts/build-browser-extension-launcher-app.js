@@ -4,6 +4,7 @@
  * dist/browser-extension-launcher/ACMS Browser Extension.app
  */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
@@ -82,12 +83,32 @@ function ensureExtensionDir() {
 
 function buildIcns(pngPath, icnsPath) {
   if (!fs.existsSync(pngPath)) return false;
+  fs.mkdirSync(path.dirname(icnsPath), { recursive: true });
+  const iconsetTmp = fs.mkdtempSync(path.join(os.tmpdir(), "acms-launcher-"));
+  const iconset = `${iconsetTmp}.iconset`;
+  fs.renameSync(iconsetTmp, iconset);
   try {
-    fs.mkdirSync(path.dirname(icnsPath), { recursive: true });
-    execFileSync("sips", ["-s", "format", "icns", pngPath, "--out", icnsPath], { stdio: "ignore" });
+    for (const size of [16, 32, 128, 256, 512]) {
+      const out1 = path.join(iconset, `icon_${size}x${size}.png`);
+      const out2 = path.join(iconset, `icon_${size}x${size}@2x.png`);
+      execFileSync("sips", ["-z", String(size), String(size), pngPath, "--out", out1], {
+        stdio: "ignore"
+      });
+      execFileSync("sips", ["-z", String(size * 2), String(size * 2), pngPath, "--out", out2], {
+        stdio: "ignore"
+      });
+    }
+    execFileSync("iconutil", ["-c", "icns", iconset, "-o", icnsPath], { stdio: "ignore" });
     return fs.existsSync(icnsPath);
   } catch {
-    return false;
+    try {
+      execFileSync("sips", ["-s", "format", "icns", pngPath, "--out", icnsPath], { stdio: "ignore" });
+      return fs.existsSync(icnsPath);
+    } catch {
+      return false;
+    }
+  } finally {
+    fs.rmSync(iconset, { recursive: true, force: true });
   }
 }
 
@@ -152,9 +173,12 @@ open "$FOLDER"
   const icnsPath = path.join(resDir, "AppIcon.icns");
   const iconSrc = resolveLauncherIconPng(extFolder);
   const hasIcon = buildIcns(iconSrc, icnsPath);
+  if (!hasIcon) {
+    console.warn("⚠ Не удалось собрать AppIcon.icns — на Desktop будет белая иконка по умолчанию.");
+  }
   writePlist(appPath, hasIcon);
 
-  return { ok: true, appPath, extensionFolder: extFolder };
+  return { ok: true, appPath, extensionFolder: extFolder, hasIcon };
 }
 
 module.exports = { buildBrowserExtensionLauncherApp, APP_NAME, OUT_DIR };
