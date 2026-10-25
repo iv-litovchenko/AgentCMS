@@ -130,8 +130,12 @@ agent_cms_public_base() {
 }
 
 agent_cms_compose() {
-  local -a args
-  mapfile -t args < <(agent_cms_compose_args)
+  local -a args=()
+  local arg
+  # macOS /bin/bash 3.2 has no mapfile — read line-by-line
+  while IFS= read -r arg; do
+    args+=("$arg")
+  done < <(agent_cms_compose_args)
   docker compose "${args[@]}" "$@"
 }
 
