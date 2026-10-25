@@ -212,6 +212,22 @@ agent_cms_ensure_node() {
   fi
 }
 
+# Electron .app — только electron-builder на хосте; CMS (better-sqlite3) в Docker.
+agent_cms_ensure_electron_deps() {
+  if [[ -d node_modules/electron ]] && [[ -x node_modules/.bin/electron-builder ]]; then
+    return 0
+  fi
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Нужен npm (идёт с Node.js)." >&2
+    exit 1
+  fi
+  local ev eb
+  ev="$(node -p "require('./package.json').devDependencies.electron" 2>/dev/null || echo '^35.0.0')"
+  eb="$(node -p "require('./package.json').devDependencies['electron-builder']" 2>/dev/null || echo '^25.1.8')"
+  echo "→ npm: electron + electron-builder (без native CMS-модулей на хосте)…"
+  npm install --no-save --ignore-scripts "electron@${ev}" "electron-builder@${eb}"
+}
+
 agent_cms_desktop_build_supported() {
   [[ "$(agent_cms_platform)" == "mac" ]]
 }
@@ -261,14 +277,7 @@ agent_cms_run_app_build() {
   cd "$AGENT_CMS_HOME"
   export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-  if [[ ! -d node_modules/electron ]]; then
-    echo "→ npm install (первый раз для Electron)…"
-    if ! command -v npm >/dev/null 2>&1; then
-      echo "Нужен npm (идёт с Node.js)." >&2
-      exit 1
-    fi
-    npm install
-  fi
+  agent_cms_ensure_electron_deps
 
   case "$app" in
     all)
