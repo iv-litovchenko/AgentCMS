@@ -355,7 +355,7 @@ agent-cms-cli electron-app shortcuts    # ярлыки ACMS-* на Desktop
 
 Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.1:3000`** (без `/app-chat`).
 
-Обновление: **`agent-cms-cli update`** (`git pull` + rebuild).  
+Обновление кода: **`agent-cms-cli update`** (`git pull` только). Стек после этого: **`agent-cms-cli rebuild`**.  
 **Не нужно** после install: `npm install` на хосте для CMS, `npm run build:editor` — в репо уже есть `public/editor/main.built.js`.
 
 Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
@@ -446,7 +446,9 @@ agent-cms-cli start          # следующие запуски
 agent-cms-cli ps
 
 # дальше: правки .env → agent-cms-cli restart или agent-cms-cli rebuild
-# обновление кода: agent-cms-cli update  (git pull --ff-only + rebuild; prod «Обновить» в Control — см. DOCKER.md)
+# обновление кода: agent-cms-cli update  (только git pull --ff-only)
+# затем стек: agent-cms-cli rebuild
+# prod «Обновить» в Control — отдельно, git pull + rebuild (см. DOCKER.md)
 # https://ваш-домен/ · https://ваш-домен/app-control/ · https://ваш-домен/app-mcp (Bearer token)
 ```
 
@@ -491,7 +493,7 @@ agent-cms-cli ps
 agent-cms-cli logs            # logs -f cms mcp control …
 
 agent-cms-cli rebuild         # up -d --build (первый раз / после server.js)
-agent-cms-cli update          # git pull --ff-only + rebuild (не Control deploy-update)
+agent-cms-cli update          # только git pull --ff-only (стек: rebuild)
 
 agent-cms-cli env show        # ключи из .env.example; секреты → ***
 agent-cms-cli env show --reveal KEY
@@ -527,7 +529,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 
 > **NOTE**
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
-> - 💡 **`agent-cms-cli update`** = `git pull --ff-only` + rebuild (как Q3); app-lock на prod — через Control.
+> - 💡 **`agent-cms-cli update`** = только `git pull --ff-only`. Пересборка стека — отдельно **`rebuild`**. Кнопка Control «Обновить» по-прежнему pull + rebuild.
 > - 📌 Fallback: **`cms-start.command`**, **`npm run docker:mac`** / **`docker:linux`** ([package.json](package.json)).
 > - 💡 Разработчикам в клоне: **`npm run cms:status`** = **`agent-cms-cli status`** при `AGENT_CMS_HOME=$PWD`.
 

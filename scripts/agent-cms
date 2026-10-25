@@ -29,7 +29,8 @@ Agent CMS — CLI для Docker-стека (без npm).
   electron-app build … | electron-app shortcuts
   (синоним: electron build … | electron shortcuts)
   start, stop, restart, down, ps, logs
-  rebuild, update
+  rebuild
+  update               только git pull --ff-only (без rebuild)
   open editor|chat|control|commander|mcp-url
   env show [--reveal] [KEY]   env set KEY=VALUE
   install              повторный запуск install.sh из AGENT_CMS_HOME
@@ -205,14 +206,7 @@ case "$cmd" in
     fi
     echo "→ git pull --ff-only"
     git pull --ff-only
-    agent_cms_ensure_docker
-    platform="$(agent_cms_platform)"
-    export DOCKER_MAC_NO_PAUSE=1
-    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
-      bash "$AGENT_CMS_HOME/scripts/docker-mac-rebuild.sh"
-    else
-      bash "$AGENT_CMS_HOME/scripts/docker-prod-up.sh"
-    fi
+    echo "Код обновлён. Стек не пересобирался: agent-cms-cli rebuild"
     ;;
   open)
     agent_cms_ensure_home

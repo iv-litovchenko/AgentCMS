@@ -337,7 +337,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 | Пробел | Сейчас |
 | --- | --- |
-| **Control «Обновить»** (`deploy-update`, app-lock, journal) | CLI **`update`** = только `git pull --ff-only` + rebuild, **не** тот же HTTP-ops (Q3) |
+| **Control «Обновить»** (`deploy-update`, app-lock, journal) | CLI **`update`** = только `git pull --ff-only` (без rebuild), **не** тот же HTTP-ops (Q3) |
 | **Legacy npm-стек** | `AGENT_CMS_WELCOME_LEGACY`, **`agent-cms-stack.sh`** — не в CLI |
 | **app-lock на CLI `env set`** | запись в `.env` с хоста без пароля (доверенный оператор); MCP/Control — с lock |
 

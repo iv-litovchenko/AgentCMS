@@ -1,48 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ACMS Browser Extension">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Browser + side panel + extension">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#1e3a8a"/>
+    <linearGradient id="bg" x1="18%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="55%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
     </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="18%" r="70%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="panel" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="55%" stop-color="#7c3aed"/>
       <stop offset="100%" stop-color="#db2777"/>
     </linearGradient>
-    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
     </linearGradient>
+    <clipPath id="win">
+      <rect x="18" y="16" width="94" height="84" rx="14"/>
+    </clipPath>
   </defs>
+
   <rect width="128" height="128" rx="28" fill="url(#bg)"/>
-  <rect width="128" height="128" rx="28" fill="url(#shine)"/>
-  <!-- Browser window -->
-  <rect x="18" y="26" width="92" height="76" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
-  <path fill="#e2e8f0" d="M18 26h92a10 10 0 0 1 10 10v8H18v-8a10 10 0 0 1 10-10z"/>
-  <circle cx="32" cy="36" r="3.2" fill="#f87171"/>
-  <circle cx="44" cy="36" r="3.2" fill="#fbbf24"/>
-  <circle cx="56" cy="36" r="3.2" fill="#4ade80"/>
-  <!-- Page (left) -->
-  <rect x="26" y="50" width="44" height="4" rx="2" fill="#cbd5e1"/>
-  <rect x="26" y="58" width="36" height="3" rx="1.5" fill="#e2e8f0"/>
-  <rect x="26" y="65" width="40" height="3" rx="1.5" fill="#e2e8f0"/>
-  <rect x="26" y="78" width="38" height="16" rx="4" fill="#e2e8f0"/>
-  <!-- Side panel (Companion) -->
-  <rect x="76" y="44" width="26" height="50" rx="6" fill="url(#panel)"/>
-  <rect x="80" y="50" width="18" height="3" rx="1.5" fill="rgba(255,255,255,0.85)"/>
-  <rect x="80" y="57" width="14" height="2.5" rx="1.25" fill="rgba(255,255,255,0.45)"/>
-  <rect x="80" y="63" width="16" height="2.5" rx="1.25" fill="rgba(255,255,255,0.45)"/>
-  <path
-    d="M82 78 L88 84 L94 76"
-    fill="none"
-    stroke="#fff"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <!-- Extension badge (orange puzzle — not purple pulse toolbar icon) -->
-  <circle cx="34" cy="96" r="22" fill="#ea580c" stroke="#fff" stroke-width="3"/>
-  <path
-    fill="#fff"
-    d="M34 82 h10 v4 c0 2.2 1.8 4 4 4 h4 v10 h-4 c-2.2 0-4 1.8-4 4 v4 H34 v-4 c0-2.2-1.8-4-4-4 h-4 V90 h4 c2.2 0 4-1.8 4-4 v-4z"
-  />
+  <rect width="128" height="128" rx="28" fill="url(#glow)"/>
+  <rect x="3" y="3" width="122" height="122" rx="25" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity="0.92"/>
+
+  <!-- soft ground shadow -->
+  <ellipse cx="66" cy="108" rx="36" ry="6" fill="#020617" opacity="0.35"/>
+
+  <g clip-path="url(#win)">
+    <rect x="18" y="16" width="94" height="84" fill="#f8fafc"/>
+    <!-- chrome -->
+    <rect x="18" y="16" width="94" height="22" fill="#e8eef6"/>
+    <rect x="18" y="37" width="94" height="1" fill="#d5dee9"/>
+    <!-- traffic lights -->
+    <circle cx="32" cy="27" r="3.4" fill="#ff5f57"/>
+    <circle cx="43" cy="27" r="3.4" fill="#febc2e"/>
+    <circle cx="54" cy="27" r="3.4" fill="#28c840"/>
+    <!-- address pill -->
+    <rect x="64" y="21.5" width="40" height="11" rx="5.5" fill="#ffffff"/>
+    <circle cx="71" cy="27" r="2" fill="#94a3b8"/>
+    <rect x="76" y="25.5" width="18" height="3" rx="1.5" fill="#cbd5e1"/>
+    <!-- page -->
+    <rect x="28" y="46" width="40" height="5" rx="2.5" fill="#cbd5e1"/>
+    <rect x="28" y="55" width="34" height="3.2" rx="1.6" fill="#e2e8f0"/>
+    <rect x="28" y="62" width="38" height="3.2" rx="1.6" fill="#e2e8f0"/>
+    <rect x="28" y="69" width="28" height="3.2" rx="1.6" fill="#e2e8f0"/>
+    <rect x="28" y="80" width="36" height="12" rx="4" fill="#e7edf4"/>
+    <!-- companion panel -->
+    <rect x="74" y="44" width="30" height="48" rx="8" fill="url(#panel)"/>
+    <rect x="79" y="50" width="20" height="3.2" rx="1.6" fill="#ffffff" opacity="0.95"/>
+    <rect x="79" y="57" width="14" height="2.6" rx="1.3" fill="#ffffff" opacity="0.55"/>
+    <rect x="79" y="63" width="17" height="2.6" rx="1.3" fill="#ffffff" opacity="0.55"/>
+    <path d="M82 78.5 L87.2 83.5 L95 74.5" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <rect x="18.75" y="16.75" width="92.5" height="82.5" rx="13.25" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.5"/>
+
+  <!-- extension badge: white rim, orange disc, jigsaw (not a medical plus) -->
+  <circle cx="34" cy="100" r="22" fill="#ffffff"/>
+  <circle cx="34" cy="100" r="16.5" fill="url(#badge)"/>
+  <path fill="#ffffff" d="
+    M26.5 93.5
+    H30.2
+    A3.6 3.6 0 0 0 37.4 93.5
+    H41
+    V97.2
+    A3.6 3.6 0 0 1 41 104.4
+    V108
+    H26.5
+    Z"/>
 </svg>
