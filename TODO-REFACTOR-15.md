@@ -10,7 +10,7 @@
 | 4 | `.env` + MCP keys | ✅ закрыто |
 | 5 | App-lock | ✅ закрыто |
 | 6 | Instances / источники | 📌 пока без полной модели |
-| 7 | Electron | 🟡 7.2–7.4 v1 ✅ (URL-shell, offline, status, shortcuts); 7.4 поддомены — отложено |
+| 7 | Electron | ==✅ закрыто (v1)== — URL-shell, offline UI, `electron-app build/shortcuts`, pack `shared/`; 7.4 поддомены · единый launcher — отложено |
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
 | 9.1 | Установщик Mac / Windows / Linux | 🟡 v1 закрыто (`install.sh`; Windows/WSL; v1.1 — native) |
 | 9.2 | CLI `agent-cms` (вместо raw compose/git) | 🟡 v1 закрыто (lifecycle/rebuild; v1.1 — update≈Q3, env lock) |
@@ -175,9 +175,9 @@ MCP со списком приложений: что где работает, п
 
 ---
 
-## Вопрос 7 — Electron (стратегия, кратко)
+## ✅ Вопрос 7 — Electron (стратегия, кратко)
 
-**Статус:** 📌 **решение зафиксировано**, реализация launcher — по желанию позже.
+**Статус:** ==✅ **закрыто (v1).**== Клиенты `.app` по URL; offline, сборка, ярлыки. **Отложено:** поддомены (7.4), единый launcher, local vs prod в UI (7.5).
 
 **Канон после Q1/Q2:** сервер — **Docker** (или dev `npm start`) на **одном host** (`:3000`, path `app-*`). Работа — **браузер** (`/`, `/app-chat`, `/app-control`, …).
 
@@ -190,9 +190,9 @@ MCP со списком приложений: что где работает, п
 **План работ (согласовано):**
 
 1. ✅ **Electron URL-shell** — `desktop/shared/url-shell.js`; Editor / Voice / Control / Commander грузят `AGENT_CMS_PUBLIC_URL` + path; legacy: `AGENT_CMS_ELECTRON_LEGACY=1`.
-2. ✅ **Offline-экран** — `desktop/shared/offline.html` + probe `/api/agent/mcp-ping`.
-3. ✅ **CLI `agent-cms status`** + **`npm run cms:status`** — `scripts/cms-http-status.js` (HTTP + compose ps).
-4. ✅ **CLI `agent-cms electron-app shortcuts`** (+ **`electron-app build`**) · dev: **`npm run cms:shortcuts`**.
+2. ✅ **Offline-экран** — `desktop/shared/offline.html` (общий для всех `.app`, иконка + заголовок окна) + probe; **`build-desktop-subapp.js`** копирует `shared/` в asar.
+3. ✅ **CLI `agent-cms-cli status`** + **`npm run cms:status`** — `scripts/cms-http-status.js` (HTTP + compose ps).
+4. ✅ **CLI `agent-cms-cli electron-app shortcuts`** (+ **`electron-app build`**) · Browser Extension launcher `.app` · dev: **`npm run cms:shortcuts`**.
 
 > **NOTE**
 > - ✅ Согласовано с Q2 и `docs/deploy/DOCKER.md` (Electron опционален, URL = браузер).
@@ -201,11 +201,13 @@ MCP со списком приложений: что где работает, п
 
 ### 7.1 — Сохранить Electron, ярлыки и команды
 
-**Идея:** Electron **не выкидываем** — нужны **отдельные приложения / ярлыки на Рабочем столе** (как сейчас по сути несколько `.app`), плюс понятные **команды** (npm / `.command` / будущий `agent cms …`) чтобы их **собрать или поставить**.
+**Статус v1:** ==✅== **`agent-cms-cli electron-app shortcuts`** — ACMS-Editor / Chat / Control / Commander / Browser Extension; **`electron-app build pack`**.
 
-**Открытый вопрос:** один скрипт «установить все ярлыки» vs по одному на Editor / Voice / Control / Commander?
+**Отложено:** один launcher `.app` вместо четырёх — по желанию.
 
 ### 7.2 — Несколько оболочек, один URL
+
+**Статус v1:** ==✅== см. URL-shell выше.
 
 **Идея:** несколько Electron-приложений **как сейчас**, но по сути это **обёртки**: каждое окно грузит **тот же public URL**, что и браузер (`AGENT_CMS_PUBLIC_URL` + path):
 
@@ -220,7 +222,7 @@ MCP со списком приложений: что где работает, п
 
 **Идея:** если сервер **выключен**, Electron **ничего полезного не покажет** (ошибка / пустая страница) — нужна явная проверка.
 
-**Статус v1:** **`agent-cms status`** + offline в `.app` (кнопка «Повторить»). README / `desktop/README.md` обновлены.
+**Статус v1:** ==✅== **`agent-cms-cli status`** + offline в `.app` («Повторить»). README / `desktop/README.md`.
 
 ### 7.4 — `chat.localhost` vs `localhost/app-*`
 

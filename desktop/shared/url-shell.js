@@ -29,6 +29,9 @@ const {
   probeCmsHttp
 } = loadPublicUrlModule();
 
+/** Версия offline UI — меняйте при правках offline.html (сброс кэша loadFile). */
+const OFFLINE_UI_VERSION = "3";
+
 const APP_PATHS = {
   editor: { path: "/", title: "Agent CMS", short: "Editor" },
   voice: { path: "/app-chat/", title: "Agent Shell", short: "Chat" },
@@ -69,7 +72,8 @@ function loadOfflinePage(win, meta, baseUrl, desktopDir) {
   const query = {
     app: meta.title,
     appId: meta.appId || "",
-    base: baseUrl || "—"
+    base: baseUrl || "—",
+    v: OFFLINE_UI_VERSION
   };
   if (iconPath) query.icon = iconPath;
   return win.loadFile(offlinePath, { query });
@@ -116,12 +120,15 @@ function tryBootstrapUrlOnly(desktopDir, appId) {
   }
 
   function bindWindowTitle(win) {
+    const applyTitle = () => {
+      if (!win.isDestroyed()) win.setTitle(meta.title);
+    };
     win.webContents.on("page-title-updated", (event) => {
       event.preventDefault();
+      applyTitle();
     });
-    win.webContents.on("did-finish-load", () => {
-      if (!win.isDestroyed()) win.setTitle(meta.title);
-    });
+    win.webContents.on("did-finish-load", applyTitle);
+    win.webContents.on("did-navigate-in-page", applyTitle);
   }
 
   function createWindow() {
