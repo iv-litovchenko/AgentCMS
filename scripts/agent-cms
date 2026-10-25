@@ -77,6 +77,11 @@ case "$cmd" in
     ;;
   doctor)
     agent_cms_ensure_home
+    export AGENT_CMS_CLI_PLATFORM="$(agent_cms_platform)"
+    if command -v node >/dev/null 2>&1; then
+      node "$AGENT_CMS_HOME/scripts/agent-cms-doctor.js"
+      exit $?
+    fi
     ok=1
     if command -v git >/dev/null 2>&1; then
       echo "✓ git $(git --version | head -1)"
@@ -98,6 +103,7 @@ case "$cmd" in
       ok=0
     fi
     echo "home: $AGENT_CMS_HOME"
+    echo "public: $(agent_cms_public_base)"
     exit "$ok"
     ;;
   status)
