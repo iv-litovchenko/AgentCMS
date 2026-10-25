@@ -6,15 +6,25 @@
 	email {$AGENT_CMS_CADDY_EMAIL}
 }
 
-{$AGENT_CMS_PUBLIC_DOMAIN} {
+(cms_proxy) {
+	handle_errors {
+		@upstream expression {http.error.status_code} >= 502 && {http.error.status_code} <= 503
+		handle @upstream {
+			root * /srv/caddy-errors
+			rewrite * /upstream-unavailable.html
+			file_server
+		}
+	}
 	handle {
 		reverse_proxy cms:3000
 	}
 }
 
+{$AGENT_CMS_PUBLIC_DOMAIN} {
+	import cms_proxy
+}
+
 # Локально без DNS:
 :80 {
-	handle {
-		reverse_proxy cms:3000
-	}
+	import cms_proxy
 }

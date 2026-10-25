@@ -143,6 +143,7 @@ services:
       AGENT_CMS_CADDY_EMAIL: "${AGENT_CMS_CADDY_EMAIL:-admin@example.com}"
     volumes:
       - ./docs/deploy/docker-Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docs/deploy/caddy-errors:/srv/caddy-errors:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

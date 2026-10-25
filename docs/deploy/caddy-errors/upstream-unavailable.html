@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Agent CMS — сервис временно недоступен</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    main { max-width: 32rem; text-align: center; }
+    h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 12px; }
+    p { color: #94a3b8; line-height: 1.5; margin: 0 0 8px; }
+    code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Agent CMS временно недоступен</h1>
+    <p>Сайт открывается, но приложение CMS сейчас не отвечает (ошибка шлюза).</p>
+    <p>На сервере: <code>agent-cms-cli doctor</code>, затем <code>agent-cms-cli status</code> и логи <code>docker compose logs caddy cms --tail 50</code>.</p>
+    <p>Если в браузере «ERR_SSL» — это не эта страница: проверьте DNS, домен в <code>.env</code> и пересоздайте Caddy.</p>
+  </main>
+</body>
+</html>
