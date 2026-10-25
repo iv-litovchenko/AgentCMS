@@ -1,0 +1,34 @@
+{
+  "model": "nav-main-registry-v1",
+  "builtAt": "2026-09-24T09:36:03.649Z",
+  "rebuildMs": 0,
+  "syncedAt": "2026-10-22T01:03:35.995Z",
+  "items": [
+    {
+      "nodePath": "awn-topics/test-1000-soobscheniy/awn-storage/media/Снимок экрана 2026-09-12 в 22.57.18.sidecar.md",
+      "name": "Снимок экрана 2026-09-12 в 22.57.18",
+      "awnType": "awn.content.sidecar",
+      "awnProps": {
+        "awn-version": "3",
+        "awn-create": "2026-09-13T13:41:46.363Z",
+        "awn-update": "2026-09-13T14:12:52.452Z",
+        "awn-type": "awn.content.sidecar"
+      }
+    },
+    {
+      "nodePath": "awn-topics/php/manifest.md",
+      "name": "PHP",
+      "awnType": "awn.hub.topic",
+      "awnProps": {
+        "awn-id": "34",
+        "awn-status": "open",
+        "awn-description": "Описание",
+        "awn-color": "#000000",
+        "awn-version": "35",
+        "awn-create": "2026-06-09T02:18",
+        "awn-update": "2026-10-21T23:06:13.701Z",
+        "awn-type": "awn.hub.topic"
+      }
+    }
+  ]
+}

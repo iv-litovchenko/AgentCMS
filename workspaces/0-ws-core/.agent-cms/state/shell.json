@@ -1,0 +1,20 @@
+{
+  "phase": "waiting",
+  "phrase": "Ожидаю",
+  "metrics": "",
+  "lastAgentMessageId": "claude-1790673987743-cfmlce",
+  "lastShellReply": "Failed to authenticate: OAuth session expired and could not be refreshed",
+  "qwenpawChatUpdatedAt": "2026-08-18T00:24:06.877009Z",
+  "stopTtsAt": 1790674014879,
+  "sidecarSeenAt": 1787209867988,
+  "pttHeld": false,
+  "meetingRecording": false,
+  "lastTtsClientId": "c91c0f7b-3f74-42ac-93e9-5cc4a67ee8bd:730ec45c-1454-4cab-8598-ab68503c4e6d",
+  "primaryClientId": "c91c0f7b-3f74-42ac-93e9-5cc4a67ee8bd:730ec45c-1454-4cab-8598-ab68503c4e6d",
+  "updatedAt": "2026-10-23T23:18:00.686Z",
+  "formatVersion": 1,
+  "shellSurfaceHost": "browser-tab",
+  "shellSurfaceHint": "Отдельная вкладка браузера",
+  "shellSurfaceBackend": "local",
+  "dialogScrollRatio": 0
+}

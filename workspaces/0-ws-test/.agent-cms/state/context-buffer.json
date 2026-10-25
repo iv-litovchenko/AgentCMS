@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-25T11:54:17.729Z",
+  "items": [
+    {
+      "id": "161a2ef7-1073-4239-b11b-81169934339c",
+      "type": "page",
+      "ref": "SKILL.md",
+      "title": "SKILL.md",
+      "icon": null,
+      "meta": {
+        "source": "system-file",
+        "markdownLink": "[SKILL](SKILL.md)"
+      },
+      "addedAt": "2026-10-25T11:54:17.728Z"
+    }
+  ]
+}

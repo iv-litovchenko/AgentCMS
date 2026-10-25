@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "workspaceId": "0-ws-test",
+  "agentId": "0-ws-test",
+  "route": "/0-ws-test",
+  "contentMode": "internal",
+  "label": null,
+  "focus": {
+    "entity": "home",
+    "editing": false
+  },
+  "mcp": {},
+  "aliases": {
+    "path": null,
+    "slot": null,
+    "ref": null,
+    "contextPath": null,
+    "awnType": null
+  },
+  "editing": false,
+  "updatedAt": "2026-10-25T11:52:59.102Z"
+}

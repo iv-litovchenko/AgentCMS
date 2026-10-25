@@ -1,0 +1,87 @@
+{
+  "model": "nav-flags-registry-v1",
+  "builtAt": "2026-09-19T16:39:01.819Z",
+  "rebuildMs": 2283,
+  "focus": [
+    {
+      "nodePath": "awn-topics/atlas/kusr-olga-kalyakina/awn-storage/main/dz-6.md",
+      "name": "ДЗ-6",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-status": "open",
+        "awn-version": "9",
+        "awn-create": "2026-08-24T17:38",
+        "awn-update": "2026-08-24T15:43:34.074Z",
+        "awn-type": "awn.content.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/test-2026-agent/awn-storage/main/zapiska-3.md",
+      "name": "Быстрая заметка",
+      "awnType": "awn.record",
+      "awnProps": {
+        "awn-status": "draft",
+        "awn-tags": "- тест",
+        "awn-version": "3",
+        "awn-create": "2026-07-23T21:26:23.515Z",
+        "awn-update": "2026-07-23T21:39:02.719Z",
+        "awn-type": "awn.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/test-2026-agent/manifest.md",
+      "name": "Тест 2026-агент",
+      "awnType": "awn.page.topic",
+      "awnProps": {
+        "awn-status": "closed",
+        "awn-description": "Описание",
+        "awn-tags": "- тест",
+        "awn-version": "12",
+        "awn-create": "2026-07-24T00:23",
+        "awn-update": "2026-07-25T18:44:32.306Z",
+        "awn-type": "awn.page.topic"
+      }
+    }
+  ],
+  "main": [
+    {
+      "nodePath": "awn-topics/atlas/kusr-olga-kalyakina/awn-storage/main/dz-6.md",
+      "name": "ДЗ-6",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-status": "open",
+        "awn-version": "9",
+        "awn-create": "2026-08-24T17:38",
+        "awn-update": "2026-08-24T15:43:34.074Z",
+        "awn-type": "awn.content.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/test-2026-agent/awn-storage/main/zapiska-3.md",
+      "name": "Быстрая заметка",
+      "awnType": "awn.record",
+      "awnProps": {
+        "awn-status": "draft",
+        "awn-tags": "- тест",
+        "awn-version": "3",
+        "awn-create": "2026-07-23T21:26:23.515Z",
+        "awn-update": "2026-07-23T21:39:02.719Z",
+        "awn-type": "awn.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/test-2026-agent/manifest.md",
+      "name": "Тест 2026-агент",
+      "awnType": "awn.page.topic",
+      "awnProps": {
+        "awn-status": "closed",
+        "awn-description": "Описание",
+        "awn-tags": "- тест",
+        "awn-version": "12",
+        "awn-create": "2026-07-24T00:23",
+        "awn-update": "2026-07-25T18:44:32.306Z",
+        "awn-type": "awn.page.topic"
+      }
+    }
+  ]
+}
