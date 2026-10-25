@@ -27775,6 +27775,10 @@ a.header-tool-btn {
   letter-spacing: -0.04em;
 }
 
+.sidebar-git-btn-badge.is-zero:not(.is-loading) {
+  background: #64748b;
+}
+
 .sidebar-git-btn.has-remote-behind:not(.is-active) {
   border-color: #93c5fd;
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.22);

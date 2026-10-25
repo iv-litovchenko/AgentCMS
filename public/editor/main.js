@@ -2209,7 +2209,6 @@ const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const sidebarRoadmapGlobeBtn = document.getElementById("sidebar-roadmap-globe-btn");
 const sidebarGitBtn = document.getElementById("sidebar-git-btn");
-const sidebarGitBtnBadgeNode = document.getElementById("sidebar-git-btn-badge");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
 const AGENT_ROADMAP_MAP_WORKSPACE_VIEW = "roadmap-map";
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
@@ -110644,6 +110643,7 @@ function initAgentGitToolbar() {
   }
   if (sidebarGitBtn) {
     mountAgentToolbarBtnIcon(sidebarGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
+    ensureSidebarGitBtnBadge();
     if (sidebarGitBtn.dataset.gitToolbarBound !== "1") {
       sidebarGitBtn.dataset.gitToolbarBound = "1";
       sidebarGitBtn.addEventListener("click", () => {
@@ -110663,6 +110663,20 @@ function initAgentGitToolbar() {
   }
   scheduleAgentGitRemoteCheck();
   syncAgentGitToolbarUi();
+}
+
+function ensureSidebarGitBtnBadge() {
+  if (!sidebarGitBtn) return null;
+  let badge = sidebarGitBtn.querySelector("#sidebar-git-btn-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.id = "sidebar-git-btn-badge";
+    badge.className = "sidebar-git-btn-badge is-zero";
+    badge.setAttribute("aria-hidden", "true");
+    badge.textContent = "0";
+    sidebarGitBtn.appendChild(badge);
+  }
+  return badge;
 }
 
 function resolveActiveAgentWorkspaceGitRepo() {
@@ -110749,19 +110763,18 @@ function syncAgentGitToolbarUi() {
   sidebarGitBtn?.classList.toggle("has-remote-behind", behind > 0);
   sidebarGitBtn?.classList.toggle("is-remote-check-loading", agentGitRemoteCheckLoading);
 
-  if (sidebarGitBtnBadgeNode) {
+  const gitBadgeNode = ensureSidebarGitBtnBadge();
+  if (gitBadgeNode) {
     if (agentGitRemoteCheckLoading && hasGitRepo) {
-      sidebarGitBtnBadgeNode.textContent = "…";
-      sidebarGitBtnBadgeNode.classList.remove("hidden");
-      sidebarGitBtnBadgeNode.classList.add("is-loading");
-    } else if (behind > 0) {
-      sidebarGitBtnBadgeNode.textContent = String(behind);
-      sidebarGitBtnBadgeNode.classList.remove("hidden", "is-loading");
+      gitBadgeNode.textContent = "…";
+      gitBadgeNode.classList.add("is-loading");
+      gitBadgeNode.classList.remove("is-zero");
     } else {
-      sidebarGitBtnBadgeNode.textContent = "";
-      sidebarGitBtnBadgeNode.classList.add("hidden");
-      sidebarGitBtnBadgeNode.classList.remove("is-loading");
+      gitBadgeNode.textContent = String(behind);
+      gitBadgeNode.classList.remove("is-loading");
+      gitBadgeNode.classList.toggle("is-zero", behind <= 0);
     }
+    gitBadgeNode.classList.remove("hidden");
   }
 
   if (sidebarGitBtn) {
@@ -110776,7 +110789,7 @@ function syncAgentGitToolbarUi() {
     }
     const ariaBits = [];
     if (agentGitRemoteCheckLoading) ariaBits.push("проверка remote");
-    if (behind > 0) ariaBits.push(`${behind} коммитов на remote`);
+    else if (hasGitRepo) ariaBits.push(`${behind} коммитов на remote`);
     sidebarGitBtn.setAttribute(
       "aria-label",
       ariaBits.length ? `Git-репозиторий, ${ariaBits.join(", ")}` : "Git-репозиторий"
