@@ -5,7 +5,15 @@ if (!electron.app) {
   process.exit(1);
 }
 
-if (require("../shared/url-shell").tryBootstrapUrlOnly(__dirname, "voice")) {
+const path = require("path");
+const { loadUrlShell } = (() => {
+  try {
+    return require(path.join(__dirname, "shared", "load-url-shell"));
+  } catch {
+    return require("../shared/load-url-shell");
+  }
+})();
+if (loadUrlShell().tryBootstrapUrlOnly(__dirname, "voice")) {
   module.exports = {};
 } else {
   bootstrapLegacyShellMain();

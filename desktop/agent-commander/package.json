@@ -25,10 +25,15 @@
     },
     "files": [
       "main.js",
-      "../shared/url-shell.js",
-      "../shared/url-shell-preload.js",
-      "../shared/offline.html",
-      "../../lib/desktop/public-url.js",
+      {
+        "from": "../shared",
+        "to": "shared",
+        "filter": ["url-shell.js", "url-shell-preload.js", "offline.html", "load-url-shell.js"]
+      },
+      {
+        "from": "../../lib/desktop/public-url.js",
+        "to": "lib/desktop/public-url.js"
+      },
       "config.js",
       "server.js",
       "icon.js",

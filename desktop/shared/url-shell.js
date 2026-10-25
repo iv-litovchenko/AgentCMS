@@ -4,12 +4,30 @@
  */
 const path = require("path");
 const fs = require("fs");
+
+function loadPublicUrlModule() {
+  const ids = [
+    path.join(__dirname, "../lib/desktop/public-url"),
+    path.join(__dirname, "../../lib/desktop/public-url")
+  ];
+  let lastErr;
+  for (const id of ids) {
+    try {
+      return require(id);
+    } catch (err) {
+      lastErr = err;
+      if (err.code !== "MODULE_NOT_FOUND") throw err;
+    }
+  }
+  throw lastErr;
+}
+
 const {
   findRepoRoot,
   getPublicBaseUrl,
   joinPublicPath,
   probeCmsHttp
-} = require("../../lib/desktop/public-url");
+} = loadPublicUrlModule();
 
 const APP_PATHS = {
   editor: { path: "/", title: "Agent CMS" },

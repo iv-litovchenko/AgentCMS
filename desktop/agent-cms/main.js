@@ -6,7 +6,15 @@ if (!electron.app) {
 }
 
 const path = require("path");
-if (require("../shared/url-shell").tryBootstrapUrlOnly(__dirname, "editor")) {
+const path = require("path");
+const { loadUrlShell } = (() => {
+  try {
+    return require(path.join(__dirname, "shared", "load-url-shell"));
+  } catch {
+    return require("../shared/load-url-shell");
+  }
+})();
+if (loadUrlShell().tryBootstrapUrlOnly(__dirname, "editor")) {
   module.exports = {};
 } else {
   bootstrapLegacyAgentCmsMain();
