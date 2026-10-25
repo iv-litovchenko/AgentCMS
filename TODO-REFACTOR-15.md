@@ -12,7 +12,8 @@
 | 6 | Instances / источники | 📌 пока без полной модели |
 | 7 | Electron | 📌 решение зафиксировано |
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
-| 9 | Установка Mac + Linux одной командой (`curl \| bash`) | 📌 открыт |
+| 9.1 | Установщик Mac / Windows / Linux | ✅ v1 (`scripts/install.sh`, без npm) |
+| 9.2 | CLI `agent-cms` (вместо raw compose/git) | ✅ v1 (`scripts/agent-cms` + symlink) |
 
 ---
 
@@ -223,33 +224,76 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 
 ---
 
-## Вопрос 9 — установка Mac + Linux одной командой (без ручного `git clone`)
+## Вопрос 9.1 — установщик (Mac / Windows / Linux)
 
-**Статус:** 📌 **открыт** — сейчас в README отдельные блоки с `git clone`; нужен канон «вставил команду — стоит».
+**Статус:** ✅ **v1** — [`scripts/install.sh`](scripts/install.sh), GitHub `curl | bash`; Windows [`install.ps1`](scripts/install.ps1) → WSL. **Без npm.**
 
-**Зачем:** пользователь не клонирует репо руками; один entry point для Mac и Linux (как у self-hosted Docker-проектов: `curl -fsSL …/install.sh | bash`).
+**Цель:** одна (или три короткие) команды «скачать и поставить»; пользователь **не** клонирует репо руками.
 
-**Куда класть (convention):**
+| ОС | Куда ставим код | Compose-файл |
+| --- | --- | --- |
+| **macOS** | `~/Projects/AgentCMS` (не `/Applications`) | `docker-compose.mac.yml` |
+| **Linux (VPS)** | `/opt/agent-cms` | `docker-compose.linux.yml` |
+| **Windows** | `%USERPROFILE%\Projects\AgentCMS` (или WSL2 `/opt/agent-cms`) | `docker-compose.windows.yml` |
 
-| | Путь |
-| --- | --- |
-| **macOS (локально)** | `~/Projects/AgentCMS` (или `~/Developer/…`) — не `/Applications` (стек Docker, не `.app`) |
-| **Linux VPS** | `/opt/agent-cms` (как в README) |
+**Установщик делает:** detect OS → проверка Docker → `git clone` / `pull` в канонический путь → первый `up -d --build` → вывод URL + hint про CLI (**Q9.2**).
 
-**Что делает install-скрипт (черновик):**
+**Каналы доставки (черновик):**
 
-1. `uname` → ветка Mac vs Linux.
-2. Проверка **Docker** (Desktop на Mac / Engine + compose plugin на Linux); при отсутствии — ссылка или минимальная подсказка из README.
-3. **`git clone`** в фиксированный каталог (если папка уже есть — `git pull --ff-only` или спрос/флаг).
-4. `docker compose -f docker-compose.mac.yml` или `docker-compose.linux.yml` → `up -d --build`.
-5. В конце — URL Control/Editor и ссылка на [скиллы / MCP](README.md).
+- **Unix:** `curl -fsSL …/install.sh | bash` (Mac + Linux).
+- **Windows:** `install.ps1` / winget / installer (решить: native Docker Desktop vs WSL2-only).
+- **Позже:** Homebrew cask/tap (Mac), optional `.deb` — обёртка над тем же скриптом.
+- **Не делаем:** publish в npm (CLI = symlink на bash в репо).
 
-**Артефакты (TODO):**
-
-- `scripts/install.sh` (или `docs/deploy/install.sh`) + одна строка в README для Mac и для VPS.
-- Опционально позже: Homebrew tap / formula (Mac) — второй канал, та же логика.
+**Артефакты:** ✅ `scripts/install.sh`, `scripts/install.ps1`, README.
 
 > **NOTE**
-> - 💡 Согласовано с Q2 (Docker как база) и путями из README.
-> - ⚠️ `curl | bash` — только с доверенного URL (raw GitHub release/tag или свой домен); документировать checksum при желании.
-> - 📌 Windows — отдельно (`docker-compose.windows.yml`), в Q9 не смешивать без явного решения.
+> - 💡 Q9.2 ставит бинарь **`agent-cms`** в PATH; установщик 9.1 может вызывать его или положить shim.
+> - 💡 Согласовано с Q2; `curl | bash` — только доверенный URL.
+
+---
+
+## Вопрос 9.2 — CLI `agent-cms` (вместо длинных compose/git-команд)
+
+**Статус:** ✅ **v1** — [`scripts/agent-cms`](scripts/agent-cms) + [`agent-cms-cli-lib.sh`](scripts/agent-cms-cli-lib.sh); PATH через install.sh.
+
+**Имя команды (канон):** бинарь **`agent-cms`** (alias **`agent cms`** — опционально через shell-completion / второй symlink).
+
+**CLI знает:** где лежит install root (config `~/.config/agent-cms/config.json` или env **`AGENT_CMS_HOME`**), какой compose-файл для текущей ОС, public URL из `.env`.
+
+**Группы команд (черновик дерева — см. ответ в чате / финализировать здесь):**
+
+| Группа | Примеры | Заменяет |
+| --- | --- | --- |
+| **info** | `version`, `doctor`, `paths`, `status` | ручные проверки Docker/портов |
+| **lifecycle** | `start`, `stop`, `restart`, `logs`, `ps` | `docker compose … up/down/logs/ps` |
+| **build** | `rebuild`, `pull` (images) | `cms-rebuild.command`, `--build` |
+| **update** | `update` (= pull git + rebuild) | Control «Обновить» / Q3 с терминала |
+| **open** | `open editor`, `open control`, `open chat` | копипаст URL |
+| **config** | `env show`, `env set KEY` (?) | ops/env — осторожно, app-lock |
+| **install** | `install`, `uninstall` (?) | делегат в 9.1 |
+
+**Не в v1 CLI:** полный MCP, правка workspaces — остаётся Editor/Control/MCP.
+
+**Артефакты:** ✅ bash CLI; install.sh → `~/.local/bin/agent-cms`. Позже: completion, `env show`, uninstall.
+
+> **NOTE**
+> - 💡 **`agent-cms update`** должен совпадать по политике с Q3 (`--ff-only`, app-lock на prod).
+> - 💡 Windows: тот же бинарь (Node) или `agent-cms.cmd` wrapper.
+
+```
+📦 9.1 Установщик
+├── 🍎 mac     → install.sh / brew → ~/Projects/AgentCMS
+├── 🐧 linux   → install.sh        → /opt/agent-cms
+├── 🪟 windows → install.ps1/WSL   → Projects или WSL /opt
+└── 🎯 итог    → Docker OK + clone + первый up + подсказка agent-cms
+
+🖥️ 9.2 CLI agent-cms
+├── ℹ️  info       → version · doctor · paths · status
+├── ▶️  lifecycle  → start · stop · restart · logs · ps
+├── 🔨 build       → rebuild · (pull images)
+├── ⬆️  update      → update (= git pull + compose build, как Q3)
+├── 🌐 open        → editor · control · chat · mcp-url
+├── ⚙️  config      → env show · (env set — позже, lock)
+└── 📥 install     → install · uninstall (→ 9.1)
+```

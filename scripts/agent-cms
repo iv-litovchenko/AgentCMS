@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# Agent CMS CLI — обёртка над docker compose / git (без npm publish).
+set -euo pipefail
+
+CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=agent-cms-cli-lib.sh
+source "$CLI_DIR/agent-cms-cli-lib.sh"
+
+usage() {
+  cat <<'EOF'
+Agent CMS — CLI для Docker-стека (без npm).
+
+  agent-cms [--version] [command]
+
+Команды:
+  version, doctor, paths, status
+  start, stop, restart, ps, logs
+  rebuild, update
+  open editor|control|chat|mcp-url
+  install              повторный запуск install.sh из AGENT_CMS_HOME
+  help
+
+Переменные: AGENT_CMS_HOME, AGENT_CMS_CONFIG_DIR
+EOF
+}
+
+cmd="${1:-help}"
+if [[ "$cmd" == "--version" || "$cmd" == "-V" || "$cmd" == "version" ]]; then
+  _home="$(agent_cms_read_config_home)"
+  if [[ -d "$_home" && -f "$_home/package.json" ]]; then
+    cd "$_home"
+    echo "agent-cms $(agent_cms_package_version) (platform: $(agent_cms_platform))"
+    echo "home: $_home"
+  else
+    echo "agent-cms $AGENT_CMS_CLI_VERSION (not installed)"
+  fi
+  exit 0
+fi
+
+case "$cmd" in
+  help | -h | --help)
+    usage
+    exit 0
+    ;;
+  paths)
+    agent_cms_ensure_home
+    echo "AGENT_CMS_HOME=$AGENT_CMS_HOME"
+    echo "platform=$(agent_cms_platform)"
+    echo "compose=$(agent_cms_compose_file) + docker-compose.workspace-mounts.yml"
+    echo "config=$AGENT_CMS_CONFIG_FILE"
+    echo "public=$(agent_cms_public_base)"
+    exit 0
+    ;;
+  doctor)
+    agent_cms_ensure_home
+    ok=1
+    if command -v git >/dev/null 2>&1; then
+      echo "✓ git $(git --version | head -1)"
+    else
+      echo "✗ git не найден"
+      ok=0
+    fi
+    if agent_cms_check_docker; then
+      echo "✓ docker $(docker --version | head -1)"
+      echo "✓ $(docker compose version | head -1)"
+    else
+      echo "✗ docker / compose не готов"
+      ok=0
+    fi
+    if [[ -f .env ]]; then
+      echo "✓ .env"
+    else
+      echo "✗ нет .env"
+      ok=0
+    fi
+    echo "home: $AGENT_CMS_HOME"
+    exit "$ok"
+    ;;
+  status | ps)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    agent_cms_compose ps
+    ;;
+  start)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    platform="$(agent_cms_platform)"
+    export DOCKER_MAC_NO_PAUSE=1
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      bash "$AGENT_CMS_HOME/scripts/docker-mac-start.sh"
+    else
+      agent_cms_compose up -d cms mcp control
+      base="$(agent_cms_public_base)"
+      echo "Editor:  ${base}/"
+      echo "Control: ${base}/app-control/"
+    fi
+    ;;
+  stop)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    platform="$(agent_cms_platform)"
+    export DOCKER_MAC_NO_PAUSE=1
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      bash "$AGENT_CMS_HOME/scripts/docker-mac-stop.sh"
+    else
+      agent_cms_compose stop cms mcp control || true
+    fi
+    ;;
+  restart)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    platform="$(agent_cms_platform)"
+    export DOCKER_MAC_NO_PAUSE=1
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      bash "$AGENT_CMS_HOME/scripts/docker-mac-restart.sh"
+    else
+      agent_cms_compose restart cms mcp control caddy 2>/dev/null || agent_cms_compose restart cms mcp control
+    fi
+    ;;
+  logs)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    shift || true
+    # shellcheck disable=SC2046
+    agent_cms_compose logs -f $(agent_cms_log_services) "$@"
+    ;;
+  rebuild)
+    agent_cms_ensure_home
+    agent_cms_ensure_docker
+    platform="$(agent_cms_platform)"
+    export DOCKER_MAC_NO_PAUSE=1
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      bash "$AGENT_CMS_HOME/scripts/docker-mac-rebuild.sh"
+    else
+      bash "$AGENT_CMS_HOME/scripts/docker-prod-up.sh"
+    fi
+    ;;
+  update)
+    agent_cms_ensure_home
+    if ! command -v git >/dev/null 2>&1; then
+      echo "Нужен git." >&2
+      exit 1
+    fi
+    echo "→ git pull --ff-only"
+    git pull --ff-only
+    agent_cms_ensure_docker
+    platform="$(agent_cms_platform)"
+    export DOCKER_MAC_NO_PAUSE=1
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      bash "$AGENT_CMS_HOME/scripts/docker-mac-rebuild.sh"
+    else
+      bash "$AGENT_CMS_HOME/scripts/docker-prod-up.sh"
+    fi
+    ;;
+  open)
+    agent_cms_ensure_home
+    sub="${2:-control}"
+    base="$(agent_cms_public_base)"
+    case "$sub" in
+      editor) url="${base}/" ;;
+      control) url="${base}/app-control/" ;;
+      chat) url="${base}/app-chat/" ;;
+      mcp-url)
+        echo "MCP HTTP: ${base}/app-mcp"
+        echo "Bearer: см. AGENT_CMS_MCP_TOKEN в .env"
+        exit 0
+        ;;
+      *)
+        echo "open: editor | control | chat | mcp-url" >&2
+        exit 1
+        ;;
+    esac
+    echo "$url"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      open "$url" >/dev/null 2>&1 || true
+    elif command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "$url" >/dev/null 2>&1 || true
+    fi
+    ;;
+  install)
+    if [[ -f "$CLI_DIR/install.sh" ]]; then
+      exec bash "$CLI_DIR/install.sh" "${@:2}"
+    fi
+    echo "install.sh не найден рядом с CLI." >&2
+    exit 1
+    ;;
+  *)
+    echo "Неизвестная команда: $cmd" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
