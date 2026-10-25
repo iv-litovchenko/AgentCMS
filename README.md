@@ -472,28 +472,13 @@ docker compose -f docker-compose.linux.yml ps
 
 Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](TODO.MCP-INSTANCES.md).
 
-**Claude Desktop (Mac, stdio — локальный CMS):**
+**Cursor · Claude Desktop · другие MCP-клиенты (канон — HTTP):**
 
 ```json
 {
   "mcpServers": {
     "agent-cms": {
-      "command": "node",
-      "args": ["/Users/ВАШ_ПОЛЬЗОВАТЕЛЬ/Desktop/AgentCMS/mcp-server/index.js"]
-    }
-  }
-}
-```
-
-Путь к `mcp-server/index.js` — свой. Перезапуск Claude Desktop после сохранения.
-
-**Cursor (HTTP — локально или VPS):**
-
-```json
-{
-  "mcpServers": {
-    "agent-cms": {
-      "url": "http://localhost:3000/app-mcp",
+      "url": "http://127.0.0.1:3000/app-mcp",
       "headers": {
         "Authorization": "Bearer ВАШ_AGENT_CMS_MCP_TOKEN"
       }
@@ -502,7 +487,9 @@ docker compose -f docker-compose.linux.yml ps
 }
 ```
 
-На VPS: `https://ваш-домен/app-mcp` (порт **3490** наружу не открываем), в `.env` — **`AGENT_CMS_MCP_TOKEN`** и **`AGENT_CMS_PUBLIC_URL`** (нужен для `putUrl` при загрузке больших файлов и иконки MCP). Dev без Docker: `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` → `http://localhost:3490/mcp`.
+Подставьте **`AGENT_CMS_MCP_TOKEN`** из `.env`. Mac/Docker: **`AGENT_CMS_PUBLIC_URL`** (часто `http://127.0.0.1:3000`) — тот же хост в `url`. VPS: `https://ваш-домен/app-mcp` (наружу только **80/443**, не порт MCP). Готовый JSON — **Control** → шаг «MCP к агенту» или **`/app-control/`**.
+
+> ⚠️ **`node mcp-server/index.js` (stdio)** — legacy dev без Docker; в prod и в доке **не используем**.
 
 **Большие файлы (фото, pdf):** без base64 в чате — `content_binary_upload_begin` → **PUT** `putUrl` → `content_binary_upload_complete` (подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5).
 
@@ -512,7 +499,7 @@ Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [табл
 
 > 🇬🇧 **[en]**
 >
-> **Claude Desktop:** stdio `node …/mcp-server/index.js`. **Cursor:** `{PUBLIC_URL}/app-mcp` + Bearer token; set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env).
+> **HTTP only:** `{PUBLIC_URL}/app-mcp` + Bearer **`AGENT_CMS_MCP_TOKEN`**. Set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Control guide copies the JSON. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env). Stdio `node mcp-server` — dev-only, not documented as equal.
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
