@@ -5,6 +5,8 @@
 node_modules/
 node_modules_2/
 .venv-entity/
+__pycache__/
+*.py[cod]
 
 # Build / packaging
 .asar-verify/
