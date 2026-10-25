@@ -30,11 +30,21 @@ function resolveLauncherIconPng(extFolder) {
   return path.join(extFolder, "icons/icon128.png");
 }
 
-/** macOS Quick Look → PNG (512px) for .app icns */
+/** SVG → PNG (512px) for .app icns — без белой подложки qlmanage */
 function svgToPngMac(svgPath, outPng) {
+  const outDir = path.dirname(outPng);
+  fs.mkdirSync(outDir, { recursive: true });
+  for (const cmd of ["magick", "convert"]) {
+    try {
+      execFileSync(cmd, ["-background", "none", svgPath, "-resize", "512x512", outPng], {
+        stdio: "ignore"
+      });
+      if (fs.existsSync(outPng)) return true;
+    } catch {
+      /* try next */
+    }
+  }
   try {
-    const outDir = path.dirname(outPng);
-    fs.mkdirSync(outDir, { recursive: true });
     execFileSync("qlmanage", ["-t", "-s", "512", "-o", outDir, svgPath], { stdio: "ignore" });
     const generated = path.join(outDir, `${path.basename(svgPath)}.png`);
     if (!fs.existsSync(generated)) return false;
