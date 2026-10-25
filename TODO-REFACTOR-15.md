@@ -10,7 +10,7 @@
 | 4 | `.env` + MCP keys | ✅ закрыто |
 | 5 | App-lock | ✅ закрыто |
 | 6 | Instances / источники | 📌 пока без полной модели |
-| 7 | Electron | 📌 решение зафиксировано |
+| 7 | Electron | 🟡 7.2–7.4 v1 ✅ (URL-shell, offline, status, shortcuts); 7.4 поддомены — отложено |
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
 | 9.1 | Установщик Mac / Windows / Linux | 🟡 v1 закрыто (`install.sh`; Windows/WSL; v1.1 — native) |
 | 9.2 | CLI `agent-cms` (вместо raw compose/git) | 🟡 v1 закрыто (lifecycle/rebuild; v1.1 — update≈Q3, env lock) |
@@ -187,10 +187,61 @@ MCP со списком приложений: что где работает, п
 
 **Итог:** архитектура одна (CMS в Docker + single door); Electron опционален — «нативные окна над тем же веб-UI», не отдельный стек.
 
+**План работ (согласовано):**
+
+1. ✅ **Electron URL-shell** — `desktop/shared/url-shell.js`; Editor / Voice / Control / Commander грузят `AGENT_CMS_PUBLIC_URL` + path; legacy: `AGENT_CMS_ELECTRON_LEGACY=1`.
+2. ✅ **Offline-экран** — `desktop/shared/offline.html` + probe `/api/agent/mcp-ping`.
+3. ✅ **CLI `agent-cms status`** + **`npm run cms:status`** — `scripts/cms-http-status.js` (HTTP + compose ps).
+4. ✅ **CLI `agent-cms electron-app shortcuts`** (+ **`electron-app build`**) · dev: **`npm run cms:shortcuts`**.
+
 > **NOTE**
 > - ✅ Согласовано с Q2 и `docs/deploy/DOCKER.md` (Electron опционален, URL = браузер).
 > - 💡 Dev-only в реестре (Q1): desktop Electron — `visible: false`, не path на CMS.
 > - 📌 Задача на потом: единый launcher vs статус-кво — отдельный мини-TODO или пункт в desktop/, когда понадобится.
+
+### 7.1 — Сохранить Electron, ярлыки и команды
+
+**Идея:** Electron **не выкидываем** — нужны **отдельные приложения / ярлыки на Рабочем столе** (как сейчас по сути несколько `.app`), плюс понятные **команды** (npm / `.command` / будущий `agent cms …`) чтобы их **собрать или поставить**.
+
+**Открытый вопрос:** один скрипт «установить все ярлыки» vs по одному на Editor / Voice / Control / Commander?
+
+### 7.2 — Несколько оболочек, один URL
+
+**Идея:** несколько Electron-приложений **как сейчас**, но по сути это **обёртки**: каждое окно грузит **тот же public URL**, что и браузер (`AGENT_CMS_PUBLIC_URL` + path):
+
+- Editor → `/`
+- Voice → `/app-chat`
+- Control → `/app-control`
+- Commander → `/app-commander`
+
+**Не поднимают** Docker/CMS сами — только клиент к уже запущенному стеку.
+
+### 7.3 — Статус стека перед открытием окна
+
+**Идея:** если сервер **выключен**, Electron **ничего полезного не покажет** (ошибка / пустая страница) — нужна явная проверка.
+
+**Статус v1:** **`agent-cms status`** + offline в `.app` (кнопка «Повторить»). README / `desktop/README.md` обновлены.
+
+### 7.4 — `chat.localhost` vs `localhost/app-*`
+
+**Идея:** вместо path **`http://127.0.0.1:3000/app-chat`** — отдельные **поддомены** (`chat.localhost`, `control.localhost`, …).
+
+**Сомнения (обсудить):**
+
+- Хуже ли для **единого контроля** над «семью» UI-приложениями (общий shell, app-lock, switcher, одна сессия)?
+- Доп. DNS / hosts / Caddy / сертификаты vs **одна дверь** Q1.
+- Electron и браузер — одинаковые URL или разные привычки?
+
+**Пока канон Q1:** один host + **`/app-*`**; поддомены — только если явно выиграем (и не ломаем реестр `platform_apps_list`).
+
+### 7.5 — Куда смотрит Electron: localhost или сервер
+
+**Идея (обсудить с Q6 / workspace source):** оболочка открывает
+
+- **local** — `http://127.0.0.1:3000/…` (Mac + Docker на этой машине), или
+- **server** — `https://ваш-vps/…` (данные на VPS, Electron просто клиент).
+
+**Открытый вопрос:** один `.app` с переключателем «хост» в настройках vs разные ярлыки «Agent CMS (local)» / «Agent CMS (prod)»; связь с полем **environment** при создании workspace (справочно, не mount).
 
 ---
 

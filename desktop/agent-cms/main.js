@@ -5,10 +5,17 @@ if (!electron.app) {
   process.exit(1);
 }
 
+const path = require("path");
+if (require("../shared/url-shell").tryBootstrapUrlOnly(__dirname, "editor")) {
+  module.exports = {};
+} else {
+  bootstrapLegacyAgentCmsMain();
+}
+
+function bootstrapLegacyAgentCmsMain() {
 const { app, BrowserWindow, shell, dialog, ipcMain, screen } = electron;
 const { spawn } = require("child_process");
 const fs = require("fs");
-const path = require("path");
 const { startServer, stopServer } = require("../../server");
 const { initLogger } = require("./logger");
 const { saveConfig, getProjectRoot } = require("./config");
@@ -490,3 +497,4 @@ module.exports = {
   getMainWindow,
   getActiveProjectRoot: () => activeProjectRoot
 };
+}

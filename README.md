@@ -44,6 +44,7 @@
 - [Установка — macOS (вручную)](#-установка--macos-gb-install--macos)
 - [Установка — Ubuntu VPS / сервер (вручную)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
 - [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
+- [Electron — сборка `.app` и ярлыки](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
 - [Настройка — `.env`](#-настройка--env-gb-configuration--env)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 - [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
@@ -71,6 +72,7 @@
 > - [Install — macOS (manual)](#-установка--macos-gb-install--macos)
 > - [Install — Ubuntu VPS / server (manual)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
 > - [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
+> - [Electron — build `.app` & shortcuts](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
 > - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
 > - [MCP connection](#-подключение-mcp-gb-mcp-connection)
@@ -271,7 +273,7 @@
 - **SQLite** — семантический, полнотекстовый и link-индексы
 - **MCP** — Cursor, Claude и другие агенты
 - **Веб-UI** — vanilla JS, Toast UI Editor, Mermaid
-- **Electron** — desktop: CMS, Voice, Control
+- **Electron** — опциональные окна над тем же URL ([сборка и ярлыки](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts))
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
@@ -446,6 +448,7 @@ docker compose -f docker-compose.linux.yml ps
 agent-cms --version
 agent-cms doctor          # Docker, compose, каталог, порты
 agent-cms paths           # HOME, compose file, public URL
+agent-cms status          # HTTP ping + docker compose ps (стек жив?)
 
 agent-cms start           # up -d (с workspace-mounts, если есть)
 agent-cms stop
@@ -464,7 +467,14 @@ agent-cms env set KEY=VALUE   # whitelist .env.example; нужен Node.js
 agent-cms open editor
 agent-cms open control
 agent-cms open chat
+agent-cms open commander
 agent-cms open mcp-url    # URL + напоминание про Bearer token
+
+agent-cms electron-app build              # все .app (pack)
+agent-cms electron-app build dist         # dmg/zip …
+agent-cms electron-app build pack editor  # одно приложение
+agent-cms electron-app shortcuts          # ярлыки ACMS-* на Desktop (macOS)
+# короче: agent-cms electron build …
 
 agent-cms install         # делегат установщика (Q9.1)
 agent-cms uninstall       # symlink + ~/.config/agent-cms/home
@@ -473,11 +483,12 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 
 | Группа | Команды | Сейчас без CLI |
 | --- | --- | --- |
-| **info** | `version`, `doctor`, `paths`, `status` | `docker compose ps`, ручные проверки |
+| **info** | `version`, `doctor`, `paths`, `status` | ручной curl/ping |
+| **electron-app** | `electron-app build`, `electron-app shortcuts` | Control → «Собрать» / «Ярлыки» |
 | **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
 | **build** | `rebuild` | `cms-rebuild.command`, `--build` |
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
-| **open** | `open editor\|control\|chat\|mcp-url` | копировать URL из README |
+| **open** | `open editor\|control\|chat\|commander\|mcp-url` | копировать URL из README |
 | **config** | `env show`, `env set` | MCP `platform_env_key_*` / Control |
 | **install** | `install`, `uninstall` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
 
@@ -485,12 +496,56 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
 > - 💡 **`agent-cms update`** = `git pull --ff-only` + rebuild (как Q3); app-lock на prod — через Control.
 > - 📌 Fallback: **`cms-start.command`**, **`npm run docker:mac`** / **`docker:linux`** ([package.json](package.json)).
+> - 💡 Разработчикам в клоне: **`npm run cms:status`** = **`agent-cms status`** при `AGENT_CMS_HOME=$PWD`.
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **`agent-cms`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required.
+> **`agent-cms`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required for daily ops. Electron .app: **`agent-cms electron-app build`** (alias: **`electron build`**).
+
+## 🇷🇺 Electron — сборка `.app` и ярлыки (🇬🇧 Electron — build `.app` & shortcuts)
+
+🇷🇺 **[ru]**
+
+**Канон:** сервер — **Docker** (или dev `npm start`); Electron **не поднимает CMS**, только открывает **`AGENT_CMS_PUBLIC_URL`** + path (`/`, `/app-chat/`, `/app-control/`, `/app-commander/`). Подробнее: [`desktop/README.md`](desktop/README.md). Legacy (встроенный сервер): **`AGENT_CMS_ELECTRON_LEGACY=1`**.
+
+**Порядок:** `agent-cms start` → проверка **`agent-cms status`** → сборка на **Mac с Node на хосте** → ярлыки.
+
+```bash
+agent-cms start
+agent-cms status
+
+# Сборка .app на Mac (Node на хосте; npm пользователю не нужен)
+agent-cms electron-app build                    # все четыре .app → dist/
+agent-cms electron-app build dist               # + dmg/zip …
+agent-cms electron-app build pack editor        # только Editor
+agent-cms electron-app build dist voice         # Voice + установщик
+
+agent-cms electron-app shortcuts                # ACMS-* на Рабочий стол
+# то же короче: agent-cms electron shortcuts
+```
+
+На Desktop: **ACMS-Editor.app**, **ACMS-Voice.app**, **ACMS-Control.app**, **ACMS-Commander.app**, **ACMS-Browser-Extension**.
+
+То же из **Control** в браузере: «Приложения» → «Собрать», «Ярлыки Desktop». Справка: **`agent-cms electron-app help`**.
+
+<details>
+<summary>Разработчикам (npm в корне репо)</summary>
+
+```bash
+npm run cms:electron-build
+npm run cms:electron-build:dist
+npm run cms:desktop   # dev-окно без сборки
+```
+
+</details>
+
+---
+
+> 🇬🇧 **[en]**
+>
+> **`agent-cms electron-app build`** on macOS (Node on host); then **`agent-cms electron-app shortcuts`**. See [`desktop/README.md`](desktop/README.md).
 
 ## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
 

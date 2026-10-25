@@ -10,7 +10,11 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run commander:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run commander:open` | `npm run control:open` |
 
-Старт сервера: **`cms-start.command`** (Mac Docker). Конфиг — **`.env` в git**. Electron `.app` — клиент по URL; legacy npm: `scripts/install-deps.sh`.
+Старт сервера: **`cms-start.command`** (Mac Docker) или **`agent-cms start`**. Конфиг — **`.env`** (`AGENT_CMS_PUBLIC_URL`).
+
+Electron `.app` по умолчанию — **только URL** (`desktop/shared/url-shell.js`): Editor `/`, Voice `/app-chat/`, Control `/app-control/`, Commander `/app-commander/`. Сервер не поднимается; если стек выключен — экран «офлайн» с кнопкой «Повторить». Встроенный сервер (legacy): **`AGENT_CMS_ELECTRON_LEGACY=1`**.
+
+CLI: **`agent-cms status`**, **`agent-cms electron-app build`**, **`agent-cms electron-app shortcuts`** (короче: **`electron build`** / **`electron shortcuts`**).
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control):
 - `ACMS-Control.app` → `dist/agent-control/`

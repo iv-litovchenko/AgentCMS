@@ -23,7 +23,12 @@
     },
     "files": [
       "main.js",
+      "main-embedded.js",
       "actions.js",
+      "../shared/url-shell.js",
+      "../shared/url-shell-preload.js",
+      "../shared/offline.html",
+      "../../lib/desktop/public-url.js",
       "icon.js",
       "preload.js",
       "repo-resolve.js",

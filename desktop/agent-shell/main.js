@@ -5,6 +5,13 @@ if (!electron.app) {
   process.exit(1);
 }
 
+if (require("../shared/url-shell").tryBootstrapUrlOnly(__dirname, "voice")) {
+  module.exports = {};
+} else {
+  bootstrapLegacyShellMain();
+}
+
+function bootstrapLegacyShellMain() {
 const { app, BrowserWindow, dialog, shell, ipcMain, screen, powerSaveBlocker } = electron;
 const path = require("path");
 const {
@@ -648,4 +655,5 @@ if (!gotLock) {
       app.quit();
     }
   });
+}
 }
