@@ -12,8 +12,8 @@
 | 6 | Instances / источники | 📌 пока без полной модели |
 | 7 | Electron | 📌 решение зафиксировано |
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
-| 9.1 | Установщик Mac / Windows / Linux | ✅ v1 (`scripts/install.sh`, без npm) |
-| 9.2 | CLI `agent-cms` (вместо raw compose/git) | ✅ v1 (`scripts/agent-cms` + symlink) |
+| 9.1 | Установщик Mac / Windows / Linux | 🟡 v1 закрыто (`install.sh`; Windows/WSL; v1.1 — native) |
+| 9.2 | CLI `agent-cms` (вместо raw compose/git) | 🟡 v1 закрыто (lifecycle/rebuild; v1.1 — update≈Q3, env lock) |
 
 ---
 
@@ -224,9 +224,9 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 
 ---
 
-## Вопрос 9.1 — установщик (Mac / Windows / Linux)
+## 🟡 Вопрос 9.1 — установщик (Mac / Windows / Linux)
 
-**Статус:** ✅ **v1** — [`scripts/install.sh`](scripts/install.sh), GitHub `curl | bash`; Windows [`install.ps1`](scripts/install.ps1) → WSL. **Без npm.**
+**Статус:** 🟡 **v1 закрыто** — [`scripts/install.sh`](scripts/install.sh), GitHub `curl | bash`; Windows [`install.ps1`](scripts/install.ps1) → WSL. **Без npm.** Осталось v1.1: native Windows, опц. Homebrew/deb; **push** фиксов compose/MCP на `main`.
 
 **Цель:** одна (или три короткие) команды «скачать и поставить»; пользователь **не** клонирует репо руками.
 
@@ -254,9 +254,9 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 
 ---
 
-## Вопрос 9.2 — CLI `agent-cms` (вместо длинных compose/git-команд)
+## 🟡 Вопрос 9.2 — CLI `agent-cms` (вместо длинных compose/git-команд)
 
-**Статус:** ✅ **v1** — [`scripts/agent-cms`](scripts/agent-cms) + [`agent-cms-cli-lib.sh`](scripts/agent-cms-cli-lib.sh); PATH через install.sh.
+**Статус:** 🟡 **v1 закрыто** — [`scripts/agent-cms`](scripts/agent-cms) + [`agent-cms-cli-lib.sh`](scripts/agent-cms-cli-lib.sh); PATH через install.sh. Осталось v1.1: **`update` ≈ Q3**, app-lock на **`env set`**, completion / Windows `.cmd`.
 
 **Имя команды (канон):** бинарь **`agent-cms`** (alias **`agent cms`** — опционально через shell-completion / второй symlink).
 
