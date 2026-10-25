@@ -5,10 +5,16 @@
 node_modules/
 node_modules_2/
 .venv-entity/
+__pycache__/
+*.py[cod]
 
 # Build / packaging
-dist/
+.asar-verify/
+/dist/
 out/
+# Static assets under public/ (not Electron dist/)
+!public/commander/dist/
+!public/_resources/vendor/vditor/dist/
 *.dmg
 *.exe
 *.AppImage
@@ -39,6 +45,8 @@ Desktop.ini
 
 # User-created workspaces (bundled 0-* stay in repo)
 workspaces/*
+!workspaces/ws-default/
+!workspaces/ws-default/**
 !workspaces/0-ws-core/
 !workspaces/0-ws-core/**
 !workspaces/0-ws-test/
