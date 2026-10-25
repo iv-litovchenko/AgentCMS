@@ -1,7 +1,7 @@
-/** Dev: desktop/agent-*/main.js → ../shared. Pack: app.asar/shared/. */
+/** Dev: ../shared. Pack: ./shared (скопировано build-desktop-subapp.js). */
 const path = require("path");
 
-function loadUrlShell() {
+function requireUrlShellModule() {
   const ids = [
     path.join(__dirname, "url-shell"),
     path.join(__dirname, "..", "shared", "url-shell")
@@ -16,4 +16,4 @@ function loadUrlShell() {
   throw new Error("Cannot find module url-shell");
 }
 
-module.exports = { loadUrlShell };
+module.exports = { requireUrlShellModule };

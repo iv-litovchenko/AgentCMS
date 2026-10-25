@@ -4,6 +4,7 @@
  * Electron установлен только в корне репозитория — передаём electronVersion явно.
  */
 const { execFileSync } = require("child_process");
+const fs = require("fs");
 const path = require("path");
 
 const subapp = process.argv[2];
@@ -18,6 +19,21 @@ if (!allowed.has(subapp)) {
 
 const root = path.join(__dirname, "..");
 const projectDir = path.join(root, "desktop", subapp);
+
+/** electron-builder не упаковывает ../shared — копируем в subapp перед сборкой */
+function syncPackAssets() {
+  const sharedSrc = path.join(root, "desktop", "shared");
+  const sharedDst = path.join(projectDir, "shared");
+  fs.rmSync(sharedDst, { recursive: true, force: true });
+  fs.cpSync(sharedSrc, sharedDst, { recursive: true });
+
+  const libDstDir = path.join(projectDir, "lib", "desktop");
+  fs.mkdirSync(libDstDir, { recursive: true });
+  fs.copyFileSync(
+    path.join(root, "lib", "desktop", "public-url.js"),
+    path.join(libDstDir, "public-url.js")
+  );
+}
 const electronPkg = require(path.join(root, "node_modules", "electron", "package.json"));
 const electronVersion = electronPkg.version;
 
@@ -32,6 +48,7 @@ const builderArgs = [
 if (mode === "pack") builderArgs.push("--dir");
 
 console.log(`build-desktop-subapp: ${subapp} ${mode} (electron ${electronVersion})`);
+syncPackAssets();
 
 execFileSync(
   builderBin,

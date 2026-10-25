@@ -27,15 +27,8 @@
       "main.js",
       "main-embedded.js",
       "actions.js",
-      {
-        "from": "../shared",
-        "to": "shared",
-        "filter": ["url-shell.js", "url-shell-preload.js", "offline.html", "load-url-shell.js"]
-      },
-      {
-        "from": "../../lib/desktop/public-url.js",
-        "to": "lib/desktop/public-url.js"
-      },
+      "shared/**/*",
+      "lib/desktop/public-url.js",
       "icon.js",
       "preload.js",
       "repo-resolve.js",

@@ -12,6 +12,13 @@ __pycache__/
 .asar-verify/
 /dist/
 out/
+# Копии для electron-builder (build-desktop-subapp.js)
+desktop/agent-shell/shared/
+desktop/agent-control/shared/
+desktop/agent-commander/shared/
+desktop/agent-shell/lib/
+desktop/agent-control/lib/
+desktop/agent-commander/lib/
 # Static assets under public/ (not Electron dist/)
 !public/commander/dist/
 !public/_resources/vendor/vditor/dist/
