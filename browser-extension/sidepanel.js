@@ -31,8 +31,8 @@
   function ensureCompanionUrls() {
     if (globalThis.CompanionUrls) return globalThis.CompanionUrls;
     globalThis.CompanionUrls = {
-      DEFAULT_CMS_BASE_URL: "https://localhost:3443",
-      DEFAULT_VOICE_BASE_URL: "https://localhost:3488",
+      DEFAULT_CMS_BASE_URL: "http://127.0.0.1:3000",
+      DEFAULT_VOICE_BASE_URL: "http://localhost:3000/app-chat",
       formatCompanionPanelUrlLabel(rawUrl) {
         try {
           const url = new URL(String(rawUrl || "").trim());
@@ -63,13 +63,13 @@
         }
       },
       buildExtensionShellUrl(voiceBase, agentId) {
-        const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
+        const base = String(voiceBase || "http://localhost:3000/app-chat").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
         if (!agent) return `${base}/?companion=1`;
         return `${base}/${encodeURIComponent(agent)}/extension/?companion=1`;
       },
       buildVoiceShellTabUrl(voiceBase, agentId) {
-        const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
+        const base = String(voiceBase || "http://localhost:3000/app-chat").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
         if (!agent) return `${base}/`;
         return `${base}/${encodeURIComponent(agent)}/`;

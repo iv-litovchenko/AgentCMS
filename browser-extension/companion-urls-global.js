@@ -1,14 +1,15 @@
 (function initCompanionUrlsGlobal(global) {
   "use strict";
 
-  const DEFAULT_CMS_BASE_URL = "https://localhost:3443";
-  const DEFAULT_VOICE_BASE_URL = "https://localhost:3488";
+  const DEFAULT_CMS_BASE_URL = "http://127.0.0.1:3000";
+  const DEFAULT_VOICE_BASE_URL = "http://localhost:3000/app-chat";
 
   const CMS_PROBE_CANDIDATES = [
     DEFAULT_CMS_BASE_URL,
-    "https://127.0.0.1:3443",
+    "http://127.0.0.1:3000",
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "https://localhost:3443",
+    "https://127.0.0.1:3443"
   ];
 
   function uniqueUrls(urls) {

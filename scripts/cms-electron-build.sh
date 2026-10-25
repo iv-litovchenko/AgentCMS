@@ -6,16 +6,6 @@ cd "$ROOT"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-# shellcheck source=ensure-node-gyp-python.sh
-source "$ROOT/scripts/ensure-node-gyp-python.sh"
-ensure_node_gyp_python || {
-  echo ""
-  echo "Не удалось подобрать Python для electron-builder (better-sqlite3)."
-  echo "В Control: «Установить зависимости» или в Terminal:"
-  echo "  brew install python@3.12"
-  exit 1
-}
-
 for entry in server.js voice-server.js commander-server.js; do
   if ! node --check "$ROOT/$entry" >/dev/null 2>&1; then
     echo "Синтаксическая ошибка в $entry — сборка desktop отменена."
