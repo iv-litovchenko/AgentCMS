@@ -43,7 +43,6 @@ services:
       AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.linux.yml"
       AGENT_CMS_DEPLOY_PLATFORM: "linux"
       COMPOSE_PROJECT_NAME: "agent-cms"
-      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-}"
       AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
       AGENT_CMS_HOST_HOME: "${HOME}"
