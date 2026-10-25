@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "workspaceId": "0-ws-core",
+  "agentId": "0-ws-core",
+  "route": "awn-topics/arhiv-voprosov",
+  "contentMode": "navigation",
+  "label": "arhiv-voprosov",
+  "focus": {
+    "entity": "page",
+    "page": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md",
+      "type": "awn.hub.topic",
+      "label": "arhiv-voprosov"
+    },
+    "editing": false
+  },
+  "mcp": {
+    "get_topic_meta": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md"
+    },
+    "read_topic_body": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md"
+    },
+    "read_topic_properties": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md"
+    },
+    "list_slots": {
+      "placement": {
+        "kind": "topic",
+        "path": "awn-topics/arhiv-voprosov/manifest.md"
+      }
+    },
+    "write_topic_body": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md"
+    },
+    "write_topic_properties": {
+      "path": "awn-topics/arhiv-voprosov/manifest.md"
+    }
+  },
+  "aliases": {
+    "path": "awn-topics/arhiv-voprosov/manifest.md",
+    "slot": null,
+    "ref": null,
+    "contextPath": "awn-topics/arhiv-voprosov/manifest.md",
+    "awnType": "awn.hub.topic"
+  },
+  "editing": false,
+  "updatedAt": "2026-10-24T00:57:03.309Z"
+}

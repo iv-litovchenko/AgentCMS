@@ -1,0 +1,60 @@
+{
+  "model": "nav-main-registry-v1",
+  "builtAt": "2026-10-17T21:23:10.232Z",
+  "rebuildMs": null,
+  "syncedAt": "2026-10-17T21:25:44.265Z",
+  "items": [
+    {
+      "nodePath": "awn-topics/zadachi-plany-i-idei/awn-storage/main/dzharvis-kommander/obsuzhdenie-idey-dzharvisa-dorabatyvaem-fork.md",
+      "name": "ОБсуждение идей джарвиса (дорабатываем форк)",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-id": "35",
+        "awn-status": "open",
+        "awn-version": "7",
+        "awn-create": "2026-10-18T00:19",
+        "awn-update": "2026-10-17T21:23:12.456Z",
+        "awn-type": "awn.content.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/zadachi-plany-i-idei/awn-storage/main/dzharvis-kommander/obsuzhdaem-servis-dlya-golosa-sinteza-rechi.md",
+      "name": "Обсуждаем сервис для голоса синтеза речи",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-id": "34",
+        "awn-status": "open",
+        "awn-version": "7",
+        "awn-create": "2026-10-18T00:16",
+        "awn-update": "2026-10-17T21:23:42.891Z",
+        "awn-type": "awn.content.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/zadachi-plany-i-idei/awn-storage/main/dzharvis-kommander/obsuzhdaem-makety-dzharvisa.md",
+      "name": "Обсуждаем макеты Джарвиса",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-id": "33",
+        "awn-status": "open",
+        "awn-version": "4",
+        "awn-create": "2026-10-17T21:14:26.252Z",
+        "awn-update": "2026-10-17T21:24:05.729Z",
+        "awn-type": "awn.content.record"
+      }
+    },
+    {
+      "nodePath": "awn-topics/zadachi-plany-i-idei/awn-storage/main/dzharvis-kommander/izuchit-po-dzharvisu.md",
+      "name": "Изучить по джарвису",
+      "awnType": "awn.content.record",
+      "awnProps": {
+        "awn-id": "36",
+        "awn-status": "open",
+        "awn-version": "5",
+        "awn-create": "2026-10-18T00:24",
+        "awn-update": "2026-10-17T21:25:44.240Z",
+        "awn-type": "awn.content.record"
+      }
+    }
+  ]
+}

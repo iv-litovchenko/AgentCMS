@@ -63,7 +63,6 @@ public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a
 .cache/
 # Workspace runtime
 **/.agent-cms/cache/
-**/.agent-cms/state/
 .agent-cms-global/app-lock-passkey.json
 .agent-cms-global/fingerprint-scanner.sqlite*
 .agent-cms-global/server-runtime.json

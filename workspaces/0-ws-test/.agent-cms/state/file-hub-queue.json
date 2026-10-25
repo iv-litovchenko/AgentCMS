@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-04T16:58:28.929Z",
+  "items": [
+    {
+      "id": "ce71a223-99f9-400a-9d02-1d3107ac551b",
+      "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/media/prostaya-kartinka.png",
+      "name": "prostaya-kartinka.png",
+      "topic": "Файлообменник",
+      "place": "workspace",
+      "size": 375229,
+      "sentAt": "2026-10-03T20:48:13.995Z"
+    },
+    {
+      "id": "af5616da-5acd-4b64-b8a1-891c8282cc76",
+      "path": "awn-topics/test-formatov-faylov/awn-storage/media/code/example.php",
+      "name": "example.php",
+      "topic": "Файлообменник",
+      "place": "awn-topics/test-formatov-faylov/awn-storage/media/code/",
+      "size": 31,
+      "sentAt": "2026-10-03T20:17:16.760Z"
+    }
+  ]
+}
