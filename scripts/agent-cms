@@ -146,7 +146,8 @@ case "$cmd" in
     if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
       bash "$AGENT_CMS_HOME/scripts/docker-mac-start.sh"
     else
-      agent_cms_compose up -d cms mcp control
+      echo "→ docker compose up -d (cms, mcp, control, caddy)"
+      agent_cms_compose up -d cms mcp control caddy
       base="$(agent_cms_public_base)"
       echo "Editor:  ${base}/"
       echo "Control: ${base}/app-control/"
@@ -171,7 +172,10 @@ case "$cmd" in
     if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
       bash "$AGENT_CMS_HOME/scripts/docker-mac-restart.sh"
     else
-      agent_cms_compose restart cms mcp control caddy 2>/dev/null || agent_cms_compose restart cms mcp control
+      echo "→ docker compose up -d --force-recreate (cms, mcp, control, caddy)"
+      echo "  (после правок .env — иначе Caddy не увидит новый домен)"
+      agent_cms_compose up -d --force-recreate cms mcp control caddy
+      agent_cms_compose ps
     fi
     ;;
   down)
