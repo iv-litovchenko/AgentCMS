@@ -17,7 +17,7 @@ function main() {
   const platform = String(process.env.AGENT_CMS_CLI_PLATFORM || "unknown");
   const composePrimary = String(process.env.AGENT_CMS_CLI_COMPOSE || "docker-compose.mac.yml");
   const configFile = String(process.env.AGENT_CMS_CONFIG_FILE || "");
-  const cliLink = String(process.env.AGENT_CMS_CLI_BIN || `${process.env.HOME || ""}/.local/bin/agent-cms`);
+  const cliLink = String(process.env.AGENT_CMS_CLI_BIN || `${process.env.HOME || ""}/.local/bin/agent-cms-cli`);
 
   let publicBase = "";
   try {

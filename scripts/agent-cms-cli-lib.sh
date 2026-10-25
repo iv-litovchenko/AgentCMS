@@ -194,13 +194,45 @@ agent_cms_write_config() {
 agent_cms_link_cli() {
   local home="${1:?home}"
   local bin="${2:-$HOME/.local/bin}"
+  local target="$home/scripts/agent-cms"
   mkdir -p "$bin"
-  ln -sf "$home/scripts/agent-cms" "$bin/agent-cms"
-  echo "$bin/agent-cms"
+  ln -sf "$target" "$bin/agent-cms-cli"
+  ln -sf "$target" "$bin/agent-cms"
+  echo "$bin/agent-cms-cli"
 }
 
 agent_cms_cli_bin_path() {
-  echo "${HOME}/.local/bin/agent-cms"
+  echo "${HOME}/.local/bin/agent-cms-cli"
+}
+
+# Одна строка для ~/.profile / profile.d (install.sh)
+agent_cms_path_export_snippet() {
+  echo 'export PATH="$HOME/.local/bin:$PATH"'
+}
+
+agent_cms_install_path_profile() {
+  local marker="# agent-cms-cli PATH"
+  local line
+  line="$(agent_cms_path_export_snippet)"
+  local f
+  if [[ ! -f "$HOME/.profile" ]] && [[ ! -f "$HOME/.bashrc" ]]; then
+    touch "$HOME/.profile"
+  fi
+  for f in "$HOME/.profile" "$HOME/.bashrc"; do
+    [[ -f "$f" ]] || continue
+    if ! grep -qF "$marker" "$f" 2>/dev/null; then
+      printf '\n%s\n%s\n' "$marker" "$line" >>"$f"
+      echo "→ PATH в $f"
+    fi
+  done
+  if [[ "$(id -u)" -eq 0 ]] && [[ -d /etc/profile.d ]]; then
+    f="/etc/profile.d/agent-cms-cli.sh"
+    if [[ ! -f "$f" ]]; then
+      printf '%s\n%s\n' "$marker" "$line" >"$f"
+      chmod 644 "$f"
+      echo "→ PATH: $f"
+    fi
+  fi
 }
 
 agent_cms_ensure_node() {
@@ -375,11 +407,12 @@ agent_cms_uninstall() {
   fi
 
   local link
-  link="$(agent_cms_cli_bin_path)"
-  if [[ -L "$link" || -f "$link" ]]; then
-    rm -f "$link"
-    echo "→ удалён $link"
-  fi
+  for link in "$(agent_cms_cli_bin_path)" "${HOME}/.local/bin/agent-cms"; do
+    if [[ -L "$link" || -f "$link" ]]; then
+      rm -f "$link"
+      echo "→ удалён $link"
+    fi
+  done
 
   if [[ -f "$AGENT_CMS_CONFIG_FILE" ]]; then
     rm -f "$AGENT_CMS_CONFIG_FILE"

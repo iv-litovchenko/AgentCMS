@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>Launcher icon variants</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 24px; }
+    h1 { font-size: 1.25rem; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; margin-top: 20px; }
+    figure { margin: 0; text-align: center; background: #171717; border-radius: 12px; padding: 16px; }
+    img { width: 128px; height: 128px; image-rendering: auto; }
+    figcaption { margin-top: 10px; font-size: 12px; color: #a3a3a3; line-height: 1.4; }
+    .name { color: #fafafa; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>ACMS Browser Extension — 10 вариантов иконки launcher</h1>
+  <p>128×128, как в .app на рабочем столе. Открой этот файл в браузере из папки <code>launcher-icon-variants</code>.</p>
+  <div class="grid" id="grid"></div>
+  <script>
+    const items = [
+      ['variant-01-browser-panel.svg', '01 — браузер + side panel + puzzle'],
+      ['variant-02-companion-brand.svg', '02 — фирменный градиент + волна'],
+      ['variant-03-puzzle-orange.svg', '03 — крупный puzzle (Chrome ext)'],
+      ['variant-04-side-panel-minimal.svg', '04 — минимализм: панель справа'],
+      ['variant-05-folder-chrome.svg', '05 — папка + «хром» кольцо'],
+      ['variant-06-midnight-glow.svg', '06 — glow + розовая панель'],
+      ['variant-07-teal-grid.svg', '07 — teal + сетка'],
+      ['variant-08-split-screen.svg', '08 — split: сайт | companion'],
+      ['variant-09-pulse-outline.svg', '09 — pulse + оранжевая рамка'],
+      ['variant-10-acms-monogram.svg', '10 — монограмма AC + badge'],
+    ];
+    const grid = document.getElementById('grid');
+    for (const [file, label] of items) {
+      const fig = document.createElement('figure');
+      fig.innerHTML = `<img src="${file}" alt=""/><figcaption><span class="name">${label.split(' — ')[0]}</span><br>${label.split(' — ')[1] || ''}</figcaption>`;
+      grid.appendChild(fig);
+    }
+  </script>
+</body>
+</html>

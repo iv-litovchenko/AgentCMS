@@ -43,7 +43,7 @@
 - [Установка — установщик (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
 - [Установка — macOS (вручную)](#-установка--macos-gb-install--macos)
 - [Установка — Ubuntu VPS / сервер (вручную)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
-- [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
+- [CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)
 - [Electron — сборка `.app` и ярлыки](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
 - [Настройка — `.env`](#-настройка--env-gb-configuration--env)
 - [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
@@ -71,7 +71,7 @@
 > - [Install — installer (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
 > - [Install — macOS (manual)](#-установка--macos-gb-install--macos)
 > - [Install — Ubuntu VPS / server (manual)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
-> - [CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)
+> - [CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)
 > - [Electron — build `.app` & shortcuts](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
 > - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
 > - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
@@ -296,7 +296,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 > 🇬🇧 **[en]**
 >
-> Prefer the **installer** (below), then daily ops via **`agent-cms` CLI**. Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [TODO-REFACTOR-15.md](TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
+> Prefer the **installer** (below), then daily ops via **`agent-cms-cli`** (`agent-cms` alias). Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [TODO-REFACTOR-15.md](TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
 
 ## 🇷🇺 Установка — установщик (Mac / Windows / Linux) (🇬🇧 Install — installer)
 
@@ -304,7 +304,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 🇷🇺 **[ru]**
 
-**Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)** — `start`, `status`, `update` и т.д.
+**Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)** — `start`, `status`, `update` и т.д. (алиас **`agent-cms`**).
 
 | ОС | Куда кладётся код | Compose |
 | --- | --- | --- |
@@ -313,7 +313,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 | **Linux VPS** | `/opt/agent-cms` (`curl … \| bash -s -- --vps` или `--dir /opt/agent-cms`) | [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **Windows** | `C:\Users\<you>\agent-cms` или **WSL2** `~/agent-cms` | [`docker-compose.windows.yml`](docker-compose.windows.yml) |
 
-**На шаге `curl | bash`:** нужны **git** и сеть; **Docker не обязателен** — установщик клонирует репо и ставит **`agent-cms`** в `~/.local/bin`. Stack поднимаете сами, когда Docker готов.
+**На шаге `curl | bash`:** нужны **git** и сеть; **Docker не обязателен** — установщик клонирует репо и ставит **`agent-cms-cli`** в `~/.local/bin` (и алиас `agent-cms`). PATH дописывается в `~/.profile` / `/etc/profile.d` (root). Stack поднимаете сами, когда Docker готов.
 
 **Перед первым запуском CMS:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac / Windows) или **Engine + Compose** (Linux). **`.env`** уже в репозитории.
 
@@ -331,46 +331,46 @@ irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/insta
 **После установки (порядок):**
 
 ```bash
-# PATH — если команда agent-cms не находится
+# PATH — обычно уже после install; иначе:
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # Docker Desktop / Engine — должен быть Running
 
-cd ~/agent-cms   # Linux desktop: ~/agent-cms · VPS: /opt/agent-cms (agent-cms paths)
+cd ~/agent-cms   # Linux desktop: ~/agent-cms · VPS: /opt/agent-cms (agent-cms-cli paths)
 
-agent-cms doctor          # git, docker, .env
-agent-cms rebuild         # первый раз: docker compose up -d --build (10–30+ мин)
-agent-cms start           # следующие запуски (без --build)
-agent-cms status          # HTTP ✓ + контейнеры
+agent-cms-cli doctor          # git, docker, .env
+agent-cms-cli rebuild         # первый раз: docker compose up -d --build (10–30+ мин)
+agent-cms-cli start           # следующие запуски (без --build)
+agent-cms-cli status          # HTTP ✓ + контейнеры
 
-agent-cms open control    # http://127.0.0.1:3000/app-control/
+agent-cms-cli open control    # http://127.0.0.1:3000/app-control/
 ```
 
 Опционально (macOS, не для работы CMS в Docker):
 
 ```bash
-agent-cms electron-app build      # .app Editor, Chat, Control, Commander
-agent-cms electron-app shortcuts    # ярлыки ACMS-* на Desktop
+agent-cms-cli electron-app build      # .app Editor, Chat, Control, Commander
+agent-cms-cli electron-app shortcuts    # ярлыки ACMS-* на Desktop
 ```
 
 Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.1:3000`** (без `/app-chat`).
 
-Обновление: **`agent-cms update`** (`git pull` + rebuild).  
+Обновление: **`agent-cms-cli update`** (`git pull` + rebuild).  
 **Не нужно** после install: `npm install` на хосте для CMS, `npm run build:editor` — в репо уже есть `public/editor/main.built.js`.
 
 Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 > **NOTE**
-> - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms`. Конфиг: `~/.config/agent-cms/home`.
+> - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms-cli` (и `agent-cms`). Конфиг: `~/.config/agent-cms/home`.
 > - ⚠️ `curl | bash` / `irm | iex` — только с **доверенного** URL (официальный GitHub). [Ручная установка](#-установка--macos-gb-install--macos) — запасной путь.
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms`** for daily ops. No npm publish. Manual blocks below = fallback.
+> **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms-cli`** for daily ops (`agent-cms` alias). No npm publish. Manual blocks below = fallback.
 >
-> **After install:** `export PATH="$HOME/.local/bin:$PATH"` → Docker **Running** → `agent-cms doctor` → **`agent-cms rebuild`** (first time) → **`agent-cms start`** → **`agent-cms status`** → `agent-cms open control`. Optional on Mac: **`agent-cms electron-app build`** + **`shortcuts`**. No host **`npm install`** for CMS. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
+> **After install:** PATH from profile / `profile.d` (or `export PATH="$HOME/.local/bin:$PATH"`) → Docker **Running** → `agent-cms-cli doctor` → **`agent-cms-cli rebuild`** (first time) → **`agent-cms-cli start`** → **`agent-cms-cli status`** → `agent-cms-cli open control`. Optional on Mac: **`agent-cms-cli electron-app build`** + **`shortcuts`**. No host **`npm install`** for CMS. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
@@ -407,7 +407,7 @@ docker compose -f docker-compose.mac.yml up -d --build
 
 **Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). На VPS код в **`/opt/agent-cms`** (`--vps`). **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#-настройка--env-gb-configuration--env)).
 
-**Канон:** сначала Docker + firewall, затем [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) (без ручного `git clone`) и дальше **[`agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
+**Канон:** сначала Docker + firewall, затем [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) (без ручного `git clone`) и дальше **[`agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
 
 ```bash
 # === 1) Ubuntu VPS — Docker Engine ===
@@ -436,16 +436,17 @@ ufw enable
 
 # === 3) Agent CMS — установщик + CLI (Docker позже) ===
 curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash -s -- --vps
+# PATH: install дописывает /etc/profile.d/agent-cms-cli.sh (root); иначе:
 export PATH="$HOME/.local/bin:$PATH"
-agent-cms doctor
-agent-cms paths          # AGENT_CMS_HOME=/opt/agent-cms
+agent-cms-cli doctor
+agent-cms-cli paths          # AGENT_CMS_HOME=/opt/agent-cms
 # когда Docker Running:
-agent-cms rebuild        # первый up -d --build (10–30+ мин)
-agent-cms start          # следующие запуски
-agent-cms ps
+agent-cms-cli rebuild        # первый up -d --build (10–30+ мин)
+agent-cms-cli start          # следующие запуски
+agent-cms-cli ps
 
-# дальше: правки .env → agent-cms restart или agent-cms rebuild
-# обновление кода: agent-cms update  (git pull --ff-only + rebuild; prod «Обновить» в Control — см. DOCKER.md)
+# дальше: правки .env → agent-cms-cli restart или agent-cms-cli rebuild
+# обновление кода: agent-cms-cli update  (git pull --ff-only + rebuild; prod «Обновить» в Control — см. DOCKER.md)
 # https://ваш-домен/ · https://ваш-домен/app-control/ · https://ваш-домен/app-mcp (Bearer token)
 ```
 
@@ -466,51 +467,51 @@ docker compose -f docker-compose.linux.yml ps
 
 > 🇬🇧 **[en]**
 >
-> VPS: Docker CE + **ufw 22/80/443**, then **`curl …/install.sh | bash`** (target **`/opt/agent-cms`**) and **`agent-cms rebuild`**. Manual clone in the collapsible block. [DOCKER.md](docs/deploy/DOCKER.md).
+> VPS: Docker CE + **ufw 22/80/443**, then **`curl …/install.sh | bash`** (target **`/opt/agent-cms`**) and **`agent-cms-cli rebuild`**. Manual clone in the collapsible block. [DOCKER.md](docs/deploy/DOCKER.md).
 
-## 🇷🇺 CLI `agent-cms` (🇬🇧 CLI `agent-cms`)
+## 🇷🇺 CLI `agent-cms-cli` (🇬🇧 CLI `agent-cms-cli`)
 
 🇷🇺 **[ru]**
 
-Утилита в **PATH** вместо длинных `docker compose -f …` и `.command`-файлов. Имя команды: **`agent-cms`** (опционально alias `agent cms` через completion).
+Утилита в **PATH** вместо длинных `docker compose -f …` и `.command`-файлов. Имя команды: **`agent-cms-cli`**; алиас **`agent-cms`** (тот же [`scripts/agent-cms`](scripts/agent-cms)).
 
 **Конфиг:** каталог установки из [установщика](#-установка--установщик-mac--windows--linux-gb-install--installer) или env **`AGENT_CMS_HOME`**; compose-файл выбирается по ОС; URL — из `.env` (`AGENT_CMS_PUBLIC_URL`).
 
 ```bash
-agent-cms --version
-agent-cms doctor          # Docker, compose, каталог, порты
-agent-cms paths           # HOME, CLI, public URL + список workspace bind-mount (host → container)
-agent-cms status          # HTTP ping + docker compose ps (стек жив?)
+agent-cms-cli --version
+agent-cms-cli doctor          # Docker, compose, каталог, порты
+agent-cms-cli paths           # HOME, CLI, public URL + список workspace bind-mount (host → container)
+agent-cms-cli status          # HTTP ping + docker compose ps (стек жив?)
 
-agent-cms start           # up -d (с workspace-mounts, если есть)
-agent-cms stop
-agent-cms restart
-agent-cms down            # compose down (как npm run docker:down)
-agent-cms ps
-agent-cms logs            # logs -f cms mcp control …
+agent-cms-cli start           # up -d (с workspace-mounts, если есть)
+agent-cms-cli stop
+agent-cms-cli restart
+agent-cms-cli down            # compose down (как npm run docker:down)
+agent-cms-cli ps
+agent-cms-cli logs            # logs -f cms mcp control …
 
-agent-cms rebuild         # up -d --build (первый раз / после server.js)
-agent-cms update          # git pull --ff-only + rebuild (не Control deploy-update)
+agent-cms-cli rebuild         # up -d --build (первый раз / после server.js)
+agent-cms-cli update          # git pull --ff-only + rebuild (не Control deploy-update)
 
-agent-cms env show        # ключи из .env.example; секреты → ***
-agent-cms env show --reveal KEY
-agent-cms env set KEY=VALUE   # whitelist .env.example; нужен Node.js
+agent-cms-cli env show        # ключи из .env.example; секреты → ***
+agent-cms-cli env show --reveal KEY
+agent-cms-cli env set KEY=VALUE   # whitelist .env.example; нужен Node.js
 
-agent-cms open editor
-agent-cms open control
-agent-cms open chat
-agent-cms open commander
-agent-cms open mcp-url    # URL + напоминание про Bearer token
+agent-cms-cli open editor
+agent-cms-cli open control
+agent-cms-cli open chat
+agent-cms-cli open commander
+agent-cms-cli open mcp-url    # URL + напоминание про Bearer token
 
-agent-cms electron-app build              # все .app (pack)
-agent-cms electron-app build dist         # dmg/zip …
-agent-cms electron-app build pack editor  # одно приложение
-agent-cms electron-app shortcuts          # ярлыки ACMS-* на Desktop (macOS)
-# короче: agent-cms electron build …
+agent-cms-cli electron-app build              # все .app (pack)
+agent-cms-cli electron-app build dist         # dmg/zip …
+agent-cms-cli electron-app build pack editor  # одно приложение
+agent-cms-cli electron-app shortcuts          # ярлыки ACMS-* на Desktop (macOS)
+# короче: agent-cms-cli electron build …
 
-agent-cms install         # делегат установщика (Q9.1)
-agent-cms uninstall       # symlink + ~/.config/agent-cms/home
-agent-cms uninstall --purge   # + compose down (каталог репо не удаляет)
+agent-cms-cli install         # делегат установщика (Q9.1)
+agent-cms-cli uninstall       # symlink + ~/.config/agent-cms/home
+agent-cms-cli uninstall --purge   # + compose down (каталог репо не удаляет)
 ```
 
 | Группа | Команды | Сейчас без CLI |
@@ -526,15 +527,15 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 
 > **NOTE**
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
-> - 💡 **`agent-cms update`** = `git pull --ff-only` + rebuild (как Q3); app-lock на prod — через Control.
+> - 💡 **`agent-cms-cli update`** = `git pull --ff-only` + rebuild (как Q3); app-lock на prod — через Control.
 > - 📌 Fallback: **`cms-start.command`**, **`npm run docker:mac`** / **`docker:linux`** ([package.json](package.json)).
-> - 💡 Разработчикам в клоне: **`npm run cms:status`** = **`agent-cms status`** при `AGENT_CMS_HOME=$PWD`.
+> - 💡 Разработчикам в клоне: **`npm run cms:status`** = **`agent-cms-cli status`** при `AGENT_CMS_HOME=$PWD`.
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> **`agent-cms`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required for daily ops. Electron .app: **`agent-cms electron-app build`** (alias: **`electron build`**).
+> **`agent-cms-cli`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required for daily ops. Alias **`agent-cms`**. Electron .app: **`agent-cms-cli electron-app build`** (alias: **`electron build`**).
 
 ## 🇷🇺 Electron — сборка `.app` и ярлыки (🇬🇧 Electron — build `.app` & shortcuts)
 
@@ -544,38 +545,38 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 
 **Порядок:** `start` → `status` → **`electron-app build`** → **`electron-app shortcuts`**. Только **macOS**, **Node на хосте**; CLI — каталог **`AGENT_CMS_HOME`** (dev: клон `YamlCMS`, иначе `~/agent-cms`).
 
-**Схема:** `agent-cms electron-app build [pack|dist] [all|editor|chat|control|commander]` · короче: **`electron build …`**. Без аргументов = **pack + все 4**. **`pack`** / **`dist`** и имя app — в любом порядке.
+**Схема:** `agent-cms-cli electron-app build [pack|dist] [all|editor|chat|control|commander]` · короче: **`electron build …`**. Без аргументов = **pack + все 4**. **`pack`** / **`dist`** и имя app — в любом порядке.
 
 ```bash
-agent-cms start          # Docker: CMS + MCP + Control
-agent-cms status         # HTTP + docker ps
+agent-cms-cli start          # Docker: CMS + MCP + Control
+agent-cms-cli status         # HTTP + docker ps
 
 # --- pack (по умолчанию): только .app в dist/ — себе, ярлыки, двойной клик ---
-agent-cms electron-app build
+agent-cms-cli electron-app build
 # → dist/agent-cms/Agent CMS.app
 # → dist/agent-shell/Agent Shell.app
 # → dist/agent-control/Agent CMS Control.app
 # → dist/agent-commander/Agent CMS Commander.app
 
-agent-cms electron-app build editor      # одно: Editor
-agent-cms electron-app build chat        # одно: Chat (Shell)
-agent-cms electron-app build control
-agent-cms electron-app build commander
+agent-cms-cli electron-app build editor      # одно: Editor
+agent-cms-cli electron-app build chat        # одно: Chat (Shell)
+agent-cms-cli electron-app build control
+agent-cms-cli electron-app build commander
 
 # --- dist: .app + установщик (.dmg / .zip) — другому Mac; Docker CMS не ставит ---
-agent-cms electron-app build dist                    # все четыре + dmg каждому
-agent-cms electron-app build dist chat               # Chat → dist/agent-shell/*.dmg
+agent-cms-cli electron-app build dist                    # все четыре + dmg каждому
+agent-cms-cli electron-app build dist chat               # Chat → dist/agent-shell/*.dmg
 
 # --- ярлыки на Рабочий стол (симлинки; нужна сборка) ---
-agent-cms electron-app shortcuts
+agent-cms-cli electron-app shortcuts
 # ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander, ACMS-Browser-Extension (папка chrome)
-agent-cms electron shortcuts
+agent-cms-cli electron shortcuts
 
 # типично: start → status → electron-app build → electron-app shortcuts
 # один модуль: electron-app build editor
 ```
 
-Control в браузере: «Приложения» → «Собрать» / «Ярлыки Desktop». **`agent-cms electron-app help`**
+Control в браузере: «Приложения» → «Собрать» / «Ярлыки Desktop». **`agent-cms-cli electron-app help`**
 
 <details>
 <summary>Разработчикам (npm в корне репо)</summary>

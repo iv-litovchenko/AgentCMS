@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
     --skip-build) AGENT_CMS_INSTALL_SKIP_BUILD=1; shift ;;
     -h | --help)
       echo "Usage: install.sh [--dir PATH] [--branch main] [--start] [--vps] [--skip-build]"
-      echo "  Default: git clone + agent-cms in PATH (no docker compose)."
+      echo "  Default: git clone + agent-cms-cli in PATH (no docker compose)."
       echo "  --start: after install, rebuild (fresh) or start (existing)."
       echo "  --vps:   Linux VPS target /opt/agent-cms (default on Linux: ~/agent-cms)."
       exit 0
@@ -104,7 +104,8 @@ source "$LIB_DIR/agent-cms-cli-lib.sh"
 
 agent_cms_write_config "$INSTALL_DIR"
 LINK="$(agent_cms_link_cli "$INSTALL_DIR")"
-echo "→ CLI: $LINK"
+echo "→ CLI: $LINK (+ ~/.local/bin/agent-cms — алиас)"
+agent_cms_install_path_profile
 
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 export AGENT_CMS_HOME="$INSTALL_DIR"
@@ -112,11 +113,11 @@ export AGENT_CMS_HOME="$INSTALL_DIR"
 print_next_steps() {
   echo ""
   echo "Готово (код + CLI). Docker не обязателен на этом шаге."
-  echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # если agent-cms не в PATH"
-  echo "  agent-cms doctor"
-  echo "  agent-cms rebuild   # первый раз (Docker Running, 10–30+ мин)"
-  echo "  agent-cms start     # дальше без пересборки"
-  echo "  agent-cms open control"
+  echo "  agent-cms-cli doctor   # или agent-cms (алиас)"
+  echo "  agent-cms-cli rebuild   # первый раз (Docker Running, 10–30+ мин)"
+  echo "  agent-cms-cli start     # дальше без пересборки"
+  echo "  agent-cms-cli open control"
+  echo "  (новый SSH: PATH уже в profile / profile.d, если install его дописал)"
 }
 
 if [[ "$AGENT_CMS_INSTALL_START" != "1" ]]; then

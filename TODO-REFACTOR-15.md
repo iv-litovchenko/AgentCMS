@@ -349,7 +349,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 - [x] **`uninstall`** — symlink + config; **`--purge`** = down stack, репо вручную.
 - [ ] Legacy welcome/stack — **`agent-cms legacy …`** (низкий приоритет).
 
-**Артефакты:** ✅ bash CLI + `agent-cms-env-cli.js`; install.sh → `~/.local/bin/agent-cms`. Позже: completion, update≈Q3.
+**Артефакты:** ✅ bash CLI + `agent-cms-env-cli.js`; install.sh → `~/.local/bin/agent-cms-cli` (+ alias `agent-cms`). Позже: completion, update≈Q3.
 
 > **NOTE**
 > - 💡 **`agent-cms update`** должен совпадать по политике с Q3 (`--ff-only`, app-lock на prod).

@@ -2,7 +2,7 @@
 # Agent CMS CLI — обёртка над docker compose / git (без npm publish).
 set -euo pipefail
 
-# Symlink ~/.local/bin/agent-cms → scripts/agent-cms: dirname без readlink = .local/bin
+# Symlink ~/.local/bin/agent-cms-cli (и agent-cms) → scripts/agent-cms
 _agent_cms_script_dir() {
   local script="${BASH_SOURCE[0]}"
   while [[ -L "$script" ]]; do
@@ -22,7 +22,7 @@ usage() {
   cat <<'EOF'
 Agent CMS — CLI для Docker-стека (без npm).
 
-  agent-cms [--version] [command]
+  agent-cms-cli [--version] [command]   (алиас: agent-cms)
 
 Команды:
   version, doctor, paths, status
@@ -45,10 +45,10 @@ if [[ "$cmd" == "--version" || "$cmd" == "-version" || "$cmd" == "-V" || "$cmd" 
   _home="$(agent_cms_read_config_home)"
   if [[ -d "$_home" && -f "$_home/package.json" ]]; then
     cd "$_home"
-    echo "agent-cms $(agent_cms_package_version) (platform: $(agent_cms_platform))"
+    echo "agent-cms-cli $(agent_cms_package_version) (platform: $(agent_cms_platform))"
     echo "home: $_home"
   else
-    echo "agent-cms $AGENT_CMS_CLI_VERSION (not installed)"
+    echo "agent-cms-cli $AGENT_CMS_CLI_VERSION (not installed)"
   fi
   exit 0
 fi
