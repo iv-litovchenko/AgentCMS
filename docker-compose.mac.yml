@@ -77,7 +77,7 @@ services:
     volumes:
       - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces:ro
       - ./.agent-cms-global:/app/.agent-cms-global
-      - ./mcp-server:/app/mcp-server:ro
+      # mcp-server from image (host bind hid node_modules → express ERR_MODULE_NOT_FOUND).
       - ./lib:/app/lib:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:3490/health"]
