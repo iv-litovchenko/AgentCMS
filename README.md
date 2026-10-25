@@ -1,5 +1,32 @@
 # AGENT CMS (0.0.1-beta)
 
+<p align="center">
+  <a href="docs/deploy/DOCKER.md"><img src="docs/images/badges/badge-docker.svg" alt="Docker" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-установка--macos-gb-install--macos"><img src="docs/images/badges/badge-macos.svg" alt="macOS" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server"><img src="docs/images/badges/badge-linux.svg" alt="Linux" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="docs/deploy/DOCKER.md" title="Windows (beta, WSL)"><img src="docs/images/badges/badge-windows-beta.svg" alt="Windows beta" height="28"></a>
+</p>
+
+<p align="center">
+  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-claude.svg" alt="Claude" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-codex.svg" alt="Codex" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="mcp-server/README.md"><img src="docs/images/badges/badge-qwenpaw.svg" alt="QwenPaw" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-подключение-mcp-gb-mcp-connection"><img src="docs/images/badges/badge-mcp.svg" alt="MCP (Model Context Protocol)" height="28"></a>
+</p>
+
+<p align="center">
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-nodejs.svg" alt="Node.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-express.svg" alt="Express" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-sqlite.svg" alt="SQLite" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-markdown.svg" alt="Markdown" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-electron.svg" alt="Electron" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-mermaid.svg" alt="Mermaid" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-threejs.svg" alt="Three.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="docs/deploy/vps-caddy-letsencrypt.md"><img src="docs/images/badges/badge-caddy.svg" alt="Caddy" height="28"></a>
+</p>
+
+---
+
 ## 🇷🇺 Содержание (🇬🇧 Table of contents)
 
 🇷🇺 **[ru]**
@@ -49,21 +76,6 @@
 > - [License](#-лицензия-gb-license)
 > - [Links](#-ссылки-gb-links)
 > - [Where to start?](#-с-чего-начать-gb-where-to-start)
-
----
-
-<p align="center">
-  <a href="docs/deploy/DOCKER.md"><img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
-  <a href="#-установка--macos-gb-install--macos"><img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS"></a>
-  <a href="#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux"></a>
-  <a href="docs/deploy/DOCKER.md"><img src="https://img.shields.io/badge/Windows%20(beta)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows (beta)"></a>
-</p>
-
-🇷🇺 **[ru]** Запуск через **Docker**: **macOS**, **Linux** (VPS), **Windows** — пока **beta** (WSL / [`docker-compose.windows.yml`](docker-compose.windows.yml)).
-
-> 🇬🇧 **[en]**
->
-> Runs on **Docker**: **macOS**, **Linux** (VPS), **Windows** — **beta** for now (WSL / [`docker-compose.windows.yml`](docker-compose.windows.yml)).
 
 ---
 
