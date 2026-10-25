@@ -42,6 +42,8 @@ Desktop.ini
 
 # User-created workspaces (bundled 0-* stay in repo)
 workspaces/*
+!workspaces/ws-default/
+!workspaces/ws-deault/**
 !workspaces/0-ws-core/
 !workspaces/0-ws-core/**
 !workspaces/0-ws-test/
