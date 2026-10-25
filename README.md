@@ -328,7 +328,37 @@ curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/script
 irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.ps1 | iex
 ```
 
-После **`curl | bash`:** `export PATH="$HOME/.local/bin:$PATH"` (если нужно) → **`agent-cms doctor`** → запустите **Docker** → **`agent-cms rebuild`** (первый раз) → дальше **`agent-cms start`** → [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+**После установки (порядок):**
+
+```bash
+# PATH — если команда agent-cms не находится
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Docker Desktop / Engine — должен быть Running
+
+cd ~/agent-cms   # Linux desktop: ~/agent-cms · VPS: /opt/agent-cms (agent-cms paths)
+
+agent-cms doctor          # git, docker, .env
+agent-cms rebuild         # первый раз: docker compose up -d --build (10–30+ мин)
+agent-cms start           # следующие запуски (без --build)
+agent-cms status          # HTTP ✓ + контейнеры
+
+agent-cms open control    # http://127.0.0.1:3000/app-control/
+```
+
+Опционально (macOS, не для работы CMS в Docker):
+
+```bash
+agent-cms electron-app build      # .app Editor, Chat, Control, Commander
+agent-cms electron-app shortcuts    # ярлыки ACMS-* на Desktop
+```
+
+Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.1:3000`** (без `/app-chat`).
+
+Обновление: **`agent-cms update`** (`git pull` + rebuild).  
+**Не нужно** после install: `npm install` на хосте для CMS, `npm run build:editor` — в репо уже есть `public/editor/main.built.js`.
+
+Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 > **NOTE**
 > - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms`. Конфиг: `~/.config/agent-cms/home`.
@@ -339,6 +369,8 @@ irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/insta
 > 🇬🇧 **[en]**
 >
 > **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms`** for daily ops. No npm publish. Manual blocks below = fallback.
+>
+> **After install:** `export PATH="$HOME/.local/bin:$PATH"` → Docker **Running** → `agent-cms doctor` → **`agent-cms rebuild`** (first time) → **`agent-cms start`** → **`agent-cms status`** → `agent-cms open control`. Optional on Mac: **`agent-cms electron-app build`** + **`shortcuts`**. No host **`npm install`** for CMS. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
 ## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
 
