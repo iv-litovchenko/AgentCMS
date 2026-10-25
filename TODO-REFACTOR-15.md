@@ -232,9 +232,10 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 
 | ОС | Куда ставим код | Compose-файл |
 | --- | --- | --- |
-| **macOS** | `~/Projects/AgentCMS` (не `/Applications`) | `docker-compose.mac.yml` |
-| **Linux (VPS)** | `/opt/agent-cms` | `docker-compose.linux.yml` |
-| **Windows** | `%USERPROFILE%\Projects\AgentCMS` (или WSL2 `/opt/agent-cms`) | `docker-compose.windows.yml` |
+| **macOS** | `~/agent-cms` (`/Users/<user>/agent-cms`) | `docker-compose.mac.yml` |
+| **Linux** | `~/agent-cms` (`/home/<user>/agent-cms`) | `docker-compose.mac.yml` / linux |
+| **Linux VPS** | `/opt/agent-cms` (`install.sh --vps`) | `docker-compose.linux.yml` |
+| **Windows** | `%USERPROFILE%\agent-cms` или WSL `~/agent-cms` | `docker-compose.windows.yml` |
 
 **Установщик делает:** detect OS → `git clone` / `pull` → symlink **`agent-cms`** → подсказка **`rebuild` / `start`** (Docker **не** обязателен на этом шаге). Опция **`--start`** — сразу rebuild/start, если Docker Running.
 
@@ -305,8 +306,8 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 ```
 📦 9.1 Установщик
-├── 🍎 mac     → install.sh / brew → ~/Projects/AgentCMS
-├── 🐧 linux   → install.sh        → /opt/agent-cms
+├── 🍎 mac     → install.sh → ~/agent-cms
+├── 🐧 linux   → install.sh → ~/agent-cms (VPS: --vps → /opt/agent-cms)
 ├── 🪟 windows → install.ps1/WSL   → Projects или WSL /opt
 └── 🎯 итог    → clone + CLI; stack вручную agent-cms rebuild/start
 

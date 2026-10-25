@@ -10,16 +10,22 @@ agent_cms_default_install_dir() {
   local uname_s
   uname_s="$(uname -s)"
   case "$uname_s" in
-    Darwin) echo "$HOME/Projects/AgentCMS" ;;
+    Darwin) echo "$HOME/agent-cms" ;;
     Linux)
-      if [[ -w /opt ]] 2>/dev/null || [[ "$(id -u)" -eq 0 ]]; then
+      if [[ "${AGENT_CMS_INSTALL_VPS:-}" == "1" ]] || [[ "$(id -u)" -eq 0 ]]; then
         echo "/opt/agent-cms"
       else
-        echo "$HOME/Projects/AgentCMS"
+        echo "$HOME/agent-cms"
       fi
       ;;
-    MINGW* | MSYS* | CYGWIN*) echo "$HOME/Projects/AgentCMS" ;;
-    *) echo "$HOME/Projects/AgentCMS" ;;
+    MINGW* | MSYS* | CYGWIN*)
+      if [[ -n "${USERPROFILE:-}" ]]; then
+        echo "$(cd "$USERPROFILE" && pwd)/agent-cms"
+      else
+        echo "$HOME/agent-cms"
+      fi
+      ;;
+    *) echo "$HOME/agent-cms" ;;
   esac
 }
 

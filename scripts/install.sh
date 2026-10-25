@@ -20,12 +20,14 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --start | --with-build) AGENT_CMS_INSTALL_START=1; shift ;;
+    --vps) AGENT_CMS_INSTALL_VPS=1; shift ;;
     --no-start) shift ;; # legacy alias (default)
     --skip-build) AGENT_CMS_INSTALL_SKIP_BUILD=1; shift ;;
     -h | --help)
-      echo "Usage: install.sh [--dir PATH] [--branch main] [--start] [--skip-build]"
+      echo "Usage: install.sh [--dir PATH] [--branch main] [--start] [--vps] [--skip-build]"
       echo "  Default: git clone + agent-cms in PATH (no docker compose)."
       echo "  --start: after install, rebuild (fresh) or start (existing)."
+      echo "  --vps:   Linux VPS target /opt/agent-cms (default on Linux: ~/agent-cms)."
       exit 0
       ;;
     *) echo "Unknown arg: $1" >&2; exit 1 ;;
@@ -44,9 +46,15 @@ default_dir() {
     agent_cms_default_install_dir
   else
     case "$(uname -s)" in
-      Darwin) echo "$HOME/Projects/AgentCMS" ;;
-      Linux) echo "/opt/agent-cms" ;;
-      *) echo "$HOME/Projects/AgentCMS" ;;
+      Darwin) echo "$HOME/agent-cms" ;;
+      Linux)
+        if [[ "${AGENT_CMS_INSTALL_VPS:-}" == "1" ]] || [[ "$(id -u)" -eq 0 ]]; then
+          echo "/opt/agent-cms"
+        else
+          echo "$HOME/agent-cms"
+        fi
+        ;;
+      *) echo "$HOME/agent-cms" ;;
     esac
   fi
 }

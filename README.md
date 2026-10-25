@@ -304,9 +304,10 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 
 | ОС | Куда кладётся код | Compose |
 | --- | --- | --- |
-| **macOS** | `~/Projects/AgentCMS` | [`docker-compose.mac.yml`](docker-compose.mac.yml) |
-| **Linux (VPS)** | `/opt/agent-cms` | [`docker-compose.linux.yml`](docker-compose.linux.yml) |
-| **Windows** | `%USERPROFILE%\Projects\AgentCMS` или **WSL2** `/opt/agent-cms` | [`docker-compose.windows.yml`](docker-compose.windows.yml) |
+| **macOS** | `~/agent-cms` → `/Users/<you>/agent-cms` | [`docker-compose.mac.yml`](docker-compose.mac.yml) |
+| **Linux** | `~/agent-cms` → `/home/<you>/agent-cms` | [`docker-compose.mac.yml`](docker-compose.mac.yml) (desktop) или [`linux.yml`](docker-compose.linux.yml) |
+| **Linux VPS** | `/opt/agent-cms` (`curl … \| bash -s -- --vps` или `--dir /opt/agent-cms`) | [`docker-compose.linux.yml`](docker-compose.linux.yml) |
+| **Windows** | `C:\Users\<you>\agent-cms` или **WSL2** `~/agent-cms` | [`docker-compose.windows.yml`](docker-compose.windows.yml) |
 
 **На шаге `curl | bash`:** нужны **git** и сеть; **Docker не обязателен** — установщик клонирует репо и ставит **`agent-cms`** в `~/.local/bin`. Stack поднимаете сами, когда Docker готов.
 
@@ -316,7 +317,7 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 # macOS / Linux — без npm: clone + CLI
 curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
 
-# опции: --dir PATH · --start (сразу rebuild/start, если Docker Running)
+# опции: --dir PATH · --vps (Linux /opt/agent-cms) · --start (Docker Running)
 # из уже клонированного репо: bash scripts/install.sh
 
 # Windows PowerShell → WSL2 + тот же install.sh
@@ -370,7 +371,7 @@ docker compose -f docker-compose.mac.yml up -d --build
 
 🇷🇺 **[ru]**
 
-**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). Код по умолчанию в **`/opt/agent-cms`**. **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#-настройка--env-gb-configuration--env)).
+**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). На VPS код в **`/opt/agent-cms`** (`--vps`). **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#-настройка--env-gb-configuration--env)).
 
 **Канон:** сначала Docker + firewall, затем [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) (без ручного `git clone`) и дальше **[`agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
 
@@ -399,9 +400,8 @@ ufw status numbered
 ufw enable
 # swap 2G на 1–2 GB RAM (опц.): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 
-# === 3) Agent CMS — установщик → /opt/agent-cms + CLI (Docker позже) ===
-curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
-# curl … | bash -s -- --dir /opt/agent-cms
+# === 3) Agent CMS — установщик + CLI (Docker позже) ===
+curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash -s -- --vps
 export PATH="$HOME/.local/bin:$PATH"
 agent-cms doctor
 agent-cms paths          # AGENT_CMS_HOME=/opt/agent-cms
