@@ -23,7 +23,12 @@ const electronVersion = electronPkg.version;
 
 const builderBin = path.join(root, "node_modules", ".bin", "electron-builder");
 
-const builderArgs = ["--config.electronVersion", electronVersion];
+const builderArgs = [
+  "--config.electronVersion",
+  electronVersion,
+  "--config.npmRebuild=false",
+  "--config.nodeGypRebuild=false"
+];
 if (mode === "pack") builderArgs.push("--dir");
 
 console.log(`build-desktop-subapp: ${subapp} ${mode} (electron ${electronVersion})`);

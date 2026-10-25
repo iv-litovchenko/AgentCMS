@@ -17,10 +17,10 @@ done
 MODE="${1:-pack}"
 case "$MODE" in
   pack)
-    npx electron-builder --dir
+    npx electron-builder --dir --config.npmRebuild=false --config.nodeGypRebuild=false
     ;;
   dist)
-    npx electron-builder
+    npx electron-builder --config.npmRebuild=false --config.nodeGypRebuild=false
     ;;
   *)
     echo "Usage: cms-electron-build.sh pack|dist"

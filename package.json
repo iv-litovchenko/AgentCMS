@@ -99,6 +99,8 @@
     "three": "^0.170.0"
   },
   "build": {
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
     "appId": "com.agentcms.desktop",
     "productName": "Agent CMS",
     "icon": "desktop/agent-cms/assets/icon.png",
