@@ -7,6 +7,7 @@ node_modules_2/
 .venv-entity/
 
 # Build / packaging
+.asar-verify/
 dist/
 out/
 *.dmg
