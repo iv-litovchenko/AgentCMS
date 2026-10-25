@@ -13,4 +13,6 @@ Write-Host "Or from PowerShell (WSL):" -ForegroundColor Yellow
 Write-Host "  wsl bash -c `"curl -fsSL $InstallSh | bash`""
 Write-Host ""
 Write-Host "Native Windows without WSL is not supported for this Docker stack."
+Write-Host "WSL install path (default): ~/agent-cms  -> /home/<user>/agent-cms"
+Write-Host "Native folder (if using Git Bash later): %USERPROFILE%\agent-cms"
 Write-Host "See README: docker-compose.windows.yml"
