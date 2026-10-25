@@ -46,7 +46,7 @@ const ACTIONS = [
     id: "setup-desktop-shortcuts",
     category: "setup",
     title: "Создать ярлыки на Desktop",
-    description: "Desktop: ACMS-Control, ACMS-Editor, ACMS-Voice, ACMS-Browser-Extension. Для .app — сначала «Собрать».",
+    description: "Desktop: ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander. Сначала «Собрать».",
     command: "node",
     args: ["scripts/create-desktop-shortcuts.js"],
     tone: "default"

@@ -488,7 +488,7 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 | **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
 | **build** | `rebuild` | `cms-rebuild.command`, `--build` |
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
-| **open** | `open editor\|control\|chat\|commander\|mcp-url` | копировать URL из README |
+| **open** | `open editor\|chat\|control\|commander\|mcp-url` | копировать URL из README |
 | **config** | `env show`, `env set` | MCP `platform_env_key_*` / Control |
 | **install** | `install`, `uninstall` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
 
@@ -510,25 +510,40 @@ agent-cms uninstall --purge   # + compose down (каталог репо не у�
 
 **Канон:** сервер — **Docker** (или dev `npm start`); Electron **не поднимает CMS**, только открывает **`AGENT_CMS_PUBLIC_URL`** + path (`/`, `/app-chat/`, `/app-control/`, `/app-commander/`). Подробнее: [`desktop/README.md`](desktop/README.md). Legacy (встроенный сервер): **`AGENT_CMS_ELECTRON_LEGACY=1`**.
 
-**Порядок:** `agent-cms start` → проверка **`agent-cms status`** → сборка на **Mac с Node на хосте** → ярлыки.
+**Порядок:** `start` → `status` → **`electron-app build`** → **`electron-app shortcuts`**. Только **macOS**, **Node на хосте**; CLI — каталог **`AGENT_CMS_HOME`** (dev: клон `YamlCMS`, иначе `~/agent-cms`).
+
+**Схема:** `agent-cms electron-app build [pack|dist] [all|editor|chat|control|commander]` · короче: **`electron build …`**. Без аргументов = **pack + все 4**. **`pack`** / **`dist`** и имя app — в любом порядке.
 
 ```bash
-agent-cms start
-agent-cms status
+agent-cms start          # Docker: CMS + MCP + Control
+agent-cms status         # HTTP + docker ps
 
-# Сборка .app на Mac (Node на хосте; npm пользователю не нужен)
-agent-cms electron-app build                    # все четыре .app → dist/
-agent-cms electron-app build dist               # + dmg/zip …
-agent-cms electron-app build pack editor        # только Editor
-agent-cms electron-app build dist voice         # Voice + установщик
+# --- pack (по умолчанию): только .app в dist/ — себе, ярлыки, двойной клик ---
+agent-cms electron-app build
+# → dist/agent-cms/Agent CMS.app
+# → dist/agent-shell/Agent Shell.app
+# → dist/agent-control/Agent CMS Control.app
+# → dist/agent-commander/Agent CMS Commander.app
 
-agent-cms electron-app shortcuts                # ACMS-* на Рабочий стол
-# то же короче: agent-cms electron shortcuts
+agent-cms electron-app build editor      # одно: Editor
+agent-cms electron-app build chat        # одно: Chat (Shell)
+agent-cms electron-app build control
+agent-cms electron-app build commander
+
+# --- dist: .app + установщик (.dmg / .zip) — другому Mac; Docker CMS не ставит ---
+agent-cms electron-app build dist                    # все четыре + dmg каждому
+agent-cms electron-app build dist chat               # Chat → dist/agent-shell/*.dmg
+
+# --- ярлыки на Рабочий стол (симлинки; нужна сборка) ---
+agent-cms electron-app shortcuts
+# ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander
+agent-cms electron shortcuts
+
+# типично: start → status → electron-app build → electron-app shortcuts
+# один модуль: electron-app build editor
 ```
 
-На Desktop: **ACMS-Editor.app**, **ACMS-Voice.app**, **ACMS-Control.app**, **ACMS-Commander.app**, **ACMS-Browser-Extension**.
-
-То же из **Control** в браузере: «Приложения» → «Собрать», «Ярлыки Desktop». Справка: **`agent-cms electron-app help`**.
+Control в браузере: «Приложения» → «Собрать» / «Ярлыки Desktop». **`agent-cms electron-app help`**
 
 <details>
 <summary>Разработчикам (npm в корне репо)</summary>
@@ -545,7 +560,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 > 🇬🇧 **[en]**
 >
-> **`agent-cms electron-app build`** on macOS (Node on host); then **`agent-cms electron-app shortcuts`**. See [`desktop/README.md`](desktop/README.md).
+> **`electron-app build [pack|dist] [all|editor|chat|control|commander]`** — shortcuts: **ACMS-Editor**, **ACMS-Chat**, **ACMS-Control**, **ACMS-Commander**. See [`desktop/README.md`](desktop/README.md).
 
 ## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
 

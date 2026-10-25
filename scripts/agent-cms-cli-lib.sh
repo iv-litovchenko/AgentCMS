@@ -212,9 +212,22 @@ agent_cms_desktop_build_supported() {
   [[ "$(agent_cms_platform)" == "mac" ]]
 }
 
+agent_cms_normalize_electron_app() {
+  case "$1" in
+    chat | voice) echo "chat" ;;
+    control | launcher) echo "control" ;;
+    editor | commander | all) echo "$1" ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
 agent_cms_run_app_build() {
   local mode="${1:-pack}"
-  local app="${2:-all}"
+  local app_raw="${2:-all}"
+  local app
+  app="$(agent_cms_normalize_electron_app "$app_raw")"
 
   case "$mode" in
     pack | dist) ;;
@@ -224,12 +237,15 @@ agent_cms_run_app_build() {
       ;;
   esac
 
-  case "$app" in
-    all | editor | voice | control | commander) ;;
-    *)
-      echo "Приложение: all | editor | voice | control | commander" >&2
-      return 1
-      ;;
+  if [[ -z "$app" ]]; then
+    echo "Приложение: all | editor | chat | control | commander" >&2
+    echo "(устар.: voice → chat, launcher → control)" >&2
+    return 1
+  fi
+
+  case "$app_raw" in
+    voice) echo "Подсказка: voice → chat" >&2 ;;
+    launcher) echo "Подсказка: launcher → control" >&2 ;;
   esac
 
   if ! agent_cms_desktop_build_supported; then
@@ -257,7 +273,7 @@ agent_cms_run_app_build() {
     editor)
       bash "$AGENT_CMS_HOME/scripts/cms-electron-build.sh" "$mode"
       ;;
-    voice)
+    chat)
       node "$AGENT_CMS_HOME/scripts/build-desktop-subapp.js" agent-shell "$mode"
       node "$AGENT_CMS_HOME/scripts/flatten-desktop-dist.js" agent-shell
       ;;
@@ -283,21 +299,22 @@ agent_cms_cmd_electron_app() {
       for arg in "$@"; do
         case "$arg" in
           pack | dist) mode="$arg" ;;
-          all | editor | voice | control | commander) app_target="$arg" ;;
+          all | editor | chat | control | commander | voice | launcher) app_target="$arg" ;;
           -h | --help)
             cat <<'EOF'
-agent-cms electron-app build [pack|dist] [all|editor|voice|control|commander]
+agent-cms electron-app build [pack|dist] [all|editor|chat|control|commander]
 
   Сборка Electron .app (macOS, Node на хосте).
 
   pack (по умолчанию) — .app в dist/
   dist — установщики (dmg/zip …)
-  all (по умолчанию) — Editor + Voice + Control + Commander
+  all (по умолчанию) — Editor + Chat + Control + Commander
 
 Примеры:
   agent-cms electron-app build
   agent-cms electron-app build dist
   agent-cms electron-app build pack editor
+  agent-cms electron-app build chat
 EOF
             return 0
             ;;
@@ -317,8 +334,8 @@ EOF
       cat <<'EOF'
 agent-cms electron-app — окна Electron (.app) на Mac
 
-  electron-app build [pack|dist] [all|editor|voice|control|commander]
-  electron-app shortcuts   — ярлыки ACMS-* на Рабочий стол (macOS)
+  electron-app build [pack|dist] [all|editor|chat|control|commander]
+  electron-app shortcuts   — ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander
 
 Короткий синоним: agent-cms electron build …
 Устаревают: app …, desktop …, agent-cms shortcuts

@@ -17,11 +17,10 @@ Electron `.app` по умолчанию — **только URL** (`desktop/share
 CLI: **`agent-cms status`**, **`agent-cms electron-app build`**, **`agent-cms electron-app shortcuts`** (короче: **`electron build`** / **`electron shortcuts`**).
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control):
-- `ACMS-Control.app` → `dist/agent-control/`
-- `ACMS-Editor.app` → `dist/agent-cms/`
-- `ACMS-Voice.app` → `dist/agent-shell/`
-- `ACMS-Commander.app` → `dist/agent-commander/`
-- `ACMS-Browser-Extension` → `browser-extension/` (папка расширения)
+- `ACMS-Editor` → `dist/agent-cms/Agent CMS.app`
+- `ACMS-Chat` → `dist/agent-shell/Agent Shell.app`
+- `ACMS-Control` → `dist/agent-control/Agent CMS Control.app`
+- `ACMS-Commander` → `dist/agent-commander/Agent CMS Commander.app`
 
 Сборка Control: `npm run control:dist` → `dist/agent-control/Agent CMS Control.app`
 
