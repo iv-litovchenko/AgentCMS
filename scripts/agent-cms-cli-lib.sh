@@ -335,7 +335,7 @@ EOF
 agent-cms electron-app — окна Electron (.app) на Mac
 
   electron-app build [pack|dist] [all|editor|chat|control|commander]
-  electron-app shortcuts   — ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander
+  electron-app shortcuts   — ACMS-Editor, Chat, Control, Commander, Browser Extension
 
 Короткий синоним: agent-cms electron build …
 Устаревают: app …, desktop …, agent-cms shortcuts

@@ -536,7 +536,7 @@ agent-cms electron-app build dist chat               # Chat → dist/agent-shell
 
 # --- ярлыки на Рабочий стол (симлинки; нужна сборка) ---
 agent-cms electron-app shortcuts
-# ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander
+# ACMS-Editor, ACMS-Chat, ACMS-Control, ACMS-Commander, ACMS-Browser-Extension (папка chrome)
 agent-cms electron shortcuts
 
 # типично: start → status → electron-app build → electron-app shortcuts

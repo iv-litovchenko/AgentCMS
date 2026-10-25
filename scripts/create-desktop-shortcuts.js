@@ -7,6 +7,10 @@ const path = require("path");
 const os = require("os");
 
 const repoRoot = path.join(__dirname, "..");
+const {
+  buildBrowserExtensionLauncherApp,
+  APP_NAME: EXT_LAUNCHER_APP_NAME
+} = require("./build-browser-extension-launcher-app");
 
 const SHORTCUTS = [
   {
@@ -24,6 +28,11 @@ const SHORTCUTS = [
   {
     name: "ACMS-Commander",
     target: () => path.join(repoRoot, "dist/agent-commander/Agent CMS Commander.app")
+  },
+  {
+    name: "ACMS-Browser-Extension",
+    ensure: async () => buildBrowserExtensionLauncherApp({ repoRoot }),
+    target: () => path.join(repoRoot, "dist/browser-extension-launcher", EXT_LAUNCHER_APP_NAME)
   }
 ];
 
@@ -105,12 +114,15 @@ async function createDesktopShortcuts() {
 
   console.log("");
   if (created === 0) {
-    throw new Error("Не удалось создать ярлыки. Сначала соберите приложения в Control.");
+    throw new Error(
+      "Не удалось создать ярлыки. Соберите Electron (.app) или проверьте browser-extension/."
+    );
   }
 
   console.log(`Готово: ${created} ярлык(ов) на рабочем столе.`);
-  if (created < SHORTCUTS.length) {
-    console.log("Остальные появятся после «Собрать» в разделе Приложения.");
+  const needElectron = SHORTCUTS.filter((e) => !e.ensure).length;
+  if (created < needElectron) {
+    console.log("Electron .app появятся после «Собрать» в разделе Приложения.");
   }
 
   return { ok: true, created, desktopDir };

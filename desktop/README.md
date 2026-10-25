@@ -21,6 +21,7 @@ CLI: **`agent-cms status`**, **`agent-cms electron-app build`**, **`agent-cms el
 - `ACMS-Chat` → `dist/agent-shell/Agent Shell.app`
 - `ACMS-Control` → `dist/agent-control/Agent CMS Control.app`
 - `ACMS-Commander` → `dist/agent-commander/Agent CMS Commander.app`
+- `ACMS-Browser-Extension` → мини `.app` (иконка расширения) → открывает `browser-extension/` в Finder
 
 Сборка Control: `npm run control:dist` → `dist/agent-control/Agent CMS Control.app`
 
