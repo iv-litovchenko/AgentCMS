@@ -127,14 +127,12 @@ const WORKSPACE_MOUNT_MAC_TEMPLATES = {
   desktop: {
     id: "mac-desktop",
     label: "Mac · Рабочий стол",
-    hostPath: "~/Desktop",
-    containerPath: "~/Desktop"
+    hostPath: "~/Desktop"
   },
   downloads: {
     id: "mac-downloads",
     label: "Mac · Загрузки",
-    hostPath: "~/Downloads",
-    containerPath: "~/Downloads"
+    hostPath: "~/Downloads"
   }
 };
 
@@ -160,7 +158,7 @@ function addWorkspaceMountEntry(entry) {
 function renderWorkspaceMountHostPathLabel(builtIn, containerHintText) {
   const title = builtIn
     ? "Дефолтный корень: ./workspaces или AGENT_CMS_WORKSPACES_DIR в .env (docker-compose.mac.yml / linux.yml). Сюда не пишется в workspace-mounts.yml."
-    : "Путь на хосте. На Mac: Docker Desktop → Settings → Resources → File sharing — папка должна быть разрешена.";
+    : "Абсолютный путь на Mac (/Users/…/Desktop) или ~/Desktop — при сохранении раскроется в полный путь. Docker Desktop → File sharing.";
   const iconClass = builtIn ? " workspace-mount-field-icon--builtin" : "";
   const containerLabel = builtIn
     ? `→ <code>${escapeAttr(containerHintText)}</code>`
@@ -236,7 +234,7 @@ function renderWorkspaceMountsList() {
             ${renderWorkspaceMountHostPathLabel(builtIn, containerHint)}
             <input type="text" name="hostPath" value="${host}" spellcheck="false" autocomplete="off" ${
               builtIn ? "disabled" : ""
-            } placeholder="./workspaces или /Users/…/my-ws" />
+            } placeholder="/Users/you/Desktop или ~/Downloads" />
           </label>
           <label class="workspace-mount-field">
             <span>Метка</span>

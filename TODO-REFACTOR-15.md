@@ -236,7 +236,7 @@ docker compose -f docker-compose.mac.yml exec cms ls /app/workspaces
 | **Linux (VPS)** | `/opt/agent-cms` | `docker-compose.linux.yml` |
 | **Windows** | `%USERPROFILE%\Projects\AgentCMS` (или WSL2 `/opt/agent-cms`) | `docker-compose.windows.yml` |
 
-**Установщик делает:** detect OS → проверка Docker → `git clone` / `pull` в канонический путь → первый `up -d --build` → вывод URL + hint про CLI (**Q9.2**).
+**Установщик делает:** detect OS → `git clone` / `pull` → symlink **`agent-cms`** → подсказка **`rebuild` / `start`** (Docker **не** обязателен на этом шаге). Опция **`--start`** — сразу rebuild/start, если Docker Running.
 
 **Каналы доставки (черновик):**
 
@@ -308,7 +308,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 ├── 🍎 mac     → install.sh / brew → ~/Projects/AgentCMS
 ├── 🐧 linux   → install.sh        → /opt/agent-cms
 ├── 🪟 windows → install.ps1/WSL   → Projects или WSL /opt
-└── 🎯 итог    → Docker OK + clone + первый up + подсказка agent-cms
+└── 🎯 итог    → clone + CLI; stack вручную agent-cms rebuild/start
 
 🖥️ 9.2 CLI agent-cms
 ├── ℹ️  info       → version · doctor · paths · status

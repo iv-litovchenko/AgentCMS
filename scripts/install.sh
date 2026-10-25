@@ -4,7 +4,8 @@ set -euo pipefail
 
 AGENT_CMS_REPO="${AGENT_CMS_REPO:-https://github.com/iv-litovchenko/AgentCMS.git}"
 AGENT_CMS_BRANCH="${AGENT_CMS_BRANCH:-main}"
-AGENT_CMS_INSTALL_NO_START="${AGENT_CMS_INSTALL_NO_START:-0}"
+# По умолчанию только clone + CLI; stack — вручную: agent-cms rebuild / start
+AGENT_CMS_INSTALL_START="${AGENT_CMS_INSTALL_START:-0}"
 AGENT_CMS_INSTALL_SKIP_BUILD="${AGENT_CMS_INSTALL_SKIP_BUILD:-0}"
 CUSTOM_DIR=""
 
@@ -18,10 +19,13 @@ while [[ $# -gt 0 ]]; do
       AGENT_CMS_BRANCH="${2:?}"
       shift 2
       ;;
-    --no-start) AGENT_CMS_INSTALL_NO_START=1; shift ;;
+    --start | --with-build) AGENT_CMS_INSTALL_START=1; shift ;;
+    --no-start) shift ;; # legacy alias (default)
     --skip-build) AGENT_CMS_INSTALL_SKIP_BUILD=1; shift ;;
     -h | --help)
-      echo "Usage: install.sh [--dir PATH] [--branch main] [--no-start] [--skip-build]"
+      echo "Usage: install.sh [--dir PATH] [--branch main] [--start] [--skip-build]"
+      echo "  Default: git clone + agent-cms in PATH (no docker compose)."
+      echo "  --start: after install, rebuild (fresh) or start (existing)."
       exit 0
       ;;
     *) echo "Unknown arg: $1" >&2; exit 1 ;;
@@ -95,39 +99,39 @@ LINK="$(agent_cms_link_cli "$INSTALL_DIR")"
 echo "→ CLI: $LINK"
 
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-
-if ! command -v docker >/dev/null 2>&1; then
-  echo ""
-  echo "⚠ Docker не найден. Установите Docker Desktop / Engine, затем:"
-  echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
-  echo "   agent-cms rebuild   # первый запуск"
-  exit 0
-fi
-
-if ! docker info >/dev/null 2>&1; then
-  echo ""
-  echo "⚠ Docker не запущен. Запустите Docker, затем: agent-cms rebuild"
-  exit 0
-fi
-
-if [[ "$AGENT_CMS_INSTALL_NO_START" == "1" ]]; then
-  echo ""
-  echo "Готово (--no-start). Дальше: agent-cms doctor && agent-cms rebuild"
-  exit 0
-fi
-
 export AGENT_CMS_HOME="$INSTALL_DIR"
+
+print_next_steps() {
+  echo ""
+  echo "Готово (код + CLI). Docker не обязателен на этом шаге."
+  echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # если agent-cms не в PATH"
+  echo "  agent-cms doctor"
+  echo "  agent-cms rebuild   # первый раз (Docker Running, 10–30+ мин)"
+  echo "  agent-cms start     # дальше без пересборки"
+  echo "  agent-cms open control"
+}
+
+if [[ "$AGENT_CMS_INSTALL_START" != "1" ]]; then
+  print_next_steps
+  exit 0
+fi
+
+if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+  echo ""
+  echo "⚠ --start: нужен запущенный Docker. Пропускаем compose."
+  print_next_steps
+  exit 0
+fi
+
 export DOCKER_MAC_NO_PAUSE=1
 
 if [[ "$FRESH" == "1" && "$AGENT_CMS_INSTALL_SKIP_BUILD" != "1" ]]; then
   echo ""
-  echo "→ первый запуск (build может занять 10–30+ мин)…"
+  echo "→ --start: первый build (может занять 10–30+ мин)…"
   bash "$INSTALL_DIR/scripts/agent-cms" rebuild
 else
   bash "$INSTALL_DIR/scripts/agent-cms" start
 fi
 
 echo ""
-echo "Готово. PATH: добавьте ~/.local/bin при необходимости."
-echo "  agent-cms doctor"
-echo "  agent-cms open control"
+print_next_steps

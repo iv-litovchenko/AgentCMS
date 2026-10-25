@@ -308,21 +308,22 @@ Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
 | **Linux (VPS)** | `/opt/agent-cms` | [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **Windows** | `%USERPROFILE%\Projects\AgentCMS` или **WSL2** `/opt/agent-cms` | [`docker-compose.windows.yml`](docker-compose.windows.yml) |
 
-**Нужно заранее:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac / Windows) или **Docker Engine + Compose plugin** (Linux). **`.env`** уже в репозитории — установщик клонирует репо в таблице выше и делает первый `docker compose up -d --build`.
+**На шаге `curl | bash`:** нужны **git** и сеть; **Docker не обязателен** — установщик клонирует репо и ставит **`agent-cms`** в `~/.local/bin`. Stack поднимаете сами, когда Docker готов.
+
+**Перед первым запуском CMS:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac / Windows) или **Engine + Compose** (Linux). **`.env`** уже в репозитории.
 
 ```bash
-# macOS / Linux — без npm: clone + CLI в ~/.local/bin
+# macOS / Linux — без npm: clone + CLI
 curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
 
-# опции: --dir ~/Projects/AgentCMS --no-start --skip-build
-# из уже клонированного репо:
-# bash scripts/install.sh
+# опции: --dir PATH · --start (сразу rebuild/start, если Docker Running)
+# из уже клонированного репо: bash scripts/install.sh
 
 # Windows PowerShell → WSL2 + тот же install.sh
 irm https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.ps1 | iex
 ```
 
-После установки добавьте **`~/.local/bin`** в PATH (если нужно), затем: `agent-cms doctor` → `agent-cms rebuild` (первый раз) → [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+После **`curl | bash`:** `export PATH="$HOME/.local/bin:$PATH"` (если нужно) → **`agent-cms doctor`** → запустите **Docker** → **`agent-cms rebuild`** (первый раз) → дальше **`agent-cms start`** → [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 > **NOTE**
 > - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms`. Конфиг: `~/.config/agent-cms/home`.
@@ -398,14 +399,15 @@ ufw status numbered
 ufw enable
 # swap 2G на 1–2 GB RAM (опц.): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 
-# === 3) Agent CMS — установщик → /opt/agent-cms + CLI ===
+# === 3) Agent CMS — установщик → /opt/agent-cms + CLI (Docker позже) ===
 curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
-# то же явно: curl … | bash -s -- --dir /opt/agent-cms
-# PATH (если нужно): export PATH="$HOME/.local/bin:$PATH"
-
+# curl … | bash -s -- --dir /opt/agent-cms
+export PATH="$HOME/.local/bin:$PATH"
 agent-cms doctor
 agent-cms paths          # AGENT_CMS_HOME=/opt/agent-cms
+# когда Docker Running:
 agent-cms rebuild        # первый up -d --build (10–30+ мин)
+agent-cms start          # следующие запуски
 agent-cms ps
 
 # дальше: правки .env → agent-cms restart или agent-cms rebuild
