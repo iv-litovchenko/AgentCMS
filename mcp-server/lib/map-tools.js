@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLegacyMcpAliasesEnabled } from "./mcp-legacy-tools.js";
 import { registerCanonicalWithLegacyAlias, registerDeprecatedAlias } from "./register-tool-alias.js";
 
 const workspaceRelPath = z
@@ -728,31 +729,31 @@ export function registerMapTools(reg, client, pagePath) {
       ...(includeSlots === false ? { includeSlots: "false" } : {})
     });
 
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "get_topic_map",
-    description:
-      "Deprecated. Prefer nav_index_toc_topics_read (workspace overview) + contents_list (placement.kind=root). Legacy: manifest nodes + kind:folder nodes, optional slot summaries (includeSlots). No body.",
-    schema: getTopicMapSchema,
-    handler: getTopicMapHandler
-  });
-
-  reg(
-    "get_content_map",
-    "Deprecated. Prefer nav_index_toc_contents_read (overview) and content_read with part=properties|meta per record. Legacy: all slots with properties in one call (heavier).",
-    z.object({
-      path: pagePath,
-      slot: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Optional slot filter, e.g. main, inbox, media. Omit for all slots.")
-    }),
-    ({ path, slot }) =>
-      client.get("/api/agent/content-map", {
-        path,
-        ...(slot ? { slot } : {})
-      })
-  );
+  if (isLegacyMcpAliasesEnabled()) {
+    reg(
+      "get_topic_map",
+      "Deprecated. Prefer nav_index_toc_topics_read + topics_list + contents_list (kind: root). Legacy page-map API.",
+      getTopicMapSchema,
+      getTopicMapHandler
+    );
+    reg(
+      "get_content_map",
+      "Deprecated. Prefer nav_index_toc_contents_read + content_read (part=properties|meta). Legacy content-map API.",
+      z.object({
+        path: pagePath,
+        slot: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Optional slot filter, e.g. main, inbox, media. Omit for all slots.")
+      }),
+      ({ path, slot }) =>
+        client.get("/api/agent/content-map", {
+          path,
+          ...(slot ? { slot } : {})
+        })
+    );
+  }
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topics_list",

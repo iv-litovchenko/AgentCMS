@@ -393,7 +393,7 @@ docker compose -f docker-compose.linux.yml ps
 | **`AGENT_CMS_IMAGE_TAG`** | Тег образа · Image tag | `local` |
 | **`VOICE_AUTOSTART`** | Автостарт Voice в контейнере cms · Voice autostart in cms | `1` |
 | **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP за reverse-proxy (Mac `0`, Linux `1`) · MCP behind proxy | Mac `0` |
-| **`MCP_LEGACY_ALIASES`** | `1` — deprecated дубли имён MCP tools (`read_content`, `list_settings`, …); по умолчанию **выкл.** (~270 канонических tools) · Deprecated MCP tool name aliases | пусто / `0` |
+| **`MCP_LEGACY_ALIASES`** | `1` — deprecated MCP names (aliases + `get_topic_map`, `get_content_map`); по умолчанию **выкл.** (~270 канон.) · Deprecated MCP tool names | пусто / `0` |
 | **`MCP_LEGACY_TOOLS`** | `1` — legacy FS/path tools (`read_file`, `upload_file`, `read_content_body`, …); по умолчанию **выкл.** · Legacy MCP FS tools | пусто / `0` |
 
 > **NOTE**
