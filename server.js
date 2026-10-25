@@ -293,7 +293,7 @@ const {
   BUNDLE_LOG_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
-  ROOT_SYSTEM_SESSION_BUFFER_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   normalizeSystemFileRequestName,
   PREVIEW_FILE_BASENAME,
   PREVIEW_FILE_NAMES,
@@ -816,6 +816,7 @@ const SYSTEM_FILE_NAMES = [
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   WORKSPACE_WS_MAP_FILE
 ];
 
@@ -834,6 +835,7 @@ const CORE_SYSTEM_FILE_NAMES = new Set([
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   WORKSPACE_WS_MAP_FILE,
   ".env",
   ".gitignore"
@@ -985,7 +987,15 @@ async function resolveExistingSystemFileAbsolute(name) {
       ? [ROOT_SYSTEM_TODO_FILE, "todo.md"]
       : canonical === ROOT_SYSTEM_NOTE_FILE
         ? [ROOT_SYSTEM_NOTE_FILE, "note.md", "notes.md"]
-        : canonical === WORKSPACE_WS_MAP_FILE
+        : canonical === ROOT_SYSTEM_BUFFER_FILE
+          ? [
+              ROOT_SYSTEM_BUFFER_FILE,
+              "CONTEXT-BUFFER.md",
+              "SESSION-BUFFER.md",
+              "context-buffer.md",
+              "session-buffer.md"
+            ]
+          : canonical === WORKSPACE_WS_MAP_FILE
           ? [WORKSPACE_WS_MAP_FILE, WORKSPACE_WSMAP_LEGACY_FILE]
           : [canonical];
   for (const candidate of candidates) {
@@ -6762,11 +6772,11 @@ const WORKSPACE_PAD_SPECS = {
     hint:
       "Shared workspace TODO.md (footer) — agreements and tasks with user. Not topic todo-single slot."
   },
-  "session-buffer": {
-    fileName: ROOT_SYSTEM_SESSION_BUFFER_FILE,
-    kind: "session-buffer-text",
+  "context-buffer-text": {
+    fileName: ROOT_SYSTEM_BUFFER_FILE,
+    kind: "context-buffer-text",
     hint:
-      "SESSION-BUFFER.md — free text for the context buffer strip (textarea). Not NOTE.md, not context-buffer.json items."
+      "BUFFER.md — free text for the context buffer strip (textarea). Not NOTE.md, not context-buffer.json items."
   }
 };
 
@@ -15129,7 +15139,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceContextBufferClear:
     "POST /api/workspace/context-buffer/clear — session_context_buffer_items_clear MCP",
   workspaceContextBufferTextRead:
-    "GET /api/workspace/context-buffer/text — session_context_buffer_text_read MCP (SESSION-BUFFER.md)",
+    "GET /api/workspace/context-buffer/text — session_context_buffer_text_read MCP (BUFFER.md)",
   workspaceContextBufferTextWrite:
     "POST /api/workspace/context-buffer/text — session_context_buffer_text_write MCP { content, mode?: replace|append }",
   moduleGit:
@@ -25066,12 +25076,12 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/workspace/context-buffer/text") {
     try {
-      const payload = await readWorkspacePad("session-buffer");
+      const payload = await readWorkspacePad("context-buffer-text");
       if (payload.error) return sendJson(res, payload.status || 400, payload);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to read SESSION-BUFFER.md",
+        error: "Failed to read BUFFER.md",
         details: String(error.message || error)
       });
     }
@@ -25083,12 +25093,12 @@ async function handleApiForAgent(req, res, url) {
       const content = typeof body.content === "string" ? body.content : null;
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
       const mode = body.mode === "append" ? "append" : "replace";
-      const payload = await writeWorkspacePad("session-buffer", content, { mode });
+      const payload = await writeWorkspacePad("context-buffer-text", content, { mode });
       if (payload.error) return sendJson(res, payload.status || 400, payload);
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to write SESSION-BUFFER.md",
+        error: "Failed to write BUFFER.md",
         details: String(error.message || error)
       });
     }

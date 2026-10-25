@@ -52,6 +52,21 @@
 
 ---
 
+<p align="center">
+  <a href="docs/deploy/DOCKER.md"><img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="#-установка--macos-gb-install--macos"><img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS"></a>
+  <a href="#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux"></a>
+  <a href="docs/deploy/DOCKER.md"><img src="https://img.shields.io/badge/Windows%20(beta)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows (beta)"></a>
+</p>
+
+🇷🇺 **[ru]** Запуск через **Docker**: **macOS**, **Linux** (VPS), **Windows** — пока **beta** (WSL / [`docker-compose.windows.yml`](docker-compose.windows.yml)).
+
+> 🇬🇧 **[en]**
+>
+> Runs on **Docker**: **macOS**, **Linux** (VPS), **Windows** — **beta** for now (WSL / [`docker-compose.windows.yml`](docker-compose.windows.yml)).
+
+---
+
 ## 🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов (🇬🇧 Cross-platform digital memory for you and your AI agents)
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)

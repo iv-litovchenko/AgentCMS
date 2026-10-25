@@ -6751,22 +6751,24 @@
         <div id="context-buffer-body" class="context-buffer-body">
           <div id="context-buffer-list" class="context-buffer-list" role="list"></div>
           <div class="context-buffer-text-row">
-            <textarea
-              id="context-buffer-text-input"
-              class="context-buffer-text-input"
-              rows="2"
-              spellcheck="true"
-              placeholder="Текст для агента к буферу (SESSION-BUFFER.md)…"
-              aria-label="Текст буфера контекста"
-            ></textarea>
-            <button
-              type="button"
-              id="context-buffer-text-save-btn"
-              class="context-buffer-action-btn context-buffer-text-save-btn"
-              title="Сохранить в SESSION-BUFFER.md"
-            >
-              Сохранить
-            </button>
+            <div class="context-buffer-text-wrap">
+              <textarea
+                id="context-buffer-text-input"
+                class="context-buffer-text-input"
+                rows="2"
+                spellcheck="true"
+                placeholder="Текст для агента к буферу (BUFFER.md)…"
+                aria-label="Текст буфера контекста"
+              ></textarea>
+              <button
+                type="button"
+                id="context-buffer-text-save-btn"
+                class="context-buffer-action-btn context-buffer-text-save-btn"
+                title="Сохранить в BUFFER.md"
+              >
+                Сохранить
+              </button>
+            </div>
           </div>
           <p class="context-buffer-caption">
             Drop — items · агент:

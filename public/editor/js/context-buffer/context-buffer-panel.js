@@ -181,7 +181,7 @@
         mode: "replace"
       });
       bufferTextDirty = false;
-      if (typeof showToast === "function") showToast("SESSION-BUFFER.md сохранён", "success");
+      if (typeof showToast === "function") showToast("BUFFER.md сохранён", "success");
     } catch (error) {
       if (typeof showToast === "function") showToast(String(error.message || error), "error");
     }

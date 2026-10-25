@@ -5,6 +5,7 @@
 const WORKSPACE_WSMAP_FILE = "WS-MAP.md";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
+const ROOT_SYSTEM_BUFFER_FILE = "BUFFER.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "AGENTS.md",
   "AUTH.md",
@@ -13,6 +14,7 @@ const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   "README.md"
 ]);
 const SYSTEM_FILE_TO_CHPU_PATH = {
@@ -23,6 +25,7 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
   "SKILL.md": "SKILL",
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
+  "BUFFER.md": "BUFFER",
   "README.md": "README",
   "WS-MAP.md": "WS-MAP",
   "WSMAP.md": "WS-MAP",
@@ -38,6 +41,7 @@ const CORE_SYSTEM_FILES = new Set([
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
+  ROOT_SYSTEM_BUFFER_FILE,
   WORKSPACE_WSMAP_FILE,
   ".env",
   ".gitignore"
@@ -55,7 +59,15 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: WORKSPACE_WSMAP_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
-  { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true }
+  { name: ROOT_SYSTEM_TODO_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  {
+    name: ROOT_SYSTEM_BUFFER_FILE,
+    exists: false,
+    empty: true,
+    group: "md",
+    openMode: "system",
+    scaffold: true
+  }
 ];
 const SYSTEM_FILE_GROUP_ORDER = ["md", "config", "other"];
 const SYSTEM_FILE_GROUP_LABELS = {
@@ -67,6 +79,7 @@ const SYSTEM_FILE_GROUP_LABELS = {
   global.WORKSPACE_WSMAP_FILE = WORKSPACE_WSMAP_FILE;
   global.ROOT_SYSTEM_TODO_FILE = ROOT_SYSTEM_TODO_FILE;
   global.ROOT_SYSTEM_NOTE_FILE = ROOT_SYSTEM_NOTE_FILE;
+  global.ROOT_SYSTEM_BUFFER_FILE = ROOT_SYSTEM_BUFFER_FILE;
   global.MENU_TREE_VISIBLE_SYSTEM_MD = MENU_TREE_VISIBLE_SYSTEM_MD;
   global.SYSTEM_FILE_TO_CHPU_PATH = SYSTEM_FILE_TO_CHPU_PATH;
   global.CORE_SYSTEM_FILES = CORE_SYSTEM_FILES;

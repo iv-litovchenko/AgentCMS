@@ -2104,7 +2104,7 @@ const AWN_LINK_TYPE_GROUP_ORDER = [
   { id: "awn.sidecar", label: "Sidecar", hint: "Заметки к медиафайлам", icon: "📎" },
   { id: "awn.file", label: "Произвольные файлы", hint: "Любые .md без привязки к теме", icon: "📃" },
   { id: "awn.memory", label: "Память темы", hint: "main.md, todo, конфиги", icon: "🧠" },
-  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md", icon: "⚙" },
+  { id: "awn.system", label: "Системные", hint: "AGENTS.md, SKILL.md, NOTE.md, TODO.md, BUFFER.md", icon: "⚙" },
   { id: "service", label: "Служебные", hint: "Kit, реестры _REGINFO", icon: "🔧" }
 ];
 const DOC_LINKS_ACCORDION_STORAGE_KEY = "agent-cms:doc-links-accordion.v1";

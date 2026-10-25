@@ -70,7 +70,7 @@ export function registerContextBufferTools(reg, client) {
     canonical: "session_context_buffer_items_clear",
     legacy: "session_context_buffer_clear",
     extraLegacy: ["session_buffer_clear", "context_buffer_clear", "clear_context_buffer"],
-    description: "Clear all items from the UI context buffer (not SESSION-BUFFER.md text).",
+    description: "Clear all items from the UI context buffer (not BUFFER.md text).",
     schema: z.object({}),
     handler: clearHandler
   });
@@ -80,7 +80,7 @@ export function registerContextBufferTools(reg, client) {
     canonical: "session_context_buffer_text_read",
     legacy: "session_buffer_text_read",
     description:
-      "Read SESSION-BUFFER.md at workspace root — free text from the context buffer strip textarea. Not NOTE.md, not JSON items.",
+      "Read BUFFER.md at workspace root — free text from the context buffer strip textarea. Not NOTE.md, not JSON items.",
     schema: z.object({}),
     handler: textReadHandler
   });
@@ -90,7 +90,7 @@ export function registerContextBufferTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "session_context_buffer_text_write",
     legacy: "session_buffer_text_write",
-    description: "Write SESSION-BUFFER.md (context buffer textarea). Default mode=replace. Not NOTE.md.",
+    description: "Write BUFFER.md (context buffer textarea). Default mode=replace. Not NOTE.md.",
     schema: z.object({
       content: z.string(),
       mode: writeMode
