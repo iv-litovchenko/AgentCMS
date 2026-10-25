@@ -7,28 +7,32 @@ const path = require("path");
 const os = require("os");
 
 const repoRoot = path.join(__dirname, "..");
+const {
+  buildBrowserExtensionLauncherApp,
+  APP_NAME: EXT_LAUNCHER_APP_NAME
+} = require("./build-browser-extension-launcher-app");
 
 const SHORTCUTS = [
   {
-    name: "ACMS-Control.app",
-    target: () => path.join(repoRoot, "dist/agent-control/Agent CMS Control.app")
-  },
-  {
-    name: "ACMS-Editor.app",
+    name: "ACMS-Editor",
     target: () => path.join(repoRoot, "dist/agent-cms/Agent CMS.app")
   },
   {
-    name: "ACMS-Voice.app",
+    name: "ACMS-Chat",
     target: () => path.join(repoRoot, "dist/agent-shell/Agent Shell.app")
   },
   {
-    name: "ACMS-Commander.app",
+    name: "ACMS-Control",
+    target: () => path.join(repoRoot, "dist/agent-control/Agent CMS Control.app")
+  },
+  {
+    name: "ACMS-Commander",
     target: () => path.join(repoRoot, "dist/agent-commander/Agent CMS Commander.app")
   },
   {
     name: "ACMS-Browser-Extension",
-    target: () => path.join(repoRoot, "browser-extension"),
-    isFolder: true
+    ensure: async () => buildBrowserExtensionLauncherApp({ repoRoot }),
+    target: () => path.join(repoRoot, "dist/browser-extension-launcher", EXT_LAUNCHER_APP_NAME)
   }
 ];
 
@@ -36,7 +40,13 @@ const LEGACY_SHORTCUTS = [
   "Agent CMS Control.app",
   "Agent CMS.app",
   "Agent CMS Voice.app",
-  "ACMS.app"
+  "ACMS.app",
+  "ACMS-Control.app",
+  "ACMS-Editor.app",
+  "ACMS-Voice.app",
+  "ACMS-Commander.app",
+  "ACMS-Browser-Extension",
+  "ACMS-Launcher"
 ];
 
 function getDesktopDir() {
@@ -87,7 +97,6 @@ async function createDesktopShortcuts() {
   }
 
   let created = 0;
-  let appShortcuts = 0;
 
   for (const entry of SHORTCUTS) {
     if (entry.ensure) await entry.ensure();
@@ -97,7 +106,6 @@ async function createDesktopShortcuts() {
     if (result.ok) {
       console.log(`  ✓ ${entry.name} → ${path.relative(repoRoot, target)}`);
       created += 1;
-      if (!entry.isFolder) appShortcuts += 1;
       continue;
     }
 
@@ -106,12 +114,15 @@ async function createDesktopShortcuts() {
 
   console.log("");
   if (created === 0) {
-    throw new Error("Не удалось создать ярлыки. Сначала соберите приложения в Control.");
+    throw new Error(
+      "Не удалось создать ярлыки. Соберите Electron (.app) или проверьте browser-extension/."
+    );
   }
 
   console.log(`Готово: ${created} ярлык(ов) на рабочем столе.`);
-  if (appShortcuts < SHORTCUTS.filter((entry) => !entry.isFolder).length) {
-    console.log("Остальные .app появятся после «Собрать» в разделе Приложения.");
+  const needElectron = SHORTCUTS.filter((e) => !e.ensure).length;
+  if (created < needElectron) {
+    console.log("Electron .app появятся после «Собрать» в разделе Приложения.");
   }
 
   return { ok: true, created, desktopDir };

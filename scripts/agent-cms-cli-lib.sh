@@ -199,6 +199,155 @@ agent_cms_cli_bin_path() {
   echo "${HOME}/.local/bin/agent-cms"
 }
 
+agent_cms_ensure_node() {
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+  if ! command -v node >/dev/null 2>&1; then
+    echo "Нужен Node.js на Mac (сборка Electron на хосте, не в Docker)." >&2
+    echo "Установите Node LTS или в Control: «Установить зависимости»." >&2
+    exit 1
+  fi
+}
+
+agent_cms_desktop_build_supported() {
+  [[ "$(agent_cms_platform)" == "mac" ]]
+}
+
+agent_cms_normalize_electron_app() {
+  case "$1" in
+    chat | voice) echo "chat" ;;
+    control | launcher) echo "control" ;;
+    editor | commander | all) echo "$1" ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+agent_cms_run_app_build() {
+  local mode="${1:-pack}"
+  local app_raw="${2:-all}"
+  local app
+  app="$(agent_cms_normalize_electron_app "$app_raw")"
+
+  case "$mode" in
+    pack | dist) ;;
+    *)
+      echo "Режим сборки: pack (только .app в dist/) или dist (dmg/zip и т.д.)" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ -z "$app" ]]; then
+    echo "Приложение: all | editor | chat | control | commander" >&2
+    echo "(устар.: voice → chat, launcher → control)" >&2
+    return 1
+  fi
+
+  case "$app_raw" in
+    voice) echo "Подсказка: voice → chat" >&2 ;;
+    launcher) echo "Подсказка: launcher → control" >&2 ;;
+  esac
+
+  if ! agent_cms_desktop_build_supported; then
+    echo "Сборка Electron .app — только macOS (Node на этой машине)." >&2
+    return 1
+  fi
+
+  agent_cms_ensure_node
+  cd "$AGENT_CMS_HOME"
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+  if [[ ! -d node_modules/electron ]]; then
+    echo "→ npm install (первый раз для Electron)…"
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "Нужен npm (идёт с Node.js)." >&2
+      exit 1
+    fi
+    npm install
+  fi
+
+  case "$app" in
+    all)
+      bash "$AGENT_CMS_HOME/scripts/cms-electron-build-all.sh" "$mode"
+      ;;
+    editor)
+      bash "$AGENT_CMS_HOME/scripts/cms-electron-build.sh" "$mode"
+      ;;
+    chat)
+      node "$AGENT_CMS_HOME/scripts/build-desktop-subapp.js" agent-shell "$mode"
+      node "$AGENT_CMS_HOME/scripts/flatten-desktop-dist.js" agent-shell
+      ;;
+    control)
+      node "$AGENT_CMS_HOME/scripts/build-desktop-subapp.js" agent-control "$mode"
+      node "$AGENT_CMS_HOME/scripts/flatten-desktop-dist.js" agent-control
+      ;;
+    commander)
+      node "$AGENT_CMS_HOME/scripts/build-desktop-subapp.js" agent-commander "$mode"
+      node "$AGENT_CMS_HOME/scripts/flatten-desktop-dist.js" agent-commander
+      ;;
+  esac
+}
+
+# Electron .app на Mac: build | shortcuts
+agent_cms_cmd_electron_app() {
+  local sub="${1:-help}"
+  shift || true
+  case "$sub" in
+    build)
+      local mode="pack"
+      local app_target="all"
+      for arg in "$@"; do
+        case "$arg" in
+          pack | dist) mode="$arg" ;;
+          all | editor | chat | control | commander | voice | launcher) app_target="$arg" ;;
+          -h | --help)
+            cat <<'EOF'
+agent-cms electron-app build [pack|dist] [all|editor|chat|control|commander]
+
+  Сборка Electron .app (macOS, Node на хосте).
+
+  pack (по умолчанию) — .app в dist/
+  dist — установщики (dmg/zip …)
+  all (по умолчанию) — Editor + Chat + Control + Commander
+
+Примеры:
+  agent-cms electron-app build
+  agent-cms electron-app build dist
+  agent-cms electron-app build pack editor
+  agent-cms electron-app build chat
+EOF
+            return 0
+            ;;
+          *)
+            echo "Неизвестный аргумент: $arg" >&2
+            return 1
+            ;;
+        esac
+      done
+      agent_cms_run_app_build "$mode" "$app_target"
+      ;;
+    shortcuts)
+      agent_cms_ensure_node
+      node "$AGENT_CMS_HOME/scripts/create-desktop-shortcuts.js"
+      ;;
+    help | -h | --help)
+      cat <<'EOF'
+agent-cms electron-app — окна Electron (.app) на Mac
+
+  electron-app build [pack|dist] [all|editor|chat|control|commander]
+  electron-app shortcuts   — ACMS-Editor, Chat, Control, Commander, Browser Extension
+
+Короткий синоним: agent-cms electron build …
+Устаревают: app …, desktop …, agent-cms shortcuts
+EOF
+      ;;
+    *)
+      echo "electron-app: build | shortcuts | help" >&2
+      return 1
+      ;;
+  esac
+}
+
 agent_cms_uninstall() {
   local purge="${1:-0}"
   local home

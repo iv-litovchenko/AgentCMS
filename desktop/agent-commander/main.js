@@ -5,6 +5,13 @@ if (!electron.app) {
   process.exit(1);
 }
 
+if (require("../shared/url-shell").tryBootstrapUrlOnly(__dirname, "commander")) {
+  module.exports = {};
+} else {
+  bootstrapLegacyCommanderMain();
+}
+
+function bootstrapLegacyCommanderMain() {
 const { app, BrowserWindow, dialog, screen } = electron;
 const path = require("path");
 const { getAppIcon } = require("./icon");
@@ -108,3 +115,4 @@ app.on("activate", () => {
   if (mainWindow) showFullWindow(mainWindow);
   else loadUi().catch((error) => console.error(error));
 });
+}

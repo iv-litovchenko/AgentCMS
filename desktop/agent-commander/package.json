@@ -23,6 +23,10 @@
     },
     "files": [
       "main.js",
+      "../shared/url-shell.js",
+      "../shared/url-shell-preload.js",
+      "../shared/offline.html",
+      "../../lib/desktop/public-url.js",
       "config.js",
       "server.js",
       "icon.js",

@@ -12,6 +12,8 @@
     "start:https": "bash scripts/start-mobile-https.sh",
     "setup:certs": "bash scripts/setup-dev-certs.sh",
     "setup:desktop-shortcuts": "node scripts/create-desktop-shortcuts.js",
+    "cms:status": "AGENT_CMS_HOME=${AGENT_CMS_HOME:-$PWD} bash scripts/agent-cms status",
+    "cms:shortcuts": "node scripts/create-desktop-shortcuts.js",
     "setup:certs:iphone": "bash scripts/export-mkcert-ca-for-ios.sh",
     "voice:start": "node voice-server.js",
     "voice:https": "bash scripts/start-voice-https.sh",
@@ -104,6 +106,7 @@
       "output": "dist/agent-cms"
     },
     "files": [
+      "desktop/shared/**/*",
       "desktop/agent-cms/**/*",
       "public/**/*",
       "*.js",

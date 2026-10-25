@@ -26,9 +26,11 @@ Agent CMS — CLI для Docker-стека (без npm).
 
 Команды:
   version, doctor, paths, status
+  electron-app build … | electron-app shortcuts
+  (синоним: electron build … | electron shortcuts)
   start, stop, restart, down, ps, logs
   rebuild, update
-  open editor|control|chat|mcp-url
+  open editor|chat|control|commander|mcp-url
   env show [--reveal] [KEY]   env set KEY=VALUE
   install              повторный запуск install.sh из AGENT_CMS_HOME
   uninstall [--purge]  symlink + config; --purge = down stack
@@ -90,10 +92,43 @@ case "$cmd" in
     echo "home: $AGENT_CMS_HOME"
     exit "$ok"
     ;;
-  status | ps)
+  status)
+    agent_cms_ensure_home
+    if command -v node >/dev/null 2>&1; then
+      node "$AGENT_CMS_HOME/scripts/cms-http-status.js" || true
+    fi
+    if agent_cms_check_docker; then
+      echo ""
+      agent_cms_compose ps
+    fi
+    ;;
+  ps)
     agent_cms_ensure_home
     agent_cms_ensure_docker
     agent_cms_compose ps
+    ;;
+  electron-app)
+    agent_cms_ensure_home
+    agent_cms_cmd_electron_app "${@:2}"
+    ;;
+  electron)
+    agent_cms_ensure_home
+    agent_cms_cmd_electron_app "${@:2}"
+    ;;
+  app)
+    agent_cms_ensure_home
+    echo "Подсказка: agent-cms electron-app …" >&2
+    agent_cms_cmd_electron_app "${@:2}"
+    ;;
+  desktop)
+    agent_cms_ensure_home
+    echo "Подсказка: agent-cms electron-app …" >&2
+    agent_cms_cmd_electron_app "${@:2}"
+    ;;
+  shortcuts)
+    agent_cms_ensure_home
+    echo "Подсказка: agent-cms electron-app shortcuts" >&2
+    agent_cms_cmd_electron_app shortcuts
     ;;
   start)
     agent_cms_ensure_home
@@ -178,15 +213,19 @@ case "$cmd" in
     base="$(agent_cms_public_base)"
     case "$sub" in
       editor) url="${base}/" ;;
-      control) url="${base}/app-control/" ;;
+      control | launcher)
+        [[ "$sub" == launcher ]] && echo "Подсказка: open control" >&2
+        url="${base}/app-control/"
+        ;;
       chat) url="${base}/app-chat/" ;;
+      commander) url="${base}/app-commander/" ;;
       mcp-url)
         echo "MCP HTTP: ${base}/app-mcp"
         echo "Bearer: см. AGENT_CMS_MCP_TOKEN в .env"
         exit 0
         ;;
       *)
-        echo "open: editor | control | chat | mcp-url" >&2
+        echo "open: editor | chat | control | commander | mcp-url" >&2
         exit 1
         ;;
     esac
