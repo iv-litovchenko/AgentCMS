@@ -369,15 +369,16 @@ docker compose -f docker-compose.mac.yml up -d --build
 
 🇷🇺 **[ru]**
 
-**Ручной путь** для VPS (альтернатива [установщику](#-установка--установщик-mac--windows--linux-gb-install--installer)). **Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). **`.env` в git**. Наружу только **22, 80, 443** (панель + `ufw` — в блоке ниже).
+**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). Код по умолчанию в **`/opt/agent-cms`**. **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#-настройка--env-gb-configuration--env)).
+
+**Канон:** сначала Docker + firewall, затем [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) (без ручного `git clone`) и дальше **[`agent-cms`](#-cli-agent-cms-gb-cli-agent-cms)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
 
 ```bash
-# === Ubuntu VPS — Docker Engine + Agent CMS ===
+# === 1) Ubuntu VPS — Docker Engine ===
 ssh root@ВАШ_IP
 apt update && apt upgrade -y
 apt install -y git curl ca-certificates
 
-# Docker Engine + Compose plugin (Ubuntu 22.04/24.04; Debian 12+ — docs.docker.com/engine/install/debian/)
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
@@ -388,35 +389,48 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 systemctl enable --now docker
 docker compose version
 
-# --- Открытие портов (prod: Editor/Control/MCP только через Caddy на 443) ---
-# 1) Панель хостинга (Timeweb, Hetzner…): inbound TCP 22, 80, 443
-# 2) UFW на сервере — сначала SSH (22), потом enable; 3000/3288/3490 наружу не открываем
+# === 2) Порты (панель хостинга + UFW) ===
 apt install -y ufw
 ufw allow 22/tcp comment 'SSH'
 ufw allow 80/tcp comment 'HTTP Caddy'
 ufw allow 443/tcp comment 'HTTPS Caddy'
 ufw status numbered
 ufw enable
-# SSH пропал — консоль/VNC провайдера: ufw allow 22/tcp && ufw reload
+# swap 2G на 1–2 GB RAM (опц.): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 
-# swap 2G на 1–2 GB RAM (опционально): fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+# === 3) Agent CMS — установщик → /opt/agent-cms + CLI ===
+curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
+# то же явно: curl … | bash -s -- --dir /opt/agent-cms
+# PATH (если нужно): export PATH="$HOME/.local/bin:$PATH"
 
+agent-cms doctor
+agent-cms paths          # AGENT_CMS_HOME=/opt/agent-cms
+agent-cms rebuild        # первый up -d --build (10–30+ мин)
+agent-cms ps
+
+# дальше: правки .env → agent-cms restart или agent-cms rebuild
+# обновление кода: agent-cms update  (git pull --ff-only + rebuild; prod «Обновить» в Control — см. DOCKER.md)
+# https://ваш-домен/ · https://ваш-домен/app-control/ · https://ваш-домен/app-mcp (Bearer token)
+```
+
+<details>
+<summary>Ручной путь (git clone + compose)</summary>
+
+```bash
 mkdir -p /opt/agent-cms && cd /opt/agent-cms
 git clone https://github.com/iv-litovchenko/AgentCMS.git .
-# .env в репо — DOMAIN, PUBLIC_URL, APP_LOCK_*, AGENT_CMS_MCP_TOKEN (git pull на сервере)
-
-docker compose -f docker-compose.linux.yml up -d --build
+docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml up -d --build
 docker compose -f docker-compose.linux.yml ps
-# npm run docker:linux · npm run docker:down:linux · docs/deploy/DOCKER.md
-# https://ваш-домен/ · https://ваш-домен/control/ · https://ваш-домен/mcp (Bearer token)
-
+# или: npm run docker:linux · npm run docker:down:linux
 ```
+
+</details>
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> VPS: one block above — Docker CE, **ufw 22/80/443**, compose up. [DOCKER.md](docs/deploy/DOCKER.md).
+> VPS: Docker CE + **ufw 22/80/443**, then **`curl …/install.sh | bash`** (target **`/opt/agent-cms`**) and **`agent-cms rebuild`**. Manual clone in the collapsible block. [DOCKER.md](docs/deploy/DOCKER.md).
 
 ## 🇷🇺 CLI `agent-cms` (🇬🇧 CLI `agent-cms`)
 
@@ -434,11 +448,16 @@ agent-cms paths           # HOME, compose file, public URL
 agent-cms start           # up -d (с workspace-mounts, если есть)
 agent-cms stop
 agent-cms restart
+agent-cms down            # compose down (как npm run docker:down)
 agent-cms ps
 agent-cms logs            # logs -f cms mcp control …
 
 agent-cms rebuild         # up -d --build (первый раз / после server.js)
-agent-cms update          # git pull --ff-only + rebuild (как Control «Обновить», Q3)
+agent-cms update          # git pull --ff-only + rebuild (не Control deploy-update)
+
+agent-cms env show        # ключи из .env.example; секреты → ***
+agent-cms env show --reveal KEY
+agent-cms env set KEY=VALUE   # whitelist .env.example; нужен Node.js
 
 agent-cms open editor
 agent-cms open control
@@ -446,17 +465,19 @@ agent-cms open chat
 agent-cms open mcp-url    # URL + напоминание про Bearer token
 
 agent-cms install         # делегат установщика (Q9.1)
-# agent-cms env show      # позже, осторожно на prod
+agent-cms uninstall       # symlink + ~/.config/agent-cms/home
+agent-cms uninstall --purge   # + compose down (каталог репо не удаляет)
 ```
 
 | Группа | Команды | Сейчас без CLI |
 | --- | --- | --- |
 | **info** | `version`, `doctor`, `paths`, `status` | `docker compose ps`, ручные проверки |
-| **lifecycle** | `start`, `stop`, `restart`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
+| **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
 | **build** | `rebuild` | `cms-rebuild.command`, `--build` |
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
 | **open** | `open editor\|control\|chat\|mcp-url` | копировать URL из README |
-| **install** | `install` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
+| **config** | `env show`, `env set` | MCP `platform_env_key_*` / Control |
+| **install** | `install`, `uninstall` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
 
 > **NOTE**
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
