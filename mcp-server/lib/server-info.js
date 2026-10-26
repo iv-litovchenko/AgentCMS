@@ -29,6 +29,17 @@ export function resolveMcpIconPublicOrigin() {
   return null;
 }
 
+/** Public MCP base for icons (same host/path as Claude connector URL). */
+export function resolveMcpPublicServiceBase() {
+  const direct = String(process.env.AGENT_CMS_MCP_PUBLIC_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (direct) return direct;
+  const origin = resolveMcpIconPublicOrigin();
+  if (!origin) return "";
+  return `${origin}/app-mcp`;
+}
+
 /**
  * MCP Implementation metadata (initialize → serverInfo).
  * Icons are meant for Streamable HTTP clients (Cursor / Claude URL); skipped for stdio unless forced.
@@ -57,21 +68,34 @@ export function getMcpServerInfo(options = {}) {
   }
 
   const origin = resolveMcpIconPublicOrigin();
-  if (!origin) return info;
+  const mcpBase = resolveMcpPublicServiceBase();
+  if (origin) info.websiteUrl = origin;
 
-  info.websiteUrl = origin;
-  info.icons = [
-    {
-      src: `${origin}/favicon.png`,
-      mimeType: "image/png",
-      sizes: ["32x32", "192x192"]
-    },
-    {
-      src: `${origin}/favicon.svg`,
-      mimeType: "image/svg+xml",
-      sizes: ["any"]
-    }
-  ];
+  if (mcpBase) {
+    info.icons = [
+      {
+        src: `${mcpBase}/icon`,
+        mimeType: "image/png",
+        sizes: ["192x192", "512x512"]
+      }
+    ];
+    return info;
+  }
+
+  if (origin) {
+    info.icons = [
+      {
+        src: `${origin}/favicon.png`,
+        mimeType: "image/png",
+        sizes: ["32x32", "192x192"]
+      },
+      {
+        src: `${origin}/favicon.svg`,
+        mimeType: "image/svg+xml",
+        sizes: ["any"]
+      }
+    ];
+  }
   return info;
 }
 

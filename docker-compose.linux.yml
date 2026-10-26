@@ -81,6 +81,7 @@ services:
       AGENT_CMS_MCP_HTTP_PORT: "3490"
       AGENT_CMS_MCP_BEHIND_PROXY: "1"
       AGENT_CMS_BASE_URL: "http://cms:3000"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
       AGENT_CMS_MCP_TOKEN: "${AGENT_CMS_MCP_TOKEN:-}"
     volumes:
       - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}:/app/workspaces:ro

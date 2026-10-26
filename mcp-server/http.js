@@ -12,6 +12,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -67,9 +70,42 @@ function createHttpApp() {
 
 const app = createHttpApp();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MCP_ICON_CANDIDATES = [
+  path.join(__dirname, "../public/_resources/favicon.png"),
+  path.join(__dirname, "../public/favicon.png"),
+  path.join(__dirname, "../../public/_resources/favicon.png"),
+  path.join(__dirname, "../../public/favicon.png")
+];
+
+function loadMcpIconBuffer() {
+  for (const candidate of MCP_ICON_CANDIDATES) {
+    try {
+      return readFileSync(candidate);
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+const mcpIconPng = loadMcpIconBuffer();
+
+function sendMcpIcon(_req, res) {
+  if (!mcpIconPng) {
+    res.status(404).send("icon not found");
+    return;
+  }
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(mcpIconPng);
+}
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "agent-cms-mcp", transport: "streamable-http" });
 });
+
+app.get(["/icon", "/icon.png"], sendMcpIcon);
 
 function requireMcpToken(req, res, next) {
   if (!mcpToken) return next();
@@ -116,6 +152,17 @@ app.post("/mcp", requireMcpToken, async (req, res) => {
       };
       const server = createServer({ transport: "http" });
       await server.connect(transport);
+    } else if (sessionId && !transports[sessionId]) {
+      // Stale ID after MCP restart — 404 so clients (e.g. Claude connector) re-initialize
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32001,
+          message: "Session not found or expired; send initialize without mcp-session-id to reconnect"
+        },
+        id: null
+      });
+      return;
     } else {
       res.status(400).json({
         jsonrpc: "2.0",
