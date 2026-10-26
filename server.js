@@ -15177,9 +15177,10 @@ const SESSION_CONTEXT_API_MAP = {
   webExtract:
     "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — utility_document_text_extract MCP",
   agentIdentity:
-    "GET /api/agent/identity/agent — session_agent_profile_get MCP (awn-topics/0-agent-kit/0-agent/)",
+    "GET /api/agent/identity/agent — session_profile_agent_get MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
-    "GET /api/agent/identity/user — session_user_profile_get MCP (awn-topics/0-agent-kit/0-user/)",
+    "GET /api/agent/identity/user — session_profile_user_get MCP (awn-topics/0-agent-kit/0-user/)",
+    "GET /api/agent/identity/organization — session_profile_organization_get MCP (awn-topics/0-agent-kit/0-organization/)",
   activity:
     "GET /api/agent/activity?since=&limit= — workspace_activity_list MCP",
   sidecarResolve:
@@ -26272,6 +26273,17 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read user identity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/identity/organization") {
+    try {
+      return sendJson(res, 200, await getIdentityService().readOrganizationIdentity());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read organization identity",
         details: String(error.message || error)
       });
     }

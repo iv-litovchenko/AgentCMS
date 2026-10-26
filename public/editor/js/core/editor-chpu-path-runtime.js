@@ -46,6 +46,8 @@ const AGENT_KIT_TOPIC_LEGACY_SLUG_TO_CANON = {
   "a0-user": "0-user",
   users: "0-users",
   "a0-users": "0-users",
+  organization: "0-organization",
+  "a0-organization": "0-organization",
   devices: "0-devices",
   "a0-devices": "0-devices",
   taxonomies: "0-taxonomies",

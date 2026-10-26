@@ -800,8 +800,10 @@ user-agent-cms
 ├── 🎬 Сессия (Session) · 22
 │   ├── 🟢 session_context_get
 │   ├── 🟢 session_context_get_user_open_url_location_in_ui
-│   ├── 🟢 session_agent_profile_get
-│   ├── 🟢 session_user_profile_get
+│   ├── Профили agent-kit (session_profile_*) · 3
+│   │   ├── 🟢 session_profile_agent_get
+│   │   ├── 🟢 session_profile_user_get
+│   │   └── 🟢 session_profile_organization_get
 │   ├── 🟢 session_list_always_context
 │   ├── 🟢 session_list_cron
 │   ├── 🟢 session_list_heartbeat

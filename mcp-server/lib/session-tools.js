@@ -113,47 +113,52 @@ export function registerSessionTools(reg, client) {
     });
   }
 
-  const sessionAgentProfileHandler = () => client.get("/api/agent/identity/agent");
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_agent_profile_get",
+  /** Agent-kit identity profiles: session_profile_{agent|user|organization}_get */
+  function registerSessionProfileTool(reg, { canonical, apiPath, description, legacy, extraDeprecated = [] }) {
+    const handler = () => client.get(apiPath);
+    registerCanonicalWithLegacyAlias(reg, {
+      canonical,
+      legacy,
+      description,
+      schema: emptySchema,
+      handler
+    });
+    for (const name of extraDeprecated) {
+      registerDeprecatedAlias(reg, { canonical, name, schema: emptySchema, handler });
+    }
+  }
+
+  registerSessionProfileTool(reg, {
+    canonical: "session_profile_agent_get",
+    apiPath: "/api/agent/identity/agent",
     legacy: "agent_identity_get",
     description:
-      "Agent persona profile from awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md). Not workspaceId.",
-    schema: emptySchema,
-    handler: sessionAgentProfileHandler
+      "Agent persona: awn-topics/0-agent-kit/0-agent/ (manifest.md + main.md). Group session_profile_*; not workspaceId.",
+    extraDeprecated: [
+      "session_agent_profile_get",
+      "get_agent_identity",
+      "session_agent_get"
+    ]
   });
-  registerDeprecatedAlias(reg, {
-    canonical: "session_agent_profile_get",
-    name: "get_agent_identity",
-    schema: emptySchema,
-    handler: sessionAgentProfileHandler
-  });
-  registerDeprecatedAlias(reg, {
-    canonical: "session_agent_profile_get",
-    name: "session_agent_get",
-    schema: emptySchema,
-    handler: sessionAgentProfileHandler
-  });
-
-  const sessionUserProfileHandler = () => client.get("/api/agent/identity/user");
-  registerCanonicalWithLegacyAlias(reg, {
-    canonical: "session_user_profile_get",
+  registerSessionProfileTool(reg, {
+    canonical: "session_profile_user_get",
+    apiPath: "/api/agent/identity/user",
     legacy: "user_identity_get",
-    description: "User profile from awn-topics/0-agent-kit/0-user/ (manifest.md + main.md).",
-    schema: emptySchema,
-    handler: sessionUserProfileHandler
+    description:
+      "User (person) profile: awn-topics/0-agent-kit/0-user/ (manifest.md + main.md). Group session_profile_*.",
+    extraDeprecated: ["session_user_profile_get", "get_user_identity", "session_user_get"]
   });
-  registerDeprecatedAlias(reg, {
-    canonical: "session_user_profile_get",
-    name: "get_user_identity",
-    schema: emptySchema,
-    handler: sessionUserProfileHandler
-  });
-  registerDeprecatedAlias(reg, {
-    canonical: "session_user_profile_get",
-    name: "session_user_get",
-    schema: emptySchema,
-    handler: sessionUserProfileHandler
+  registerSessionProfileTool(reg, {
+    canonical: "session_profile_organization_get",
+    apiPath: "/api/agent/identity/organization",
+    legacy: "organization_identity_get",
+    description:
+      "Organization profile: awn-topics/0-agent-kit/0-organization/ (manifest.md + main.md). Group session_profile_*.",
+    extraDeprecated: [
+      "session_organization_profile_get",
+      "get_organization_identity",
+      "session_organization_get"
+    ]
   });
 
   const registryQueriesListHandler = () => client.get("/api/agent/registry-queries");
