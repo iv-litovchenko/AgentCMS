@@ -343,7 +343,10 @@ agent-cms-cli rebuild         # первый раз: docker compose up -d --buil
 agent-cms-cli start           # следующие запуски (без --build)
 agent-cms-cli status          # HTTP ✓ + контейнеры
 
-agent-cms-cli open control    # http://127.0.0.1:3000/app-control/
+# start / rebuild на Mac печатают URL в терминал — браузер сами не открываем
+agent-cms-cli open control    # открыть Control в браузере, если нужно
+# старый автозапуск Safari/Chrome после start:
+# AGENT_CMS_OPEN_BROWSER=1 agent-cms-cli start
 ```
 
 Опционально (macOS, не для работы CMS в Docker):
@@ -361,6 +364,7 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
 
 > **NOTE**
+> - 💡 **Mac:** после **`start`** / **`rebuild`** — по умолчанию только URL; автобраузер — **`AGENT_CMS_OPEN_BROWSER=1`** в `.env` или на команду (см. [`.env.example`](.env.example)).
 > - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms-cli` (и `agent-cms`). Конфиг: `~/.config/agent-cms/home`.
 > - ⚠️ `curl | bash` / `irm | iex` — только с **доверенного** URL (официальный GitHub). [Ручная установка](#-установка--macos-gb-install--macos) — запасной путь.
 
@@ -485,7 +489,7 @@ agent-cms-cli doctor          # Docker, compose, каталог, порты
 agent-cms-cli paths           # HOME, CLI, public URL + список workspace bind-mount (host → container)
 agent-cms-cli status          # HTTP ping + docker compose ps (стек жив?)
 
-agent-cms-cli start           # up -d (с workspace-mounts, если есть)
+agent-cms-cli start           # up -d (Mac: URL в терминал, без автобраузера)
 agent-cms-cli stop
 agent-cms-cli restart
 agent-cms-cli down            # compose down (как npm run docker:down)
@@ -649,6 +653,14 @@ npm run cms:desktop   # dev-окно без сборки
 | **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP за reverse-proxy (Mac `0`, Linux `1`) · MCP behind proxy | Mac `0` |
 | **`MCP_LEGACY_ALIASES`** | `1` — deprecated MCP names (aliases + `get_topic_map`, `get_content_map`); по умолчанию **выкл.** (~270 канон.) · Deprecated MCP tool names | пусто / `0` |
 | **`MCP_LEGACY_TOOLS`** | `1` — legacy FS/path tools (`read_file`, `upload_file`, `read_content_body`, …); по умолчанию **выкл.** · Legacy MCP FS tools | пусто / `0` |
+
+**Хост / CLI (часть — в [`.env.example`](.env.example), не в whitelist MCP):**
+
+| Переменная | 🇷🇺 | 🇬🇧 | Пример |
+| --- | --- | --- | --- |
+| **`AGENT_CMS_OPEN_BROWSER`** | **Mac:** `1` — после **`start`** / **`rebuild`** открыть Control в браузере; `0` — только URL | Mac auto-open Control after start | в `.env` или `AGENT_CMS_OPEN_BROWSER=1 agent-cms-cli start` |
+| **`AGENT_CMS_ELECTRON_LEGACY`** | Electron `.app` со встроенным сервером (не URL-shell) | Electron embedded server mode | `1` |
+| **`AGENT_CMS_HOME`** | Каталог репо для CLI (иначе `~/.config/agent-cms/home`) | CLI repo root | `~/agent-cms` |
 
 > **NOTE**
 > - 💡 Не используйте устаревшие **`PORT` / `TLS_PORT` / `MAPTEX_DOMAIN`** как главный URL — канон **`AGENT_CMS_PUBLIC_URL`** ([docs/env-reference.md](docs/env-reference.md)).

@@ -8,3 +8,5 @@
 Полный файл в Control: **`/api/ops/env-file`**.
 
 Устаревшие имена (не задавать): `PORT`, `TLS_PORT`, `MAPTEX_DOMAIN`, `CADDY_EMAIL`, `AGENT_CMS_BASE_URL` как главный URL → **`AGENT_CMS_PUBLIC_URL`**.
+
+**Только хост (Mac CLI):** **`AGENT_CMS_OPEN_BROWSER`** — в [`.env.example`](../.env.example), читает `scripts/docker-mac-*.sh`; в whitelist MCP **`platform_env_*`** не входит.

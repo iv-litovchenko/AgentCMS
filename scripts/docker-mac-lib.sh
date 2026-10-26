@@ -70,11 +70,21 @@ docker_mac_open_urls() {
   local base="${public_url%/}"
   local control_url="${base}/app-control/"
   local editor_url="${base}/"
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    open "$control_url" >/dev/null 2>&1 || true
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$control_url" >/dev/null 2>&1 || true
+  local open_browser="${AGENT_CMS_OPEN_BROWSER:-}"
+  if [[ -z "$open_browser" ]]; then
+    open_browser="$(docker_mac_read_env_var AGENT_CMS_OPEN_BROWSER "0")"
+  fi
+  # Mac: по умолчанию только URL в терминале. AGENT_CMS_OPEN_BROWSER=1 — открыть Control в браузере (.env или env)
+  if [[ "$open_browser" == "1" ]]; then
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      open "$control_url" >/dev/null 2>&1 || true
+    elif command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "$control_url" >/dev/null 2>&1 || true
+    fi
   fi
   echo "  Control:  ${control_url}"
   echo "  Editor:   ${editor_url}"
+  if [[ "$(uname -s)" == "Darwin" && "$open_browser" != "1" ]]; then
+    echo "  (браузер не открываем; agent-cms-cli open control | Electron ACMS-*)"
+  fi
 }

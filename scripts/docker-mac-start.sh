@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mac: docker compose up -d (без rebuild) + браузer.
+# Mac: docker compose up -d (без rebuild) + URL в терминале (без автозапуска браузера).
 set -euo pipefail
 # shellcheck source=docker-mac-lib.sh
 source "$(dirname "$0")/docker-mac-lib.sh"
