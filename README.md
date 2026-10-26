@@ -380,6 +380,58 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 
 🇷🇺 **[ru]**
 
+**Шпаргалка — Mac (канон: [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) + [`agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)):**
+
+```text
+# Mac — Agent CMS (шпаргалка)
+
+Каталог платформы: ~/agent-cms  (CLI: AGENT_CMS_HOME или ~/.config/agent-cms/home)
+Хранилища по умолчанию: ~/agent-cms/workspaces  (или AGENT_CMS_WORKSPACES_DIR в .env)
+
+1) Docker Desktop — установить, запустить (статус Running)
+   Compose V2: docker compose version  (отдельный docker-compose на Mac не нужен)
+
+2) Установка репо + CLI:
+   curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
+   PATH: ~/.local/bin  (при необходимости: export PATH="$HOME/.local/bin:$PATH")
+
+3) Docker Running → проверка:
+   cd ~/agent-cms
+   agent-cms-cli doctor
+
+4) .env в корне репо (сменить changeme):
+   APP_LOCK_LOGIN / APP_LOCK_PASSWORD
+   AGENT_CMS_MCP_TOKEN
+   AGENT_CMS_PUBLIC_URL=http://127.0.0.1:3000
+   AGENT_CMS_PUBLIC_DOMAIN=localhost
+   опционально: AGENT_CMS_OPEN_BROWSER=1, AGENT_CMS_WORKSPACES_DIR=/Users/…/…
+
+5) Первый подъём стека (10–30+ мин):
+   agent-cms-cli rebuild
+   agent-cms-cli status
+   agent-cms-cli open control   # http://127.0.0.1:3000/app-control/
+
+6) Доп. папки хранилищ (Desktop и т.д.):
+   Control → «Папки хранилищ (Docker)» или MCP platform_workspace_mounts_*
+   затем: agent-cms-cli restart  (или rebuild после смены mount/секретов)
+
+7) MCP в Cursor / Claude (HTTP, не stdio):
+   url: http://127.0.0.1:3000/app-mcp
+   Authorization: Bearer <AGENT_CMS_MCP_TOKEN из .env>
+   готовый JSON — Control → «MCP к агенту»
+
+8) Скиллы — после MCP:
+   в чат: «установи скиллы Agent CMS из GitHub» (GLOBAL-SKILL-*.md)
+   минимум: agent-cms; желательно: agent-cms-rules, agent-cms-response-style
+
+9) Дальше: agent-cms-cli start | stop | restart | update (+ rebuild после update)
+   npm install на хосте для CMS не нужен
+
+Порты (localhost, одна дверь :3000):
+  Editor: http://127.0.0.1:3000/  ·  Control: …/app-control/  ·  MCP: …/app-mcp
+  AGENT_CMS_EDITOR_HTTP_PORT по умолчанию 3000
+```
+
 **Ручной путь** (если [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) ещё не используете). **Docker Compose V2** — `docker compose` (с пробелом). **`.env`** уже в репозитории.
 
 ```bash
