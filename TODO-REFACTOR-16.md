@@ -34,16 +34,31 @@ Memory CMS: замечания после теста MCP
 Запросы отрабатывали быстро, тормозили только тяжёлые ответы. Точное время каждого запроса стоит смотреть в логах сервера.
 
 1. ==✅== Короткие ответы по умолчанию. При создании инфоблока возвращать только ID и «готово», полную схему отдавать отдельным запросом. *То же, что п.7 выше: MCP **`database_register`** — slim (`relPath`, preset, `hint`); схема — **`database_get`**.*
-2. Пагинация. Списки отдавать порциями, например по 20 элементов, а не все сразу. *См. черновик **`contents_list`** ниже — не размазывать по `database_get` и пр.*
+2. ==✅== Пагинация. Списки отдавать порциями, например по 20 элементов, а не все сразу. *MCP variant B: **`contents_list`**, **`contents_list_sections`**, **`contents_list_tree`**, **`contents_list_preview`**; legacy full → **`contents_list_full`**. API: listMode/limit/cursor на records, storage/files, fs/list.*
 3. =={red}не актуально== Карта хранилища на старте. Один лёгкий запрос, после которого агент знает, что где лежит, и не делает лишних вызовов вслепую. *Уже есть: **`session_context_get`** → `wsMap`; отдельно **`nav_map_workspace_read`**. Остаётся дисциплина агента — вызывать в начале сессии.*
 
-## Черновик: `contents_list` (пагинация + глубина)
+## list-tools (вариант B — в коде)
 
-Один канонический list-tool; сейчас разные бэкенды и «всё в кучу»:
+**Имена:** раздел = **section** (папка/manifest, `isSection`), не «category» (таксономия/тип в схеме).
 
-- **`kind=root`** — уже есть **`depth`** (`1` / `2` / `all`); добавить **`limit` / `offset`** (или cursor) на FS-list.
-- **`database` + `slot=data`** — `GET …/records`: flat **`records[]`** + **`tree`**, разделы (`isSection`) и записи вместе, без порций → **`limit`/`offset`**, опционально **`parent`** (только дети раздела).
-- **topic/channel/repository + слоты** — `GET /api/storage/files`: **`files`** + **`folders`** + **`nonMarkdownFiles`** одним ответом → **`depth=1`** по умолчанию (только текущий уровень), пагинация; фильтр **`itemType=section|record|file`** или отдельные массивы в ответе.
-- **media / channel files|assets** — те же **`limit`/`offset`**, без **`includeBody`** по умолчанию.
+| Tool | Назначение |
+| --- | --- |
+| **`contents_list`** | Записи/файлы **одного уровня** (default limit ~20, `parent?`, cursor). Meta only. |
+| **`contents_list_sections`** | Только **разделы** того же placement (+ `parent?`, pagination). |
+| **`contents_list_tree`** | Скелет **нескольких уровней** (`maxDepth` 2–3), без body. |
+| **`contents_list_preview`** | Как list, но **snippet** (`maxBodyChars`) — редко; полный текст → **`content_read`**. |
 
-Идея: агент листает уровень за уровнем; **`nav_index_toc_*`** — обзор hub, **`contents_list`** — детальный обход с пагинатором.
+Общий **`placement`**: `root` + path/depth **или** hub + slot. Полный список без порций → **`contents_list_full`**. HTTP: `listMode`, `limit`, `offset`, `cursor`, `parent`, `maxDepth`, `q` (UI без params — старый полный JSON).
+
+**Ещё в плане (не всё в v1):**
+
+Помимо страниц (`limit` / `offset` / `cursor`), глубины (`parent`, `maxDepth` в tree) и **только разделов** (`contents_list_sections`):
+
+- **Фильтры:** `q` (поиск по title), `ext` / тип файла, статус, теги — узкий list без полного search.
+- **Сортировка:** как в UI (`sort.json`), по дате, по имени.
+- **Что именно в entries:** только `.md`, только бинарники слота, CSV-строки vs csv-файлы.
+- **`contents_list_preview`:** короткий snippet тела, не полный read.
+- **`contents_list_tree`:** обзор ветки на несколько уровней одним вызовом.
+- **Дефолты workspace:** размер страницы, max depth, разрешён ли preview/body.
+- **Ответ:** `total`, `hasMore`, `nextCursor` — чтобы не гадать, есть ли следующая страница.
+- **Не list, но рядом:** полный текст → **`content_read`**; оглавление hub → **`nav_index_toc_*`**; карта → **`session_context_get`**.

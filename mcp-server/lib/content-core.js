@@ -902,63 +902,14 @@ export async function moveContent(client, args) {
   });
 }
 
-export async function listContentItems(client, args) {
-  const rootList =
-    args.placement?.kind === "root" || (!args.placement && args.path != null && !args.slot);
-  if (rootList) {
-    const rawPath = String(args.placement.path ?? args.path ?? ".")
-      .replace(/\\/g, "/")
-      .replace(/^\/+/, "")
-      .trim();
-    const slash = rawPath.lastIndexOf("/");
-    const folder =
-      !rawPath || rawPath === "." ? "." : slash === -1 ? rawPath : rawPath.slice(0, slash);
-    const depth = args.depth != null ? String(args.depth) : "1";
-    const data = await client.get("/api/workspace/fs/list", {
-      path: folder,
-      depth,
-      ...(args.includeBody ? { includeBody: "true" } : {}),
-      ...(args.maxBodyChars != null ? { maxBodyChars: String(args.maxBodyChars) } : {})
-    });
-    return {
-      placement: { kind: "root", path: folder },
-      ...data,
-      hint: "Directory listing; open files with read_content placement { kind: root, path: <file> }."
-    };
-  }
-  const slot = String(args.slot || args.placement?.slot || "inbox").trim();
-  const listAddr = args.placement
-    ? resolveSlotsListAddress({ placement: { kind: args.placement.kind, path: args.placement.path } })
-    : resolveSlotsListAddress({ path: args.path });
-  const { manifestPath, kind } = listAddr;
-  const folder = isStoragePageLikeKind(kind)
-    ? slotKeyToStorageFolder(slot)
-    : ["files", "assets"].includes(slot)
-      ? slot
-      : slotKeyToStorageFolder(slot);
-  const placementOut = formatPublicPlacement(kind, manifestPath, slot);
-
-  if (kind === "channel") {
-    if (slot === "files" || slot === "assets") {
-      const data = await client.get("/api/agent/channels/items", { path: manifestPath, folder });
-      return { placement: placementOut, ...data };
-    }
-    const data = await client.get("/api/storage/files", { path: manifestPath, folder });
-    return { placement: placementOut, ...data };
-  }
-  if (kind === "media") {
-    const data = await client.get("/api/media", { path: manifestPath, folder });
-    const { content, ...lean } = data || {};
-    return { placement: placementOut, ...lean };
-  }
-  if (kind === "database" && slot === "data") {
-    const store = logicalPathFromManifest("database", manifestPath);
-    const data = await client.get("/api/awn-databases/records", { store });
-    return { placement: placementOut, ...data };
-  }
-  const data = await client.get("/api/storage/files", { path: manifestPath, folder });
-  return { placement: placementOut, ...data };
-}
+export {
+  listContentItems,
+  listContentEntries,
+  listContentSections,
+  listContentTree,
+  listContentPreview,
+  listContentItemsFull
+} from "./content-list.js";
 
 export async function deleteContent(client, args) {
   const address = resolveArgs(args);

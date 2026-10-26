@@ -447,6 +447,16 @@ const {
 } = require("./lib/catalog/catalog-migration");
 const { addCatalogItemForAgentContext } = require("./lib/catalog/catalog-items");
 const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./lib/platform/platform-sources");
+const {
+  parseListQueryFromSearchParams,
+  shouldApplyContentsListQuery
+} = require("./lib/content/contents-list-pagination.js");
+const { applyDatabaseRecordsListQuery } = require("./lib/content/contents-list-records.js");
+const {
+  applyStorageFilesListQuery,
+  attachEntryBodySnippets
+} = require("./lib/content/contents-list-storage.js");
+const { applyWorkspaceRootListQuery } = require("./lib/content/contents-list-root.js");
 const { loadPlatformUiRotators } = require("./lib/platform/platform-ui-rotators");
 const { getComponentsPayload } = require("./lib/catalog/components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./lib/catalog/type-catalog-loader");
@@ -28160,7 +28170,11 @@ async function handleApiForAgent(req, res, url) {
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const storeRel = String(url.searchParams.get("store") || "").trim();
       if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      const listQuery = parseListQueryFromSearchParams(url.searchParams);
       const payload = listAwnDataRecordsPayload(agentRoot, getProjectRoot(), storeRel);
+      if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
+        return sendJson(res, 200, applyDatabaseRecordsListQuery(payload, listQuery));
+      }
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 400, {
@@ -29279,13 +29293,26 @@ async function handleApiForAgent(req, res, url) {
         if (parent && parent !== ".") sectionRelPaths.push(parent);
       }
       const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
-      return sendJson(res, 200, {
+      const rawPayload = {
         exists: true,
         files: enrichedFiles,
         folders,
         nonMarkdownFiles,
         sectionSortOrders
-      });
+      };
+      const listQuery = parseListQueryFromSearchParams(url.searchParams);
+      if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
+        let shaped = applyStorageFilesListQuery(rawPayload, listQuery);
+        if (listQuery.includeBody && Array.isArray(shaped.items)) {
+          shaped.items = await attachEntryBodySnippets(
+            shaped.items,
+            folderAbsolute,
+            listQuery.maxBodyChars
+          );
+        }
+        return sendJson(res, 200, shaped);
+      }
+      return sendJson(res, 200, rawPayload);
     } catch (error) {
       if (error && error.code === "ENOENT") {
         return sendJson(res, 200, { exists: false, files: [], folders: [] });
@@ -31865,12 +31892,16 @@ async function handleApiForAgent(req, res, url) {
     const folderPath = String(url.searchParams.get("path") || "").trim();
     if (!folderPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
+      const listQuery = parseListQueryFromSearchParams(url.searchParams);
       const data = await listWorkspaceFsFolder(folderPath, {
         depth: url.searchParams.get("depth") || "1",
         includeBody: url.searchParams.get("includeBody") === "true",
         maxBodyChars: url.searchParams.get("maxBodyChars") || undefined
       });
       if (data.error) return sendJson(res, data.status || 400, { error: data.error });
+      if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
+        return sendJson(res, 200, applyWorkspaceRootListQuery(data, listQuery));
+      }
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, {

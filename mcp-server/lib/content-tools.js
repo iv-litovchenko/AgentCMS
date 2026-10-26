@@ -17,6 +17,11 @@ import {
   moveContent,
   deleteContent,
   listContentItems,
+  listContentEntries,
+  listContentSections,
+  listContentTree,
+  listContentPreview,
+  listContentItemsFull,
   listSectionCapableSlotKeys,
   mergeContent,
   splitContent,
@@ -115,32 +120,87 @@ export function registerContentTools({ reg, client, pagePath }) {
       })
   });
 
+  const contentsListPlacementSchema = z
+    .object({
+      placement: z
+        .object({
+          kind: placementKindSchema,
+          path: z
+            .string()
+            .optional()
+            .describe("Required for slots; for kind=root — folder path or \".\" (default vault root)"),
+          slot: z.string().min(1).optional()
+        })
+        .strict()
+        .optional(),
+      path: z.string().optional().describe("Legacy top-level folder path when placement.kind=root"),
+      slot: z.string().min(1).optional(),
+      depth: z.union([z.number(), z.string()]).optional().describe("kind=root only (default 1)"),
+      parent: z
+        .string()
+        .optional()
+        .describe("List direct children of this section (id or inner path); omit for top level"),
+      limit: z.number().int().min(1).max(100).optional().describe("Page size (default 20)"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset"),
+      cursor: z.string().optional().describe("From previous response nextCursor"),
+      q: z.string().optional().describe("Filter by substring in title/id/ref")
+    })
+    .strict();
+
+  const contentsListTreeSchema = contentsListPlacementSchema.extend({
+    maxDepth: z.number().int().min(1).max(10).optional().describe("Tree levels from parent (default 3)")
+  });
+
+  const contentsListPreviewSchema = contentsListPlacementSchema.extend({
+    maxBodyChars: z.number().int().min(200).max(20000).optional().describe("Snippet size (default 800)")
+  });
+
+  const contentsListEntriesDescription =
+    "List **entries** (records/files) for one level: placement + optional parent, limit/offset/cursor (default 20). " +
+    "Not sections — use contents_list_sections. kind=root: path + depth. Full dump: contents_list_full.";
+
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "contents_list",
     legacy: "list_content",
+    description: contentsListEntriesDescription,
+    schema: contentsListPlacementSchema,
+    handler: (args) => listContentEntries(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_list_sections",
     description:
-      'List items: placement.kind topic|channel|media|database|repository + slot; or kind root + path (folder, "." for vault root; depth=1|2|all). Legacy: list_folder, list_root_files.',
-    schema: z
-      .object({
-        placement: z
-          .object({
-            kind: placementKindSchema,
-            path: z
-              .string()
-              .optional()
-              .describe("Required for slots; for kind=root — folder path or \".\" (default vault root)"),
-            slot: z.string().min(1).optional()
-          })
-          .strict()
-          .optional(),
-        path: z.string().optional().describe("Legacy top-level folder path when placement.kind=root"),
-        slot: z.string().min(1).optional(),
-        depth: z.union([z.number(), z.string()]).optional(),
-        includeBody: z.boolean().optional(),
-        maxBodyChars: z.number().int().min(200).max(20000).optional()
-      })
-      .strict(),
-    handler: (args) => listContentItems(client, args)
+      "List **sections** only (folder/manifest nodes) for one level — same placement as contents_list + parent?, pagination.",
+    schema: contentsListPlacementSchema,
+    handler: (args) => listContentSections(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_list_tree",
+    description:
+      "Light **tree** skeleton (sections + entries, no body) — maxDepth default 3; placement + optional parent.",
+    schema: contentsListTreeSchema,
+    handler: (args) => listContentTree(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_list_preview",
+    description:
+      "Paginated entries with **body snippets** (maxBodyChars) for topic/slot .md files; full text → content_read.",
+    schema: contentsListPreviewSchema,
+    handler: (args) => listContentPreview(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "contents_list_full",
+    legacy: "list_content_full",
+    description:
+      "Legacy: full list (all entries + sections, no pagination). Prefer contents_list / contents_list_sections.",
+    schema: contentsListPlacementSchema.extend({
+      includeBody: z.boolean().optional(),
+      maxBodyChars: z.number().int().min(200).max(20000).optional()
+    }),
+    handler: (args) => listContentItemsFull(client, args)
   });
 
   reg(
