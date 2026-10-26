@@ -34,6 +34,7 @@ import {
 } from "./content-core.js";
 import {
   beginContentBinaryUpload,
+  chunkContentBinaryUpload,
   completeContentBinaryUpload,
   abortContentBinaryUpload,
   statusContentBinaryUpload,
@@ -324,7 +325,7 @@ export function registerContentTools({ reg, client, pagePath }) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_binary_upload_begin",
     description:
-      "Start a large binary upload without base64. Returns uploadId + putUrl — PUT raw bytes to putUrl, then content_binary_upload_complete. Same placement as content_binary_write.",
+      "Start a large binary upload. Returns uploadId + putUrl (local PUT) or use content_binary_upload_chunk (base64, ≤48KiB/chunk) when PUT to public URL fails (e.g. claude.ai). Then content_binary_upload_complete. Same placement as content_binary_write.",
     schema: address({
       sizeBytes: z.number().int().min(1).describe("Exact file size in bytes (required for PUT)"),
       mimeType: z.string().optional(),
@@ -334,8 +335,19 @@ export function registerContentTools({ reg, client, pagePath }) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
+    canonical: "content_binary_upload_chunk",
+    description:
+      "Append base64 chunk to pending upload (cloud MCP: no PUT to putUrl). Repeat until receivedBytes === sizeBytes, then content_binary_upload_complete. Max ~48 KiB decoded per call.",
+    schema: z.object({
+      uploadId: z.string().uuid(),
+      data: z.string().min(1).describe("Base64-encoded piece of the file (not the whole file)")
+    }),
+    handler: (args) => chunkContentBinaryUpload(client, args)
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_binary_upload_complete",
-    description: "Finalize upload after PUT to putUrl from content_binary_upload_begin.",
+    description: "Finalize upload after PUT putUrl or after all content_binary_upload_chunk calls.",
     schema: z.object({
       uploadId: z.string().uuid().describe("From content_binary_upload_begin")
     }),
@@ -372,7 +384,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     legacy: "write_content_binary",
     description:
       "Write/upload a binary file by placement. data (base64) required for decoded size ≤ ~1 MB (AGENT_CMS_MCP_BASE64_MAX_BYTES); " +
-      "larger files: content_binary_upload_begin → PUT putUrl → content_binary_upload_complete. mimeType optional. " +
+      "larger files: content_binary_upload_begin → PUT putUrl or content_binary_upload_chunk → content_binary_upload_complete. mimeType optional. " +
       "Same paths as content_write data=… — prefer this tool for agents. Not for .md text.",
     schema: address({
       data: z.string().min(1).describe("Base64-encoded file bytes"),

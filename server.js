@@ -15134,6 +15134,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceBinaryUploadBegin:
     "POST /api/workspace/binary-upload/begin — content_binary_upload_begin { placement, sizeBytes, mimeType? }",
+    "POST /api/workspace/binary-upload/chunk — content_binary_upload_chunk { uploadId, data base64 }",
   workspaceBinaryUploadPut:
     "PUT /api/workspace/binary-upload/{uploadId} — raw body (not base64); then POST …/complete",
   workspaceBinaryUploadComplete: "POST /api/workspace/binary-upload/complete — { uploadId }",
@@ -31864,6 +31865,23 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, error.status || 500, {
         error: String(error.message || error),
+        ...(error.details ? { details: error.details } : {})
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/chunk") {
+    const { postBinaryUploadChunk, uploadSessionProgress } = require("./lib/workspace/binary-upload-handlers");
+    try {
+      const payload = await readJsonBody(req, 512_000);
+      const uploadId = String(payload.uploadId || "").trim();
+      if (!uploadId) return sendJson(res, 400, { error: "Missing uploadId" });
+      const session = await postBinaryUploadChunk(uploadId, payload.data);
+      return sendJson(res, 200, uploadSessionProgress(session));
+    } catch (error) {
+      return sendJson(res, error.status || 400, {
+        error: String(error.message || error),
+        ...(error.maxChunkBytes ? { maxChunkBytes: error.maxChunkBytes } : {}),
         ...(error.details ? { details: error.details } : {})
       });
     }

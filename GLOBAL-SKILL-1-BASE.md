@@ -173,7 +173,7 @@ Workspace — папка с md-файлами. Хабы:
 | Прочитать байты / превью в чат | `content_binary_read` (base64; для больших — `maxBytes`) |
 | Мелкая запись (≤ ~1 MiB) | `content_binary_write` (base64; жёсткий лимит MCP, см. `AGENT_CMS_MCP_BASE64_MAX_BYTES`) |
 | Файл уже по HTTP(S) URL | `content_binary_write_from_url` |
-| **Большой файл** (HTTP MCP, без base64) | `content_binary_upload_begin` → **PUT** `putUrl` (сырое тело, `Content-Type`) → `content_binary_upload_complete` |
+| **Большой файл** | `content_binary_upload_begin` → **PUT** `putUrl` (Mac/local) **или** `content_binary_upload_chunk` (base64, ~48 KiB/вызов, облако) → `content_binary_upload_complete` |
 | Отмена / прогресс загрузки | `content_binary_upload_abort` / `content_binary_upload_status` |
 | Ссылка на просмотр | `record_binary_url_get` |
 | Размер и mime без чтения | `content_binary_metadata_get` |
@@ -334,7 +334,7 @@ Workspace — папка с md-файлами. Хабы:
 |-----|-----|
 | Любой файл по пути | `content_read` / `content_write` с `kind: root`; обход — `contents_list` (`kind: root`, `path`, `depth`) |
 | Файлы корня (`AGENTS.md`, `SKILL.md`…) | `contents_list` (`path: "."`) → `content_read` / `content_write` (`path: AGENTS.md`; история на write) |
-| Бинарь в слот | `content_binary_write` (мелкий, base64) / `content_binary_write_from_url` / **`content_binary_upload_begin` → PUT → `complete`** (большой) |
+| Бинарь в слот | `content_binary_write` (мелкий) / `from_url` / **`upload_begin` → PUT или `upload_chunk` → `complete`** |
 | Ссылка на бинарник | `record_binary_url_get` |
 | Загрузка по полному пути | только `MCP_LEGACY_TOOLS=1`: `upload_file` / `upload_file_from_url` |
 | Текст из pdf, docx, xlsx, html | `utility_document_text_extract` |

@@ -31,6 +31,14 @@ export async function beginContentBinaryUpload(client, args) {
   return client.post("/api/workspace/binary-upload/begin", pickPlacementPayload(args));
 }
 
+export async function chunkContentBinaryUpload(client, args) {
+  const uploadId = String(args.uploadId || "").trim();
+  if (!uploadId) throw new Error("uploadId is required");
+  const data = String(args.data || "").trim();
+  if (!data) throw new Error("data (base64 chunk) is required");
+  return client.post("/api/workspace/binary-upload/chunk", { uploadId, data });
+}
+
 export async function completeContentBinaryUpload(client, args) {
   const uploadId = String(args.uploadId || "").trim();
   if (!uploadId) throw new Error("uploadId is required");

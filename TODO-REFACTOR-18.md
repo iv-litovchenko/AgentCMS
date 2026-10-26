@@ -2,7 +2,7 @@
 
 😊😊😊😊 Пиши туда в самом начале
 
-**Статус:** 📌 открыто (2026-10-26)
+**Статус:** 🟡 v1 (2026-10-26) — P0 + chunked MCP; smoke на prod — ⏳
 
 **Связь:** REFACTOR-16 п.8 — большие файлы через `content_binary_upload_*`; малые — base64 (~1 MiB MCP).
 
@@ -62,10 +62,11 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 
 | | Задача | Статус |
 | --- | --- | --- |
-| ⏳ | P0: fix `getAgentRoot` в binary-upload-sessions (или inject workspace root) | |
-| ⏳ | Smoke PUT-upload локально | |
-| ⏳ | P1: chunked base64 API + MCP tools | |
-| ⏳ | P1: док/skills — матрица «кто куда может грузить» | |
+| ✅ | P0: `getAgentRoot` из `agent-registry`, staging `.agent-cms/cache/binary-upload-staging` | `binary-upload-sessions.js` |
+| ⏳ | Smoke PUT-upload / chunk на prod | |
+| ✅ | P1: `POST /api/workspace/binary-upload/chunk` + `content_binary_upload_chunk` | handlers, server, MCP |
+| ✅ | Подсказки в begin (chunkUrl) + base64 413 message | `binary-upload-handlers`, `base64-upload.js` |
+| ✅ | GLOBAL-SKILL § бинарь — chunk flow | `GLOBAL-SKILL-1-BASE.md` |
 | ⏳ | P2: server pull URL без публичного файла (если продуктово нужно) | |
 
 ---
