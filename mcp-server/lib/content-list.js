@@ -4,7 +4,9 @@ const require = createRequire(import.meta.url);
 const {
   parseListQueryFromArgs,
   listQueryToHttpParams,
-  DEFAULT_LIST_LIMIT
+  DEFAULT_LIST_LIMIT,
+  getDefaultListMaxDepth,
+  isListPreviewAllowed
 } = require("../../lib/content/contents-list-pagination.js");
 const {
   resolveSlotsListAddress,
@@ -20,8 +22,14 @@ function buildListQuery(args, listMode) {
   const query = parseListQueryFromArgs(args);
   query.listMode = listMode === "preview" ? "entries" : listMode;
   if (listMode === "preview") {
+    if (!isListPreviewAllowed()) {
+      throw new Error("List preview disabled (AGENT_CMS_LIST_ALLOW_PREVIEW=0)");
+    }
     query.includeBody = true;
     if (query.maxBodyChars == null) query.maxBodyChars = args.maxBodyChars ?? 800;
+  }
+  if (listMode === "tree" && query.maxDepth == null) {
+    query.maxDepth = args.maxDepth ?? getDefaultListMaxDepth();
   }
   if (query.limit == null && listMode !== "all") query.limit = DEFAULT_LIST_LIMIT;
   if (args.legacyFull) {

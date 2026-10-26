@@ -17,6 +17,7 @@
     "setup:certs:iphone": "bash scripts/export-mkcert-ca-for-ios.sh",
     "voice:start": "node voice-server.js",
     "voice:https": "bash scripts/start-voice-https.sh",
+    "test:contents-list": "node --test lib/content/contents-list.test.js",
     "mcp": "node mcp-server/index.js",
     "mcp:http": "node mcp-server/http.js",
     "tunnel:device": "node scripts/tunnel-device.js",

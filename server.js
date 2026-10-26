@@ -24521,6 +24521,9 @@ async function handleApiForAgent(req, res, url) {
           folderAbsolute,
           listQuery
         );
+        if (shaped.status === 404) {
+          return sendJson(res, 404, { error: shaped.error || "Not found", ...shaped });
+        }
         return sendJson(res, 200, { ...shaped, path: manifestRel, folder: folderName });
       }
       return sendJson(res, 200, rawPayload);
@@ -28188,14 +28191,22 @@ async function handleApiForAgent(req, res, url) {
       const payload = listAwnDataRecordsPayload(agentRoot, getProjectRoot(), storeRel);
       if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
         let shaped = applyDatabaseRecordsListQuery(payload, listQuery);
+        if (shaped.status === 404) {
+          return sendJson(res, 404, { error: shaped.error || "Not found", ...shaped });
+        }
         if (listQuery.includeBody && Array.isArray(shaped.items)) {
-          shaped.items = await attachDatabaseRecordSnippets(
-            shaped.items,
-            agentRoot,
-            getProjectRoot(),
-            storeRel,
-            listQuery.maxBodyChars
-          );
+          const { isListPreviewAllowed } = require("./lib/content/contents-list-pagination.js");
+          if (!isListPreviewAllowed()) {
+            shaped.previewDisabled = true;
+          } else {
+            shaped.items = await attachDatabaseRecordSnippets(
+              shaped.items,
+              agentRoot,
+              getProjectRoot(),
+              storeRel,
+              listQuery.maxBodyChars
+            );
+          }
         }
         return sendJson(res, 200, shaped);
       }
@@ -29327,6 +29338,9 @@ async function handleApiForAgent(req, res, url) {
       const listQuery = parseListQueryFromSearchParams(url.searchParams);
       if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
         const shaped = await applyListQueryWithPreview(rawPayload, folderAbsolute, listQuery);
+        if (shaped.status === 404) {
+          return sendJson(res, 404, { error: shaped.error || "Not found", ...shaped });
+        }
         return sendJson(res, 200, shaped);
       }
       return sendJson(res, 200, rawPayload);
@@ -30562,6 +30576,9 @@ async function handleApiForAgent(req, res, url) {
           folderAbsolute,
           listQuery
         );
+        if (shaped.status === 404) {
+          return sendJson(res, 404, { error: shaped.error || "Not found", ...shaped });
+        }
         return sendJson(res, 200, shaped);
       }
       return sendJson(res, 200, rawPayload);
