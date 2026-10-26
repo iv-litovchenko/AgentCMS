@@ -30,7 +30,7 @@
 
 | ID | Статус | Тип | Путь | Название | Описание |
 | ---: | --- | --- | --- | --- | --- |
-| 41 | 🟢 Открыта | awn.hub.topic.ws | `.` | [Memory CMS] Песочница и тесты | Описчание |
+| 41 | 🟢 Открыта | awn.hub.topic.ws | `.` | [Memory CMS] Песочница и тесты | Описание |
 | — | 🟢 Открыта | awn.content.category | `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/artefacts/razdel-1/manifest.md` | Раздел 1 | — |
 | — | 🟢 Открыта | awn.content.category | `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-1/manifest.md` | Раздел 1 | — |
 | — | 🟢 Открыта | awn.content.category | `aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/manifest.md` | Раздел 2 | — |

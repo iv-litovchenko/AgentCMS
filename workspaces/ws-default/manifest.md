@@ -18,7 +18,7 @@ awn-type: awn.hub.topic.ws
 awn-create: "2026-06-11T00:27"
 awn-update: 2026-08-09T22:47:43.406Z
 awn-version: 0
-awn-description: Описчание
+awn-description: Описание
 awn-name: "Default"
 awn-web-url: ""
 ---
