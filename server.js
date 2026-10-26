@@ -15180,6 +15180,7 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/agent/identity/agent — session_profile_agent_get MCP (awn-topics/0-agent-kit/0-agent/)",
   userIdentity:
     "GET /api/agent/identity/user — session_profile_user_get MCP (awn-topics/0-agent-kit/0-user/)",
+  organizationIdentity:
     "GET /api/agent/identity/organization — session_profile_organization_get MCP (awn-topics/0-agent-kit/0-organization/)",
   activity:
     "GET /api/agent/activity?since=&limit= — workspace_activity_list MCP",
