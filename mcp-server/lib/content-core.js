@@ -608,9 +608,32 @@ export async function writeContentSchema(client, args) {
   return client.post("/api/content/schema", { path: manifestPath, slot, ref, content: args.content });
 }
 
+async function assertRootFileMissing(client, workspaceFilePath) {
+  try {
+    const payload = await readFileHandler(client, { path: workspaceFilePath, maxBytes: 1 });
+    if (payload?.exists === false) return;
+    throw new Error(`content_create: file already exists: ${workspaceFilePath} (use content_write)`);
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
+}
+
 export async function createContent(client, args) {
   const address = resolveArgs(args);
-  rejectRootLifecycle(address, "create_content");
+  if (address.kind === "root") {
+    const relPath = address.workspaceFilePath;
+    if (!relPath) throw new Error("content_create: placement.path is required for kind=root");
+    await assertRootFileMissing(client, relPath);
+    const text = args.body ?? args.content ?? "";
+    return writeContentBody(client, {
+      ...args,
+      placement: address.placement,
+      part: "body",
+      mode: "replace",
+      content: text
+    });
+  }
   const { manifestPath, slot } = address;
   const {
     awnType,

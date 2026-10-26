@@ -408,7 +408,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     canonical: "content_create",
     legacy: "create_content",
     description:
-      "Create typed content in a slot (placement or path+slot). Database (kind: database, slot: data): same as legacy database_element_create — isSection or awn.content.category for sections.",
+      "Create typed content in a slot (placement or path+slot). kind=root: placement.path = new workspace file (text); same as content_write for a missing file. Database (kind: database, slot: data): isSection or awn.content.category for sections.",
     schema: address({
       awnType: z
         .enum(["awn.content.record", "awn.content.category"])
