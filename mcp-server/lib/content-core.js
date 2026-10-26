@@ -24,6 +24,7 @@ const {
   buildSectionCreateRequest,
   listSectionCapableSlotKeys
 } = require("../../lib/config/storage-slot-routing.js");
+const { assertMcpBinaryBase64UploadWithinLimit } = require("../../lib/media/base64-upload.js");
 
 export function absolutizeCmsUrl(client, urlPath) {
   const raw = String(urlPath || "").trim();
@@ -373,6 +374,7 @@ export async function writeContentBinary(client, args) {
   const { manifestPath, slot, ref, kind, placement, workspaceFilePath } = address;
   const data = String(args.data || "").trim();
   if (!data) throw new Error("data (base64) is required for write_content_binary");
+  assertMcpBinaryBase64UploadWithinLimit(data);
   if (kind === "root") {
     return client.post("/api/workspace/fs/upload", {
       path: workspaceFilePath,

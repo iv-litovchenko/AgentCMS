@@ -294,7 +294,8 @@ export function registerContentTools({ reg, client, pagePath }) {
     canonical: "content_binary_write",
     legacy: "write_content_binary",
     description:
-      "Write/upload a binary file by placement. data (base64) required; mimeType optional. " +
+      "Write/upload a binary file by placement. data (base64) required for decoded size ≤ ~1 MB (AGENT_CMS_MCP_BASE64_MAX_BYTES); " +
+      "larger files: content_binary_upload_begin → PUT putUrl → content_binary_upload_complete. mimeType optional. " +
       "Same paths as content_write data=… — prefer this tool for agents. Not for .md text.",
     schema: address({
       data: z.string().min(1).describe("Base64-encoded file bytes"),
@@ -311,7 +312,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Line numbers = content_read / search_* numbering (file lines incl. frontmatter); frontmatter lines are rejected — use part=properties. " +
     "expectedHash = hash from content_read: mismatch → conflict error; required for replace_lines/insert. " +
     "Response: startLine/endLine of changed lines, totalLines, previousHash, hash (use as next expectedHash). " +
-    "Binary: data (base64); root uses placement.path as file path.";
+    "Binary: data (base64, ≤ ~1 MB via MCP); larger → content_binary_upload_*; root uses placement.path as file path.";
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_write",
