@@ -28,6 +28,7 @@ const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler,
   resolveInternalCmsApiUrl,
+  resolveShareableCmsBaseUrl,
   getClientCmsBaseUrl,
   enrichMcpDocsForClient
 } = require("./lib/http/https-redirect");
@@ -22832,9 +22833,7 @@ async function handleApiForAgent(req, res, url) {
       const agentRoot = getAgentRoot();
       const agentId = getActiveAgentId();
       if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
-      const baseUrl =
-        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
-        resolveInternalCmsApiUrl();
+      const baseUrl = resolveShareableCmsBaseUrl(req);
       const links = await listShortLinks(agentRoot, agentId, baseUrl);
       return sendJson(res, 200, { links, count: links.length });
     } catch (error) {
@@ -22850,9 +22849,7 @@ async function handleApiForAgent(req, res, url) {
       const agentRoot = getAgentRoot();
       const agentId = getActiveAgentId();
       if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
-      const baseUrl =
-        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
-        resolveInternalCmsApiUrl();
+      const baseUrl = resolveShareableCmsBaseUrl(req);
       const code = String(url.searchParams.get("code") || "").trim();
       const targetPath = String(url.searchParams.get("path") || url.searchParams.get("targetPath") || "").trim();
       let link = null;
@@ -22879,9 +22876,7 @@ async function handleApiForAgent(req, res, url) {
       const agentId = getActiveAgentId();
       if (!agentRoot || !agentId) return sendJson(res, 400, { error: "Agent not selected" });
       const payload = await readJsonBody(req);
-      const baseUrl =
-        getClientCmsBaseUrl(req.headers.host)?.replace(/\/+$/, "") ||
-        resolveInternalCmsApiUrl();
+      const baseUrl = resolveShareableCmsBaseUrl(req);
       const result = await createShortLink(agentRoot, agentId, baseUrl, payload);
       return sendJson(res, 200, result);
     } catch (error) {
@@ -24703,10 +24698,7 @@ async function handleApiForAgent(req, res, url) {
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const agentId = getActiveAgentId();
       if (!agentId) return sendJson(res, 400, { error: "Agent not selected" });
-      const baseUrl =
-        baseUrlParam.replace(/\/+$/, "") ||
-        getClientCmsBaseUrl(req.headers.host) ||
-        resolveInternalCmsApiUrl();
+      const baseUrl = resolveShareableCmsBaseUrl(req, baseUrlParam);
       const payload = await buildPageUrlPayload(agentRoot, agentId, relPath, {
         baseUrl,
         view: view || undefined,

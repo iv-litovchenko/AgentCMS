@@ -19,7 +19,7 @@ Memory CMS: замечания после теста MCP
 3. ==✅== У topic_create в описании инструмента пустой список параметров, название пришлось угадывать. *`withAgentIdSchema` + `.refine()` → пустой JSON Schema; убрали refine, проверка в handler; то же для topic_update/rename, database_update, record_slug_generate.*
 4. ==✅== При database_register описание не сохраняется, вместо него встаёт название инфоблока. *MCP: name ← displayName/title; manifest — description без подстановки name; awn-description. Старые store — database_update / вручную; deploy rebuild.*
 5. ==✅== В каждом новом инфоблоке сама появляется лишняя «Первая запись». *По умолчанию sample off; `withSampleRecord: true` — demo «Первая запись».*
-6. record_url_get возвращает внутренний адрес Докера http://cms:3000/..., а не публичный maptex.ru.
+6. ==✅== record_url_get возвращает внутренний адрес Докера http://cms:3000/..., а не публичный maptex.ru. *`/api/agent/page-url` → `AGENT_CMS_PUBLIC_URL`; host `cms|mcp|control` не для ссылок. Mac: `http://127.0.0.1:3000`, VPS: `https://домен` в `.env`.*
 7. database_register возвращает всю схему, около 40 полей с переводами, и съедает много токенов.
 8. Загрузка файлов через base64: маленькие файлы проходят, большие фото ломаются. По словам автора, уже переделано, нужно перепроверить.
 
