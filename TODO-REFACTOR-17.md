@@ -1,74 +1,126 @@
 # Рефакторинг — часть 17 (MCP слоты: slotKey vs folder)
 
 😊😊😊😊 Пиши туда в самом начале
+## Что произошло с #9041
 
-**Тема:** агент путается, куда писать и где файл на диске после `content_create` / API create.
+Запись **на месте**. При `slot: memory` (или `main` — это алиас) файл лежит здесь:
 
-**Триггер:** запись #9041 «Пробная запись», `placement.slot: memory` → в ответе одновременно `"folder": "main"` и `"slotKey": "memory"`; путь на сервере пришлось искать через `find`.
+`awn-topics/<тема>/awn-storage/main/probnaya-zapis.md`
 
-**Суть:** два слоя — **slotKey** (роутинг, `lib/config/storage-slot-routing.js`) и **storageFolder** (папка под `awn-storage/`). Для основной памяти: канон API **`memory`**, алиасы **`main`**, **`external`** → на диске **`main/`** (legacy: `memory/`, `content/`).
+(у вас путь вида `workspaces/0-ws-test/test-klod/…` — это slug темы без префикса хаба в MCP.)
+
+Ответ API **не противоречие**, а **два слоя именования**:
+
+| Поле | Значение | Смысл |
+|------|----------|--------|
+| `folder` | `main` | **Папка на диске** под `awn-storage/` |
+| `slotKey` | `memory` | **Ключ в роутинге** (`storage-slot-routing.js`) |
+
+В MCP в `placement.slot` можно писать **`main` или `memory`** — нормализуются в один слот. На диске папка всегда **`main/`** (старые `memory/`, `content/` читаются как `main`).
+
+**Почему агент путается:** в скиллах везде **`main`**, в ответе сервера — **`slotKey: memory`**, а **`path` от корня workspace в ответе create нет** (есть только `folder` + `file`). Отсюда `find …`.
+
+**Имеет смысл в продукте:** в ответ `content_create` / `/api/storage/file/create` добавить, например, `workspacePath: awn-topics/…/awn-storage/main/probnaya-zapis.md`.
 
 ---
 
-## Оригинал (дерево правок, октябрь 2026)
+## Два измерения слота (кратко)
 
 ```
-🔴 Ответ API (create/read)
-   └─ нет workspacePath от корня WS → только folder + slotKey + file
-
-🔴 Доки агента (GLOBAL-SKILL / agent-cms §4)
-   └─ канон «main» ≠ код slotKey «memory» (+ external)
-
-🔴 MCP schema (content-placement-zod)
-   └─ в describe слотов нет явной пары: slot ↔ папка на диске
-
-🔴 Тип темы (topic.yml storage-slots)
-   └─ в списке «main», в роутере «memory» — без пояснения
-
-🔴 Один каталог main/ — два смысла
-   ├─ memory (много .md, ref)
-   └─ main-single / main-single-csv (internal, без ref)
-   → в скилле почти не подчёркнуто
-
-🟡 Желательно (не блокер)
-   ├─ placement.slot в ответах нормализовать к одному ключу (memory или main)
-   └─ flexible-тема: в ошибке «main», в роутере «memory»
+placement.slot  ──alias──►  slotKey (канон API)  ──►  storageFolder (диск)
+     main / memory / external          memory                    main/
+     note                              notes                     notes/
+     thread / dialogs                  discussion                discussion/
 ```
 
-**Одной строкой:** главное — **`workspacePath` в ответах** + **одна линия в доках: `slot main|memory` → папка `awn-storage/main/`**.
+**Ловушка:** слоты **`main-single`** и **`main-single-csv`** — driver **`internal`**, без `ref`, но на диске тоже живут под **`awn-storage/main/`** (bundle-файлы). Это **не** каталог записей `memory`, хотя папка одна.
 
 ---
 
-## Чеклист (куда править)
+## Дерево: сущности → слоты (✅ канон MCP / ⚠️ legacy)
 
-| 🔴 | Задача | Файлы / места |
-| --- | --- | --- |
-| 1 | В ответ `POST /api/storage/file/create` (и MCP `content_create`) добавить **`workspacePath`** (и при необходимости **`placement`** с нормализованным slot) | `server.js` → `createStorageRecordFile` return; `mcp-server/lib/content-core.js` → обогащение ответа |
-| 2 | То же для read/meta, где агенту нужен полный путь | `content_read` part=meta, `content_meta_get` |
-| 3 | Согласовать док: **`main` = алиас `memory`**, диск = **`main/`** | `GLOBAL-SKILL-1-BASE.md` §4, `.codex/skills/agent-cms/SKILL.md` §4 |
-| 4 | В Zod describe слота — таблица или ссылка «slot → folder» | `mcp-server/lib/content-placement-zod.js` → `buildContentSlotSchema` |
-| 5 | Комментарий или ключ в типе: `main` в YAML → `memory` в routing | `workspaces/0-ws-core/awn-system/types/hubs/topic/topic.yml` |
-| 6 | Явно: **`main/`** ≠ только memory (bundle internal) | скилл §4 + кратко в MCP tool description `content_create` |
-
-| 🟡 | Задача | Файлы / места |
-| --- | --- | --- |
-| 7 | Единый slot в JSON-ответах (`memory` или `main`) | policy в `formatPublicPlacement` / create handler |
-| 8 | Текст ошибки flexible-темы: slot key как в MCP (`memory` или оба) | `server.js` `createStorageRecordFile` |
+```
+🗂️ Workspace
+│
+├─ 📚 Тема (kind: topic) — awn-topics/{slug}/
+│  └─ awn-storage/
+│     ├─ 🧠 memory ✅  ← placement: main | memory | external ⚠️
+│     │     📁 main/          (⚠️ disk: memory/, content/)
+│     ├─ 📥 inbox/            inbox
+│     ├─ 📤 outbox/           outbox
+│     ├─ 📝 notes/            notes (⚠️ note/, slot note)
+│     ├─ 🔗 references/       references
+│     ├─ 🧪 artefacts/        artefacts
+│     ├─ 🖼️ media/             media
+│     ├─ 📎 assets/           assets (+ pasted/, preview/, materials/)
+│     ├─ 💾 repository/       repository (мелкий код в теме; ⚠️ не hub awn-repositories)
+│     ├─ 📜 scripts/          scripts (⚠️ script)
+│     ├─ 📋 templates/, base/, notebooklm/
+│     ├─ ⏱️ task-queue/       task-queue (⚠️ agent-task-queue, agent-queue)
+│     ├─ 🗺️ atlas/            atlas (⚠️ roadmap/, roadmap-single)
+│     ├─ 📄 main/ (bundle)    main-single, main-single-csv — один файл, без ref
+│     ├─ ✅ todo/ (bundle)    todo-single, todo (⚠️ todo)
+│     ├─ 💬 discussion/       discussion — только comment-tools (⚠️ thread, dialogs)
+│     ├─ 🕓 history/, 💭 comments/ — системные
+│     └─ 🔒 awn-slots-flexible: только внешние записи в main/
+│
+├─ 📡 Канал (kind: channel) — awn-channels/{slug}/
+│  └─ awn-storage/
+│     ├─ 📥 inbox/            разбор → inbox_item_triage
+│     ├─ ⏱️ task-queue/
+│     ├─ 📤 outbox/
+│     ├─ 📁 files/            ref обязателен
+│     └─ 📎 assets/
+│     (❌ нет memory/main — не писать «основную память» сюда)
+│
+├─ 🎞️ Медиатека (kind: media) — awn-media/{slug}/
+│  └─ awn-storage/
+│     ├─ 📁 files/
+│     └─ 📎 assets/
+│
+├─ 🗃️ База (kind: database) — awn-databases/{store}/
+│  └─ awn-storage/
+│     ├─ 📊 data/             slot: data — записи/разделы (не «main»)
+│     └─ 📎 assets/
+│     (⚠️ hub: awn-database/, awn-data/)
+│
+├─ 🔧 Репозиторий (kind: repository) — awn-repositories/{slug}/
+│  └─ awn-storage/
+│     ├─ 📁 files/
+│     └─ 📎 assets/
+│     (код клона — отдельно, часто kind: root)
+│
+└─ 🌲 Свободная память (kind: root)
+      path = файл от корня WS, без slot/ref
+      (⚠️ placement kind: tree → root; ⚠️ page → topic)
+```
 
 ---
 
-## Проверка после правок
+## Legacy вне слотов (пути)
 
-1. MCP: `content_create` в теме, `slot: memory` и `slot: main` → один и тот же **`workspacePath`**, `folder: main`.
-2. Агент без `find` видит путь вида `awn-topics/{slug}/awn-storage/main/{file}.md`.
-3. `contents_slots_list` по теме: driver `external` vs `internal` для main-single — в доке есть одна фраза-предупреждение.
+```
+awn-container/  →  awn-topics/
+storage/        →  awn-storage/   (внутри темы/хаба)
+INDEX.md        →  index.md      (оглавление тем)
+```
 
 ---
 
-## Связанные файлы (справка)
+## Правило для агента (1 строка)
 
-- `lib/config/storage-slot-routing.js` — `STORAGE_SLOT_ROUTING`, `normalizeStorageSlotKey`
-- `lib/config/manifest-paths.js` — `STORAGE_SUBFOLDER_MAIN`, legacy `memory`/`content`
-- `lib/config/content-placement.js` — `formatPublicPlacement` (сейчас без disk path)
+**Обычная заметка в теме:** `kind: topic`, `slot: main` (или `memory`), `ref: файл.md` → диск **`…/awn-storage/main/…`**. Перед записью — **`contents_slots_list`** по теме; для канала/медиа/базы/репо — слоты **другие**, не копировать из темы.
 
-**Статус:** 📌 открыто
+---
+
+## Расхождение док ↔ код (источник путаницы)
+
+| Где | Пишут | Канон роутера |
+|-----|--------|----------------|
+| GLOBAL-SKILL / agent-cms §4 | слот **`main`** | **`memory`** (+ алиасы main, external) |
+| `topic.yml` storage-slots | **`main`** | нормализуется в memory |
+| Ответ create | `folder: main` | `slotKey: memory` |
+
+Имеет смысл **свести доки к одной формулировке**: «в MCP — `main` или `memory`; на диске — папка `main/`; в ответах смотреть `workspacePath` (когда добавят) или `folder` + `file`».
+
+Если нужно — могу набросать патч: **`workspacePath` в ответ create** и правка §4 скилла под `memory`/`main` без двусмысленности.
