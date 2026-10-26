@@ -31,7 +31,7 @@ npm install
 | `AGENT_CMS_PUBLIC_URL` | — | Для **Streamable HTTP** (`http.js`): `serverInfo.icons` → `{origin}/favicon.png` и `.svg` |
 | `AGENT_CMS_MCP_ICON_URL` | — | Одна картинка вместо favicon (полный URL); опционально `AGENT_CMS_MCP_ICON_BASE_URL` |
 
-**Большие файлы (без base64):** `content_binary_upload_begin` → **PUT** `putUrl` (сырые байты) → `content_binary_upload_complete`.
+**Бинарь / фото:** `content_binary_write` (мелкий base64) · `write_from_url` / `upload_begin`+`sourceUrl` · большие: PUT или `upload_chunk` → `complete` · читать: `content_binary_read` · URL: `content_binary_url_get`.
 
 ## Термины
 

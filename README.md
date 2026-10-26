@@ -802,7 +802,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 > ⚠️ **`node mcp-server/index.js` (stdio)** — legacy dev без Docker; в prod и в доке **не используем**.
 
-**Большие файлы (фото, pdf):** без base64 в чате — `content_binary_upload_begin` → **PUT** `putUrl` → `content_binary_upload_complete` (подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5).
+**Файлы / фото (MCP):** мелкие — `content_binary_write` (base64); **публичный URL** — `content_binary_write_from_url` или `content_binary_upload_begin` + **`sourceUrl`** (CMS сама качает); **большие** — `upload_begin` → **PUT** `putUrl` → `complete` (Mac) или **`upload_chunk`** → `complete` (облако); читать — `content_binary_read` / `content_read` + base64; ссылка в браузере — `content_binary_url_get`. Подробнее: [GLOBAL-SKILL-1-BASE.md](GLOBAL-SKILL-1-BASE.md) §5.
 
 Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#-настройка--env-gb-configuration--env) (блок «Дополнительно в Compose»).
 
@@ -810,11 +810,11 @@ Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [табл
 
 > 🇬🇧 **[en]**
 >
-> **HTTP only:** `{PUBLIC_URL}/app-mcp` + Bearer **`AGENT_CMS_MCP_TOKEN`**. Set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Control guide copies the JSON. Large files: `content_binary_upload_begin` → PUT → `content_binary_upload_complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env). Stdio `node mcp-server` — dev-only, not documented as equal.
+> **HTTP only:** `{PUBLIC_URL}/app-mcp` + Bearer **`AGENT_CMS_MCP_TOKEN`**. Set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Control guide copies the JSON. Large files: `upload_begin` + `sourceUrl`, or PUT, or `upload_chunk` → `complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env). Stdio `node mcp-server` — dev-only, not documented as equal.
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 227** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 229** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -964,7 +964,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 33
+├── 📄 Контент (Content) · 35
 │   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
 │   ├── 🟢 contents_outside_slots_list — «вне слотов» (корень контейнера + awn-storage/, без slot)
 │   ├── 🟢 contents_count — число файлов в слоте (те же placement/filters, без списка)
@@ -977,10 +977,12 @@ user-agent-cms
 │   ├── 🟢 content_binary_read
 │   ├── 🟢 content_binary_write
 │   ├── 🟢 content_binary_write_from_url
-│   ├── 🟢 content_binary_upload_begin
+│   ├── 🟢 content_binary_upload_begin — PUT/chunk или sourceUrl (CMS качает URL)
+│   ├── 🟢 content_binary_upload_chunk — base64 куски (облако без PUT)
 │   ├── 🟢 content_binary_upload_complete
 │   ├── 🟢 content_binary_upload_abort
 │   ├── 🟢 content_binary_upload_status
+│   ├── 🟢 content_binary_url_get — HTTPS URL превью (картинка в браузере)
 │   ├── 🟢 content_binary_metadata_get
 │   ├── 🟢 content_exists
 │   ├── 🟢 content_meta_get
