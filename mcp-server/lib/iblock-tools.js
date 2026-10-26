@@ -6,6 +6,40 @@ const storePath = z
   .min(1)
   .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
+/** MCP tool result: drop merged schema/records tree after register (use database_get). */
+function formatDatabaseRegisterToolResult(data) {
+  if (!data || typeof data !== "object") return null;
+  const store = data.store;
+  if (!store || typeof store !== "object") return null;
+
+  const slim = {
+    id: store.id,
+    relPath: store.relPath,
+    kind: store.kind,
+    name: store.name,
+    manifestRelPath: store.manifestRelPath,
+    schemaRelPath: store.schemaRelPath
+  };
+  const description = String(store.description || "").trim();
+  if (description) slim.description = description;
+  if (store.schemeModRelPath) slim.schemeModRelPath = store.schemeModRelPath;
+  if (store.kind === "collection") {
+    slim.collectionType = store.collectionType;
+    slim.collectionKind = store.collectionKind;
+    slim.recordStorage = store.recordStorage;
+    if (store.recordHierarchy) slim.recordHierarchy = true;
+    const recordFileTypes = String(store.recordFileTypes || "").trim();
+    if (recordFileTypes) slim.recordFileTypes = recordFileTypes;
+  }
+  if (Array.isArray(store.records)) slim.recordCount = store.records.length;
+
+  return {
+    ok: data.ok !== false,
+    store: slim,
+    hint: "Full schema and records: database_get { store: relPath }."
+  };
+}
+
 /** Canonical database_* / databases_* plus verb-first and database_frame_* legacy aliases. */
 function registerDatabaseTool(reg, { canonical, verbLegacy, legacyFrameName, description, schema, handler }) {
   registerCanonicalWithLegacyAlias(reg, {
@@ -81,26 +115,31 @@ export function registerDatabaseTools(reg, client) {
       recordHierarchy: payload.recordHierarchy ?? payload.hierarchy
     });
   const registerDatabaseDescription =
-    "Register database store hub (like channel_register): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present.";
+    "Register database store hub (like channel_register): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present. " +
+    "Response is slim (ids/paths/collection preset only); full schema → database_get.";
+  const registerDatabaseOptions = { formatResult: formatDatabaseRegisterToolResult };
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "database_register",
     legacy: "register_database",
     description: registerDatabaseDescription,
     schema: registerDatabaseSchema,
-    handler: registerDatabaseHandler
+    handler: registerDatabaseHandler,
+    options: registerDatabaseOptions
   });
   registerDeprecatedAlias(reg, {
     canonical: "database_register",
     name: "create_database",
     schema: registerDatabaseSchema,
-    handler: registerDatabaseHandler
+    handler: registerDatabaseHandler,
+    options: registerDatabaseOptions
   });
   registerDeprecatedAlias(reg, {
     canonical: "database_register",
     name: "database_frame_create",
     schema: registerDatabaseSchema,
-    handler: registerDatabaseHandler
+    handler: registerDatabaseHandler,
+    options: registerDatabaseOptions
   });
 
   const updateDatabaseSchema = z.object({
