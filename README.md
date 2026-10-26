@@ -696,6 +696,7 @@ npm run cms:desktop   # dev-окно без сборки
 | **`AGENT_CMS_PUBLIC_DOMAIN`** | Домен для **Caddy** (VPS) | Caddy site domain | `example.com` |
 | **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
 | **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
+| **`AGENT_CMS_MCP_ICON_URL`** | *(опц.)* Своя иконка для Claude/Cursor; иначе **`{AGENT_CMS_PUBLIC_URL}/app-mcp/icon`** (PNG) | MCP connector icon URL | `https://ваш-домен/app-mcp/icon` |
 | **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
 | **`AGENT_CMS_MCP_BASE64_MAX_BYTES`** | Макс. **декодированный** размер для MCP base64 (`content_binary_write`, `content_write` `data=…`); больше — `content_binary_upload_*` | MCP base64 upload cap (decoded bytes) | `1048576` (1 MiB; можно меньше) |
 | **`AGENT_CMS_LIST_DEFAULT_LIMIT`** | Размер страницы по умолчанию для MCP **`contents_list_*`** (max 100) | Default MCP list page size | `20` |
