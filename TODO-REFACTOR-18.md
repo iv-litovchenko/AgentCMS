@@ -2,7 +2,7 @@
 
 😊😊😊😊 Пиши туда в самом начале
 
-**Статус:** 🟡 v1 (2026-10-26) — P0 + chunked MCP; smoke на prod — ⏳
+**Статус:** 🟡 v1 (2026-10-26) — P0/P1/P2 в коде; **prod-smoke maptex** — ⏳ (деплой отправлен, проверка позже)
 
 **Связь:** REFACTOR-16 п.8 — большие файлы через `content_binary_upload_*`; малые — base64 (~1 MiB MCP).
 
@@ -63,12 +63,30 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 | | Задача | Статус |
 | --- | --- | --- |
 | ✅ | P0: `getAgentRoot` из `agent-registry`, staging `.agent-cms/cache/binary-upload-staging` | `binary-upload-sessions.js` |
-| ⏳ | Smoke PUT-upload / chunk на prod | |
+| ⏳ | **Prod-smoke maptex** — чеклист § ниже (деплой образа отправлен; проверка позже) | |
 | ✅ | P1: `POST /api/workspace/binary-upload/chunk` + `content_binary_upload_chunk` | handlers, server, MCP |
 | ✅ | Подсказки в begin (chunkUrl) + base64 413 message | `binary-upload-handlers`, `base64-upload.js` |
 | ✅ | GLOBAL-SKILL § бинарь — chunk flow | `GLOBAL-SKILL-1-BASE.md` |
 | ✅ | P2: `upload_begin` + `sourceUrl` — CMS качает URL в placement (SSRF via media-import) | handlers, server, MCP begin |
-| ⏳ | P2: prod smoke begin/chunk/sourceUrl | |
+
+**Контекст / обсуждение:** [REFACTOR-18 бинарь и prod-smoke](42302b68-5af0-44eb-9188-5059b2a026b5)
+
+---
+
+## Prod-smoke maptex (чеклист — не сегодня)
+
+**Когда:** после деплоя свежего образа на prod. **Кто:** вручную или MCP-агент к `https://…/app-mcp` (+ `AGENT_CMS_PUBLIC_URL` для PUT).
+
+| # | Сценарий | Инструменты | Ожидание |
+| --- | --- | --- | --- |
+| 1 | PUT-поток (Mac / Cursor) | `content_binary_upload_begin` (без `sourceUrl`) → **PUT** `putUrl` → `content_binary_upload_complete` | 200, файл в `placement` |
+| 2 | Chunk (облако / нет PUT на VPS) | `begin` → `content_binary_upload_chunk` (1–2 куска) → `complete` | `receivedBytes === sizeBytes`, файл на месте |
+| 3 | Server pull (P2) | `content_binary_upload_begin` + **`sourceUrl`** (публичная http(s)-картинка) | 200, `skipUpload: true`, файл в слоте |
+| 4 | Регресс мелкий | `content_binary_write` (~20 KiB base64) | как раньше |
+
+**После всех ✅:** отметить строку prod-smoke в §Прогресс; REFACTOR-18 по файлам — закрыт на prod.
+
+**Типичные сбои:** `getAgentRoot` (P0), 403 slot, 413 base64 → смотреть тело ответа API.
 
 ---
 
