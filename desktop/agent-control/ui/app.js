@@ -2814,12 +2814,8 @@ function renderGuideStepServer() {
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
       : "",
-    isDockerDeployment() && isControlActionAvailable("server-git-update")
-      ? serverButton("server-git-update", "update", opsLocked)
-      : "",
-    isDockerDeployment() && isControlActionAvailable("server-docker-rebuild")
-      ? serverButton("server-docker-rebuild", "update", opsLocked)
-      : "",
+    isDockerDeployment() ? serverButton("server-git-update", "update", opsLocked) : "",
+    isDockerDeployment() ? serverButton("server-docker-rebuild", "update", opsLocked) : "",
     !isDockerDeployment() && isControlActionAvailable("server-update")
       ? serverButton(
           "server-update",
