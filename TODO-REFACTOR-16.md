@@ -48,12 +48,23 @@ Memory CMS: замечания после теста MCP
 | **`contents_list_tree`** | Скелет **нескольких уровней** (`maxDepth` 2–3), без body. |
 | **`contents_list_preview`** | Как list, но **snippet** (`maxBodyChars`) — редко; полный текст → **`content_read`**. |
 
-Общий **`placement`**: `root` + path/depth **или** hub + slot. Полный список без порций → **`contents_list_full`**. HTTP: `listMode`, `limit`, `offset`, `cursor`, `parent`, `maxDepth`, `q` (UI без params — старый полный JSON).
+Общий **`placement`**: `root` + path/depth **или** hub + slot. Полный список без порций → **`contents_list_full`**. HTTP list-параметры (при наличии — paginated JSON; UI без params — старый полный ответ).
 
-**v1.1 (в коде):** фильтры `q`, `ext`, `status`, `tags`, `entryType` (md|file|binary|csv); сортировка `sort=manual|name|updated` (`sort.json` / `sectionSortOrders`); preview snippets — storage, **media**, **channel**, **database** records (`includeBody` / `contents_list_preview`).
+### Уже есть (v1)
 
-**Ещё в плане:**
+Пагинация, `parent`, `q`, sections/tree/preview/full, разнесение entries vs sections, API **`listMode`** для records / storage/files / fs/list.
 
-- **Дефолты workspace:** listDefaultLimit, maxDepth, preview allowed (`AGENT_CMS_*` или frontmatter).
-- **Стабильный cursor** (sort key + id).
-- **Slim `database_get`** по умолчанию.
+### Дорожная карта list / получение контента
+
+1. ==✅== **Фильтры** — `ext`, `status` (awn-status), `tags`, «только .md» / файлы слота (`entryType`: md|file|binary|csv); CSV-store: строки vs файлы через `entryType` + `recordStorage` в ответе database. *`contents-list-filters.js`, MCP + HTTP.*
+2. ==✅== **Сортировка** — как в UI (`sort.json`, `sectionSortOrders`), `sort=manual|name|updated`. *`contents-list-sort.js`.*
+3. ==✅== **Preview на всех бэкендах** — snippets для storage, **media**, **channel/items**, **database** records (`includeBody`, **`contents_list_preview`**). *Сервер: `applyListQueryWithPreview`, `attachDatabaseRecordSnippets`.*
+4. ==✅== **List-параметры на сервере для media/channel** — не только MCP после полного ответа. *`GET /api/media`, `GET /api/agent/channels/items` + list query.*
+5. **Дефолты workspace** — `listDefaultLimit`, `maxDepth`, разрешён ли preview (`AGENT_CMS_*` или frontmatter hub).
+6. **Курсор стабильнее offset** — ключ сортировки + id (меньше дублей/пропусков между страницами).
+7. **Уточнение `parent`** — id, inner path, ref; явная ошибка «раздел не найден».
+8. **Документация агента** — GLOBAL-SKILL / mcp-server README: когда **`contents_list`** vs **`_sections`** vs **`_tree`** vs **`nav_index_toc_*`**.
+9. **Тесты** — unit pagination/partition/filters; smoke MCP topic + database + root.
+10. **Соседнее (не list)** — slim **`database_get`** по умолчанию (без всех records/schema), если агенты тянут store целиком.
+
+Приоритет для prod: **5–6** после закрытия **1–4**.
