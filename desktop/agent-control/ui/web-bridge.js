@@ -13,8 +13,18 @@
     "install-deps": "install-npm"
   };
 
+  /** /app-control/* UI → ops API on control (docker.sock), not cms. */
+  function controlApiUrl(path) {
+    const raw = String(path || "").trim();
+    if (!raw.startsWith("/")) return raw;
+    if (String(window.location.pathname || "").startsWith("/app-control")) {
+      return `/app-control${raw}`;
+    }
+    return raw;
+  }
+
   async function fetchJson(url, options) {
-    const response = await fetch(url, {
+    const response = await fetch(controlApiUrl(url), {
       credentials: "same-origin",
       cache: "no-store",
       ...options,
@@ -40,6 +50,8 @@
   }
 
   window.agentControl = {
+    controlApiUrl,
+
     getBootstrap: () => fetchJson("/api/ops/bootstrap"),
 
     refreshStatus: async () => {

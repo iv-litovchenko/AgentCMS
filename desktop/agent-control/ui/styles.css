@@ -3360,6 +3360,7 @@ body.app-lock-active .app {
 .server-deck-btn:disabled:not(.is-running) .server-deck-icon {
   transform: none;
   box-shadow: none;
+  filter: grayscale(0.85);
 }
 
 .server-deck-btn.is-running {

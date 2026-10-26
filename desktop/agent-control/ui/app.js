@@ -18,11 +18,25 @@ function needsAppLockLogin() {
   return Boolean(gate?.enabled && !gate?.sessionActive);
 }
 
+function controlApiUrl(path) {
+  if (typeof window.agentControl?.controlApiUrl === "function") {
+    return window.agentControl.controlApiUrl(path);
+  }
+  const raw = String(path || "").trim();
+  if (raw.startsWith("/") && isWebLauncher() && String(window.location.pathname || "").startsWith("/app-control")) {
+    return `/app-control${raw}`;
+  }
+  return raw;
+}
+
 async function refreshAppLockLoginHint() {
   const hint = document.getElementById("app-lock-login-hint");
   if (!hint || !needsAppLockLogin()) return;
   try {
-    const response = await fetch("/api/app-lock/status", { credentials: "same-origin", cache: "no-store" });
+    const response = await fetch(controlApiUrl("/api/app-lock/status"), {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.configured || !data.login) return;
     hint.textContent = `Ожидаемый логин: ${data.login}.`;
@@ -842,15 +856,15 @@ function isServerUpdateEnabled() {
 }
 
 function getServerBtnTitle(actionId) {
-  if (!isDockerDeployment()) return SERVER_BTN_TITLES[actionId] || "Запуск";
-  const dockerTitles = {
-    "server-start-bg": "Compose up",
-    "server-start-attached": "Compose up",
-    "server-stop": "Stop cms",
-    "server-restart": "Restart cms",
-    "server-update": "Pull + build"
+  const core = {
+    "server-start-bg": "Start",
+    "server-start-attached": "Start",
+    "server-stop": "Stop",
+    "server-restart": "Restart"
   };
-  return dockerTitles[actionId] || SERVER_BTN_TITLES[actionId] || "Запуск";
+  if (core[actionId]) return core[actionId];
+  if (isDockerDeployment() && actionId === "server-update") return "Pull + build";
+  return SERVER_BTN_TITLES[actionId] || "Start";
 }
 
 function getServerBtnHint(actionId, hintOverride) {
@@ -2172,7 +2186,10 @@ async function pollServerStatus() {
     const data = await window.agentControl.refreshStatus();
     await handleServerStatusUpdate(data.server);
   } catch {
-    // ignore transient poll errors
+    if (lastServer?.running) {
+      lastServer = { ...lastServer, running: false, cms: false, modeLabel: "недоступен (опрос)" };
+      syncServerUi(lastServer);
+    }
   }
 }
 
@@ -2210,10 +2227,10 @@ const SETUP_SHORT_TITLES = {
 const SERVER_BTN_TITLES = {
   "server-autostart-enable": "Автостарт",
   "server-autostart-disable": "Автостарт",
-  "server-start-bg": "Старт в фоне",
-  "server-start-attached": "Старт",
-  "server-stop": "Стоп",
-  "server-restart": "Рестарт",
+  "server-start-bg": "Start",
+  "server-start-attached": "Start",
+  "server-stop": "Stop",
+  "server-restart": "Restart",
   "server-update": "Обновить"
 };
 
@@ -3634,7 +3651,7 @@ function bindActionHandlers() {
 function waitForControlServerReload(maxWaitMs = 120000) {
   const started = Date.now();
   const poll = () => {
-    fetch("/api/ops/bootstrap?lite=1", { credentials: "same-origin", cache: "no-store" })
+    fetch(controlApiUrl("/api/ops/bootstrap?lite=1"), { credentials: "same-origin", cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("not ready");
         window.location.reload();
@@ -3717,10 +3734,10 @@ const ACTION_CARD_BUSY = {
   "cms-electron-build": "Electron…",
   "server-autostart-enable": "Автостарт…",
   "server-autostart-disable": "Выключение…",
-  "server-start-bg": "Запуск…",
-  "server-start-attached": "Запуск…",
-  "server-stop": "Остановка…",
-  "server-restart": "Перезапуск…",
+  "server-start-bg": "Start…",
+  "server-start-attached": "Start…",
+  "server-stop": "Stop…",
+  "server-restart": "Restart…",
   "server-update": "Обновление…",
   "install-deps": "Установка…",
   "setup-certs": "Настройка…",

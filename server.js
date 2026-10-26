@@ -23103,6 +23103,8 @@ async function handleApiForAgent(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/ops/bootstrap") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const { buildControlBootstrap } = require("./lib/ops/control-bootstrap");
       const lite = String(url.searchParams.get("lite") || "").trim() === "1";
@@ -23217,6 +23219,8 @@ async function handleApiForAgent(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/ops/env-file") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const gate = await resolveOpsAppLockGate(req);
       const { readProjectEnvFile } = require("./lib/ops/control-env-file");
@@ -23241,6 +23245,8 @@ async function handleApiForAgent(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/ops/env-file") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const denied = await getOpsMaintenanceWriteDeniedResponse(req);
       if (denied) return sendJson(res, denied.status, denied.body);
@@ -23350,6 +23356,8 @@ async function handleApiForAgent(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/ops/server/action") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const denied = await getOpsMaintenanceWriteDeniedResponse(req);
       if (denied) return sendJson(res, denied.status, denied.body);
@@ -32975,6 +32983,8 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/app-lock/status") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const status = await getAppLockStatus();
       const passkeyStatus = await getAppLockPasskeyService().getStatus();
@@ -32989,6 +32999,8 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/app-lock/logout") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       return sendJson(res, 200, { ok: true }, { "Set-Cookie": buildSessionClearCookie(req) });
     } catch (error) {
@@ -33000,6 +33012,8 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/app-lock/login") {
+    const { maybeProxyDockerControlOps } = require("./lib/http/control-ops-proxy");
+    if (maybeProxyDockerControlOps(req, res, url)) return;
     try {
       const payload = await readJsonBody(req, 32_000);
       const login = String(payload?.login || "").trim();
