@@ -391,15 +391,16 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 1) Docker Desktop — установить, запустить (статус Running)
    Compose V2: docker compose version  (отдельный docker-compose на Mac не нужен)
 
-2) Установка репо + CLI:
+2) Установка репо + CLI (нужны git и сеть; Docker на этом шаге ещё не обязателен):
    curl -fsSL https://raw.githubusercontent.com/iv-litovchenko/AgentCMS/main/scripts/install.sh | bash
    PATH: ~/.local/bin  (при необходимости: export PATH="$HOME/.local/bin:$PATH")
+   алиас: agent-cms  (= agent-cms-cli)
 
 3) Docker Running → проверка:
    cd ~/agent-cms
    agent-cms-cli doctor
 
-4) .env в корне репо (сменить changeme):
+4) .env в корне репо — сменить changeme до первого rebuild (шаг 5):
    APP_LOCK_LOGIN / APP_LOCK_PASSWORD
    AGENT_CMS_MCP_TOKEN
    AGENT_CMS_PUBLIC_URL=http://127.0.0.1:3000
@@ -425,11 +426,17 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
    минимум: agent-cms; желательно: agent-cms-rules, agent-cms-response-style
 
 9) Дальше: agent-cms-cli start | stop | restart | update (+ rebuild после update)
-   npm install на хосте для CMS не нужен
+   npm install / npm run build:editor на хосте для CMS не нужен (editor уже в репо)
+
+10) Опционально (Mac, CMS в Docker не зависит от этого):
+    Electron: agent-cms-cli electron-app build  (+ electron-app shortcuts — ярлыки на Desktop)
+    Chrome Companion: browser-extension/ → URL CMS http://127.0.0.1:3000 (без /app-chat)
 
 Порты (localhost, одна дверь :3000):
   Editor: http://127.0.0.1:3000/  ·  Control: …/app-control/  ·  MCP: …/app-mcp
   AGENT_CMS_EDITOR_HTTP_PORT по умолчанию 3000
+
+Подробнее: DOCKER.md · скиллы и MCP — секции ниже в README
 ```
 
 **Ручной путь** (если [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) ещё не используете). **Docker Compose V2** — `docker compose` (с пробелом). **`.env`** уже в репозитории.
