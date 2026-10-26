@@ -100,11 +100,24 @@ export function normalizeWorkspaceScopedArgs(args = {}, fallbackAgent = "") {
   return { ...args, workspaceId, agentId: workspaceId };
 }
 
+/** Unwrap ZodEffects (.refine/.superRefine) to inner ZodObject for MCP inputSchema. */
+export function unwrapToZodObject(schema) {
+  let current = schema;
+  while (current instanceof z.ZodEffects) {
+    current = current._def.schema;
+  }
+  return current instanceof z.ZodObject ? current : null;
+}
+
 export function withAgentIdSchema(schema) {
   const scopeFields = {
     workspaceId: workspaceIdField.optional(),
     agentId: legacyAgentIdField.optional()
   };
+  const inner = unwrapToZodObject(schema);
+  if (inner) {
+    return inner.extend(scopeFields);
+  }
   if (schema instanceof z.ZodObject) {
     return schema.extend(scopeFields);
   }

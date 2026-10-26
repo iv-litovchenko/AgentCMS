@@ -64,35 +64,32 @@ export function registerRecordTools(reg, client) {
     handler: assignHandler
   });
 
-  const slugGenerateSchema = z
-    .object({
-      text: z.string().optional().describe("Display name or arbitrary text"),
-      title: z.string().optional(),
-      displayName: z.string().optional(),
-      name: z.string().optional(),
-      slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
-      preset: z
-        .enum(["topic", "page", "content", "store", "database", "repository", "catalog", "filename"])
-        .optional()
-        .describe("Default topic (page = legacy alias for topic)"),
-      stripExtension: z
-        .boolean()
-        .optional()
-        .describe("For preset=filename: strip any file extension before slugify")
-    })
-    .refine(
-      (value) =>
-        Boolean(
-          String(value.text || "").trim() ||
-            String(value.title || "").trim() ||
-            String(value.displayName || "").trim() ||
-            String(value.name || "").trim() ||
-            String(value.slug || "").trim()
-        ),
-      { message: "Provide text, title, displayName, name, or slug" }
-    );
+  const slugGenerateSchema = z.object({
+    text: z.string().optional().describe("Display name or arbitrary text"),
+    title: z.string().optional(),
+    displayName: z.string().optional(),
+    name: z.string().optional(),
+    slug: z.string().optional().describe("If set, returns sanitized slug (auto: false)"),
+    preset: z
+      .enum(["topic", "page", "content", "store", "database", "repository", "catalog", "filename"])
+      .optional()
+      .describe("Default topic (page = legacy alias for topic)"),
+    stripExtension: z
+      .boolean()
+      .optional()
+      .describe("For preset=filename: strip any file extension before slugify")
+  });
 
   const slugGenerateHandler = (payload) => {
+    const hasInput =
+      String(payload.text || "").trim() ||
+      String(payload.title || "").trim() ||
+      String(payload.displayName || "").trim() ||
+      String(payload.name || "").trim() ||
+      String(payload.slug || "").trim();
+    if (!hasInput) {
+      throw new Error("Provide text, title, displayName, name, or slug");
+    }
     const text = payload.text ?? payload.title ?? payload.displayName ?? payload.name ?? "";
     return client.get(
       "/api/workspace-slug/generate",

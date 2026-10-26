@@ -16,7 +16,7 @@ Memory CMS: замечания после теста MCP
 
 1. ==✅== В корне хранилища нельзя создать или удалить файл через MCP: content_create и delete_content не работают для placement.kind=root. *Закрыто: **`content_create`** + `kind=root` + `path` (вариант B); **`content_delete`** + `path` — было в коде. Канон имён: `content_*`, не legacy `write_content`/`delete_content`.*
 2. ==✅== SVG не записывается через content_write: система считает его бинарным, а не текстом. *`.svg` в WORKSPACE_*_TEXT_EXTENSIONS → **`content_write`**; после deploy — rebuild.*
-3. У topic_create в описании инструмента пустой список параметров, название пришлось угадывать.
+3. ==✅== У topic_create в описании инструмента пустой список параметров, название пришлось угадывать. *`withAgentIdSchema` + `.refine()` → пустой JSON Schema; убрали refine, проверка в handler; то же для topic_update/rename, database_update, record_slug_generate.*
 4. При database_register описание не сохраняется, вместо него встаёт название инфоблока.
 5. В каждом новом инфоблоке сама появляется лишняя «Первая запись».
 6. record_url_get возвращает внутренний адрес Докера http://cms:3000/..., а не публичный maptex.ru.

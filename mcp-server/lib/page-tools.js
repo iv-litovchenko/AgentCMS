@@ -76,16 +76,12 @@ export function registerPageTools({ reg, client, pagePath }) {
     handler: ({ path, template }) => client.put("/api/agent/topic-slots-template", { path, template })
   });
 
-  const updateTopicSchema = z
-    .object({
-      path: pagePath,
-      name: z.string().optional().describe("Maps to awn-name"),
-      description: z.string().optional(),
-      body: z.string().optional().describe("Markdown body below frontmatter")
-    })
-    .refine((value) => value.name !== undefined || value.description !== undefined || value.body !== undefined, {
-      message: "Provide name, description, and/or body"
-    });
+  const updateTopicSchema = z.object({
+    path: pagePath,
+    name: z.string().optional().describe("Maps to awn-name"),
+    description: z.string().optional(),
+    body: z.string().optional().describe("Markdown body below frontmatter")
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topic_update",
@@ -93,7 +89,16 @@ export function registerPageTools({ reg, client, pagePath }) {
     description:
       "Update topic manifest: awn-name, awn-description, and/or body (like channel_update). YAML patch → topic_properties_write; schema → topic_schema_write.",
     schema: updateTopicSchema,
-    handler: (payload) => client.put("/api/agent/topic", payload)
+    handler: (payload) => {
+      if (
+        payload.name === undefined &&
+        payload.description === undefined &&
+        payload.body === undefined
+      ) {
+        throw new Error("Provide name, description, and/or body");
+      }
+      return client.put("/api/agent/topic", payload);
+    }
   });
 
   registerCanonicalWithLegacyAlias(reg, {
@@ -236,24 +241,23 @@ export function registerPageTools({ reg, client, pagePath }) {
     handler: ({ path, content }) => client.post("/api/page/env", { path, content })
   });
 
-  const createTopicSchema = z
-    .object({
-      parentPath: z.string().optional(),
-      type: z
-        .string()
-        .min(1)
-        .describe("folder | area | awn.hub.topic.area | file | topic | awn.hub.topic"),
-      name: z.string().min(1).optional(),
-      displayName: z.string().min(1).optional(),
-      title: z.string().optional(),
-      slug: z.string().optional(),
-      awnType: z.string().optional().describe("Optional awn-type override; usually inferred from type")
-    })
-    .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
-      message: "Provide displayName, title, name, or slug"
-    });
+  const createTopicSchema = z.object({
+    parentPath: z.string().optional().describe("Parent folder, default . (vault topics root)"),
+    type: z
+      .string()
+      .min(1)
+      .describe("folder | area | awn.hub.topic.area | file | topic | awn.hub.topic"),
+    name: z.string().min(1).optional(),
+    displayName: z.string().min(1).optional(),
+    title: z.string().optional(),
+    slug: z.string().optional(),
+    awnType: z.string().optional().describe("Optional awn-type override; usually inferred from type")
+  });
 
   const createTopicHandler = (args) => {
+    if (!args.displayName && !args.title && !args.name && !args.slug) {
+      throw new Error("Provide displayName, title, name, or slug");
+    }
     const payload = normalizeCreatePageArgs(args);
     return client.post("/api/page/create", {
       parentPath: payload.parentPath || ".",
@@ -270,7 +274,9 @@ export function registerPageTools({ reg, client, pagePath }) {
     canonical: "topic_create",
     legacy: "create_topic",
     description:
-      "Create area or topic. type: area → folder+manifest (awn.hub.topic.area); topic → file+manifest (awn.hub.topic). Aliases: folder|area|file|topic or full awn-type id.",
+      "Create area or topic. Required: type; and displayName | title | name | slug. " +
+      "type: area → folder+manifest (awn.hub.topic.area); topic → file+manifest (awn.hub.topic). " +
+      "Aliases: folder|area|file|topic or full awn-type id.",
     schema: createTopicSchema,
     handler: createTopicHandler
   });
@@ -287,29 +293,29 @@ export function registerPageTools({ reg, client, pagePath }) {
     handler: ({ path }) => client.delete("/api/file", { path })
   });
 
-  const renameTopicSchema = z
-    .object({
-      path: pagePath,
-      displayName: z.string().min(1).optional(),
-      slug: z.string().optional(),
-      title: z.string().min(1).optional()
-    })
-    .refine((value) => Boolean(value.displayName || value.title), {
-      message: "displayName or title is required"
-    });
+  const renameTopicSchema = z.object({
+    path: pagePath,
+    displayName: z.string().min(1).optional(),
+    slug: z.string().optional(),
+    title: z.string().min(1).optional()
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "topic_rename",
     legacy: "rename_topic",
-    description: "Rename topic or area. displayName → awn-name; slug → folder/filename on disk.",
+    description: "Rename topic or area. Required: displayName or title. displayName → awn-name; slug → folder/filename on disk.",
     schema: renameTopicSchema,
-    handler: ({ path, displayName, slug, title }) =>
-      client.post("/api/file/title", {
+    handler: ({ path, displayName, slug, title }) => {
+      if (!displayName && !title) {
+        throw new Error("displayName or title is required");
+      }
+      return client.post("/api/file/title", {
         path,
         displayName: displayName || undefined,
         slug: slug || undefined,
         title: title || displayName
-      })
+      });
+    }
   });
 
   registerCanonicalWithLegacyAlias(reg, {

@@ -96,16 +96,12 @@ export function registerDatabaseTools(reg, client) {
     handler: registerDatabaseHandler
   });
 
-  const updateDatabaseSchema = z
-    .object({
-      store: storePath,
-      name: z.string().optional().describe("Maps to awn-name in manifest frontmatter"),
-      description: z.string().optional().describe("Maps to awn-description"),
-      body: z.string().optional().describe("Markdown body below frontmatter")
-    })
-    .refine((value) => value.name !== undefined || value.description !== undefined || value.body !== undefined, {
-      message: "Provide name, description, and/or body"
-    });
+  const updateDatabaseSchema = z.object({
+    store: storePath,
+    name: z.string().optional().describe("Maps to awn-name in manifest frontmatter"),
+    description: z.string().optional().describe("Maps to awn-description"),
+    body: z.string().optional().describe("Markdown body below frontmatter")
+  });
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "database_update",
@@ -113,7 +109,16 @@ export function registerDatabaseTools(reg, client) {
     description:
       "Update database manifest.md: awn-name, awn-description, and/or body (like channel_update). Schema → database_schema_write; arbitrary YAML → database_properties_write.",
     schema: updateDatabaseSchema,
-    handler: (payload) => client.put("/api/awn-databases/stores", payload)
+    handler: (payload) => {
+      if (
+        payload.name === undefined &&
+        payload.description === undefined &&
+        payload.body === undefined
+      ) {
+        throw new Error("Provide name, description, and/or body");
+      }
+      return client.put("/api/awn-databases/stores", payload);
+    }
   });
 
   registerDatabaseTool(reg, {
