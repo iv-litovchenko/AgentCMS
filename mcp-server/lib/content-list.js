@@ -6,7 +6,6 @@ const {
   listQueryToHttpParams,
   DEFAULT_LIST_LIMIT
 } = require("../../lib/content/contents-list-pagination.js");
-const { applyStorageFilesListQuery } = require("../../lib/content/contents-list-storage.js");
 const {
   resolveSlotsListAddress,
   formatPublicPlacement,
@@ -30,42 +29,6 @@ function buildListQuery(args, listMode) {
     query.legacyFull = true;
   }
   return query;
-}
-
-function mediaLikePayloadToStorageShape(data) {
-  const folders = [];
-  for (const manifest of data.sectionManifests || []) {
-    const manifestPath = String(manifest.path || "").replace(/\\/g, "/");
-    if (!manifestPath) continue;
-    const folderKey = manifestPath.replace(/\/manifest\.md$/i, "").replace(/\/$/, "");
-    if (!folderKey) continue;
-    folders.push({
-      path: folderKey,
-      name: folderKey.split("/").pop() || folderKey
-    });
-  }
-  const files = [];
-  const groups = data.groups && typeof data.groups === "object" ? data.groups : {};
-  for (const list of Object.values(groups)) {
-    if (!Array.isArray(list)) continue;
-    for (const item of list) {
-      const itemPath = String(item.path || item.relPath || "").replace(/\\/g, "/");
-      const parentParts = itemPath.split("/").filter(Boolean);
-      parentParts.pop();
-      files.push({
-        relativePath: itemPath,
-        name: item.name || parentParts[parentParts.length - 1] || itemPath,
-        parent: parentParts.length ? parentParts.join("/") : ".",
-        title: item.title || item.name
-      });
-    }
-  }
-  return {
-    exists: data.exists !== false,
-    files,
-    folders,
-    nonMarkdownFiles: []
-  };
 }
 
 function attachPlacement(result, placementOut) {
@@ -129,21 +92,13 @@ async function listContentWithMode(client, args, listMode) {
       folder,
       ...httpParams
     });
-    if (data.items || query.legacyFull || query.listMode === "all") {
-      return attachPlacement(data, placementOut);
-    }
-    const shaped = applyStorageFilesListQuery(mediaLikePayloadToStorageShape(data), query);
-    return attachPlacement(shaped, placementOut);
+    return attachPlacement(data, placementOut);
   }
 
   if (kind === "media") {
     const data = await client.get("/api/media", { path: manifestPath, folder, ...httpParams });
     const { content, ...lean } = data || {};
-    if (lean.items || query.legacyFull || query.listMode === "all") {
-      return attachPlacement(lean, placementOut);
-    }
-    const shaped = applyStorageFilesListQuery(mediaLikePayloadToStorageShape(lean), query);
-    return attachPlacement(shaped, placementOut);
+    return attachPlacement(lean, placementOut);
   }
 
   if (kind === "channel") {

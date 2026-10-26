@@ -143,7 +143,24 @@ export function registerContentTools({ reg, client, pagePath }) {
       limit: z.number().int().min(1).max(100).optional().describe("Page size (default 20)"),
       offset: z.number().int().min(0).optional().describe("Pagination offset"),
       cursor: z.string().optional().describe("From previous response nextCursor"),
-      q: z.string().optional().describe("Filter by substring in title/id/ref")
+      q: z.string().optional().describe("Filter by substring in title/id/ref"),
+      sort: z
+        .enum(["manual", "name", "updated"])
+        .optional()
+        .describe("manual = sort.json / sectionSortOrders; name; updated = updatedAt desc"),
+      ext: z
+        .string()
+        .optional()
+        .describe("Extension filter: png, md or .png,.jpg"),
+      status: z.string().optional().describe("Filter by awn-status (topic/slot md, database records)"),
+      tags: z
+        .string()
+        .optional()
+        .describe("Tag filter (comma-separated; any match)"),
+      entryType: z
+        .enum(["all", "md", "file", "binary", "csv"])
+        .optional()
+        .describe("entries filter: md | binary/non-md | csv | all (default all)")
     })
     .strict();
 

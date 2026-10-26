@@ -451,10 +451,13 @@ const {
   parseListQueryFromSearchParams,
   shouldApplyContentsListQuery
 } = require("./lib/content/contents-list-pagination.js");
-const { applyDatabaseRecordsListQuery } = require("./lib/content/contents-list-records.js");
 const {
-  applyStorageFilesListQuery,
-  attachEntryBodySnippets
+  applyDatabaseRecordsListQuery,
+  attachDatabaseRecordSnippets
+} = require("./lib/content/contents-list-records.js");
+const {
+  applyListQueryWithPreview,
+  mediaLikePayloadToStorageShape
 } = require("./lib/content/contents-list-storage.js");
 const { applyWorkspaceRootListQuery } = require("./lib/content/contents-list-root.js");
 const { loadPlatformUiRotators } = require("./lib/platform/platform-ui-rotators");
@@ -24501,15 +24504,26 @@ async function handleApiForAgent(req, res, url) {
       }
       const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
 
-      return sendJson(res, 200, {
+      const rawPayload = {
         exists: true,
         files,
         groups,
+        items,
         sectionManifests,
         sectionSortOrders,
         path: manifestRel,
         folder: folderName
-      });
+      };
+      const listQuery = parseListQueryFromSearchParams(url.searchParams);
+      if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
+        const shaped = await applyListQueryWithPreview(
+          mediaLikePayloadToStorageShape(rawPayload),
+          folderAbsolute,
+          listQuery
+        );
+        return sendJson(res, 200, { ...shaped, path: manifestRel, folder: folderName });
+      }
+      return sendJson(res, 200, rawPayload);
     } catch (error) {
       if (error && error.code === "ENOENT") {
         return sendJson(res, 200, { exists: false, files: 0, groups: {}, path: manifestRel, folder: folderName });
@@ -28173,7 +28187,17 @@ async function handleApiForAgent(req, res, url) {
       const listQuery = parseListQueryFromSearchParams(url.searchParams);
       const payload = listAwnDataRecordsPayload(agentRoot, getProjectRoot(), storeRel);
       if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
-        return sendJson(res, 200, applyDatabaseRecordsListQuery(payload, listQuery));
+        let shaped = applyDatabaseRecordsListQuery(payload, listQuery);
+        if (listQuery.includeBody && Array.isArray(shaped.items)) {
+          shaped.items = await attachDatabaseRecordSnippets(
+            shaped.items,
+            agentRoot,
+            getProjectRoot(),
+            storeRel,
+            listQuery.maxBodyChars
+          );
+        }
+        return sendJson(res, 200, shaped);
       }
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -29302,14 +29326,7 @@ async function handleApiForAgent(req, res, url) {
       };
       const listQuery = parseListQueryFromSearchParams(url.searchParams);
       if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
-        let shaped = applyStorageFilesListQuery(rawPayload, listQuery);
-        if (listQuery.includeBody && Array.isArray(shaped.items)) {
-          shaped.items = await attachEntryBodySnippets(
-            shaped.items,
-            folderAbsolute,
-            listQuery.maxBodyChars
-          );
-        }
+        const shaped = await applyListQueryWithPreview(rawPayload, folderAbsolute, listQuery);
         return sendJson(res, 200, shaped);
       }
       return sendJson(res, 200, rawPayload);
@@ -30529,14 +30546,25 @@ async function handleApiForAgent(req, res, url) {
       }
       const sectionSortOrders = await collectMemorySectionSortOrders(folderAbsolute, sectionRelPaths);
 
-      return sendJson(res, 200, {
+      const rawPayload = {
         exists: true,
         files,
         content,
         groups,
+        items,
         sectionManifests,
         sectionSortOrders
-      });
+      };
+      const listQuery = parseListQueryFromSearchParams(url.searchParams);
+      if (shouldApplyContentsListQuery(listQuery, url.searchParams)) {
+        const shaped = await applyListQueryWithPreview(
+          mediaLikePayloadToStorageShape(rawPayload),
+          folderAbsolute,
+          listQuery
+        );
+        return sendJson(res, 200, shaped);
+      }
+      return sendJson(res, 200, rawPayload);
     } catch (error) {
       if (error && error.code === "ENOENT") {
         return sendJson(res, 200, { exists: false, files: 0, content: "", groups: {} });

@@ -50,15 +50,10 @@ Memory CMS: замечания после теста MCP
 
 Общий **`placement`**: `root` + path/depth **или** hub + slot. Полный список без порций → **`contents_list_full`**. HTTP: `listMode`, `limit`, `offset`, `cursor`, `parent`, `maxDepth`, `q` (UI без params — старый полный JSON).
 
-**Ещё в плане (не всё в v1):**
+**v1.1 (в коде):** фильтры `q`, `ext`, `status`, `tags`, `entryType` (md|file|binary|csv); сортировка `sort=manual|name|updated` (`sort.json` / `sectionSortOrders`); preview snippets — storage, **media**, **channel**, **database** records (`includeBody` / `contents_list_preview`).
 
-Помимо страниц (`limit` / `offset` / `cursor`), глубины (`parent`, `maxDepth` в tree) и **только разделов** (`contents_list_sections`):
+**Ещё в плане:**
 
-- **Фильтры:** `q` (поиск по title), `ext` / тип файла, статус, теги — узкий list без полного search.
-- **Сортировка:** как в UI (`sort.json`), по дате, по имени.
-- **Что именно в entries:** только `.md`, только бинарники слота, CSV-строки vs csv-файлы.
-- **`contents_list_preview`:** короткий snippet тела, не полный read.
-- **`contents_list_tree`:** обзор ветки на несколько уровней одним вызовом.
-- **Дефолты workspace:** размер страницы, max depth, разрешён ли preview/body.
-- **Ответ:** `total`, `hasMore`, `nextCursor` — чтобы не гадать, есть ли следующая страница.
-- **Не list, но рядом:** полный текст → **`content_read`**; оглавление hub → **`nav_index_toc_*`**; карта → **`session_context_get`**.
+- **Дефолты workspace:** listDefaultLimit, maxDepth, preview allowed (`AGENT_CMS_*` или frontmatter).
+- **Стабильный cursor** (sort key + id).
+- **Slim `database_get`** по умолчанию.
