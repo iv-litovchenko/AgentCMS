@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { registerCanonicalWithLegacyAlias } from "./register-tool-alias.js";
 
+/** Matches lib/agents/agent-registry DEFAULT_CONTAINER_FOLDER */
+const DEFAULT_TOPIC_PARENT_PATH = "awn-topics";
+
+function resolveTopicCreateParentPath(raw) {
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  return trimmed && trimmed !== "." ? trimmed : DEFAULT_TOPIC_PARENT_PATH;
+}
+
 /** folder|area|awn.hub.topic.area → folder; file|topic|awn.hub.topic* → file + awnType */
 export function normalizeCreatePageArgs(input = {}) {
   const explicitAwn = input.awnType ? String(input.awnType).trim() : "";
@@ -242,7 +250,10 @@ export function registerPageTools({ reg, client, pagePath }) {
   });
 
   const createTopicSchema = z.object({
-    parentPath: z.string().optional().describe("Parent folder, default . (vault topics root)"),
+    parentPath: z
+      .string()
+      .optional()
+      .describe(`Parent folder under workspace; default ${DEFAULT_TOPIC_PARENT_PATH}/`),
     type: z
       .string()
       .min(1)
@@ -260,7 +271,7 @@ export function registerPageTools({ reg, client, pagePath }) {
     }
     const payload = normalizeCreatePageArgs(args);
     return client.post("/api/page/create", {
-      parentPath: payload.parentPath || ".",
+      parentPath: resolveTopicCreateParentPath(payload.parentPath),
       type: payload.type,
       name: payload.name,
       displayName: payload.displayName,

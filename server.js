@@ -18564,6 +18564,20 @@ async function resolveGitRepoCreateParentPath(parentPathResolved) {
   return parentPathResolved;
 }
 
+async function resolveDefaultContainerTopicCreateParentPath(parentPathResolved, type) {
+  const normalized = String(parentPathResolved || ".").replace(/\\/g, "/").trim() || ".";
+  if (normalized !== ".") return parentPathResolved;
+  if (type !== "folder" && type !== "file") return parentPathResolved;
+
+  const containerFolder = getAgentContainerFolder();
+  if (!containerFolder) return parentPathResolved;
+
+  const containerAbsolute = await resolveAgentSubfolderAbsolute(getAgentRoot(), containerFolder);
+  if (!containerAbsolute) return parentPathResolved;
+
+  return containerFolder;
+}
+
 function isGitRepoRootServiceLooseFile(name) {
   const base = String(name || "");
   if (!base || base === MENU_SORT_FILE || isReadStateServiceFileName(base) || isAreaManifestFileName(base)) {
@@ -32612,6 +32626,7 @@ async function handleApiForAgent(req, res, url) {
 
       if (type === "folder" || type === "file" || type === "manifest" || type === "topic-manifest" || type === "free-memory-folder") {
         parentPathResolved = await resolveGitRepoCreateParentPath(parentPathResolved);
+        parentPathResolved = await resolveDefaultContainerTopicCreateParentPath(parentPathResolved, type);
       }
 
       if (type === "file" && (parentPathResolved === "." || !parentPathResolved)) {
