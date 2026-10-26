@@ -8302,7 +8302,7 @@ async function createStorageRecordFile({
 
   if ((await readTopicSlotsFlexible(manifestRelPath)) && !isMainSlot) {
     throw new Error(
-      'Topic uses awn-slots-flexible: external content only via slot "main" or "memory" (disk folder awn-storage/main/).'
+      'Topic uses awn-slots-template flexible: external content only via placement.slot "flexible" (whole awn-storage/).'
     );
   }
 
@@ -14897,12 +14897,20 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   const slotsFlexible = await readTopicSlotsFlexible(canonicalRelPath);
   const slotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, awnType);
   const slotsPayload = getPageSlotsPayload(projectRoot, agentRoot, slotKeys);
-  const filterSlot = options.slot ? normalizeStorageSlotKey(options.slot) : "";
+  const { isFlexibleTopicPlacementSlot, listAllowedFlexibleTopicPlacementSlots } = require("./lib/config/flexible-topic-placement");
+  const filterSlotRaw = options.slot ? String(options.slot).trim() : "";
+  let filterSlot = filterSlotRaw ? normalizeStorageSlotKey(filterSlotRaw) : "";
+  if (slotsFlexible && filterSlotRaw && isFlexibleTopicPlacementSlot(filterSlotRaw)) {
+    filterSlot = "memory";
+  }
   const slotsToScan = filterSlot
     ? slotsPayload.slots.filter((row) => row.slot === filterSlot)
     : slotsPayload.slots;
 
   if (filterSlot && !slotsToScan.length) {
+    if (slotsFlexible && filterSlotRaw && isFlexibleTopicPlacementSlot(filterSlotRaw)) {
+      // mapped to memory above; if still empty, fall through to not found
+    }
     return { error: `Slot "${options.slot}" not found on page`, status: 404 };
   }
 
@@ -14910,7 +14918,10 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
     const filtered = slotsToScan[0];
     if (filtered?.driver === "external" && filtered.slot !== "memory") {
       return {
-        error: 'Topic uses awn-slots-flexible: external content only via slot "main".',
+        error:
+          'Topic uses awn-slots-template flexible: list/read awn-storage/ with placement.slot "flexible" only.',
+        allowedSlots: listAllowedFlexibleTopicPlacementSlots(slotKeys),
+        slotsTemplate: "flexible",
         status: 400
       };
     }
@@ -14941,12 +14952,12 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
       if (slotKey !== "memory") continue;
       const items = await buildLiteTopicContainerMapItems(canonicalRelPath);
       slots.push({
-        slot: slotKey,
+        slot: "flexible",
         driver,
         items,
         itemCount: items.length,
         flexible: true,
-        hint: "Flexible slot (awn-slots-flexible): path-based FS in awn-storage/"
+        hint: 'Flexible template: placement.slot "flexible" — path-based FS in awn-storage/'
       });
       continue;
     }
@@ -21512,10 +21523,15 @@ async function enforceContentSlotPolicy(res, manifestRel, slotKey) {
       agentRoot: getAgentRoot(),
       manifestRelPath: manifestRel,
       slotKey,
-      getAwnType: readManifestAwnTypeId
+      getAwnType: readManifestAwnTypeId,
+      getTopicSlotsFlexible: readTopicSlotsFlexible
     });
     if (!verdict.ok) {
-      sendJson(res, 403, { error: verdict.error });
+      sendJson(res, 403, {
+        error: verdict.error,
+        ...(Array.isArray(verdict.allowedSlots) ? { allowedSlots: verdict.allowedSlots } : {}),
+        ...(verdict.slotsTemplate ? { slotsTemplate: verdict.slotsTemplate } : {})
+      });
       return false;
     }
     return true;
@@ -21577,7 +21593,8 @@ function getExistsApi() {
         path.relative(getAgentRoot(), absolute).replace(/\\/g, "/"),
       projectRoot: getProjectRoot,
       agentRoot: getAgentRoot,
-      readManifestAwnType: readManifestAwnTypeId
+      readManifestAwnType: readManifestAwnTypeId,
+      getTopicSlotsFlexible: readTopicSlotsFlexible
     });
   }
   return existsApi;
@@ -31916,6 +31933,7 @@ async function handleApiForAgent(req, res, url) {
         getProjectRoot,
         getAgentRoot,
         readManifestAwnTypeId,
+        getTopicSlotsFlexible: readTopicSlotsFlexible,
         slotKeyFromStorageFolder
       });
       return sendJson(res, 200, data);

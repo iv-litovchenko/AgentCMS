@@ -10,7 +10,7 @@ export function buildContentSlotSchema(listSectionCapableSlotKeys) {
     .min(1)
     .describe(
       `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, data (database), repository, main-single, main-single-csv, todo-single, atlas (disk atlas/; aliases roadmap-single, roadmap), inbox, outbox, files, assets. ` +
-        "Primary memory: slot main|memory|external → disk awn-storage/main/ (API slotKey memory). main-single* = internal bundle in same main/ folder, no ref. Hub slots differ (channel: inbox|task-queue|outbox|files|assets; database: data|assets)."
+        'Topics flexible: slot "flexible". Repository clone (not awn-storage): kind=repository, slot "root". Repository hub storage: files|assets. Standard topics: main|memory → awn-storage/main/. Wrong slot → 403 + allowedSlots. main-single* = internal bundle, no ref. Channel/database slots differ.'
     );
 }
 

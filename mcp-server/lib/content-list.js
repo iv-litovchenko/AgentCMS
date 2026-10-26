@@ -17,6 +17,11 @@ const {
   slotKeyToStorageFolder,
   isStoragePageLikeKind
 } = require("../../lib/config/storage-slot-routing.js");
+const { resolveRootListFolderPath } = require("../../lib/content/root-list-folder-path.js");
+const {
+  isRepositoryCloneRootSlot,
+  repositoryFolderRelFromManifest
+} = require("../../lib/config/repository-clone-placement.js");
 
 function buildListQuery(args, listMode) {
   const query = parseListQueryFromArgs(args);
@@ -50,13 +55,8 @@ async function listContentWithMode(client, args, listMode) {
   const rootList =
     args.placement?.kind === "root" || (!args.placement && args.path != null && !args.slot);
   if (rootList) {
-    const rawPath = String(args.placement?.path ?? args.path ?? ".")
-      .replace(/\\/g, "/")
-      .replace(/^\/+/, "")
-      .trim();
-    const slash = rawPath.lastIndexOf("/");
-    const folder =
-      !rawPath || rawPath === "." ? "." : slash === -1 ? rawPath : rawPath.slice(0, slash);
+    const rawPath = String(args.placement?.path ?? args.path ?? ".").trim();
+    const folder = resolveRootListFolderPath(rawPath);
     const depth = args.depth != null ? String(args.depth) : "1";
     const data = await client.get("/api/workspace/fs/list", {
       path: folder,
@@ -68,7 +68,9 @@ async function listContentWithMode(client, args, listMode) {
     return attachPlacement(
       {
         ...data,
-        hint: data.hint || "Directory listing; content_read kind=root for file body."
+        hint:
+          data.hint ||
+          "Directory listing (kind=root). File body: content_read { kind: root, path: \"<file>\" }. awn-repositories: list clone with path = repo folder (e.g. awn-repositories/my-repo)."
       },
       { kind: "root", path: folder }
     );
@@ -81,13 +83,38 @@ async function listContentWithMode(client, args, listMode) {
       })
     : resolveSlotsListAddress({ path: args.path });
   const { manifestPath, kind } = listAddr;
+  const placementOut = formatPublicPlacement(kind, manifestPath, slot);
+
+  if (kind === "repository" && isRepositoryCloneRootSlot(slot)) {
+    const folder = repositoryFolderRelFromManifest(manifestPath);
+    const parent = String(args.parent || "")
+      .trim()
+      .replace(/^\/+/, "");
+    const listPath = resolveRootListFolderPath(parent ? `${folder}/${parent}` : folder);
+    const depth = args.depth != null ? String(args.depth) : "1";
+    const data = await client.get("/api/workspace/fs/list", {
+      path: listPath,
+      depth,
+      ...httpParams,
+      ...(args.includeBody ? { includeBody: "true" } : {}),
+      ...(args.maxBodyChars != null ? { maxBodyChars: String(args.maxBodyChars) } : {})
+    });
+    return attachPlacement(
+      {
+        ...data,
+        hint:
+          data.hint ||
+          "Repository clone tree (slot root). File: content_read { kind: repository, slot: root, ref }. Hub storage: slot files|assets."
+      },
+      placementOut
+    );
+  }
+
   const folder = isStoragePageLikeKind(kind)
     ? slotKeyToStorageFolder(slot)
     : ["files", "assets"].includes(slot)
       ? slot
       : slotKeyToStorageFolder(slot);
-  const placementOut = formatPublicPlacement(kind, manifestPath, slot);
-
   if (kind === "database" && slot === "data") {
     const store = logicalPathFromManifest("database", manifestPath);
     const data = await client.get("/api/awn-databases/records", { store, ...httpParams });

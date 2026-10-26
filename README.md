@@ -964,8 +964,9 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 32
+├── 📄 Контент (Content) · 33
 │   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
+│   ├── 🟢 contents_outside_slots_list — «вне слотов» (корень контейнера + awn-storage/, без slot)
 │   ├── 🟢 contents_count — число файлов в слоте (те же placement/filters, без списка)
 │   ├── 🟢 contents_list_sections — только разделы (sections)
 │   ├── 🟢 contents_list_tree — скелет дерева (maxDepth)

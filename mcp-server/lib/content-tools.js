@@ -33,6 +33,7 @@ import {
   getWorkspaceUrlPagePreview,
   withMdRefFallback
 } from "./content-core.js";
+import { listOutsideSlotsContent } from "./content-outside-slots-list.js";
 import {
   beginContentBinaryUpload,
   chunkContentBinaryUpload,
@@ -137,7 +138,9 @@ export function registerContentTools({ reg, client, pagePath }) {
           path: z
             .string()
             .optional()
-            .describe("Required for slots; for kind=root — folder path or \".\" (default vault root)"),
+            .describe(
+              "Slots: container path. kind=root: **folder** path (e.g. awn-repositories/my-repo, awn-topics/foo) — not slot; file paths with extension list parent dir"
+            ),
           slot: z.string().min(1).optional()
         })
         .strict()
@@ -205,6 +208,25 @@ export function registerContentTools({ reg, client, pagePath }) {
       "Optional parent, q, ext, status, tags, entryType. Response: total, placement. List rows: contents_list.",
     contentsCountSchema,
     (args) => countContentEntries(client, args)
+  );
+
+  const contentsOutsideSlotsSchema = z
+    .object({
+      placement: z
+        .object({
+          kind: placementKindSchema.exclude(["root"]),
+          path: z.string().min(1).describe("Container slug or path (topic folder, channel slug, database store, …)")
+        })
+        .strict()
+    })
+    .strict();
+
+  reg(
+    "contents_outside_slots_list",
+    "List files/folders **outside declared slots** (UI «вне слотов»): container root + awn-storage/ not mapped to slot model. " +
+      "Same containers as contents_list but **no slot**. Not for kind=root. Topic flexible template: often empty; normal files → placement.slot flexible + contents_list.",
+    contentsOutsideSlotsSchema,
+    (args) => listOutsideSlotsContent(client, args)
   );
 
   const contentHistoryAddressSchema = address({

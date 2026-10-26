@@ -20,7 +20,7 @@ export function registerRepositoryTools(reg, client) {
     canonical: "repository_get",
     legacy: "get_repository",
     description:
-      "One repository card: manifest frontmatter + body from awn-repositories/{slug}/manifest.md (slug = repo folder or group/repo).",
+      "Repository manifest card (awn-repositories/{slug}/manifest.md). contentAccess: clone tree — contents_list/content_read with kind=repository, slot=root (+ ref); awn-storage — slot files|assets.",
     schema: z.object({
       path: workspaceRelPath
     }),

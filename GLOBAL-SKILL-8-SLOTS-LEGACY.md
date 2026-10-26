@@ -59,6 +59,6 @@ description: Agent CMS — legacy-имена слотов, папок и placeme
 
 - **`repository` в теме** — мелкий код в слоте темы; hub **`awn-repositories`** — отдельная сущность.
 - **`discussion` / `comments`** — через comment-tools, не обычный `content_create`.
-- **`awn-slots-flexible`** — только `main` / `memory` → `awn-storage/main/`.
+- **`awn-slots-template: flexible`** — MCP `placement.slot: "flexible"` (вся `awn-storage/`, кроме assets/history/comments). Неверный slot → **403** + **`allowedSlots`**. `main`/`memory` — алиасы (legacy).
 
-Перед записью: **`contents_slots_list`** для выбранного `placement.kind` и path.
+Перед записью: **`contents_slots_list`** для выбранного `placement.kind` и path. **«Вне слотов»** (красные таблицы UI): **`contents_outside_slots_list`** — только `placement` (без slot).

@@ -226,7 +226,7 @@ Workspace — папка с md-файлами. Хабы:
 Свои проекты, форки, клоны: `awn-repositories/{slug}/` (или `{group}/{slug}/`) + `manifest.md`.
 
 - Tools: `repositories_list` (папки без карточки — в `unregistered`), `repository_get({ path })`, `repository_register({ slug, name?, description?, origin?, body? })`, `repository_update({ path, … })`, `repository_rename`, `repository_delete`. Legacy: `list_repositories`, `get_repository`, …
-- **Код не индексируется** — в поиске только `manifest.md`, `index.md`, `groups.yml`. Код читай по явному пути: `contents_list` (`kind: root`) + `content_read` (`kind: root`), правь `content_write` с `mode: patch`.
+- **Код не индексируется** — в поиске только `manifest.md`, `index.md`, `groups.yml`. **Клон:** `contents_list` / `content_read` — **`kind: repository`**, **`slot: root`**, `path: "{slug}"`, `depth` / `ref` (не `awn-storage/`). Карточка: `repository_get` → **`contentAccess`**. Hub-вложения: **`slot: files|assets`**. Legacy: `kind: root` + полный `folderPath`. Правки: `content_write`, `mode: patch`.
 - **Карточка** — зачем репозиторий, что смотреть, связь с темой. `status`: `active` · `study` · `archived` · `vendored`. `group` — группа в сайдбаре, не папка.
 - Папка в `unregistered` → `repository_register` с тем же `slug`.
 - Git хранилища — раздел 17; клонов он не касается.

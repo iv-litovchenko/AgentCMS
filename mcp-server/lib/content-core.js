@@ -25,6 +25,7 @@ const {
   listSectionCapableSlotKeys,
   normalizeStorageSlotKey
 } = require("../../lib/config/storage-slot-routing.js");
+const { isRepositoryCloneRootSlot } = require("../../lib/config/repository-clone-placement.js");
 const { assertMcpBinaryBase64UploadWithinLimit } = require("../../lib/media/base64-upload.js");
 
 export function absolutizeCmsUrl(client, urlPath) {
@@ -210,14 +211,31 @@ async function readRootMarkdownText(client, args, workspaceFilePath) {
   return { payload, text };
 }
 
+function usesWorkspaceFsContentPath(address) {
+  if (address.kind === "root") return Boolean(address.workspaceFilePath);
+  return (
+    address.kind === "repository" &&
+    isRepositoryCloneRootSlot(address.slot) &&
+    Boolean(address.workspaceFilePath)
+  );
+}
+
 export async function contentExists(client, args) {
   const address = resolveArgs(args);
-  if (address.kind === "root") {
+  if (usesWorkspaceFsContentPath(address)) {
     try {
       await client.get("/api/workspace/fs/read", { path: address.workspaceFilePath, maxBytes: "1" });
-      return { placement: address.placement, exists: true, driver: "root" };
+      return {
+        placement: address.placement,
+        exists: true,
+        driver: address.kind === "repository" ? "repository-clone" : "root"
+      };
     } catch {
-      return { placement: address.placement, exists: false, driver: "root" };
+      return {
+        placement: address.placement,
+        exists: false,
+        driver: address.kind === "repository" ? "repository-clone" : "root"
+      };
     }
   }
   const { manifestPath, slot, ref } = address;
@@ -258,10 +276,9 @@ export async function readContentAll(client, args) {
     result.bodyError = String(error.message || error);
   }
 
-  const canReadProperties =
-    address.kind === "root"
-      ? String(address.workspaceFilePath || "").toLowerCase().endsWith(".md")
-      : Boolean(address.ref) || isInternalBundleSlot(address.slot);
+  const canReadProperties = usesWorkspaceFsContentPath(address)
+    ? String(address.workspaceFilePath || "").toLowerCase().endsWith(".md")
+    : Boolean(address.ref) || isInternalBundleSlot(address.slot);
 
   if (canReadProperties) {
     try {
@@ -291,11 +308,11 @@ export async function readContentAll(client, args) {
 
 export async function getContentMeta(client, args) {
   const address = resolveArgs(args);
-  if (address.kind === "root") {
+  if (usesWorkspaceFsContentPath(address)) {
     const payload = await readRootWorkspaceFile(client, { maxBytes: 1 }, address.workspaceFilePath);
     return {
       placement: address.placement,
-      driver: "root",
+      driver: address.kind === "repository" ? "repository-clone" : "root",
       exists: true,
       file: payload
     };
