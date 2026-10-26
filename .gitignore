@@ -67,6 +67,9 @@ workspaces/0-cli-sandbox/*
 public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].built.js
 public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].built.js.map
 
+# CLI workspace archives (agent-cms-cli backup)
+.backups/
+
 # Cache & temp
 .cache/
 # Workspace runtime

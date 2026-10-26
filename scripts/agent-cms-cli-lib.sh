@@ -186,6 +186,14 @@ agent_cms_log_services() {
 }
 
 # Одноразовый снимок логов (без -f) — для копирования в чат / агенту.
+agent_cms_cmd_workspaces_backup() {
+  bash "$AGENT_CMS_HOME/scripts/agent-cms-workspaces-backup.sh" backup "$@"
+}
+
+agent_cms_cmd_workspaces_restore() {
+  bash "$AGENT_CMS_HOME/scripts/agent-cms-workspaces-backup.sh" restore "$@"
+}
+
 agent_cms_logs_snap() {
   local tail_n="${1:-200}"
   local svc
