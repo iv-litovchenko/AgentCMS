@@ -31906,9 +31906,24 @@ async function handleApiForAgent(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/workspace/binary-upload/begin") {
-    const { beginBinaryUpload } = require("./lib/workspace/binary-upload-handlers");
+    const { beginBinaryUpload, importBinaryUploadFromUrl } = require("./lib/workspace/binary-upload-handlers");
     try {
       const payload = await readJsonBody(req, 256_000);
+      const sourceUrl = String(payload.sourceUrl || payload.url || "").trim();
+      if (sourceUrl) {
+        const data = await importBinaryUploadFromUrl(payload, {
+          uploadWorkspaceFsFile,
+          persistMediaUploadBuffer,
+          resolveApiStorageContext,
+          validateContentSlotAccess,
+          getProjectRoot,
+          getAgentRoot,
+          readManifestAwnTypeId,
+          getTopicSlotsFlexible: readTopicSlotsFlexible,
+          slotKeyFromStorageFolder
+        });
+        return sendJson(res, 200, data);
+      }
       const data = await beginBinaryUpload(req, payload);
       return sendJson(res, 200, data);
     } catch (error) {

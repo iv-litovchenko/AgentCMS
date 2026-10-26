@@ -427,9 +427,19 @@ export function registerContentTools({ reg, client, pagePath }) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_binary_upload_begin",
     description:
-      "Start a large binary upload. Returns uploadId + putUrl (local PUT) or use content_binary_upload_chunk (base64, ≤48KiB/chunk) when PUT to public URL fails (e.g. claude.ai). Then content_binary_upload_complete. Same placement as content_binary_write.",
+      "Large binary upload. A) sourceUrl — CMS downloads http(s) URL into placement (done in one call, P2). B) sizeBytes + uploadId/putUrl (local PUT). C) sizeBytes + content_binary_upload_chunk → complete (cloud). Same placement as content_binary_write.",
     schema: address({
-      sizeBytes: z.number().int().min(1).describe("Exact file size in bytes (required for PUT)"),
+      sourceUrl: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Public http(s) URL — server fetches into placement; skip PUT/chunk/complete"),
+      sizeBytes: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe("Exact file size (required for PUT/chunk flow; omit when sourceUrl is set)"),
       mimeType: z.string().optional(),
       createSubdir: z.boolean().optional().describe("Create subdirs in ref (default true)")
     }),
@@ -638,8 +648,8 @@ export function registerContentTools({ reg, client, pagePath }) {
   });
   const writeContentBinaryFromUrlHandler = (args) => writeContentBinaryFromUrl(client, args);
   const writeContentBinaryFromUrlDescription =
-    "Download http(s) URL into a binary file by placement (same slots as content_binary_write). " +
-    "Requires placement.ref or fileName; not for .md text.";
+    "Download http(s) URL into placement (same slots as content_binary_write). " +
+    "Alternative: content_binary_upload_begin with sourceUrl. Requires placement.ref or fileName; not for .md text.";
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_binary_write_from_url",

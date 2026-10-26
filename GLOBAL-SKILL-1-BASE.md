@@ -173,7 +173,7 @@ Workspace — папка с md-файлами. Хабы:
 | Прочитать байты / превью в чат | `content_binary_read` (base64; для больших — `maxBytes`) |
 | Мелкая запись (≤ ~1 MiB) | `content_binary_write` (base64; жёсткий лимит MCP, см. `AGENT_CMS_MCP_BASE64_MAX_BYTES`) |
 | Файл уже по HTTP(S) URL | `content_binary_write_from_url` |
-| **Большой файл** | `content_binary_upload_begin` → **PUT** `putUrl` (Mac/local) **или** `content_binary_upload_chunk` (base64, ~48 KiB/вызов, облако) → `content_binary_upload_complete` |
+| **Большой файл** | `upload_begin` + **`sourceUrl`** (CMS сама качает) **или** PUT `putUrl` (Mac) **или** `upload_chunk` → `complete` (облако) |
 | Отмена / прогресс загрузки | `content_binary_upload_abort` / `content_binary_upload_status` |
 | Ссылка на просмотр | `record_binary_url_get` |
 | Размер и mime без чтения | `content_binary_metadata_get` |

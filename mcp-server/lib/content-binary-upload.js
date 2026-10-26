@@ -5,28 +5,35 @@ const require = createRequire(import.meta.url);
 const { resolveContentAddress } = require("../../lib/config/content-placement.js");
 
 function pickPlacementPayload(args) {
+  const sourceUrl = args.sourceUrl != null ? String(args.sourceUrl).trim() : "";
+  const base = {
+    sizeBytes: args.sizeBytes,
+    mimeType: args.mimeType,
+    createSubdir: args.createSubdir,
+    ...(sourceUrl ? { sourceUrl } : {})
+  };
   if (args.placement) {
     return {
       placement: args.placement,
-      sizeBytes: args.sizeBytes,
-      mimeType: args.mimeType,
-      createSubdir: args.createSubdir
+      ...base
     };
   }
   return {
     path: args.path,
     slot: args.slot,
     ref: args.ref,
-    sizeBytes: args.sizeBytes,
-    mimeType: args.mimeType,
-    createSubdir: args.createSubdir
+    ...base
   };
 }
 
 export async function beginContentBinaryUpload(client, args) {
+  const sourceUrl = String(args.sourceUrl || "").trim();
+  if (sourceUrl) {
+    return client.post("/api/workspace/binary-upload/begin", pickPlacementPayload(args));
+  }
   const sizeBytes = Number(args.sizeBytes);
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    throw new Error("sizeBytes must be a positive number");
+    throw new Error("sizeBytes must be a positive number (omit when sourceUrl is set)");
   }
   return client.post("/api/workspace/binary-upload/begin", pickPlacementPayload(args));
 }

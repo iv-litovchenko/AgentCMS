@@ -67,7 +67,8 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 | ✅ | P1: `POST /api/workspace/binary-upload/chunk` + `content_binary_upload_chunk` | handlers, server, MCP |
 | ✅ | Подсказки в begin (chunkUrl) + base64 413 message | `binary-upload-handlers`, `base64-upload.js` |
 | ✅ | GLOBAL-SKILL § бинарь — chunk flow | `GLOBAL-SKILL-1-BASE.md` |
-| ⏳ | P2: server pull URL без публичного файла (если продуктово нужно) | |
+| ✅ | P2: `upload_begin` + `sourceUrl` — CMS качает URL в placement (SSRF via media-import) | handlers, server, MCP begin |
+| ⏳ | P2: prod smoke begin/chunk/sourceUrl | |
 
 ---
 
