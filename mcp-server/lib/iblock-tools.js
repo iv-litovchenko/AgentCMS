@@ -52,8 +52,10 @@ export function registerDatabaseTools(reg, client) {
       .optional()
       .transform((value) => (value === "singleton" ? "single" : value)),
     slug: z.string().min(1).describe("Folder slug under awn-databases/, e.g. taxonomies/tags"),
-    name: z.string().optional(),
-    description: z.string().optional(),
+    name: z.string().optional().describe("Display name (awn-name); alias: displayName, title"),
+    displayName: z.string().optional().describe("Same as name"),
+    title: z.string().optional().describe("Same as name"),
+    description: z.string().optional().describe("awn-description + manifest body (not duplicated as name)"),
     collectionType: z
       .enum(["md", "md-lite", "csv", "csv-files", "files"])
       .optional()
@@ -63,7 +65,10 @@ export function registerDatabaseTools(reg, client) {
     recordHierarchy: z.boolean().optional(),
     recordFileTypes: z.string().optional(),
     hierarchy: z.boolean().optional().describe("Alias for recordHierarchy"),
-    withSampleRecord: z.boolean().optional(),
+    withSampleRecord: z
+      .boolean()
+      .optional()
+      .describe("If true, create demo record «Первая запись» in data/ (default: false)"),
     indexExclude: z.boolean().optional(),
     indexExcludeRecord: z.boolean().optional(),
     indexExcludeSubtree: z.boolean().optional()
@@ -71,6 +76,8 @@ export function registerDatabaseTools(reg, client) {
   const registerDatabaseHandler = (payload) =>
     client.post("/api/awn-databases/stores", {
       ...payload,
+      name: payload.name ?? payload.displayName ?? payload.title,
+      description: payload.description ?? payload.desc,
       recordHierarchy: payload.recordHierarchy ?? payload.hierarchy
     });
   const registerDatabaseDescription =
