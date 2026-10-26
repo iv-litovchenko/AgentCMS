@@ -15134,6 +15134,7 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceBinaryUploadBegin:
     "POST /api/workspace/binary-upload/begin — content_binary_upload_begin { placement, sizeBytes, mimeType? }",
+  workspaceBinaryUploadChunk:
     "POST /api/workspace/binary-upload/chunk — content_binary_upload_chunk { uploadId, data base64 }",
   workspaceBinaryUploadPut:
     "PUT /api/workspace/binary-upload/{uploadId} — raw body (not base64); then POST …/complete",
