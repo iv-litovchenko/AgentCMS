@@ -121,7 +121,7 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 
 - [ ] **Включить / выключить платформу MCP** — переключатель «MCP доступен снаружи» (не путать с `mcp-mode`: readonly/standard/full).
 - [ ] **Контент · история MCP** — `content_history` (ревизии `.mdback`, журнал правок).
-- [ ] **Количество записей** — `content_count` (счётчики без полного `contents_list`).
+- [x] **Количество записей** — **`contents_count`** (MCP; те же placement/filters, что `contents_list`)
 
 ### 1) Включить / выключить платформу MCP
 
@@ -213,11 +213,6 @@ Agent CMS — MCP exposure (полное дерево)
 | Scope v1 | `content_history({ workspaceId, path, limit? })` → список версий (mtime, hash, maybe snippet). v2: `content_history_read({ revisionId })` / diff vs current. |
 | Риски | Объём ответа, PII в старых версиях; лимиты как у `content_read`. |
 
-### 3) `content_count`
+### 3) `contents_count` ✅
 
-| Вопрос | Заметки |
-| --- | --- |
-| Что имеем | `workspace_summary_get` — **fileCount / mdFileCount** по workspace целиком; `contents_list` — страницы, **без отдельного total в одном вызове** (уточнить API). |
-| Зачем | «Сколько записей в теме / в data-слоте / в hub» — одним числом, без обхода list. |
-| Scope | `content_count({ placement, filters? })` → `{ total, byKind? }`; кэш/index если дорого. |
-| Пересечение | Не дублировать `contents_list` preview; count = cheap metadata. |
+MCP **`contents_count`** — `total` entries в placement (slot как у `contents_list`; `kind: root` — path без slot). Фильтры: `parent`, `q`, `ext`, `status`, `tags`, `entryType`. Код: `countContentEntries` → list API, `limit=1`, поле `total`.

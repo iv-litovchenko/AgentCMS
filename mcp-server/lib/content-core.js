@@ -917,6 +917,7 @@ export async function moveContent(client, args) {
 export {
   listContentItems,
   listContentEntries,
+  countContentEntries,
   listContentSections,
   listContentTree,
   listContentPreview,

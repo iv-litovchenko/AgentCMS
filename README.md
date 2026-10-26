@@ -964,6 +964,7 @@ user-agent-cms
 │
 ├── 📄 Контент (Content) · 27
 │   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
+│   ├── 🟢 contents_count — число файлов в слоте (те же placement/filters, без списка)
 │   ├── 🟢 contents_list_sections — только разделы (sections)
 │   ├── 🟢 contents_list_tree — скелет дерева (maxDepth)
 │   ├── 🟢 contents_list_preview — entries + snippet тела (.md)

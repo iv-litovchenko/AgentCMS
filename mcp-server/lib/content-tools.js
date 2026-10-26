@@ -18,6 +18,7 @@ import {
   deleteContent,
   listContentItems,
   listContentEntries,
+  countContentEntries,
   listContentSections,
   listContentTree,
   listContentPreview,
@@ -184,6 +185,20 @@ export function registerContentTools({ reg, client, pagePath }) {
     schema: contentsListPlacementSchema,
     handler: (args) => listContentEntries(client, args)
   });
+
+  const contentsCountSchema = contentsListPlacementSchema.omit({
+    limit: true,
+    offset: true,
+    cursor: true
+  });
+
+  reg(
+    "contents_count",
+    "Count **entries** (all file types) in one placement level — same address as contents_list (topic/channel/… + slot; kind=root uses path, no slot). " +
+      "Optional parent, q, ext, status, tags, entryType. Response: total, placement. List rows: contents_list.",
+    contentsCountSchema,
+    (args) => countContentEntries(client, args)
+  );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "contents_list_sections",

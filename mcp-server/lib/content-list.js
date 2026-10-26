@@ -130,6 +130,32 @@ export function listContentEntries(client, args) {
   return listContentWithMode(client, args, "entries");
 }
 
+/** Same placement/filters as contents_list (entries); returns total only (limit=1 on API). */
+export async function countContentEntries(client, args) {
+  const result = await listContentWithMode(
+    client,
+    { ...args, limit: 1, offset: 0, cursor: undefined },
+    "entries"
+  );
+  const out = {
+    placement: result.placement,
+    total: Number(result.total) || 0,
+    exists: result.exists !== false,
+    listMode: "entries",
+    hint:
+      "File/entry count in slot (md + binary + csv). Filters match contents_list. List items: contents_list."
+  };
+  if (result.parent != null && String(result.parent).trim()) {
+    out.parent = result.parent;
+  }
+  if (args.q) out.q = String(args.q);
+  if (args.ext) out.ext = String(args.ext);
+  if (args.status) out.status = String(args.status);
+  if (args.tags) out.tags = String(args.tags);
+  if (args.entryType) out.entryType = String(args.entryType);
+  return out;
+}
+
 export function listContentSections(client, args) {
   return listContentWithMode(client, args, "sections");
 }

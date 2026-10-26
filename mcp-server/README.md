@@ -73,7 +73,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Навигация и поиск | `nav_*`, `record_id_resolve`, `record_path_resolve`, `record_url_get`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
-| Контент | `contents_list` (+ `_sections`, `_tree`, `_preview`, `_full`), `content_read` / `content_write`, `contents_list_reconcile` (🔵), … (legacy `read_content`, `list_content` → paginated list) |
+| Контент | `contents_list` (+ `_sections`, `_tree`, `_preview`, `_full`), **`contents_count`**, `content_read` / `content_write`, `contents_list_reconcile` (🔵), … (legacy `read_content`, `list_content` → paginated list) |
 | Типы | `list_types`, `get_type` |
 | awn-databases | `database_get` (slim hub), `database_get_full`, `databases_list`, …; записи — **`contents_list`** (`database`, `data`) + `content_*` (не тянуть records через `database_get`) |
 | Session pads | `session_note_*`, `session_todo_*` (legacy `workspace_note_*`, `read_workspace_*`) — `workspace-pad-tools.js`, регистрация в `session-tools.js` |

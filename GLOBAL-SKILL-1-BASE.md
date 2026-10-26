@@ -136,7 +136,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `content_read` / `content_write` / **`contents_list`** (+ `contents_list_sections`, `contents_list_tree`, `contents_list_preview`; полный dump — `contents_list_full`) и `content_create`, `content_exists`, … **`contents_list`**: один уровень, `limit`/`cursor`, `parent`, фильтры `ext`/`status`/`tags`/`entryType`, `sort=manual|name|updated`. Обзор hub без обхода — `nav_index_toc_*`; карта WS — `session_context_get`. **`contents_list_reconcile`** (🔵) — сверка id/path с диском. Legacy: `read_content`, `list_content`, …
+Один объект — `content_read` / `content_write` / **`contents_list`** (+ `contents_list_sections`, `contents_list_tree`, `contents_list_preview`; полный dump — `contents_list_full`; **`contents_count`** — только `total` в слоте) и `content_create`, `content_exists`, … **`contents_list`**: один уровень, `limit`/`cursor`, `parent`, фильтры `ext`/`status`/`tags`/`entryType`, `sort=manual|name|updated`. **`contents_count`**: тот же placement (+ slot), те же фильтры, без пагинации. Обзор hub без обхода — `nav_index_toc_*`; карта WS — `session_context_get`. **`contents_list_reconcile`** (🔵) — сверка id/path с диском. Legacy: `read_content`, `list_content`, …
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
