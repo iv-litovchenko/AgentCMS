@@ -9,6 +9,7 @@ const {
   readEnvFile,
   getPublicBaseUrl
 } = require("../lib/desktop/public-url");
+const { readMaintenanceMode } = require("../lib/ops/platform-maintenance-mode");
 
 let failed = false;
 
@@ -121,6 +122,17 @@ async function main() {
   }
   if (platform === "linux" && domain && domain !== "localhost" && !caddyEmail) {
     warn("нет AGENT_CMS_CADDY_EMAIL — Let's Encrypt может не выпустить сертификат");
+  }
+
+  try {
+    const maint = readMaintenanceMode(repoRoot);
+    if (maint) {
+      warn("maintenance-mode: on — Editor/Voice/Commander отдают 503 (agent-cms-cli maintenance off)");
+    } else {
+      pass("maintenance-mode: off");
+    }
+  } catch {
+    warn("maintenance-mode: не удалось прочитать platform.yml");
   }
 
   const base = getPublicBaseUrl(repoRoot);

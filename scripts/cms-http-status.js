@@ -10,6 +10,7 @@ const {
   probeCmsHttp,
   readEnvFile
 } = require("../lib/desktop/public-url");
+const { readMaintenanceMode } = require("../lib/ops/platform-maintenance-mode");
 
 async function main() {
   const repoRoot = findRepoRoot(path.join(__dirname, ".."));
@@ -29,6 +30,13 @@ async function main() {
 
   if (env.AGENT_CMS_PUBLIC_URL) {
     console.log(`  (.env AGENT_CMS_PUBLIC_URL)`);
+  }
+
+  try {
+    const maint = readMaintenanceMode(repoRoot);
+    console.log(`Maintenance: ${maint ? "on (503 Editor/Voice/Commander)" : "off"}`);
+  } catch {
+    console.log("Maintenance: ?");
   }
 
   const probe = await probeCmsHttp(base, { timeoutMs: 5000 });

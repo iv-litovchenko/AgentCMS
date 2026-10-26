@@ -547,6 +547,9 @@ agent-cms-cli --version
 agent-cms-cli doctor          # Docker, compose, каталог, порты
 agent-cms-cli paths           # HOME, CLI, public URL + список workspace bind-mount (host → container)
 agent-cms-cli status          # HTTP ping + docker compose ps (стек жив?)
+agent-cms-cli maintenance status   # on | off (platform.yml maintenance-mode)
+agent-cms-cli maintenance on       # 503 для Editor / Voice / Commander; Control открыт
+agent-cms-cli maintenance off        # обычная работа (то же, что переключатель в Control)
 
 agent-cms-cli start           # up -d (Mac: URL в терминал, без автобраузера)
 agent-cms-cli stop
@@ -590,6 +593,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 | Группа | Команды | Сейчас без CLI |
 | --- | --- | --- |
 | **info** | `version`, `doctor`, `paths`, `status` | ручной curl/ping |
+| **maintenance** | `maintenance status`, `maintenance on`, `maintenance off` (`enable`/`disable`) | Control → «Режим обслуживания» |
 | **electron-app** | `electron-app build`, `electron-app shortcuts` | Control → «Собрать» / «Ярлыки» |
 | **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
 | **backup_zzz** | `backup_zzz`, `restore_zzz` (WIP) | tar.gz `AGENT_CMS_WORKSPACES_DIR` (без `.agent-cms`) |

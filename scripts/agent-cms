@@ -26,6 +26,7 @@ Agent CMS — CLI для Docker-стека (без npm).
 
 Команды:
   version, doctor, paths, status
+  maintenance status | on | off   (enable/disable — режим обслуживания platform)
   electron-app build … | electron-app shortcuts
   (синоним: electron build … | electron shortcuts)
   start, stop, restart, down, ps, logs [snap]
@@ -107,6 +108,15 @@ case "$cmd" in
     echo "home: $AGENT_CMS_HOME"
     echo "public: $(agent_cms_public_base)"
     exit "$ok"
+    ;;
+  maintenance)
+    agent_cms_ensure_home
+    if ! command -v node >/dev/null 2>&1; then
+      echo "Нужен Node.js для maintenance." >&2
+      exit 1
+    fi
+    sub="${2:-status}"
+    exec node "$AGENT_CMS_HOME/scripts/agent-cms-maintenance.js" "$sub" "${@:3}"
     ;;
   status)
     agent_cms_ensure_home

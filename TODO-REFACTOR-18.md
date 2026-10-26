@@ -114,3 +114,110 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 3. **Док для агента:** «есть публичная ссылка → `from_url`; нет ссылки → `begin` + `chunk`».
 
 **Что делать тебе сейчас:** для Губки Боба **без публичной ссылки** P2 **не нужен** — **`upload_begin` → `upload_chunk` → `complete`** после rebuild CMS. P2 — только если потом захочешь «залил файл на хостинг → дал URL → CMS забрала».
+
+---
+
+## Идеи MCP (обсуждение — не про бинарь)
+
+- [ ] **Включить / выключить платформу MCP** — переключатель «MCP доступен снаружи» (не путать с `mcp-mode`: readonly/standard/full).
+- [ ] **Контент · история MCP** — `content_history` (ревизии `.mdback`, журнал правок).
+- [ ] **Количество записей** — `content_count` (счётчики без полного `contents_list`).
+
+### 1) Включить / выключить платформу MCP
+
+**CLI (целевое):** `agent-cms-cli mcp status` · `mcp maintenance on|off` · `mcp off` · `mcp on`
+
+**MCP methods (tools)?** — только если есть **живой transport + CMS принимает вызовы**. Ниже.
+
+```
+Agent CMS — MCP exposure (полное дерево)
+│
+├─ platform.yml mcp-mode: readonly | standard | full
+│     └─ при ЖИВОМ MCP: какие tools разрешены (write/exec), не «сервис вкл/выкл»
+│
+├─ Состояние A: normal          agent-cms-cli mcp on  (maintenance off, mcp exposed)
+│     ├─ Editor (HTTPS /)              ✅ UI
+│     ├─ HTTP MCP /app-mcp             ✅ initialize + все tools (в рамках mcp-mode)
+│     ├─ claude.ai / Cursor remote     ✅ через коннектор
+│     └─ Desktop stdio (node mcp-server) ✅ к localhost CMS
+│
+├─ Состояние B: maintenance ON   agent-cms-cli mcp maintenance on
+│     ├─ Флаг на диске (напр. .agent-cms-global/state/mcp-maintenance.json)
+│     ├─ Editor (HTTPS /)              ✅ (админ чинит в браузере)
+│     ├─ HTTP MCP /app-mcp             ❌ 503 maintenance (сессия/tools не стартуют)
+│     ├─ claude.ai / Cursor remote     ❌ methods нет (коннектор «жив», ответ 503)
+│     ├─ mcp-контейнер                 ⚙ опционально stop (RAM) или up (быстрый off)
+│     └─ Desktop stdio на Mac          ⚙ решить:
+│           · strict: CMS отклоняет MCP API → ❌ methods
+│           · ops-only: stdio с того же хоста → ✅ (обход для локального админа)
+│
+├─ Состояние C: mcp off          agent-cms-cli mcp off
+│     ├─ Флаг: mcp-exposed=false + compose stop mcp (или Caddy не проксирует /app-mcp)
+│     ├─ Editor (HTTPS /)              ✅ если cms healthy
+│     ├─ HTTP MCP /app-mcp             ❌ нет сервиса (502/503 «MCP выключен»)
+│     ├─ claude.ai / Cursor remote     ❌ methods нет
+│     └─ Desktop stdio на Mac          ✅* если процесс mcp-server локальный и CMS API открыт
+│           (* не «VPS MCP off», а свой Mac — отдельный инстанс)
+│
+└─ CMS unhealthy (контейнер cms упал)
+      ├─ Editor                            ❌ 502 (страница ☕)
+      ├─ HTTP MCP                            ❌ 502
+      └─ methods                             ❌ (нет backend)
+```
+
+| Команда | HTTP MCP tools | Editor | Заметка |
+| --- | --- | --- | --- |
+| `mcp on` | ✅ | ✅ | normal |
+| `mcp maintenance on` | ❌ 503 | ✅ | агенты снаружи отдыхают |
+| `mcp off` | ❌ | ✅ | MCP-сервис снят с публикации |
+| `mcp-mode=readonly` при normal | только read/list/search | ✅ | политика, не maintenance |
+
+**Решить:** maintenance — **strict** (stdio тоже off) или **ops** (stdio/local bypass)?
+
+**Кто что меняет (сводка)**
+
+```
+Что можно переключить
+│
+├─ 🖥️ Терминал (agent-cms-cli / compose) — инфра, без агента
+│     ├─ mcp on / mcp off / mcp maintenance on|off   → exposure MCP (целевое)
+│     ├─ start | stop | restart | rebuild            → контейнеры cms/mcp/caddy
+│     ├─ doctor | status | logs                      → диагностика
+│     ├─ git pull + rebuild                          → код на VPS
+│     └─ docker compose stop cms                     → ☕ 502 (не maintenance)
+│
+├─ 🤖 Агент (MCP tools) — политика и контент, пока MCP жив
+│     ├─ setting_write mcp-mode                      → readonly/standard/full
+│     ├─ setting_write batch-enabled, лимиты…        → platform.yml через MCP
+│     ├─ content_*, contents_list, workspace_*       → хранилище
+│     └─ ❌ пока нет: maintenance, mcp off, restart docker
+│
+└─ 🌐 Браузер (Editor / Control) — UI
+      ├─ app-lock зоны, workspace, индексы…
+      └─ ❌ пока нет: рубильник MCP (если не через settings в будущем)
+```
+
+**Обсудить (вопросы)**
+- Maintenance **strict** vs **ops** (stdio на Mac при maintenance ON)?
+- **`mcp off`** только HTTP или ещё блок API для всех MCP-клиентов?
+- Нужен ли агенту tool **`platform_mcp_maintenance_set`** или только CLI?
+- Одна страница 503 для maintenance vs отдельная от «cms упала» (☕)?
+- **`content_history`** / **`content_count`** — приоритет после рубильника?
+
+### 2) `content_history`
+
+| Вопрос | Заметки |
+| --- | --- |
+| Что имеем | `POST /api/file/revisions` (paths → ревизии), `.mdback` при save, `activity.jsonl` (журнал, source mcp). **MCP tool нет.** |
+| Зачем | Агент: «что менялось в этой заметке», откат, diff без Editor. |
+| Scope v1 | `content_history({ workspaceId, path, limit? })` → список версий (mtime, hash, maybe snippet). v2: `content_history_read({ revisionId })` / diff vs current. |
+| Риски | Объём ответа, PII в старых версиях; лимиты как у `content_read`. |
+
+### 3) `content_count`
+
+| Вопрос | Заметки |
+| --- | --- |
+| Что имеем | `workspace_summary_get` — **fileCount / mdFileCount** по workspace целиком; `contents_list` — страницы, **без отдельного total в одном вызове** (уточнить API). |
+| Зачем | «Сколько записей в теме / в data-слоте / в hub» — одним числом, без обхода list. |
+| Scope | `content_count({ placement, filters? })` → `{ total, byKind? }`; кэш/index если дорого. |
+| Пересечение | Не дублировать `contents_list` preview; count = cheap metadata. |
