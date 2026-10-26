@@ -25,8 +25,8 @@ agent-cms workspaces archive — backup | restore
   backup [FILE]              tar.gz (по умолчанию .backups/workspaces-YYYYMMDD-HHMMSS.tar.gz)
   restore ARCHIVE [--force]  распаковать в каталог workspaces (AGENT_CMS_WORKSPACES_DIR)
 
-CLI: agent-cms-cli backup [FILE]
-      agent-cms-cli restore ARCHIVE [--force]
+CLI: agent-cms-cli backup_zzz [FILE]
+      agent-cms-cli restore_zzz ARCHIVE [--force]
 EOF
 }
 

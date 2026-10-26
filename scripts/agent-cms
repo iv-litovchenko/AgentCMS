@@ -29,8 +29,8 @@ Agent CMS — CLI для Docker-стека (без npm).
   electron-app build … | electron-app shortcuts
   (синоним: electron build … | electron shortcuts)
   start, stop, restart, down, ps, logs [snap]
-  backup [FILE]        архив workspaces (tar.gz)
-  restore ARCHIVE [--force]
+  backup_zzz [FILE]    архив workspaces (WIP)
+  restore_zzz ARCHIVE [--force]
   rebuild
   update               только git pull --ff-only (без rebuild)
   open editor|chat|control|commander|mcp-url
@@ -248,13 +248,15 @@ EOF
         ;;
     esac
     ;;
-  backup)
+  backup_zzz | backup)
     agent_cms_ensure_home
+    [[ "$cmd" == backup ]] && echo "Подсказка: backup → backup_zzz (WIP)" >&2
     shift || true
     agent_cms_cmd_workspaces_backup "$@"
     ;;
-  restore)
+  restore_zzz | restore)
     agent_cms_ensure_home
+    [[ "$cmd" == restore ]] && echo "Подсказка: restore → restore_zzz (WIP)" >&2
     shift || true
     agent_cms_cmd_workspaces_restore "$@"
     ;;

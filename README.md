@@ -498,10 +498,10 @@ agent-cms-cli logs            # поток (-f): cms, mcp, control, caddy (Linux
 agent-cms-cli logs snap       # снимок логов для чата (без -f, ~200 строк/сервис)
 agent-cms-cli logs snap --tail 400
 
-agent-cms-cli backup          # tar.gz каталога workspaces → .backups/workspaces-*.tar.gz
-agent-cms-cli backup /path/to/snap.tar.gz
-agent-cms-cli restore .backups/workspaces-20261026.tar.gz
-agent-cms-cli restore ARCHIVE --force   # если каталог workspaces не пустой
+agent-cms-cli backup_zzz      # WIP: tar.gz workspaces → .backups/workspaces-*.tar.gz
+agent-cms-cli backup_zzz /path/to/snap.tar.gz
+agent-cms-cli restore_zzz .backups/workspaces-20261026.tar.gz
+agent-cms-cli restore_zzz ARCHIVE --force
 
 agent-cms-cli rebuild         # up -d --build (первый раз / после server.js)
 agent-cms-cli update          # только git pull --ff-only (стек: rebuild)
@@ -533,7 +533,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 | **info** | `version`, `doctor`, `paths`, `status` | ручной curl/ping |
 | **electron-app** | `electron-app build`, `electron-app shortcuts` | Control → «Собрать» / «Ярлыки» |
 | **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
-| **backup** | `backup`, `restore` | tar.gz `AGENT_CMS_WORKSPACES_DIR` (без `.agent-cms`) |
+| **backup_zzz** | `backup_zzz`, `restore_zzz` (WIP) | tar.gz `AGENT_CMS_WORKSPACES_DIR` (без `.agent-cms`) |
 | **build** | `rebuild` | `cms-rebuild.command`, `--build` |
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
 | **open** | `open editor\|chat\|control\|commander\|mcp-url` | копировать URL из README |
