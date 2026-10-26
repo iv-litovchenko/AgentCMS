@@ -14985,7 +14985,7 @@ const SESSION_CONTEXT_API_MAP = {
   opsStatus: "GET /api/ops/status — web Control: порты Editor/Chat/Commander/MCP",
   opsMaintenance: "GET|POST /api/ops/maintenance — web Control: maintenance-mode (POST — app-lock, если настроен)",
   opsServerAction:
-    "POST /api/ops/server/action — Web Control: start|stop|restart|deploy-update|install-npm (app-lock session). GET /api/ops/server/status",
+    "POST /api/ops/server/action — Web Control: start|stop|restart|git-pull|docker-rebuild|deploy-update|install-npm (app-lock). GET /api/ops/server/status",
   storageSummary:
     "GET /api/agent/storage-summary — workspace_summary_get MCP (menu, catalog, git, runtime, workspaceIndexStatus, lastIndexedAt)",
   menu: "GET /api/menu — дерево тем (manifest.md)",

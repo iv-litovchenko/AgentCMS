@@ -554,6 +554,40 @@ async function runAction(actionId) {
     }
   }
 
+  if (action.serverRole === "git-update") {
+    try {
+      const { runGitPullOnly } = requireRepo("lib/ops/ops-deploy-update");
+      const result = runGitPullOnly(getProjectRoot());
+      sendActionState({ actionId, running: false });
+      if (result.output) sendLog(`\n${result.output}\n`);
+      if (result.message) sendLog(`${result.message}\n`);
+      if (!result.ok && result.error) sendLog(`✕ ${result.error}\n`, "stderr");
+      return { ok: Boolean(result.ok), error: result.ok ? null : result.message || result.error };
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
+  if (action.serverRole === "docker-rebuild") {
+    try {
+      const { runServerAction } = requireRepo("lib/ops/ops-server-control");
+      const result = runServerAction(getProjectRoot(), "docker-rebuild");
+      sendActionState({ actionId, running: false });
+      if (result.output) sendLog(`\n${result.output}\n`);
+      if (result.message) sendLog(`${result.message}\n`);
+      if (!result.ok && result.error) sendLog(`✕ ${result.error}\n`, "stderr");
+      return {
+        ok: Boolean(result.ok),
+        error: result.ok ? null : result.message || result.error,
+        rebuildStarted: Boolean(result.rebuildStarted)
+      };
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   if (action.serverRole === "stop") {
     stopAttachedServer();
     const autoStart = await probeLaunchAgentStatus();

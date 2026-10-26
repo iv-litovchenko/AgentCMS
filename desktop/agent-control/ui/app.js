@@ -855,27 +855,38 @@ function isServerUpdateEnabled() {
   return bootstrap?.deployment?.updateEnabled === true;
 }
 
+function formatDockerComposeDeckHint(...subcommandParts) {
+  const dep = bootstrap?.deployment || {};
+  const composeFile = dep.hostComposeFile || dep.composeFile || "docker-compose.linux.yml";
+  return ["docker compose", "-f", composeFile, "-f", "docker-compose.workspace-mounts.yml", ...subcommandParts].join(
+    " "
+  );
+}
+
 function getServerBtnTitle(actionId) {
   const core = {
     "server-start-bg": "Start",
     "server-start-attached": "Start",
     "server-stop": "Stop",
-    "server-restart": "Restart"
+    "server-restart": "Restart",
+    "server-git-update": "Update",
+    "server-docker-rebuild": "Rebuild"
   };
   if (core[actionId]) return core[actionId];
-  if (isDockerDeployment() && actionId === "server-update") return "Pull + build";
   return SERVER_BTN_TITLES[actionId] || "Start";
 }
 
 function getServerBtnHint(actionId, hintOverride) {
   if (hintOverride != null) return hintOverride;
   if (isDockerDeployment()) {
-    const up = (bootstrap?.deployment?.upServices || ["cms", "mcp"]).join(", ");
+    const upServices = bootstrap?.deployment?.upServices || ["cms", "mcp"];
+    const stopService = bootstrap?.deployment?.composeService || "cms";
     const dockerHints = {
-      "server-start-bg": `docker compose up -d ${up} · контейнеры cms, mcp`,
-      "server-stop": "docker compose stop cms · Control и Caddy не трогаем",
-      "server-restart": `docker compose restart ${up}`,
-      "server-update": "git pull на хосте → compose up -d --build"
+      "server-start-bg": formatDockerComposeDeckHint("up", "-d", ...upServices),
+      "server-stop": `${formatDockerComposeDeckHint("stop", stopService)} · control/caddy остаются`,
+      "server-restart": formatDockerComposeDeckHint("restart", ...upServices),
+      "server-git-update": "git pull --ff-only · каталог /host-project",
+      "server-docker-rebuild": formatDockerComposeDeckHint("up", "-d", "--build")
     };
     return dockerHints[actionId] ?? SERVER_BTN_HINTS[actionId] ?? "";
   }
@@ -2104,7 +2115,9 @@ function syncServerUi(server) {
     runningActions.has("server-start-attached") ||
     runningActions.has("server-stop") ||
     runningActions.has("server-restart") ||
-    runningActions.has("server-update");
+    runningActions.has("server-update") ||
+    runningActions.has("server-git-update") ||
+    runningActions.has("server-docker-rebuild");
   const opsLocked = needsAppLockLogin();
 
   document
@@ -2122,6 +2135,12 @@ function syncServerUi(server) {
   document.querySelectorAll('[data-action="server-update"]').forEach((button) => {
     button.disabled =
       !isServerUpdateEnabled() || opsLocked || serverActionBusy || runningActions.has("server-update");
+  });
+  document.querySelectorAll('[data-action="server-git-update"]').forEach((button) => {
+    button.disabled = opsLocked || serverActionBusy || runningActions.has("server-git-update");
+  });
+  document.querySelectorAll('[data-action="server-docker-rebuild"]').forEach((button) => {
+    button.disabled = opsLocked || serverActionBusy || runningActions.has("server-docker-rebuild");
   });
 
   const autostartOn = Boolean(server?.autoStart?.enabled);
@@ -2231,7 +2250,9 @@ const SERVER_BTN_TITLES = {
   "server-start-attached": "Start",
   "server-stop": "Stop",
   "server-restart": "Restart",
-  "server-update": "Обновить"
+  "server-update": "Обновить",
+  "server-git-update": "Update",
+  "server-docker-rebuild": "Rebuild"
 };
 
 const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
@@ -2793,7 +2814,13 @@ function renderGuideStepServer() {
     isControlActionAvailable("server-restart")
       ? serverButton("server-restart", "restart", !isRunning || opsLocked)
       : "",
-    isControlActionAvailable("server-update")
+    isDockerDeployment() && isControlActionAvailable("server-git-update")
+      ? serverButton("server-git-update", "update", opsLocked)
+      : "",
+    isDockerDeployment() && isControlActionAvailable("server-docker-rebuild")
+      ? serverButton("server-docker-rebuild", "update", opsLocked)
+      : "",
+    !isDockerDeployment() && isControlActionAvailable("server-update")
       ? serverButton(
           "server-update",
           "update",
@@ -3666,7 +3693,12 @@ function waitForControlServerReload(maxWaitMs = 120000) {
 async function runAction(actionId) {
   if (!actionId || runningActions.has(actionId)) return;
   if (isSetupActionDisabled(actionId)) return;
-  if (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") {
+  if (
+    actionId === "server-stop" ||
+    actionId === "server-restart" ||
+    actionId === "server-update" ||
+    actionId === "server-docker-rebuild"
+  ) {
     suppressServerDownNotify = true;
   }
   runningActions.add(actionId);
@@ -3676,7 +3708,12 @@ async function runAction(actionId) {
     if (result?.error) appendLog(`${result.error}\n`, "stderr");
 
     if (result?.serverDisconnectExpected) {
-      if ((actionId === "server-restart" || (actionId === "server-update" && result?.rebuildStarted)) && isWebLauncher()) {
+      if (
+        (actionId === "server-restart" ||
+          (actionId === "server-update" && result?.rebuildStarted) ||
+          (actionId === "server-docker-rebuild" && result?.ok)) &&
+        isWebLauncher()
+      ) {
         waitForControlServerReload();
       } else if (actionId === "server-stop") {
         lastServer = { ...(lastServer || bootstrap?.server || {}), running: false };
@@ -3691,17 +3728,29 @@ async function runAction(actionId) {
     } catch (error) {
       if (
         isWebLauncher() &&
-        (actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update") &&
+        (actionId === "server-stop" ||
+          actionId === "server-restart" ||
+          actionId === "server-update" ||
+          actionId === "server-docker-rebuild") &&
         /failed to fetch|networkerror|load failed/i.test(String(error.message || error))
       ) {
-        if (actionId === "server-restart" || actionId === "server-update") waitForControlServerReload();
+        if (
+          actionId === "server-restart" ||
+          actionId === "server-update" ||
+          actionId === "server-docker-rebuild"
+        ) {
+          waitForControlServerReload();
+        }
         return;
       }
       throw error;
     }
     await handleServerStatusUpdate(status.server, {
       skipNotify:
-        actionId === "server-stop" || actionId === "server-restart" || actionId === "server-update"
+        actionId === "server-stop" ||
+        actionId === "server-restart" ||
+        actionId === "server-update" ||
+        actionId === "server-docker-rebuild"
     });
     if (actionId === "install-deps" || actionId === "setup-certs") {
       const data = await window.agentControl.refreshBootstrap();
@@ -3739,6 +3788,8 @@ const ACTION_CARD_BUSY = {
   "server-stop": "Stop…",
   "server-restart": "Restart…",
   "server-update": "Обновление…",
+  "server-git-update": "Update…",
+  "server-docker-rebuild": "Rebuild…",
   "install-deps": "Установка…",
   "setup-certs": "Настройка…",
   "setup-desktop-shortcuts": "Создание…"

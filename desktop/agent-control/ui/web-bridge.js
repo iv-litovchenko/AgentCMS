@@ -10,6 +10,8 @@
     "server-stop": "stop",
     "server-restart": "restart",
     "server-update": "deploy-update",
+    "server-git-update": "git-pull",
+    "server-docker-rebuild": "docker-rebuild",
     "install-deps": "install-npm"
   };
 
@@ -173,7 +175,8 @@
         };
       }
 
-      const mayDropConnection = mapped === "stop" || mapped === "restart" || mapped === "deploy-update";
+      const mayDropConnection =
+        mapped === "stop" || mapped === "restart" || mapped === "deploy-update" || mapped === "docker-rebuild";
 
       emitActionState({ actionId: id, running: true });
       emitLog({ text: `\n▶ ${id} (${mapped})\n`, stream: "stdout" });
@@ -190,7 +193,7 @@
           ok: Boolean(result.ok),
           error: result.error || null,
           serverDisconnectExpected: mayDropConnection && result.ok,
-          rebuildStarted: Boolean(result.rebuildStarted)
+          rebuildStarted: Boolean(result.rebuildStarted || mapped === "docker-rebuild")
         };
       } catch (error) {
         let msg = String(error.message || error);

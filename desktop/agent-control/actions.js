@@ -111,6 +111,20 @@ const ACTIONS = [
     serverRole: "update"
   },
   {
+    id: "server-git-update",
+    category: "server",
+    title: "Update",
+    tone: "default",
+    serverRole: "git-update"
+  },
+  {
+    id: "server-docker-rebuild",
+    category: "server",
+    title: "Rebuild",
+    tone: "default",
+    serverRole: "docker-rebuild"
+  },
+  {
     id: "server-start-attached",
     category: "server",
     title: "Пока Control открыт",
