@@ -6,12 +6,11 @@ const storePath = z
   .min(1)
   .describe("Store relPath under awn-databases/, e.g. tasks, taxonomies/tags, agent-registry/agents");
 
-/** MCP tool result: drop merged schema/records tree after register (use database_get). */
-function formatDatabaseRegisterToolResult(data) {
-  if (!data || typeof data !== "object") return null;
-  const store = data.store;
-  if (!store || typeof store !== "object") return null;
+const DATABASE_GET_SLIM_HINT =
+  "Records (paginated): contents_list { kind: database, slot: data }. Schema: database_schema_read. Full store+records+schema: database_get_full.";
 
+function buildSlimDatabaseStore(store) {
+  if (!store || typeof store !== "object") return null;
   const slim = {
     id: store.id,
     relPath: store.relPath,
@@ -31,27 +30,53 @@ function formatDatabaseRegisterToolResult(data) {
     const recordFileTypes = String(store.recordFileTypes || "").trim();
     if (recordFileTypes) slim.recordFileTypes = recordFileTypes;
   }
-  if (Array.isArray(store.records)) slim.recordCount = store.records.length;
+  const count =
+    typeof store.recordCount === "number"
+      ? store.recordCount
+      : Array.isArray(store.records)
+        ? store.records.length
+        : undefined;
+  if (count != null) slim.recordCount = count;
+  return slim;
+}
 
+/** MCP: slim hub after register (no schema blob). */
+function formatDatabaseRegisterToolResult(data) {
+  if (!data || typeof data !== "object") return null;
+  const slim = buildSlimDatabaseStore(data.store);
+  if (!slim) return null;
   return {
     ok: data.ok !== false,
     store: slim,
-    hint: "Full schema and records: database_get { store: relPath }."
+    hint: DATABASE_GET_SLIM_HINT
   };
 }
 
+/** MCP: slim hub — no records[] / merged schema (use contents_list + database_schema_read). */
+function formatDatabaseGetToolResult(data) {
+  if (!data || typeof data !== "object") return null;
+  if (data.error || !data.store) return null;
+  const slim = buildSlimDatabaseStore(data.store);
+  if (!slim) return null;
+  return { store: slim, hint: DATABASE_GET_SLIM_HINT };
+}
+
 /** Canonical database_* / databases_* plus verb-first and database_frame_* legacy aliases. */
-function registerDatabaseTool(reg, { canonical, verbLegacy, legacyFrameName, description, schema, handler }) {
+function registerDatabaseTool(
+  reg,
+  { canonical, verbLegacy, legacyFrameName, description, schema, handler, options }
+) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical,
     legacy: verbLegacy && verbLegacy !== canonical ? verbLegacy : null,
     description,
     schema,
-    handler
+    handler,
+    options
   });
   if (legacyFrameName) {
     const frameName = `database_frame_${legacyFrameName}`;
-    registerDeprecatedAlias(reg, { canonical, name: frameName, schema, handler });
+    registerDeprecatedAlias(reg, { canonical, name: frameName, schema, handler, options });
   }
 }
 
@@ -68,16 +93,31 @@ export function registerDatabaseTools(reg, client) {
     handler: () => client.get("/api/awn-databases")
   });
 
+  const databaseGetSchema = z.object({
+    store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
+  });
+  const databaseGetHandler = ({ store }) => client.get("/api/awn-databases", { store });
+  const databaseGetOptions = { formatResult: formatDatabaseGetToolResult };
+
   registerDatabaseTool(reg, {
     canonical: "database_get",
     verbLegacy: "get_database",
     legacyFrameName: "get",
     description:
-      "One database store: schema, records tree (MD or CSV). whole-file-csv → content_read/content_write (kind: database, slot: data, ref: main.csv).",
-    schema: z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags, tasks")
-    }),
-    handler: ({ store }) => client.get("/api/awn-databases", { store })
+      "Database store hub (slim): preset, paths, recordCount — no records[] or merged schema. " +
+      "List records: contents_list (database, slot data). Schema: database_schema_read. CSV whole-file: content_read ref main.csv.",
+    schema: databaseGetSchema,
+    handler: databaseGetHandler,
+    options: databaseGetOptions
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "database_get_full",
+    legacy: "get_database_full",
+    description:
+      "Legacy full store payload from API (records tree + schema). Prefer database_get + contents_list + database_schema_read.",
+    schema: databaseGetSchema,
+    handler: databaseGetHandler
   });
 
   const registerDatabaseSchema = z.object({
@@ -116,7 +156,7 @@ export function registerDatabaseTools(reg, client) {
     });
   const registerDatabaseDescription =
     "Register database store hub (like channel_register): group, collection (MD/md-lite/CSV/files), or single. Adopts existing folder under awn-databases/ when present. " +
-    "Response is slim (ids/paths/collection preset only); full schema → database_get.";
+    "Response is slim (ids/paths/collection preset only); schema → database_schema_read; records → contents_list.";
   const registerDatabaseOptions = { formatResult: formatDatabaseRegisterToolResult };
 
   registerCanonicalWithLegacyAlias(reg, {

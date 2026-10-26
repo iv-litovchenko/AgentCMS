@@ -73,9 +73,9 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Навигация и поиск | `nav_*`, `record_id_resolve`, `record_path_resolve`, `record_url_get`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
 | Слот | `list_slots` |
-| Контент | `content_read` / `content_write` / `contents_list`, `contents_list_reconcile` (🔵), `content_exists`, `content_meta_get`, lifecycle `content_*` (legacy `read_content`, …); hub file legacy — `MCP_LEGACY_TOOLS=1` |
+| Контент | `contents_list` (+ `_sections`, `_tree`, `_preview`, `_full`), `content_read` / `content_write`, `contents_list_reconcile` (🔵), … (legacy `read_content`, `list_content` → paginated list) |
 | Типы | `list_types`, `get_type` |
-| awn-databases | `databases_list` / `database_get` … (legacy `list_databases`, `database_frame_*`); записи — `*_content_*` |
+| awn-databases | `database_get` (slim hub), `database_get_full`, `databases_list`, …; записи — **`contents_list`** (`database`, `data`) + `content_*` (не тянуть records через `database_get`) |
 | Session pads | `session_note_*`, `session_todo_*` (legacy `workspace_note_*`, `read_workspace_*`) — `workspace-pad-tools.js`, регистрация в `session-tools.js` |
 | Файлообменник | `module_file_hub_outbound_list`, `enqueue`, `remove`, `clear`; stub inbound: `module_file_hub_inbound_*_zzz` (legacy: `read/add/remove/clear_file_hub_*`) |
 | Fact bank | `fact_create`, `facts_list`, … (legacy `workspace_fact_*`, `create_workspace_fact`, …) → `0-contents/0-facts` |

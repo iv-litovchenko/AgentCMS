@@ -639,6 +639,7 @@ npm run cms:desktop   # dev-окно без сборки
 | **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
 | **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
 | **`AGENT_CMS_MCP_BASE64_MAX_BYTES`** | Макс. **декодированный** размер для MCP base64 (`content_binary_write`, `content_write` `data=…`); больше — `content_binary_upload_*` | MCP base64 upload cap (decoded bytes) | `1048576` (1 MiB; можно меньше) |
+| **`AGENT_CMS_LIST_DEFAULT_LIMIT`** | Размер страницы по умолчанию для MCP **`contents_list_*`** (max 100) | Default MCP list page size | `20` |
 | **`AGENT_CMS_DEPLOY_UPDATE_ENABLED`** | `1` — кнопка «Обновить» в Control (**git pull + rebuild**) | Control deploy update button | `0` / `1` на VPS по желанию |
 | **`AGENT_CMS_DEPLOY_PLATFORM`** | Подпись платформы в Control: **`mac`** \| **`linux`** \| **`windows`** | Control platform chip | в compose часто уже задано |
 | **`WEB_SEARCH_MODE`** | Режим веб-поиска в MCP | Web search mode | `direct` |
@@ -922,9 +923,10 @@ user-agent-cms
 │   ├── 🟢 contents_slots_list
 │   └── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
 │
-├── 🗃 Базы (Databases) · 12
+├── 🗃 Базы (Databases) · 13
 │   ├── 🟢 databases_list
-│   ├── 🟢 database_get
+│   ├── 🟢 database_get — slim hub (без records/schema blob)
+│   ├── 🟢 database_get_full — legacy полный store с API
 │   ├── 🟢 database_register
 │   ├── 🟢 database_update
 │   ├── 🟢 database_delete

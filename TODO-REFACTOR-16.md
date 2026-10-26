@@ -60,11 +60,11 @@ Memory CMS: замечания после теста MCP
 2. ==✅== **Сортировка** — как в UI (`sort.json`, `sectionSortOrders`), `sort=manual|name|updated`. *`contents-list-sort.js`.*
 3. ==✅== **Preview на всех бэкендах** — snippets для storage, **media**, **channel/items**, **database** records (`includeBody`, **`contents_list_preview`**). *Сервер: `applyListQueryWithPreview`, `attachDatabaseRecordSnippets`.*
 4. ==✅== **List-параметры на сервере для media/channel** — не только MCP после полного ответа. *`GET /api/media`, `GET /api/agent/channels/items` + list query.*
-5. **Дефолты workspace** — `listDefaultLimit`, `maxDepth`, разрешён ли preview (`AGENT_CMS_*` или frontmatter hub).
+5. ==✅== **Дефолты workspace** — `listDefaultLimit`, `maxDepth`, разрешён ли preview (`AGENT_CMS_*` или frontmatter hub). *v1.1: **`AGENT_CMS_LIST_DEFAULT_LIMIT`** (`.env.example`, `getDefaultListLimit()`). maxDepth/preview caps — в плане.*
 6. **Курсор стабильнее offset** — ключ сортировки + id (меньше дублей/пропусков между страницами).
 7. **Уточнение `parent`** — id, inner path, ref; явная ошибка «раздел не найден».
-8. **Документация агента** — GLOBAL-SKILL / mcp-server README: когда **`contents_list`** vs **`_sections`** vs **`_tree`** vs **`nav_index_toc_*`**.
+8. ==✅== **Документация агента** — GLOBAL-SKILL / mcp-server README: когда **`contents_list`** vs **`_sections`** vs **`_tree`** vs **`nav_index_toc_*`**. *`GLOBAL-SKILL-1-BASE.md` §5 и § databases; README MCP tree.*
 9. **Тесты** — unit pagination/partition/filters; smoke MCP topic + database + root.
-10. **Соседнее (не list)** — slim **`database_get`** по умолчанию (без всех records/schema), если агенты тянут store целиком.
+10. ==✅== **Соседнее (не list)** — slim **`database_get`** по умолчанию (без всех records/schema), если агенты тянут store целиком. *MCP slim + **`database_get_full`**; записи → **`contents_list`** (database/data).*
 
-Приоритет для prod: **5–6** после закрытия **1–4**.
+Приоритет для prod: **6–7**, **9**.

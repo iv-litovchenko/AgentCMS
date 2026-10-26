@@ -133,7 +133,7 @@ Workspace — папка с md-файлами. Хабы:
 
 ## 5. Чтение и запись контента
 
-Один объект — `content_read` / `content_write` / `contents_list` (+ `content_create`, `content_exists`, `content_rename`, `content_move`, `content_delete`, `content_binary_*`, `content_merge`, `content_split`, `content_property_read` / `content_property_write`). **`contents_list_reconcile`** (🔵) — пакетная сверка `{ id?, path? }[]` из памяти/cron с диском (краткий diff, без тел); затем точечный `content_read` / write. Legacy: `read_content`, … Неизвестные параметры → `Unrecognized key(s)`.
+Один объект — `content_read` / `content_write` / **`contents_list`** (+ `contents_list_sections`, `contents_list_tree`, `contents_list_preview`; полный dump — `contents_list_full`) и `content_create`, `content_exists`, … **`contents_list`**: один уровень, `limit`/`cursor`, `parent`, фильтры `ext`/`status`/`tags`/`entryType`, `sort=manual|name|updated`. Обзор hub без обхода — `nav_index_toc_*`; карта WS — `session_context_get`. **`contents_list_reconcile`** (🔵) — сверка id/path с диском. Legacy: `read_content`, `list_content`, …
 
 ```json
 { "workspaceId": "…", "placement": { "kind": "topic", "path": "…/manifest.md", "slot": "main", "ref": "zametka.md" }, "part": "body" }
@@ -191,8 +191,8 @@ Workspace — папка с md-файлами. Хабы:
 
 Адресация по `store` (путь под `awn-databases/`, например `tasks`, `taxonomies/tags`):
 
-- **Каркас** (`group` / `collection` / `single`): `databases_list`, `database_get`, `database_register`, `database_update`, `database_delete`, `database_rename`, `database_schema_read` / `database_schema_write`, `database_properties_read` / `database_properties_write`, `nav_index_toc_databases_read` (legacy `list_databases`, `read_database_schema`, …).
-- **Записи** в `data/`: `contents_list`, `content_create` (`isSection` или `awn.content.category` — раздел), `content_delete`, `content_move` (`targetParent`, `slug`); тело и поля — `content_read` / `content_write` / `content_property_*` с `kind: database`, `slot: data`, `ref`.
+- **Каркас** (`group` / `collection` / `single`): `databases_list`, **`database_get`** (slim hub — без `records[]` и merged schema), `database_register`, `database_update`, … **`database_schema_read`** — поля; legacy полный JSON — **`database_get_full`**. Не тянуть все записи через `database_get`.
+- **Записи** в `data/`: **`contents_list`** (`kind: database`, `slot: data`, `parent?`, pagination), `content_create` (раздел — section), `content_delete`, `content_move`; одна запись — `content_read` / `content_write` / `content_property_*` + `ref`.
 
 | `collectionType` | Когда |
 |------------------|-------|
