@@ -51,6 +51,13 @@ import {
   placementKindSchema
 } from "./content-placement-zod.js";
 import { isLegacyMcpToolsEnabled } from "./mcp-legacy-tools.js";
+import {
+  contentHistoryVersionCount,
+  contentHistoryVersionList,
+  contentHistoryVersionRead,
+  contentHistoryVersionDiff,
+  contentHistoryRestore
+} from "./content-history.js";
 import { READ_WINDOW_DEFAULT_LINES, READ_WINDOW_MAX_LINES } from "./content-read-window.js";
 import { WRITE_MODES } from "./content-write-edit.js";
 
@@ -198,6 +205,64 @@ export function registerContentTools({ reg, client, pagePath }) {
       "Optional parent, q, ext, status, tags, entryType. Response: total, placement. List rows: contents_list.",
     contentsCountSchema,
     (args) => countContentEntries(client, args)
+  );
+
+  const contentHistoryAddressSchema = address({
+    version: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("History version file name (*.mdback), required for read/diff/restore"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Max versions in list (default 50)"),
+    confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled (restore)")
+  });
+
+  reg(
+    "content_history_version_count",
+    "Count .mdback history versions for one content file. Same placement + ref as content_read (slot required except kind=root).",
+    contentHistoryAddressSchema,
+    (args) => contentHistoryVersionCount(client, args)
+  );
+
+  reg(
+    "content_history_version_list",
+    "List history versions (newest first): version, label, relPath, size. Same placement as content_read.",
+    contentHistoryAddressSchema,
+    (args) => contentHistoryVersionList(client, args)
+  );
+
+  reg(
+    "content_history_version_read",
+    "Read full text of one history version (.mdback). Requires version.",
+    contentHistoryAddressSchema,
+    (args) => contentHistoryVersionRead(client, args)
+  );
+
+  reg(
+    "content_history_version_diff",
+    "Line diff: chosen version vs current file on disk. Requires version.",
+    contentHistoryAddressSchema,
+    (args) => contentHistoryVersionDiff(client, args)
+  );
+
+  const restoreHandler = (args) => contentHistoryRestore(client, args);
+  reg(
+    "content_history_version_restore",
+    "Restore file content from a history version (overwrites current). Requires version; confirm when platform policy requires.",
+    contentHistoryAddressSchema,
+    restoreHandler
+  );
+  reg(
+    "content_history_restore",
+    "Deprecated alias for content_history_version_restore.",
+    contentHistoryAddressSchema,
+    restoreHandler
   );
 
   registerCanonicalWithLegacyAlias(reg, {

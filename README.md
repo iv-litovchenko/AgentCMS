@@ -859,6 +859,8 @@ user-agent-cms
 │   ├── 🟢 workspace_summary_get
 │   ├── 🟢 workspace_activity_list
 │   ├── 🟢 workspace_feed_list
+│   ├── 🟣 workspace_activity_count_zzz — stub: `{ total }` по activity.jsonl (без ленты; опц. since, pathPrefix)
+│   ├── 🟣 workspace_activity_get_zzz — stub: одно событие журнала по `id`
 │   └── 🟢 workspace_memory_audit
 │
 ├── 🎬 Сессия (Session) · 22
@@ -962,7 +964,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 27
+├── 📄 Контент (Content) · 32
 │   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
 │   ├── 🟢 contents_count — число файлов в слоте (те же placement/filters, без списка)
 │   ├── 🟢 contents_list_sections — только разделы (sections)
@@ -991,14 +993,14 @@ user-agent-cms
 │   ├── 🟢 content_merge
 │   ├── 🟢 contents_slots_list
 │   ├── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
-│   ├── 🟣 История файла · `content_history_*` (**zzz**)
-│   │   ├── content_history_version_count
-│   │   ├── content_history_version_list
-│   │   ├── content_history_version_read
-│   │   ├── content_history_version_diff
-│   │   └── (v2) content_history_restore
-│   └── 🟢 workspace_activity_list · 🔵 workspace_feed_list — журнал activity.jsonl (уже есть)
-│       └── 🟣 zzz: workspace_activity_count · workspace_activity_get
+│   ├── 🟢 content_history_version_count — число .mdback версий у ref
+│   ├── 🟢 content_history_version_list
+│   ├── 🟢 content_history_version_read
+│   ├── 🟢 content_history_version_diff
+│   ├── 🟢 content_history_version_restore — откат содержимого (write); alias: content_history_restore
+│   ├── 🟢 workspace_activity_list · 🔵 workspace_feed_list — журнал activity.jsonl
+│   ├── 🟣 workspace_activity_count_zzz — stub: число событий без выгрузки ленты
+│   └── 🟣 workspace_activity_get_zzz — stub: одно событие по id
 │
 ├── 🗃 Базы (Databases) · 13
 │   ├── 🟢 databases_list

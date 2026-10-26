@@ -120,7 +120,7 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 ## Идеи MCP (обсуждение — не про бинарь)
 
 - [ ] **Включить / выключить платформу MCP** — переключатель «MCP доступен снаружи» (не путать с `mcp-mode`: readonly/standard/full).
-- [ ] **Контент · история MCP** — `content_history_*` (zzz, см. дерево ниже).
+- [x] **Контент · история MCP** — `content_history_version_*` (incl. `_restore`)
 - [x] **Количество записей** — **`contents_count`** (MCP; те же placement/filters, что `contents_list`)
 
 ### 1) Включить / выключить платформу MCP
@@ -204,50 +204,11 @@ Agent CMS — MCP exposure (полное дерево)
 - Одна страница 503 для maintenance vs отдельная от «cms упала» (☕)?
 - **`content_history`** / **`content_count`** — приоритет после рубильника?
 
-### 2) `content_history_*` (zzz — идея, не в коде)
+### 2) `content_history_*` ✅
 
-**Бэкенд сегодня:** `POST /api/file/revisions`, чтение версии по API file/history, `.mdback` на save. **MCP — нет.**
+MCP: `content_history_version_count|list|read|diff|restore` (alias `content_history_restore`). Placement + `ref` как `content_read`. API: `/api/file/history`, `/history/content`, `/history/restore`, `/api/file/diff`.
 
-**Адрес как у content:** `placement` + `ref` (или `kind: root`, `path`).
-
-```
-content_history_*  (префикс content_, не contents_)
-│
-├─ content_history_version_count     zzz
-│     └─ → { total, placement, ref }   сколько .mdback у файла
-│
-├─ content_history_version_list      zzz
-│     └─ → { versions[], total, limit?, hasMore? }
-│           элемент: version (имя .mdback), savedAt, sizeBytes?, hash?
-│
-├─ content_history_version_read      zzz  ← чтение тела версии (предложение)
-│     └─ args: placement + ref + version (или versionId)
-│     → { version, part: body|all, body, hash?, savedAt }
-│        лимиты как content_read (окно строк / maxBytes)
-│
-└─ (v2, не v1)
-      ├─ content_history_version_diff   → patch/diff vs текущий content_read
-      └─ content_history_restore        → обёртка POST /api/file/history/restore (write, confirm)
-```
-
-| Tool | Зачем |
-| --- | --- |
-| `_version_count` | «Сколько версий» без списка |
-| `_version_list` | Таймлайн для выбора version |
-| `_version_read` | Прочитать старый текст (не путать с `content_read` = текущий файл) |
-
-**Activity (`.agent-cms/state/activity.jsonl`):**
-
-```
-workspace_activity_* 
-│
-├─ workspace_activity_list          ✅ уже есть (since, limit → GET /api/agent/activity)
-├─ workspace_activity_count         zzz — { total } или { total, since? } без выгрузки ленты
-├─ workspace_activity_get           zzz — одно событие по id (если нужно точечно)
-└─ (опц.) workspace_feed_list       ✅ уже есть — feed шире (activity + stale + …)
-```
-
-Restore в v2: `content_history_restore` (API `POST /api/file/history/restore`, write + confirm).
+**Activity:** list/feed ✅. Stubs **`workspace_activity_count_zzz`**, **`workspace_activity_get_zzz`** (описание в tool + README).
 
 ### 3) `contents_count` ✅
 

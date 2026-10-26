@@ -126,6 +126,11 @@ batch_invoke:
     - content_exists
     - contents_list
     - contents_count
+    - content_history_version_count
+    - content_history_version_list
+    - content_history_version_read
+    - content_history_version_diff
+    - content_history_version_restore
     - contents_list_reconcile
     - content_read
     - content_meta_get
