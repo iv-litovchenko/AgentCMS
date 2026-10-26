@@ -6155,6 +6155,7 @@ const WORKSPACE_TEXT_FILE_EXTENSIONS = new Set([
   ".html",
   ".htm",
   ".xml",
+  ".svg",
   ".log",
   ".pine"
 ]);
@@ -6601,6 +6602,7 @@ const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".html",
   ".htm",
   ".xml",
+  ".svg",
   ".log",
   ".pine",
   ".py",
