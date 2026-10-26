@@ -893,8 +893,12 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 23
-│   ├── 🟢 contents_list
+├── 📄 Контент (Content) · 27
+│   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
+│   ├── 🟢 contents_list_sections — только разделы (sections)
+│   ├── 🟢 contents_list_tree — скелет дерева (maxDepth)
+│   ├── 🟢 contents_list_preview — entries + snippet тела (.md)
+│   ├── 🟢 contents_list_full — legacy: весь список без пагинации
 │   ├── 🟢 content_read
 │   ├── 🟢 content_write
 │   ├── 🟢 content_binary_read
