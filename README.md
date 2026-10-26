@@ -990,7 +990,15 @@ user-agent-cms
 │   ├── 🟢 content_split
 │   ├── 🟢 content_merge
 │   ├── 🟢 contents_slots_list
-│   └── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
+│   ├── 🔵 contents_list_reconcile — сверка списка id/path из памяти агента с диском (`POST /api/content/reconcile`; краткий diff + meta)
+│   ├── 🟣 История файла · `content_history_*` (**zzz**)
+│   │   ├── content_history_version_count
+│   │   ├── content_history_version_list
+│   │   ├── content_history_version_read
+│   │   ├── content_history_version_diff
+│   │   └── (v2) content_history_restore
+│   └── 🟢 workspace_activity_list · 🔵 workspace_feed_list — журнал activity.jsonl (уже есть)
+│       └── 🟣 zzz: workspace_activity_count · workspace_activity_get
 │
 ├── 🗃 Базы (Databases) · 13
 │   ├── 🟢 databases_list
