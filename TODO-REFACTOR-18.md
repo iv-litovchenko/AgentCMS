@@ -122,6 +122,7 @@ content_binary_upload_begin → 400: getAgentRoot is not a function
 - [ ] **Включить / выключить платформу MCP** — переключатель «MCP доступен снаружи» (не путать с `mcp-mode`: readonly/standard/full).
 - [x] **Контент · история MCP** — `content_history_version_*` (incl. `_restore`)
 - [x] **Количество записей** — **`contents_count`** (MCP; те же placement/filters, что `contents_list`)
+- [ ] **Журнал workspace (activity)** — stubs `workspace_activity_count_zzz`, `workspace_activity_get_zzz` (см. §4)
 
 ### 1) Включить / выключить платформу MCP
 
@@ -208,8 +209,48 @@ Agent CMS — MCP exposure (полное дерево)
 
 MCP: `content_history_version_count|list|read|diff|restore` (alias `content_history_restore`). Placement + `ref` как `content_read`. API: `/api/file/history`, `/history/content`, `/history/restore`, `/api/file/diff`.
 
-**Activity:** list/feed ✅. Stubs **`workspace_activity_count_zzz`**, **`workspace_activity_get_zzz`** (описание в tool + README).
-
 ### 3) `contents_count` ✅
 
 MCP **`contents_count`** — `total` entries в placement (slot как у `contents_list`; `kind: root` — path без slot). Фильтры: `parent`, `q`, `ext`, `status`, `tags`, `entryType`. Код: `countContentEntries` → list API, `limit=1`, поле `total`.
+
+### 4) `workspace_activity_*` — журнал vs история файла
+
+**Не путать с `content_history_*`:** activity — **лента событий по всему workspace** (кто/что/когда менял); history — **версии одного файла** (`.mdback`).
+
+**Хранение:** `.agent-cms/state/activity.jsonl` (append, monotonic `id`), архив при clear. Пример полей события: `id`, `action` (create/update/delete/…), `path`, `manifestPath`, `label`, `source` (mcp/ui), `route`, `at`.
+
+**Уже есть (MCP):**
+
+| Tool | API | Зачем |
+| --- | --- | --- |
+| `workspace_activity_list` | `GET /api/agent/activity?since=&limit=` | Страница событий; в ответе уже есть **`total`**, `latestId`, `events[]` |
+| `workspace_feed_list` | `GET /api/agent/workspace-feed` | Шире: activity + intake/audit/stale (brain) |
+
+**Stubs (zzz) — суть для реализации позже:**
+
+```
+workspace_activity_*
+│
+├─ workspace_activity_list          ✅
+├─ workspace_feed_list              ✅
+│
+├─ workspace_activity_count_zzz     STUB · agent-utils-tools.js
+│     Зачем: «сколько событий» без тащить events[] в контекст агента.
+│     Целевой ответ: { total, latestId?, since?, pathPrefix? }
+│     Фильтры (planned):
+│       · since — считать только id > since (как list)
+│       · pathPrefix — только path/manifestPath начинается с префикса
+│     Реализация v0: GET /api/agent/activity?limit=0 или новый
+│       /api/agent/activity/count — переиспользовать store.total после ensureLoaded
+│     Реализация v1: scan jsonl без полной выгрузки в MCP (если total в памяти не хватает)
+│     Обход сейчас: list с limit=1 и читать поле total из JSON
+│
+└─ workspace_activity_get_zzz       STUB
+      Зачем: одно событие по id (ссылка из UI 🔔 или из list).
+      Args: { id: number }
+      Целевой ответ: { event } — одна строка jsonl как объект
+      Реализация: GET /api/agent/activity/event?id= или index по id в store
+      Обход сейчас: list(since: id-1, limit: 1) и сверить event.id
+```
+
+**Когда делать:** после smoke `content_history_*` / `contents_count` на prod; приоритет ниже, если list+total хватает.
