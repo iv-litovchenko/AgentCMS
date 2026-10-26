@@ -8302,7 +8302,7 @@ async function createStorageRecordFile({
 
   if ((await readTopicSlotsFlexible(manifestRelPath)) && !isMainSlot) {
     throw new Error(
-      'Topic uses awn-slots-flexible: external content only via slot "main" into awn-storage/.'
+      'Topic uses awn-slots-flexible: external content only via slot "main" or "memory" (disk folder awn-storage/main/).'
     );
   }
 
@@ -8423,13 +8423,15 @@ async function createStorageRecordFile({
     relFile,
     action: "create"
   });
+  const { publicSlotResponseFields } = require("./lib/config/storage-slot-routing");
+  const slotFields = publicSlotResponseFields(slotKey, canonicalFolder);
   return {
-    folder: canonicalFolder,
+    ...slotFields,
     file: relFile,
     sidecar: null,
     content,
     exists: true,
-    slotKey
+    workspacePath: contentWorkspaceRel || ""
   };
 }
 

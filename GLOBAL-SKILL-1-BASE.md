@@ -110,9 +110,9 @@ Workspace — папка с md-файлами. Хабы:
 
 Слот — папка под `awn-storage/` темы (и канала, медиатеки, базы, репозитория). `contents_slots_list({ placement: { kind: "topic", path } })` — слоты и драйвер: `external` (папка файлов, нужен `ref`) или `internal` (один файл, **без `ref`**).
 
-| Слот | Что там |
+| Слот (MCP `placement.slot`) | Что там |
 |------|---------|
-| `main` | Основная память |
+| `main`, `memory`, `external` | Основная память → на диске **`awn-storage/main/`** (ответ create/meta: **`workspacePath`**; API может вернуть `slotKey: memory`, `folder: main`) |
 | `inbox` | Входящие (`status: new`, разбор — `inbox_item_triage`) |
 | `notes`, `references`, `artefacts` | Заметки, источники, черновики |
 | `media` | Самостоятельные файлы темы |
@@ -126,8 +126,11 @@ Workspace — папка с md-файлами. Хабы:
 
 - **`media` ≠ `assets`.** Картинка в тексте, превью (`awn-preview`), вложение (`awn-attachments`) → `assets`; в markdown: `awn-storage/assets/pasted/{файл}`.
 - **Материалы записи:** `assets/materials/{awn-id}/` — связь по `awn-id` (переименование записи папку не переносит).
-- **Гибкий слот** (`slotsFlexible: true` в TOC) — тема без типовых слотов; только `content_create({ slot: "main", parent? })`.
+- **Гибкий слот** (`slotsFlexible: true` в TOC) — тема без типовых слотов; только `content_create({ slot: "main" \| "memory", parent? })`.
+- **`main-single` / `main-single-csv`** — driver `internal`, без `ref`; файлы-bundle лежат в **`main/`**, но это не каталог записей `memory`.
 - **`main-single-csv`** — `content_read` / `content_write`, `part=body`, весь CSV целиком.
+- **Канал / медиатека / база / репозиторий** — свои слоты (см. `contents_slots_list`); в канале **нет** `main`/`memory`.
+- **Legacy-алиасы** (папки, slot, kind) — `platform_doc_read({ path: "GLOBAL-SKILL-8-SLOTS-LEGACY.md" })`.
 
 ---
 

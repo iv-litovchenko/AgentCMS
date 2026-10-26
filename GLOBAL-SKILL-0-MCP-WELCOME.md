@@ -38,6 +38,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 | Search | `GLOBAL-SKILL-5-SEARCH.md` | поиск, индексы, DQL |
 | Modules | `GLOBAL-SKILL-6-MODULES.md` | git и другие модули |
 | Viz maps | `GLOBAL-SKILL-7-VIZ-MAPS.md` | карты `*.viz.md`, «Атлас» в UI, `viz_map_*` |
+| Slots legacy | `GLOBAL-SKILL-8-SLOTS-LEGACY.md` | алиасы slot/папок/kind для MCP |
 
 Через MCP можно прочитать текст скилла: `platform_doc_read({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы; список — `platform_docs_list`).
 

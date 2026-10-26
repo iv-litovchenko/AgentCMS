@@ -22,7 +22,8 @@ const {
   isMediaSlotKey,
   isInternalBundleSlot,
   buildSectionCreateRequest,
-  listSectionCapableSlotKeys
+  listSectionCapableSlotKeys,
+  normalizeStorageSlotKey
 } = require("../../lib/config/storage-slot-routing.js");
 const { assertMcpBinaryBase64UploadWithinLimit } = require("../../lib/media/base64-upload.js");
 
@@ -681,7 +682,7 @@ export async function createContent(client, args) {
     });
     return client.post(endpoint, requestBody);
   }
-  return client.post("/api/storage/file/create", {
+  const result = await client.post("/api/storage/file/create", {
     path: manifestPath,
     folder,
     title: title || displayName,
@@ -698,6 +699,17 @@ export async function createContent(client, args) {
     author,
     status
   });
+  const refFile = result?.file ? String(result.file).replace(/\\/g, "/") : "";
+  const refName = refFile ? refFile.split("/").pop() : "";
+  const canonicalSlot = normalizeStorageSlotKey(slot);
+  return {
+    ...result,
+    placement: {
+      ...address.placement,
+      slot: canonicalSlot,
+      ...(refName ? { ref: refName } : {})
+    }
+  };
 }
 
 export async function importContentFromUrl(client, args) {

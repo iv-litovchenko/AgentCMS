@@ -1,6 +1,25 @@
 # Рефакторинг — часть 17 (MCP слоты: slotKey vs folder)
 
 😊😊😊😊 Пиши туда в самом начале
+
+**Статус:** ✅ **закрыто** (2026-10-26) — v1 + v2; архив: `temp/TODO-REFACTOR-17-DONE.md`.
+
+## Прогресс (v1)
+
+| | Задача | Где |
+| --- | --- | --- |
+| ✅ | `workspacePath` в ответе create | `server.js` → `createStorageRecordFile` |
+| ✅ | `workspacePath` в `content_meta_get` / GET `/api/content/meta` | `lib/api/exists-api.js` (+ `memory` slot в exists) |
+| ✅ | MCP `content_create` → `placement` + поля API | `mcp-server/lib/content-core.js` |
+| ✅ | §4 скилла: main/memory/external → `main/`, main-single ловушка, хабы | `GLOBAL-SKILL-1-BASE.md`, `.codex/skills/agent-cms/SKILL.md` |
+| ✅ | Zod describe slot ↔ disk | `mcp-server/lib/content-placement-zod.js` |
+| ✅ | Коммент в типе темы | `awn-system/types/hubs/topic/topic.yml` |
+| ✅ | Ошибка flexible: main \| memory | `server.js` |
+| ✅ | Единый `slot` / `storageFolder` в JSON (+ алиасы `slotKey`/`folder`) | `publicSlotResponseFields`, `exists-api`, `content-placement` |
+| ✅ | Legacy-справочник для агента | `GLOBAL-SKILL-8-SLOTS-LEGACY.md`, welcome §8 |
+
+---
+
 ## Что произошло с #9041
 
 Запись **на месте**. При `slot: memory` (или `main` — это алиас) файл лежит здесь:
@@ -20,7 +39,7 @@
 
 **Почему агент путается:** в скиллах везде **`main`**, в ответе сервера — **`slotKey: memory`**, а **`path` от корня workspace в ответе create нет** (есть только `folder` + `file`). Отсюда `find …`.
 
-**Имеет смысл в продукте:** в ответ `content_create` / `/api/storage/file/create` добавить, например, `workspacePath: awn-topics/…/awn-storage/main/probnaya-zapis.md`.
+**Продукт (v1):** в ответе create/meta есть **`workspacePath`** — путь от корня workspace, напр. `awn-topics/…/awn-storage/main/probnaya-zapis.md`.
 
 ---
 
@@ -119,8 +138,37 @@ INDEX.md        →  index.md      (оглавление тем)
 |-----|--------|----------------|
 | GLOBAL-SKILL / agent-cms §4 | слот **`main`** | **`memory`** (+ алиасы main, external) |
 | `topic.yml` storage-slots | **`main`** | нормализуется в memory |
-| Ответ create | `folder: main` | `slotKey: memory` |
+| Ответ create | `folder: main` | `slotKey: memory` + **`workspacePath`** |
 
-Имеет смысл **свести доки к одной формулировке**: «в MCP — `main` или `memory`; на диске — папка `main/`; в ответах смотреть `workspacePath` (когда добавят) или `folder` + `file`».
+Формулировка (v1, **сделано**): «в MCP — `main` или `memory`; на диске — папка `main/`; в ответах смотреть `workspacePath` (когда добавят) или `folder` + `file`».
 
-Если нужно — могу набросать патч: **`workspacePath` в ответ create** и правка §4 скилла под `memory`/`main` без двусмысленности.
+---
+
+## Заметки из обсуждения (архив)
+
+**Частично верно.** Перечисленные ⚠️ — это в основном **уже работающие алиасы при чтении/роутинге** (`normalizeStorageSubfolderName`, `normalizeStorageSlotKey`). Рефактор 17 — не «переименовать все папки на диске», а **убрать путаницу у агента + ответ API**.
+
+### Что делаем (по сути)
+1. **`workspacePath`** в ответе create/read — главный фикс #9041.
+2. **Одна строка в доках:** `slot: main|memory|external` → диск `awn-storage/main/`.
+3. **MCP describe / §4 скилла** — slot ↔ folder, не только legacy-имена.
+4. **Разные хабы** — в канале/медиа/базе/репо **другие слоты**, не `main`.
+5. **Ловушка `main/`** — `memory` (много `.md`) vs `main-single*` (internal, без `ref`).
+
+### Legacy из твоего списка — да, но это не весь объём
+- `memory/`, `content/` → `main/` — **читается**, миграция опциональна.
+- `note` → `notes`, `script` → `scripts`, `thread`/`dialogs` → `discussion`, `roadmap*` → `atlas`, `todo` → `todo-single` — то же.
+- `tree`→`root`, `page`→`topic` — **placement**, не слоты.
+
+### Что упустил (кратко)
+- **`external`** как алиас `memory` (не только main).
+- **`agent-task-queue` / `agent-queue`** → `task-queue` (есть в дереве, не в списке).
+- **`infoblock` / `store` → `database`** (kind).
+- **`awn-database` / `awn-data`** — legacy путь базы.
+- **`repository` в теме** ≠ hub **`awn-repositories`**.
+- **`discussion` / `comments`** — не через обычный `content_create`.
+- **`awn-slots-flexible`** — только `main`/`memory`.
+- **Единый slot в JSON-ответах** (`memory` vs `main`) — косметика, не блокер.
+- **Согласовать `topic.yml` (`main`) с роутером (`memory`)** — док/коммент, не обязательно менять YAML.
+
+**Итог:** legacy в ⚠️ — **учесть в шпаргалке агента**; **исправить в коде в первую очередь** — `workspacePath` и ясность «куда писать» по **kind + slot**, а не массовый rename папок.
