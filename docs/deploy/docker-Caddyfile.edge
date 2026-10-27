@@ -1,6 +1,6 @@
 # Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
 # Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
-# Канон Q1: apex → CMS (/app-*). Поддомены: qwenpaw.*, all.* (каталог), *.domain → заглушка (не CMS).
+# Канон Q1: apex → CMS (/app-*). qwenpaw.* / all.* — HTTPS; прочие *.domain — заглушка по HTTP (http://foo…).
 
 {
 	email {$AGENT_CMS_CADDY_EMAIL}
@@ -42,7 +42,8 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	import edge_all_static
 }
 
-*.{$AGENT_CMS_PUBLIC_DOMAIN} {
+# foo.* и прочие неизвестные — только HTTP (без wildcard cert / без редиректа на https)
+http://*.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	import edge_unknown_static
 }
 

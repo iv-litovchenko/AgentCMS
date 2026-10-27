@@ -418,7 +418,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 **Канон v0:** явные host → `qwenpaw`, `all`; **остальные** `*.domain` → **статическая заглушка** (`edge-static/unknown`), **не CMS**. Apex `sitename.ru` → CMS без изменений.
 
-**Ограничение v0:** без wildcard TLS неизвестный поддомен на **HTTPS** может не открыться, пока не настроен DNS-01 / wildcard cert; на **HTTP** (:80) заглушка работает.
+**Ограничение v0:** неизвестный `foo.*` — только **`http://foo…`** (Caddy: `http://*.domain`, без wildcard cert). **`https://foo…`** — ошибка, пока нет DNS-01 wildcard; **не** редиректить foo на https (исправлено в `docker-Caddyfile.edge`).
 
 ### 10.5 Границы / риски
 
