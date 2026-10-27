@@ -1,0 +1,14 @@
+# Edge-services data: в git только каркас; runtime — на сервере (bind-mount).
+
+/*
+!/README.md
+!/.gitignore
+!/*/
+/*/*
+!/*/README.md
+!/*/_secret/
+/*/_secret/*
+!/*/_secret/.gitkeep
+!/*/_backups/
+/*/_backups/*
+!/*/_backups/.gitkeep

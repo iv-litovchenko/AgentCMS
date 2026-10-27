@@ -62,6 +62,17 @@ workspaces/*
 !workspaces/0-cli-sandbox/
 workspaces/0-cli-sandbox/*
 !workspaces/0-cli-sandbox/README.md
+!workspaces/0-services-data/
+!workspaces/0-services-data/**
+workspaces/0-services-data/qwenpaw/*
+!workspaces/0-services-data/README.md
+!workspaces/0-services-data/qwenpaw/README.md
+!workspaces/0-services-data/qwenpaw/_secret/
+workspaces/0-services-data/qwenpaw/_secret/*
+!workspaces/0-services-data/qwenpaw/_secret/.gitkeep
+!workspaces/0-services-data/qwenpaw/_backups/
+workspaces/0-services-data/qwenpaw/_backups/*
+!workspaces/0-services-data/qwenpaw/_backups/.gitkeep
 
 # Editor prod bundles (content-hashed; regenerate via npm run build:editor)
 public/editor/main.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].built.js

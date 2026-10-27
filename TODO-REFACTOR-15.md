@@ -460,8 +460,19 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 | **Пример v0 — QwenPaw** (`docker-compose.edge-services.yml` / `.mac.yml`) | ✅ |
 | **Доку — README, DOCKER.md, `.env.example`** | ✅ |
 | **Новый edge-app = compose + строка Caddy** (Hermes и т.д.) | ✅ принцип · ❌ автоматики |
-| **Динамически без правки compose** | ❌ не v0 |
+| **Динамически без правки compose** | ❌ не v0 · 💡 ниже |
 | **Wildcard HTTPS `*.domain` (один cert, DNS-01)** | 🟡 позже · не блокер v0 |
 | **Control — ссылки / health edge** | ✅ (`/api/platform/services`, мониторинг) |
 | **MCP `platform_services_list`** | ✅ |
 | **App-lock / cookies единые с edge** | ❌ нет, разные origin |
+
+### 10.8 💡 v1 — каталог edge-сервисов без ручного compose (идея)
+
+По аналогии с **`workspace-mounts`**: реестр на диске → CLI генерирует overlay перед `up`.
+
+| Env (черновик) | Назначение |
+| --- | --- |
+| **`AGENT_CMS_EDGE_SERVICES_MANIFEST`** | Путь к JSON реестра (default `.agent-cms-global/edge-services.json`): `serviceId`, image, port, subdomain slug, `dataOnDisk`, env. |
+| **`AGENT_CMS_EDGE_SERVICES_GENERATE`** | **`1`** — при `agent-cms-cli restart` пересобрать **`docker-compose.edge-services.generated.yml`** + фрагмент Caddy из manifest; **`0`** — только статический overlay из git (v0). |
+
+**Поток:** Control/MCP правят manifest → `restart` → compose + Caddy + `platform_services_list` из одного источника. v0: manifest нет, QwenPaw/`all` зашиты в repo.
