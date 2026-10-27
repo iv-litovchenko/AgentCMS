@@ -14,7 +14,7 @@
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
 | 9.1 | Установщик Mac / Windows / Linux | 🟡 v1 закрыто (`install.sh`; Windows/WSL; v1.1 — native) |
 | 9.2 | CLI `agent-cms` (вместо raw compose/git) | 🟡 v1 закрыто (lifecycle/rebuild; v1.1 — update≈Q3, env lock) |
-| 10 | Edge-приложения на поддоменах (Caddy + compose) | 📌 открыто — не трогаем `/app-*` |
+| 10 | Edge-приложения на поддоменах (Caddy + compose) | 🟡 v0 — qwenpaw + `all.*` + заглушка `*.domain` |
 
 ---
 
@@ -379,7 +379,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 ## 📌 Вопрос 10 — edge-приложения на поддоменах (вне CMS, без смены Q1)
 
-**Статус:** 📌 **открыто** (идея согласована; реализации в репо пока нет).
+**Статус:** 🟡 **v0 в репо** — `AGENT_CMS_EDGE_APPS=1`, `docker-compose.edge-apps.yml`, `docker-Caddyfile.edge`, статика `all` / `unknown`. Дальше: Hermes и др., wildcard TLS, Mac без Caddy.
 
 **Не путать с Q7.4:** там — поддомены *вместо* `/app-chat` для **платформенных** UI. **Q10 — другое:** канон Q1 **остаётся** — Agent CMS на основном хосте (`maptex.ru` / `localhost:3000`) и пути **`/app-*`**. Поддомены — для **отдельных внешних сервисов** (сторонний образ, свой UI/API), которые живут **рядом** с CMS в compose и проксируются **Caddy по `Host`**.
 
@@ -395,9 +395,9 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 | --- | --- | --- |
 | **Основная платформа** | apex / `www` | `https://sitename.ru/` + `/app-*` (Q1) |
 | **Одно edge-app** | `{appId}.` | `qwenpaw.`, `foo.` — **appId** = slug сервиса в compose |
-| **Каталог / агрегатор** | **`apps.`** (рекомендуем) | `apps.localhost` · `apps.sitename.ru` — одна страница: ссылки на edge-apps + CMS |
+| **Каталог / агрегатор** | **`all.`** («Все») | `all.localhost` · `all.sitename.ru` — ссылки на edge-apps + CMS |
 
-**Почему не `all.`:** размыто («всё подряд»), плохо читается в URL и в логах. Альтернативы, если `apps` не зайдёт: **`portal.`**, **`dock.`** — но **`apps.`** короче и привычнее для «launcher вне CMS».
+**Почему не `apps.`:** созвучно с **`/app-*`** и реестром platform apps; **`all.`** = «все сервисы на этом хосте».
 
 Отдельный контейнер агрегатора (статика или лёгкий nginx/caddy snippet + JSON манифест списка) — **да, отдельный сервис**, не часть `cms`. Манифест можно позже тянуть из `.agent-cms-global` или Control (ops), v0 — статический `index.html` в образе/volume.
 
@@ -407,26 +407,35 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 2. **Compose:** сервис `qwenpaw` (image, env, `expose`, без publish на хост); сеть `agent-cms`.
 3. **Caddy** (`docs/deploy/docker-Caddyfile` или overlay):
    - `qwenpaw.{domain}` → `reverse_proxy qwenpaw:PORT`;
-   - `apps.{domain}` → агрегатор;
+   - `all.{domain}` → агрегатор;
    - `{domain}` / `:80` → как сейчас → `cms:3000`.
 4. **TLS:** wildcard `*.sitename.ru` (Let’s Encrypt) или отдельный cert на каждый поддомен; локально часто достаточно **HTTP** `:80` + `*.localhost` → 127.0.0.1 в браузере.
 5. **После `.env` / Caddy:** recreate (`agent-cms-cli restart` на Linux), не rebuild образа CMS — см. DOCKER.md.
 
-### 10.4 Границы / риски
+### 10.4 Неизвестный поддомен (`blabla.*`) — проблема и v0-решение
+
+**Проблема:** при wildcard DNS `*.sitename.ru` запрос `blabla.sitename.ru` попадает на VPS. Если Caddy по умолчанию всё ведёт на **`cms:3000`**, пользователь видит **Editor с «чужим» Host** — путаница URL, cookies, ощущение «сломанного» CMS.
+
+**Канон v0:** явные host → `qwenpaw`, `all`; **остальные** `*.domain` → **статическая заглушка** (`edge-static/unknown`), **не CMS**. Apex `sitename.ru` → CMS без изменений.
+
+**Ограничение v0:** без wildcard TLS неизвестный поддомен на **HTTPS** может не открыться, пока не настроен DNS-01 / wildcard cert; на **HTTP** (:80) заглушка работает.
+
+### 10.5 Границы / риски
 
 - **Cookies / CORS / SSO** — разные origin; app-lock CMS **не** распространяется на `qwenpaw.*` автоматически.
 - **Секреты** — env **у каждого** edge-сервиса; не смешивать с whitelist CMS `.env.example` без явного решения.
 - **Реестр Q1 (`platform_apps_list`)** — только **встроенные** `app-*`; edge-apps — отдельный список (манифест агрегатора или будущий MCP `platform_edge_apps_list` — не в v0).
 - **MCP Host allowlist** — при обращении к MCP с поддомена дописать хосты в `AGENT_CMS_MCP_ALLOWED_HOSTS` (если нужно).
 
-### 10.5 Артефакты (когда браться)
+### 10.6 Артефакты
 
-- [ ] `docker-compose.edge-apps.yml` (optional `-f`) или секция в `linux.yml` за флагом.
-- [ ] Фрагмент Caddy + пример `qwenpaw` + **`apps`** (агрегатор).
-- [ ] README / DOCKER.md — одна таблица «основной домен vs поддомен edge».
-- [ ] Control (опц.): ссылки на `apps.*` и здоровье контейнеров — не блокер v0.
+- [x] `docker-compose.edge-apps.yml` + **`AGENT_CMS_EDGE_APPS=1`** в CLI compose args.
+- [x] `docs/deploy/docker-Caddyfile.edge` + `qwenpaw` + **`all.`** + `*.domain` → unknown.
+- [x] DOCKER.md — таблица host → backend.
+- [ ] Control: ссылки на `all.*`, health qwenpaw.
+- [ ] Hermes и др. — по одному сервису + строка в Caddy (динамический каталог без compose — не v0).
 
 > **NOTE**
-> - ✅ **Решение:** `/app-*` **не трогаем**; поддомены — **только** сторонние/edge контейнеры + **`apps.`** как каталог.
+> - ✅ **Решение:** `/app-*` **не трогаем**; поддомены — edge-контейнеры + **`all.`** как каталог.
 > - 💡 Q7.4 (chat.localhost) остаётся **отложено**; Q10 не заменяет path-маршруты CMS.
 > - 📌 Связь с REFACTOR-19 / MCP-instances — только если edge-app нужен в workspace; иначе чисто infra.

@@ -1,0 +1,56 @@
+# Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
+# Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
+# Канон Q1: apex → CMS (/app-*). Поддомены: qwenpaw.*, all.* (каталог), *.domain → заглушка (не CMS).
+
+{
+	email {$AGENT_CMS_CADDY_EMAIL}
+}
+
+(cms_proxy) {
+	handle_errors {
+		@upstream expression {http.error.status_code} >= 502 && {http.error.status_code} <= 503
+		handle @upstream {
+			root * /srv/caddy-errors
+			rewrite * /upstream-unavailable.html
+			file_server
+		}
+	}
+	handle {
+		reverse_proxy cms:3000
+	}
+}
+
+(edge_all_static) {
+	root * /srv/edge-static/all
+	rewrite * /index.html
+	file_server
+}
+
+(edge_unknown_static) {
+	root * /srv/edge-static/unknown
+	rewrite * /index.html
+	file_server
+}
+
+# AGENT_CMS_PUBLIC_DOMAIN=localhost → qwenpaw.localhost, all.localhost, *.localhost (заглушка)
+# AGENT_CMS_PUBLIC_DOMAIN=maptex.ru → qwenpaw.maptex.ru, all.maptex.ru, *.maptex.ru (заглушка)
+qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN} {
+	reverse_proxy qwenpaw:8088
+}
+
+all.{$AGENT_CMS_PUBLIC_DOMAIN} {
+	import edge_all_static
+}
+
+*.{$AGENT_CMS_PUBLIC_DOMAIN} {
+	import edge_unknown_static
+}
+
+{$AGENT_CMS_PUBLIC_DOMAIN} {
+	import cms_proxy
+}
+
+# IP / без совпадения Host — CMS (как раньше)
+:80 {
+	import cms_proxy
+}

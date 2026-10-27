@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Нет такого сервиса</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    main { max-width: 420px; text-align: center; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 12px; }
+    p { color: #94a3b8; line-height: 1.5; margin: 0 0 20px; }
+    a { color: #38bdf8; }
+    code { font-size: 0.9em; background: #1e293b; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Сервис не найден</h1>
+    <p>Поддомен <code id="host"></code> не зарегистрирован на этой платформе.</p>
+    <p><a id="all-link" href="#">Открыть каталог «Все»</a> · <a id="cms-link" href="#">Agent CMS</a></p>
+  </main>
+  <script>
+    (function () {
+      var h = location.hostname;
+      document.getElementById("host").textContent = h;
+      function apexHost() {
+        if (h === "localhost" || h.endsWith(".localhost")) return "localhost";
+        var parts = h.split(".");
+        if (parts.length <= 2) return h;
+        return parts.slice(-2).join(".");
+      }
+      function originForSub(sub) {
+        var apex = apexHost();
+        var port = location.port ? ":" + location.port : "";
+        return location.protocol + "//" + sub + "." + apex + port + "/";
+      }
+      document.getElementById("all-link").href = originForSub("all");
+      document.getElementById("cms-link").href = location.protocol + "//" + apexHost() + (location.port ? ":" + location.port : "") + "/";
+    })();
+  </script>
+</body>
+</html>

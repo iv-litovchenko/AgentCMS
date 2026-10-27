@@ -190,9 +190,10 @@ case "$cmd" in
     if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
       bash "$AGENT_CMS_HOME/scripts/docker-mac-restart.sh"
     else
-      echo "→ docker compose up -d --force-recreate (cms, mcp, control, caddy)"
+      echo "→ docker compose up -d --force-recreate ($(agent_cms_compose_up_services))"
       echo "  (после правок .env — иначе Caddy не увидит новый домен)"
-      agent_cms_compose up -d --force-recreate cms mcp control caddy
+      # shellcheck disable=SC2046
+      agent_cms_compose up -d --force-recreate $(agent_cms_compose_up_services)
       agent_cms_compose ps
     fi
     ;;

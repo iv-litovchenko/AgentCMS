@@ -99,6 +99,23 @@ docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp contro
 
 Проверка: `npm run check:app-door`.
 
+## Edge-приложения на поддоменах (Q10, v0)
+
+**Не заменяют `/app-*`** на apex. Включение: **`AGENT_CMS_EDGE_APPS=1`** в `.env` (Linux/VPS, есть **Caddy**).
+
+| Host | Куда |
+|------|------|
+| `https://ваш-домен/` | CMS (как раньше) |
+| `qwenpaw.ваш-домен` | контейнер [`agentscope/qwenpaw`](https://hub.docker.com/r/agentscope/qwenpaw) :8088 |
+| `all.ваш-домен` | статический каталог «Все» |
+| `blabla.ваш-домен` | **заглушка** «сервис не найден» (не CMS) |
+
+Локально с **`AGENT_CMS_PUBLIC_DOMAIN=localhost`**: `http://qwenpaw.localhost/`, `http://all.localhost/`, `http://foo.localhost/` → заглушка.
+
+DNS (prod): `*.ваш-домен` → A на VPS. Новый edge-app ≈ сервис в **`docker-compose.edge-apps.yml`** + блок в **`docs/deploy/docker-Caddyfile.edge`**. После правок — **`agent-cms-cli restart`**.
+
+**HTTPS wildcard** (`*.domain` один cert) — DNS-01 у регистратора; v0 Caddy выпускает cert **по отдельным** известным host; неизвестные поддомены на HTTPS могут потребовать wildcard позже.
+
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
 Перенос: **`./workspaces`**, **`./.agent-cms-global`**, `.env` → новый сервер → `linux.yml up`. (Старые Docker volumes `cms-workspaces` / `cms-global` — скопируйте в эти папки на хосте.)

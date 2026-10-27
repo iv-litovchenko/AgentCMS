@@ -1,0 +1,38 @@
+# Edge-приложения на поддоменах (Q10). Не трогает /app-* на apex.
+#   AGENT_CMS_EDGE_APPS=1 в .env
+#   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml up -d
+# После правок: agent-cms-cli restart (force-recreate caddy + qwenpaw)
+
+name: agent-cms
+
+services:
+  qwenpaw:
+    image: agentscope/qwenpaw:${QWENPAW_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    networks:
+      - agent-cms
+    expose:
+      - "8088"
+    environment:
+      QWENPAW_PORT: "8088"
+    volumes:
+      - qwenpaw-data:/app/working
+      - qwenpaw-secrets:/app/working.secret
+      - qwenpaw-backups:/app/working.backups
+
+  caddy:
+    volumes:
+      - ./docs/deploy/docker-Caddyfile.edge:/etc/caddy/Caddyfile:ro
+      - ./docs/deploy/edge-static:/srv/edge-static:ro
+    depends_on:
+      cms:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+      qwenpaw:
+        condition: service_started
+
+volumes:
+  qwenpaw-data:
+  qwenpaw-secrets:
+  qwenpaw-backups:

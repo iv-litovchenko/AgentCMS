@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Все сервисы</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #070b14; color: #f1f5f9; margin: 0; min-height: 100vh; padding: 32px 20px; }
+    h1 { font-size: 1.35rem; margin: 0 0 8px; }
+    .muted { color: #94a3b8; margin: 0 0 24px; font-size: 0.95rem; }
+    ul { list-style: none; padding: 0; margin: 0; max-width: 480px; }
+    li { margin-bottom: 10px; }
+    a { display: block; padding: 14px 16px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; color: #38bdf8; text-decoration: none; }
+    a:hover { border-color: #38bdf8; }
+    .desc { display: block; color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Все</h1>
+  <p class="muted">Edge-приложения и Agent CMS на этом хосте.</p>
+  <ul id="list"></ul>
+  <script>
+    (function () {
+      function apexHost() {
+        var h = location.hostname;
+        if (h === "localhost" || h.endsWith(".localhost")) return "localhost";
+        var parts = h.split(".");
+        if (parts.length <= 2) return h;
+        return parts.slice(-2).join(".");
+      }
+      function url(sub, path) {
+        var apex = apexHost();
+        var port = location.port ? ":" + location.port : "";
+        var host = sub ? sub + "." + apex : apex;
+        return location.protocol + "//" + host + port + (path || "/");
+      }
+      var apps = [
+        { title: "Agent CMS", sub: "", path: "/", desc: "Editor, Control, /app-*" },
+        { title: "QwenPaw", sub: "qwenpaw", path: "/", desc: "agentscope/qwenpaw (edge)" }
+      ];
+      var ul = document.getElementById("list");
+      apps.forEach(function (app) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = url(app.sub, app.path);
+        a.innerHTML = app.title + '<span class="desc">' + app.desc + "</span>";
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+    })();
+  </script>
+</body>
+</html>
