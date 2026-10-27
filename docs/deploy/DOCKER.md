@@ -116,6 +116,23 @@ DNS (prod): `*.ваш-домен` → A на VPS. Новый edge-app ≈ сер
 
 **HTTPS wildcard** (один LE cert на `*.domain`) — DNS-01 у регистратора, позже. Известные host (`maptex.ru`, `qwenpaw.`, `all.`) — Let's Encrypt. Случайный `foo.domain` — заглушка только по **HTTP**; по HTTPS без wildcard cert не обслуживается (намеренно: wildcard site в Caddy ломает LE на известных поддоменах).
 
+**Если после правок Caddy «всё упало»** (пустой ответ, TLS без сертификата):
+
+1. `git pull`, проверить `.env`: `AGENT_CMS_PUBLIC_DOMAIN=maptex.ru`, `AGENT_CMS_EDGE_APPS=1`, `AGENT_CMS_CADDY_EMAIL=…`.
+2. Валидация конфига (edge overlay):
+   ```bash
+   cd /opt/agent-cms
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml run --rm caddy caddy validate --config /etc/caddy/Caddyfile
+   ```
+3. `agent-cms-cli restart` (или `--force-recreate caddy`).
+4. Если HTTPS всё ещё с «Caddy Local Authority» — пересоздать volume сертификатов и снова поднять Caddy (Let's Encrypt перевыпустит):
+   ```bash
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml stop caddy
+   docker volume rm agent-cms_caddy-data agent-cms_caddy-config 2>/dev/null || true
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml up -d caddy
+   ```
+5. **Аварийно без edge:** `AGENT_CMS_EDGE_APPS=0` в `.env` → `restart` (базовый `docker-Caddyfile`, только apex CMS).
+
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
 Перенос: **`./workspaces`**, **`./.agent-cms-global`**, `.env` → новый сервер → `linux.yml up`. (Старые Docker volumes `cms-workspaces` / `cms-global` — скопируйте в эти папки на хосте.)

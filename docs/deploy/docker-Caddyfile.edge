@@ -1,7 +1,7 @@
 # Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
 # Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
 # apex + qwenpaw + all → HTTPS (Let's Encrypt).
-# Прочие *.domain → заглушка только на HTTP (:80). Wildcard site-блоки (*.domain) ломают LE на qwenpaw/all.
+# Неизвестные *.domain → заглушка только HTTP (:80, host matcher). Без site *.domain / tls internal.
 
 {
 	email {$AGENT_CMS_CADDY_EMAIL}
@@ -33,6 +33,10 @@
 	file_server
 }
 
+{$AGENT_CMS_PUBLIC_DOMAIN} {
+	import cms_proxy
+}
+
 qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	reverse_proxy qwenpaw:8088
 }
@@ -41,13 +45,12 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	import edge_all_static
 }
 
-{$AGENT_CMS_PUBLIC_DOMAIN} {
-	import cms_proxy
-}
-
 :80 {
 	@unknown_sub {
-		expression `{http.request.host}.endsWith(".{$AGENT_CMS_PUBLIC_DOMAIN}") && {http.request.host} != "{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "all.{$AGENT_CMS_PUBLIC_DOMAIN}"`
+		host *.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host all.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host {$AGENT_CMS_PUBLIC_DOMAIN}
 	}
 	handle @unknown_sub {
 		import edge_unknown_static
