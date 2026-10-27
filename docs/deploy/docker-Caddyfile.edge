@@ -1,6 +1,5 @@
 # Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
 # Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
-# Apex + qwenpaw + all → HTTPS. Неизвестный поддомен (foo.*) → заглушка только по HTTP :80.
 
 {
 	email {$AGENT_CMS_CADDY_EMAIL}
@@ -44,10 +43,14 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	import cms_proxy
 }
 
-# :80 — неизвестные *.domain (HTTP, без TLS) + IP / прочие → CMS
+# HTTP :80 — foo.* заглушка (без HTTPS); остальное → CMS (IP и т.п.)
 :80 {
-	@unknown_sub expression `{http.request.host}.endsWith(".{$AGENT_CMS_PUBLIC_DOMAIN}") && {http.request.host} != "qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "all.{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "{$AGENT_CMS_PUBLIC_DOMAIN}"`
-	handle @unknown_sub {
+	@unknown_stub {
+		host *.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host all.{$AGENT_CMS_PUBLIC_DOMAIN}
+	}
+	handle @unknown_stub {
 		import edge_unknown_static
 	}
 	handle {
