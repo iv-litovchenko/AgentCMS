@@ -833,6 +833,7 @@ user-agent-cms
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
 │   ├── 🟢 platform_doc_read
+│   ├── 🟢 platform_doc_write
 │   ├── 🟢 platform_config_list
 │   ├── 🟢 platform_apps_list
 │   ├── 🟢 platform_services_list

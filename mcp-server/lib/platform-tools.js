@@ -60,6 +60,20 @@ export function registerPlatformTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_doc_write",
+    legacy: "write_platform_doc",
+    description:
+      "Replace entire .md file in the repository root (full content, UTF-8). Same paths as platform_doc_read. Blocked in mcp-mode=readonly.",
+    schema: z.object({
+      path: repoRootFileName,
+      content: z.string().describe("Full new file content (UTF-8)")
+    }),
+    handler: ({ path, content }) =>
+      client.post("/api/platform/docs/write", { path, content }, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
     canonical: "platform_config_list",
     legacy: "list_platform_config",
     description:
