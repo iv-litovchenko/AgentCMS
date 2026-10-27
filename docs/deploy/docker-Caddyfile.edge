@@ -1,6 +1,6 @@
 # Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
 # Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
-# Канон Q1: apex → CMS (/app-*). qwenpaw.* / all.* — HTTPS; прочие *.domain — заглушка по HTTP (http://foo…).
+# Apex + qwenpaw + all → HTTPS. Неизвестный поддомен (foo.*) → заглушка только по HTTP :80.
 
 {
 	email {$AGENT_CMS_CADDY_EMAIL}
@@ -32,8 +32,6 @@
 	file_server
 }
 
-# AGENT_CMS_PUBLIC_DOMAIN=localhost → qwenpaw.localhost, all.localhost, *.localhost (заглушка)
-# AGENT_CMS_PUBLIC_DOMAIN=maptex.ru → qwenpaw.maptex.ru, all.maptex.ru, *.maptex.ru (заглушка)
 qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	reverse_proxy qwenpaw:8088
 }
@@ -42,16 +40,17 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	import edge_all_static
 }
 
-# foo.* и прочие неизвестные — только HTTP (без wildcard cert / без редиректа на https)
-http://*.{$AGENT_CMS_PUBLIC_DOMAIN} {
-	import edge_unknown_static
-}
-
 {$AGENT_CMS_PUBLIC_DOMAIN} {
 	import cms_proxy
 }
 
-# IP / без совпадения Host — CMS (как раньше)
+# :80 — неизвестные *.domain (HTTP, без TLS) + IP / прочие → CMS
 :80 {
-	import cms_proxy
+	@unknown_sub expression `{http.request.host}.endsWith(".{$AGENT_CMS_PUBLIC_DOMAIN}") && {http.request.host} != "qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "all.{$AGENT_CMS_PUBLIC_DOMAIN}" && {http.request.host} != "{$AGENT_CMS_PUBLIC_DOMAIN}"`
+	handle @unknown_sub {
+		import edge_unknown_static
+	}
+	handle {
+		import cms_proxy
+	}
 }
