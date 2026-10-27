@@ -8,7 +8,20 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export AGENT_CMS_ROOT="$DOCKER_MAC_ROOT"
 
 COMPOSE_FILE="${AGENT_CMS_COMPOSE_FILE:-docker-compose.mac.yml}"
-UP_SERVICES="${AGENT_CMS_DOCKER_UP_SERVICES:-cms mcp control}"
+
+docker_mac_up_services() {
+  if [[ -n "${AGENT_CMS_DOCKER_UP_SERVICES:-}" ]]; then
+    echo "$AGENT_CMS_DOCKER_UP_SERVICES"
+    return
+  fi
+  local services="cms mcp control"
+  if [[ "$(docker_mac_read_env_var AGENT_CMS_EDGE_SERVICES_ENABLED 1)" == "1" ]]; then
+    services="$services qwenpaw"
+  fi
+  echo "$services"
+}
+
+UP_SERVICES="$(docker_mac_up_services)"
 
 docker_mac_pause_on_exit() {
   if [[ "${DOCKER_MAC_NO_PAUSE:-}" == "1" ]]; then
@@ -59,8 +72,24 @@ docker_mac_read_env_var() {
   echo "$fallback"
 }
 
+docker_mac_compose_args() {
+  local -a args=(-f "$COMPOSE_FILE" -f docker-compose.workspace-mounts.yml)
+  if [[ "$(docker_mac_read_env_var AGENT_CMS_EDGE_SERVICES_ENABLED 1)" == "1" ]]; then
+    if [[ -f docker-compose.edge-services.mac.yml ]]; then
+      args+=(-f docker-compose.edge-services.mac.yml)
+    else
+      echo "⚠ AGENT_CMS_EDGE_SERVICES_ENABLED=1, но docker-compose.edge-services.mac.yml не найден" >&2
+    fi
+  fi
+  printf '%s\n' "${args[@]}"
+}
+
 docker_mac_compose() {
-  local -a compose_args=(-f "$COMPOSE_FILE" -f docker-compose.workspace-mounts.yml)
+  local -a compose_args=()
+  local arg
+  while IFS= read -r arg; do
+    compose_args+=("$arg")
+  done < <(docker_mac_compose_args)
   docker compose "${compose_args[@]}" "$@"
 }
 
@@ -84,6 +113,12 @@ docker_mac_open_urls() {
   fi
   echo "  Control:  ${control_url}"
   echo "  Editor:   ${editor_url}"
+  if [[ "$(docker_mac_read_env_var AGENT_CMS_EDGE_SERVICES_ENABLED 1)" == "1" ]]; then
+    local edge_port
+    edge_port="$(echo "$base" | sed -E 's|^https?://[^:/]+:([0-9]+)$|\1|')"
+    [[ -z "$edge_port" ]] && edge_port="3443"
+    echo "  Edge:     https://qwenpaw.localhost:${edge_port}/  (поддомены только *.localhost, не *.127.0.0.1)"
+  fi
   if [[ "$(uname -s)" == "Darwin" && "$open_browser" != "1" ]]; then
     echo "  (браузер не открываем; agent-cms-cli open control | Electron ACMS-*)"
   fi
