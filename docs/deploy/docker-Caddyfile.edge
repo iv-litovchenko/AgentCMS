@@ -1,6 +1,6 @@
 # Caddy + edge-apps (docker-compose.edge-apps.yml, AGENT_CMS_EDGE_APPS=1)
 # Env: AGENT_CMS_PUBLIC_DOMAIN, AGENT_CMS_CADDY_EMAIL
-# v0: apex + qwenpaw + all (HTTPS). Прочие поддомены — позже (без wildcard-блока, иначе Caddy падал).
+# apex + qwenpaw + all → HTTPS. foo.* → заглушка только http://foo… (без cert на https://foo).
 
 {
 	email {$AGENT_CMS_CADDY_EMAIL}
@@ -26,6 +26,12 @@
 	file_server
 }
 
+(edge_unknown_static) {
+	root * /srv/edge-static/unknown
+	rewrite * /index.html
+	file_server
+}
+
 qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	reverse_proxy qwenpaw:8088
 }
@@ -39,5 +45,16 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 }
 
 :80 {
-	import cms_proxy
+	@unknown_sub {
+		host *.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host qwenpaw.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host all.{$AGENT_CMS_PUBLIC_DOMAIN}
+		not host {$AGENT_CMS_PUBLIC_DOMAIN}
+	}
+	handle @unknown_sub {
+		import edge_unknown_static
+	}
+	handle {
+		import cms_proxy
+	}
 }
