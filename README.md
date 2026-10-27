@@ -975,7 +975,7 @@ user-agent-cms
 │   ├── 🟢 topic_rename
 │   └── 🟢 topic_move
 │
-├── 📄 Контент (Content) · 35
+├── 📄 Контент (Content) · 36
 │   ├── 🟢 contents_list — entries одного уровня (limit/cursor, parent)
 │   ├── 🟢 contents_outside_slots_list — «вне слотов» (корень контейнера + awn-storage/, без slot)
 │   ├── 🟢 contents_count — число файлов в слоте (те же placement/filters, без списка)
@@ -996,7 +996,8 @@ user-agent-cms
 │   ├── 🟢 content_binary_url_get — HTTPS URL превью (картинка в браузере)
 │   ├── 🟢 content_binary_metadata_get
 │   ├── 🟢 content_exists
-│   ├── 🟢 content_meta_get
+│   ├── 🟢 content_meta_get — stat + sizeBytes/mimeType
+│   ├── 🟢 content_size_get — только размер файла/заметки
 │   ├── 🟢 content_property_read
 │   ├── 🟢 content_property_write
 │   ├── 🟢 content_create

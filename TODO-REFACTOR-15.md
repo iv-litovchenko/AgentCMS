@@ -2,6 +2,12 @@
 
 😊😊😊😊 Пиши туда в самом начале
 
+## Чат (Cursor)
+
+- **Тема:** public URL (`platform_info_get`, Ops, Control), MCP connector Mac (`/app-mcp`), туннель `/api/tunnel/ws`
+- **ID:** `17792d41-9fa1-4d70-ad01-abdcc042fd05`
+- **Транскрипт:** [Public URL и MCP connector](17792d41-9fa1-4d70-ad01-abdcc042fd05)
+
 | Q | Тема | Статус |
 | --- | --- | --- |
 | 1 | Одна дверь `/app-*` | ✅ закрыто |

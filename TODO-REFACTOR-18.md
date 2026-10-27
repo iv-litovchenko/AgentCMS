@@ -6,6 +6,8 @@
 
 **Связь:** REFACTOR-16 п.8 — большие файлы через `content_binary_upload_*`; малые — base64 (~1 MiB MCP).
 
+**Чат Cursor (id):** `42302b68-5af0-44eb-9188-5059b2a026b5` — [REFACTOR-18: бинарь, flexible/outside slots, repo root, README](42302b68-5af0-44eb-9188-5059b2a026b5)
+
 ---
 
 ## Оригинал сообщения (дословно)

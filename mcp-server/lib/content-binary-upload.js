@@ -1,8 +1,7 @@
 import { createRequire } from "node:module";
-import { readFileHandler } from "./workspace-fs-tools.js";
+import { getContentSize } from "./content-core.js";
 
 const require = createRequire(import.meta.url);
-const { resolveContentAddress } = require("../../lib/config/content-placement.js");
 
 function pickPlacementPayload(args) {
   const sourceUrl = args.sourceUrl != null ? String(args.sourceUrl).trim() : "";
@@ -65,23 +64,16 @@ export async function statusContentBinaryUpload(client, args) {
 }
 
 export async function getContentBinaryMetadata(client, args) {
-  const address = resolveContentAddress(args);
-  const workspaceFilePath = address.workspaceFilePath;
-  if (!workspaceFilePath) {
-    throw new Error("content_binary_metadata_get: could not resolve workspace path from placement");
-  }
-  const payload = await readFileHandler(client, {
-    path: workspaceFilePath,
-    format: "base64",
-    maxBytes: 1,
-    offsetBytes: 0
-  });
+  const slim = await getContentSize(client, args);
+  const path = slim.workspacePath || slim.ref;
   return {
-    placement: address.placement,
-    path: workspaceFilePath,
-    name: payload.name,
-    size: payload.size,
-    mimeType: payload.mimeType,
-    exists: payload.exists !== false
+    placement: slim.placement,
+    path,
+    name: path ? String(path).split("/").pop() : undefined,
+    size: slim.sizeBytes,
+    mimeType: slim.mimeType,
+    exists: slim.exists !== false,
+    sizeBytes: slim.sizeBytes,
+    hint: "Alias fields; prefer content_size_get for new integrations."
   };
 }

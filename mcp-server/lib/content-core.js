@@ -26,6 +26,7 @@ const {
   normalizeStorageSlotKey
 } = require("../../lib/config/storage-slot-routing.js");
 const { isRepositoryCloneRootSlot } = require("../../lib/config/repository-clone-placement.js");
+const { enrichContentMetaWithSize } = require("../../lib/content/content-size-meta.js");
 const { assertMcpBinaryBase64UploadWithinLimit } = require("../../lib/media/base64-upload.js");
 
 export function absolutizeCmsUrl(client, urlPath) {
@@ -309,16 +310,49 @@ export async function readContentAll(client, args) {
 export async function getContentMeta(client, args) {
   const address = resolveArgs(args);
   if (usesWorkspaceFsContentPath(address)) {
-    const payload = await readRootWorkspaceFile(client, { maxBytes: 1 }, address.workspaceFilePath);
-    return {
+    const workspaceFilePath = address.workspaceFilePath;
+    const payload = await readFileHandler(client, { path: workspaceFilePath, maxBytes: 1024 });
+    return enrichContentMetaWithSize({
       placement: address.placement,
       driver: address.kind === "repository" ? "repository-clone" : "root",
-      exists: true,
-      file: payload
-    };
+      exists: payload?.exists !== false,
+      workspacePath: workspaceFilePath,
+      ref: address.ref || workspaceFilePath.split("/").pop() || null,
+      file: {
+        path: workspaceFilePath,
+        size: payload?.size,
+        mimeType: payload?.mimeType
+      }
+    });
   }
   const { manifestPath, slot, ref } = address;
-  return client.get("/api/content/meta", { path: manifestPath, slot, ...(ref ? { ref } : {}) });
+  const payload = await client.get("/api/content/meta", {
+    path: manifestPath,
+    slot,
+    ...(ref ? { ref } : {})
+  });
+  return enrichContentMetaWithSize(payload);
+}
+
+/** Slim size-only view (same placement as content_meta_get / content_read). */
+export async function getContentSize(client, args) {
+  const meta = await getContentMeta(client, args);
+  const placement = meta.placement ?? resolveArgs(args).placement;
+  return {
+    placement,
+    exists: meta.exists !== false,
+    ref: meta.ref ?? null,
+    workspacePath: meta.workspacePath ?? null,
+    driver: meta.driver ?? null,
+    sizeBytes: meta.sizeBytes ?? null,
+    size: meta.size ?? meta.sizeBytes ?? null,
+    mimeType: meta.mimeType ?? null,
+    updatedAt: meta.file?.updatedAt ?? null,
+    hint:
+      meta.exists === false
+        ? "File missing — check placement.ref or content_exists."
+        : "For body use content_read; for upload_begin use sizeBytes when size is known."
+  };
 }
 
 function windowArgs(args, fileName) {

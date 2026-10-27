@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   contentExists,
   getContentMeta,
+  getContentSize,
   readContentBody,
   readContentMeta,
   readContentAll,
@@ -84,10 +85,18 @@ export function registerContentTools({ reg, client, pagePath }) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "content_meta_get",
     legacy: "get_content_meta",
-    description: "Lightweight content metadata: exists, driver, file stat — no body. Prefer content_read with part=meta.",
+    description:
+      "Lightweight metadata: exists, driver, file stat — no body. Includes top-level sizeBytes, size, mimeType (.md notes and binary). Prefer content_size_get for size only.",
     schema: address({}),
     handler: (args) => withMdRefFallback(args, (a) => getContentMeta(client, a))
   });
+
+  reg(
+    "content_size_get",
+    "File/note size only: sizeBytes, mimeType, exists — same placement + ref as content_read (no body). Use before read/upload_begin.",
+    address({}),
+    (args) => withMdRefFallback(args, (a) => getContentSize(client, a))
+  );
 
   const readContentDescription =
     "Read content by placement.kind: topic | channel | media | database | repository | root (or legacy path+slot). part=body|properties|schema|meta|all. " +
