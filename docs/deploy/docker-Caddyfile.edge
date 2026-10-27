@@ -7,7 +7,7 @@
 	email {$AGENT_CMS_CADDY_EMAIL}
 }
 
-(cms_proxy) {
+(cms_upstream_errors) {
 	handle_errors {
 		@upstream expression {http.error.status_code} >= 502 && {http.error.status_code} <= 503
 		handle @upstream {
@@ -16,6 +16,10 @@
 			file_server
 		}
 	}
+}
+
+(cms_proxy) {
+	import cms_upstream_errors
 	handle {
 		reverse_proxy cms:3000
 	}
@@ -55,7 +59,8 @@ all.{$AGENT_CMS_PUBLIC_DOMAIN} {
 	handle @unknown_sub {
 		import edge_unknown_static
 	}
+	import cms_upstream_errors
 	handle {
-		import cms_proxy
+		reverse_proxy cms:3000
 	}
 }
