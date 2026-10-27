@@ -76,7 +76,28 @@ Mac/VPS bind-mount (без rebuild для UI/кода):
 🔌 mcp     → mcp-server/ + lib/ (restart контейнера mcp после правок)
 ```
 
-**Rebuild образа** — только `package.json`, Dockerfile, native-модули. После смены `.env` — **restart cms** (`env_file` при старте). Проверка: `npm run check:app-door`.
+**Rebuild образа** — только `package.json`, Dockerfile, native-модули; **`.env` в образ не запекается** (см. `.dockerignore`).
+
+**После смены `.env`** — не rebuild, а **пересоздание контейнеров** (env подхватывается при create):
+
+| Платформа | Команда | Что внутри |
+|-----------|---------|------------|
+| **Linux / VPS** | `agent-cms-cli restart` | `docker compose up -d --force-recreate` (cms, mcp, control, **caddy**) |
+| **Mac** | см. ниже | `cms-restart.command` = только `compose restart` — **старый env остаётся** |
+
+Mac после правок `.env` / домена:
+
+```bash
+docker compose -f docker-compose.mac.yml up -d --force-recreate cms mcp control
+```
+
+VPS вручную (эквивалент CLI `restart`):
+
+```bash
+docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp control caddy
+```
+
+Проверка: `npm run check:app-door`.
 
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 

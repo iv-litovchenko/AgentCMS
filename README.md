@@ -414,7 +414,7 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 
 6) Доп. папки хранилищ (Desktop и т.д.):
    Control → «Папки хранилищ (Docker)» или MCP platform_workspace_mounts_*
-   затем: agent-cms-cli restart  (или rebuild после смены mount/секретов)
+   затем: agent-cms-cli restart  (см. «.env → recreate» ниже; rebuild — только код/образ)
 
 7) MCP в Cursor / Claude (HTTP, не stdio):
    url: http://127.0.0.1:3000/app-mcp
@@ -426,6 +426,8 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
    минимум: agent-cms; желательно: agent-cms-rules, agent-cms-response-style
 
 9) Дальше: agent-cms-cli start | stop | restart | update (+ rebuild после update)
+   .env (токены, URL, домен): recreate, не rebuild — Linux: restart (= force-recreate);
+   Mac: docker compose -f docker-compose.mac.yml up -d --force-recreate cms mcp control
    npm install / npm run build:editor на хосте для CMS не нужен (editor уже в репо)
 
 10) Опционально (Mac, CMS в Docker не зависит от этого):
@@ -508,7 +510,7 @@ agent-cms-cli rebuild        # первый up -d --build (10–30+ мин)
 agent-cms-cli start          # следующие запуски
 agent-cms-cli ps
 
-# дальше: правки .env → agent-cms-cli restart или agent-cms-cli rebuild
+# дальше: правки .env → agent-cms-cli restart  (VPS: up -d --force-recreate; rebuild для .env не нужен)
 # обновление кода: agent-cms-cli update  (только git pull --ff-only)
 # затем стек: agent-cms-cli rebuild
 # prod «Обновить» в Control — отдельно, git pull + rebuild (см. DOCKER.md)
@@ -553,7 +555,8 @@ agent-cms-cli maintenance off        # обычная работа (то же, �
 
 agent-cms-cli start           # up -d (Mac: URL в терминал, без автобраузера)
 agent-cms-cli stop
-agent-cms-cli restart
+agent-cms-cli restart         # Linux/VPS: force-recreate cms+mcp+control+caddy (.env, Caddy)
+                              # Mac: только compose restart — после .env см. DOCKER.md (force-recreate)
 agent-cms-cli down            # compose down (как npm run docker:down)
 agent-cms-cli ps
 agent-cms-cli logs            # поток (-f): cms, mcp, control, caddy (Linux)
@@ -595,7 +598,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 | **info** | `version`, `doctor`, `paths`, `status` | ручной curl/ping |
 | **maintenance** | `maintenance status`, `maintenance on`, `maintenance off` (`enable`/`disable`) | Control → «Режим обслуживания» |
 | **electron-app** | `electron-app build`, `electron-app shortcuts` | Control → «Собрать» / «Ярлыки» |
-| **lifecycle** | `start`, `stop`, `restart`, `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
+| **lifecycle** | `start`, `stop`, `restart` (**Linux** = `--force-recreate` после `.env`), `down`, `logs`, `ps` | `cms-start.command`, `npm run docker:*` |
 | **backup_zzz** | `backup_zzz`, `restore_zzz` (WIP) | tar.gz `AGENT_CMS_WORKSPACES_DIR` (без `.agent-cms`) |
 | **build** | `rebuild` | `cms-rebuild.command`, `--build` |
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
@@ -606,6 +609,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 > **NOTE**
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
 > - 💡 **`agent-cms-cli update`** = только `git pull --ff-only`. Пересборка стека — отдельно **`rebuild`**. Кнопка Control «Обновить» по-прежнему pull + rebuild.
+> - 💡 **`.env`:** достаточно **recreate** контейнеров (`restart` на VPS/Linux); **`rebuild`** — для кода/образа, не для переменных. Подробно: [DOCKER.md](docs/deploy/DOCKER.md).
 > - 📌 Fallback: **`cms-start.command`**, **`npm run docker:mac`** / **`docker:linux`** ([package.json](package.json)).
 > - 💡 Разработчикам в клоне: **`npm run cms:status`** = **`agent-cms-cli status`** при `AGENT_CMS_HOME=$PWD`.
 
@@ -680,7 +684,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 Рабочий файл — **`.env` в корне репозитория** (шаблон — [`.env.example`](.env.example)). Его читают **Docker Compose**, **CMS / Control / MCP** и клиенты (публичный URL, токены). На **VPS** обязательно задайте **`AGENT_CMS_PUBLIC_URL`**, **`AGENT_CMS_PUBLIC_DOMAIN`**, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`**. На **Mac** чаще достаточно пароля и MCP-токена; остальное — по умолчанию из example.
 
-После правок: `docker compose … up -d` (пересоздать контейнеры, если меняли mount или секреты). В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
+После правок **`.env`**: **recreate** контейнеров (`agent-cms-cli restart` на VPS/Linux = `--force-recreate`; на Mac — см. [DOCKER.md](docs/deploy/DOCKER.md)), **не** `rebuild`. Mounts / workspace-mounts — `up -d` с нужными `-f …`. В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
 
 **Несколько папок с хранилищами (Docker):** по умолчанию один корень **`./workspaces`** (или **`AGENT_CMS_WORKSPACES_DIR`** в `.env`). Дополнительные каталоги на Mac/VPS — секция **«Папки хранилищ (Docker)»** в Control или MCP **`platform_workspace_mounts_list`** / **`platform_workspace_mounts_write`** (запись — app-lock). CMS пишет **`.agent-cms-global/workspace-mounts.json`** и обновляет **`docker-compose.workspace-mounts.yml`** (в git, один файл на Mac и VPS); после сохранения — **рестарт stack** (`docker compose -f … -f docker-compose.workspace-mounts.yml up -d`). Подробнее: [docs/deploy/DOCKER.md](docs/deploy/DOCKER.md#docker-workspace-mounts).
 
