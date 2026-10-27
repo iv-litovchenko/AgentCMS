@@ -76,7 +76,7 @@
         <span class="header-ui-apps-menu-open" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4.5 2.5H11.5V9.5M11.5 2.5L2.5 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>`;
-    btn.querySelector(".header-ui-apps-menu-label").textContent = qwenpaw.title || "QwenPaw";
+    btn.querySelector(".header-ui-apps-menu-label").textContent = qwenpaw.title || "Agent CMS QwenPaw";
     const metaHost = (() => {
       try {
         return new URL(String(qwenpaw.publicUrl || "")).host;

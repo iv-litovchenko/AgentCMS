@@ -7,7 +7,7 @@ MCP-сервер для [Agent CMS](..): доступ к workspace через HT
 ## Требования
 
 - Node.js 18+
-- Запущенный Agent CMS: из корня репозитория `npm run start:https` → https://localhost:3443
+- Запущенный Agent CMS: `npm run start` → `http://127.0.0.1:3000` (или `npm run start:https` → `:3443` при dev TLS)
 
 ## Установка
 
@@ -20,7 +20,7 @@ npm install
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
+| `AGENT_CMS_BASE_URL` | `http://localhost:3000` | **Только stdio** (`node mcp-server/index.js`): корень CMS API, **без** `/app-mcp`. Не путать с `url` в JSON коннектора |
 | `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если workspaceId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 | `MCP_LEGACY_ALIASES` | _(пусто)_ | `1` / `true` — deprecated names: aliases (`read_content`, `list_settings`, …) and legacy maps `get_topic_map`, `get_content_map`. Default: ~270 canonical tools. |
@@ -28,7 +28,7 @@ npm install
 | `AGENT_CMS_MCP_INSTRUCTIONS` | _(вкл.)_ | `0` / `false` / `off` — не отдавать `instructions` в MCP initialize |
 | `AGENT_CMS_MCP_INSTRUCTIONS_PATH` | _(inline по умолчанию)_ | Полностью заменить текст MCP `instructions` файлом (читается при старте процесса) |
 | `AGENT_CMS_MCP_DEPRECATE_AGENT_ID` | _(вкл.)_ | `0` — не писать в stderr предупреждение при вызовах только с legacy `agentId` |
-| `AGENT_CMS_PUBLIC_URL` | — | Для **Streamable HTTP** (`http.js`): `serverInfo.icons` → `{origin}/favicon.png` и `.svg` |
+| `AGENT_CMS_PUBLIC_URL` | — | Публичный origin (VPS: `https://ваш-домен`). Коннектор Cursor/Claude: **`{PUBLIC_URL}/app-mcp`** + Bearer. Для `http.js`: иконки MCP |
 | `AGENT_CMS_MCP_ICON_URL` | — | Одна картинка вместо favicon (полный URL); опционально `AGENT_CMS_MCP_ICON_BASE_URL` |
 
 **Бинарь / фото:** `content_binary_write` (мелкий base64) · `write_from_url` / `upload_begin`+`sourceUrl` · большие: PUT или `upload_chunk` → `complete` · читать: `content_binary_read` · URL: `content_binary_url_get`.
@@ -91,24 +91,41 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 ## Документация
 
 - MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; welcome — скилл `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный; без него — `read_platform_doc`. Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
-- HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
+- HTTP JSON: `GET {CMS_BASE}/api/mcp-docs?version=0.0.2` (в Control / модалке **MCP** подставляется из `AGENT_CMS_PUBLIC_URL` или локального editor)
 
 ## Запуск
 
 ```bash
 npm start          # из корня Agent CMS
 node mcp-server/index.js   # stdio
-node mcp-server/http.js    # Streamable HTTP → http://127.0.0.1:3490/mcp (Cursor URL)
+node mcp-server/http.js    # dev-only Streamable HTTP на :3490 (если AGENT_CMS_EXPOSE_INTERNAL_PORTS=1)
 ```
 
-### Remote MCP (HTTP)
+### Remote MCP (HTTP) — prod и обычный Docker
+
+Канон: один хост, path **`/app-mcp`**, заголовок **`Authorization: Bearer <AGENT_CMS_MCP_TOKEN>`**. Пример Cursor:
+
+```json
+{
+  "mcpServers": {
+    "agent-cms": {
+      "url": "https://ваш-домен/app-mcp",
+      "headers": { "Authorization": "Bearer …" }
+    }
+  }
+}
+```
+
+Mac/Docker без отдельного порта MCP: `url` = `{AGENT_CMS_PUBLIC_URL}/app-mcp` (часто `http://127.0.0.1:3000/app-mcp`). Готовый JSON — **Control** → MCP.
+
+### Dev: отдельный процесс `http.js`
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `AGENT_CMS_MCP_HTTP_HOST` | `127.0.0.1` | `0.0.0.0` для LAN/Docker |
-| `AGENT_CMS_MCP_HTTP_PORT` | `3490` | |
+| `AGENT_CMS_MCP_HTTP_HOST` | `127.0.0.1` | `0.0.0.0` для LAN |
+| `AGENT_CMS_MCP_HTTP_PORT` | `3490` | Только при `AGENT_CMS_EXPOSE_INTERNAL_PORTS=1` |
 | `AGENT_CMS_MCP_TOKEN` | — | Bearer / `X-Agent-Cms-Mcp-Token` |
-| `AGENT_CMS_BASE_URL` | см. выше | CMS API для tools |
+| `AGENT_CMS_BASE_URL` | см. выше | CMS API для stdio / `http.js` (корень, не `/app-mcp`) |
 
 ```bash
 AGENT_CMS_MCP_HTTP_HOST=0.0.0.0 npm run mcp:http
