@@ -150,6 +150,12 @@ const CHANNEL_BUILTIN_PRESETS = [
     hintTitle: 'Возможности для ИИ-агента: скиллы, MCP, инструменты и идеи — что подключить и улучшить у агента до triage'
   },
   {
+    slug: '0-mcp-feedback',
+    icon: '⚠️',
+    name: 'Замечания по MCP',
+    hintTitle: 'Замечания агента после вызовов MCP: ошибки, needsAuth, таймауты и странное поведение коннекторов — ingress до triage'
+  },
+  {
     slug: '0-computer',
     icon: '💻',
     name: 'Компьютер',
@@ -266,7 +272,7 @@ const CHANNEL_BUILTIN_PRESET_GROUPS = [
   {
     id: 'agent-capabilities',
     title: 'Агент и устройства',
-    slugs: [ '0-capabilities', '0-computer', '0-server' ]
+    slugs: [ '0-capabilities', '0-mcp-feedback', '0-computer', '0-server' ]
   },
   {
     id: 'content-modes',
@@ -360,6 +366,7 @@ const CHANNEL_LEGACY_SLUG_TO_CANON = {
   analytics: "0-analytics",
   "real-world": "0-real-world",
   capabilities: "0-capabilities",
+  "mcp-feedback": "0-mcp-feedback",
   computer: "0-computer",
   server: "0-server",
   market: "0-market",
