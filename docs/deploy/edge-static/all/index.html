@@ -8,15 +8,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
-      --bg: #070b14;
-      --card: rgba(15, 23, 42, 0.78);
-      --border: rgba(148, 163, 184, 0.22);
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent2: #a78bfa;
-      --cms: #5149f3;
-      --edge: #f472b6;
+      --bg: #f4f7fb;
+      --surface: #fff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --cms: #4f46e5;
+      --cms-soft: #eef2ff;
+      --edge: #db2777;
+      --edge-soft: #fdf2f8;
+      --sun: #f59e0b;
     }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -24,187 +25,171 @@
       color: var(--text);
       margin: 0;
       min-height: 100vh;
-      padding: 32px 20px 48px;
-      overflow-x: hidden;
+      padding: 28px 16px 40px;
     }
-    .bg {
+    .bg-dots {
       position: fixed;
       inset: 0;
       z-index: 0;
       pointer-events: none;
-      background:
-        radial-gradient(ellipse 90% 70% at 10% 0%, rgba(81, 73, 243, 0.35), transparent 55%),
-        radial-gradient(ellipse 70% 60% at 95% 30%, rgba(56, 189, 248, 0.25), transparent 50%),
-        radial-gradient(ellipse 60% 50% at 50% 100%, rgba(244, 114, 182, 0.15), transparent 45%),
-        var(--bg);
+      opacity: 0.45;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 22px 22px;
     }
-    @media (prefers-reduced-motion: no-preference) {
-      .bg::after {
-        content: "";
-        position: absolute;
-        inset: -30%;
-        background: conic-gradient(from 0deg, transparent, rgba(56, 189, 248, 0.05), transparent, rgba(167, 139, 250, 0.07), transparent);
-        animation: drift 24s linear infinite;
-      }
-      @keyframes drift { to { transform: rotate(360deg); } }
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(48px);
+      z-index: 0;
+      pointer-events: none;
     }
+    .blob-a { width: 280px; height: 280px; background: #bfdbfe; top: -80px; right: -60px; }
+    .blob-b { width: 220px; height: 220px; background: #fbcfe8; bottom: 10%; left: -40px; }
+    .blob-c { width: 160px; height: 160px; background: #fde68a; top: 40%; right: 15%; opacity: 0.7; }
     .wrap {
       position: relative;
       z-index: 1;
-      max-width: 640px;
+      max-width: 560px;
       margin: 0 auto;
     }
     .hero {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      padding: 5px 12px;
-      border-radius: 999px;
-      margin-bottom: 14px;
+    .wave {
+      font-size: 2rem;
+      line-height: 1;
+      margin-bottom: 8px;
     }
     h1 {
-      font-size: clamp(1.75rem, 5vw, 2.25rem);
-      font-weight: 700;
-      margin: 0 0 10px;
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      font-size: clamp(1.85rem, 6vw, 2.35rem);
+      font-weight: 800;
+      margin: 0 0 8px;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    h1 span {
+      color: var(--cms);
     }
     .lead {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.95rem;
+      margin: 0 auto;
+      max-width: 22rem;
+      font-size: 1rem;
       line-height: 1.5;
-      max-width: 420px;
-      margin-left: auto;
-      margin-right: auto;
+      color: var(--muted);
     }
-    .host {
-      margin-top: 12px;
+    .host-pill {
+      display: inline-block;
+      margin-top: 14px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.72rem;
-      color: var(--accent2);
-      opacity: 0.9;
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
     }
     .grid {
       display: grid;
-      gap: 14px;
+      gap: 12px;
       list-style: none;
       padding: 0;
       margin: 0;
     }
-    @media (min-width: 520px) {
-      .grid { grid-template-columns: 1fr 1fr; }
-      .grid .card--primary { grid-column: 1 / -1; }
-    }
     .card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 18px 18px 16px;
-      background: var(--card);
-      border: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px 14px;
+      align-items: center;
+      padding: 16px 18px;
+      background: var(--surface);
+      border: 2px solid var(--line);
       border-radius: 16px;
       text-decoration: none;
       color: inherit;
-      transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-      backdrop-filter: blur(8px);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
     .card:hover {
-      border-color: rgba(56, 189, 248, 0.45);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      transform: translateY(-2px) rotate(-0.3deg);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
     }
-    .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
+    .card--cms:hover { border-color: #a5b4fc; }
+    .card--edge:hover { border-color: #f9a8d4; }
     .icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.35rem;
-      flex-shrink: 0;
+      font-size: 1.5rem;
     }
-    .icon--cms { background: linear-gradient(145deg, rgba(81, 73, 243, 0.5), rgba(46, 141, 253, 0.35)); }
-    .icon--edge { background: linear-gradient(145deg, rgba(244, 114, 182, 0.45), rgba(167, 139, 250, 0.35)); }
-    .tag {
-      font-size: 0.6rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 3px 8px;
-      border-radius: 6px;
-      color: var(--muted);
-      background: rgba(148, 163, 184, 0.12);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-    }
-    .tag--platform { color: #c4b5fd; border-color: rgba(167, 139, 250, 0.35); background: rgba(167, 139, 250, 0.1); }
-    .tag--edge { color: #fbcfe8; border-color: rgba(244, 114, 182, 0.35); background: rgba(244, 114, 182, 0.1); }
-    .card h2 {
-      margin: 0;
+    .icon--cms { background: var(--cms-soft); }
+    .icon--edge { background: var(--edge-soft); }
+    .card-body h2 {
+      margin: 0 0 4px;
       font-size: 1.05rem;
-      font-weight: 650;
+      font-weight: 700;
     }
-    .card p {
+    .card-body p {
       margin: 0;
       font-size: 0.82rem;
-      line-height: 1.45;
+      line-height: 1.4;
       color: var(--muted);
     }
     .card-url {
+      grid-column: 1 / -1;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.68rem;
-      color: var(--accent);
+      color: var(--cms);
+      background: var(--bg);
+      padding: 8px 10px;
+      border-radius: 8px;
       word-break: break-all;
-      margin-top: auto;
-      padding-top: 6px;
     }
-    .foot {
-      margin-top: 28px;
-      text-align: center;
-      font-size: 0.72rem;
+    .card--edge .card-url { color: var(--edge); }
+    .go {
+      font-size: 1.25rem;
       color: var(--muted);
-      line-height: 1.5;
+      transition: transform 0.12s ease;
     }
-    .foot code {
-      font-size: 0.68rem;
-      background: rgba(15, 23, 42, 0.9);
-      padding: 2px 6px;
+    .card:hover .go { transform: translateX(3px); color: var(--text); }
+    .tip {
+      margin-top: 22px;
+      padding: 14px 16px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #92400e;
+    }
+    .tip strong { color: #b45309; }
+    .tip code {
+      font-size: 0.72rem;
+      background: #fff;
+      padding: 1px 5px;
       border-radius: 4px;
-      border: 1px solid var(--border);
+      border: 1px solid #fde68a;
     }
   </style>
 </head>
 <body>
-  <div class="bg" aria-hidden="true"></div>
+  <div class="bg-dots" aria-hidden="true"></div>
+  <div class="blob blob-a" aria-hidden="true"></div>
+  <div class="blob blob-b" aria-hidden="true"></div>
+  <div class="blob blob-c" aria-hidden="true"></div>
   <div class="wrap">
     <header class="hero">
-      <div class="badge">all · каталог сервисов</div>
-      <h1>Все</h1>
-      <p class="lead">Платформа Agent CMS и edge-приложения на этом хосте. Выберите, куда перейти.</p>
-      <p class="host" id="host-label"></p>
+      <div class="wave" aria-hidden="true">👋</div>
+      <h1>Куда идём <span>сегодня?</span></h1>
+      <p class="lead">Здесь всё, что живёт на вашем хосте: CMS и edge-приложения.</p>
+      <p class="host-pill" id="host-label"></p>
     </header>
     <ul class="grid" id="list"></ul>
-    <p class="foot">Неизвестный поддомен — <code>http://имя.<span id="apex-foot"></span></code> (заглушка). HTTPS для произвольных имён — позже.</p>
+    <p class="tip"><strong>Случайный поддомен?</strong> Открой <code>http://имя.<span id="apex-foot"></span></code> — увидишь заглушку. HTTPS для «левых» имён — позже.</p>
   </div>
   <script>
     (function () {
@@ -227,7 +212,7 @@
         return (sub ? sub + "." : "") + apex + port + (path || "/");
       }
       var apex = apexHost();
-      document.getElementById("host-label").textContent = "Вы на all." + apex;
+      document.getElementById("host-label").textContent = "all." + apex;
       document.getElementById("apex-foot").textContent = apex;
 
       var apps = [
@@ -235,24 +220,17 @@
           title: "Agent CMS",
           sub: "",
           path: "/",
-          desc: "Editor, Control, MCP и приложения по пути /app-* на основном домене.",
-          icon: "◆",
-          iconClass: "icon--cms",
-          tag: "platform",
-          tagClass: "tag--platform",
-          tagLabel: "ядро",
-          primary: true
+          desc: "Редактор, Control, MCP — всё по /app-* на главном домене.",
+          icon: "🏠",
+          cardClass: "card--cms"
         },
         {
           title: "QwenPaw",
           sub: "qwenpaw",
           path: "/",
-          desc: "Агентский консольный UI (Docker agentscope/qwenpaw), отдельный поддомен.",
+          desc: "Отдельное приложение агента — свой поддомен, свой контейнер.",
           icon: "🐾",
-          iconClass: "icon--edge",
-          tag: "edge",
-          tagClass: "tag--edge",
-          tagLabel: "edge"
+          cardClass: "card--edge"
         }
       ];
 
@@ -260,15 +238,12 @@
       apps.forEach(function (app) {
         var li = document.createElement("li");
         var a = document.createElement("a");
-        a.className = "card" + (app.primary ? " card--primary" : "");
+        a.className = "card " + app.cardClass;
         a.href = url(app.sub, app.path);
         a.innerHTML =
-          '<div class="card-top">' +
-          '<span class="icon ' + app.iconClass + '" aria-hidden="true">' + app.icon + "</span>" +
-          '<span class="tag ' + app.tagClass + '">' + app.tagLabel + "</span>" +
-          "</div>" +
-          "<h2>" + app.title + "</h2>" +
-          "<p>" + app.desc + "</p>" +
+          '<span class="icon ' + (app.cardClass === "card--cms" ? "icon--cms" : "icon--edge") + '" aria-hidden="true">' + app.icon + "</span>" +
+          '<div class="card-body"><h2>' + app.title + "</h2><p>" + app.desc + "</p></div>" +
+          '<span class="go" aria-hidden="true">→</span>' +
           '<span class="card-url">' + displayHost(app.sub, app.path) + "</span>";
         li.appendChild(a);
         ul.appendChild(li);
