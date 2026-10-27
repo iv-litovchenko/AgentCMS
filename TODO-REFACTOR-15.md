@@ -501,3 +501,31 @@ workspaces/0-services-data/
 **Правила:** `.env` сервиса **не в git** (как корневой `.env`); в `0-services-data/.gitignore` — игнор `/*/.env`; пример — `qwenpaw/.env.example` в repo (без секретов).
 
 **v0 сейчас:** один корневой `.env` + `AGENT_CMS_QWENPAW_INTERNAL_URL` для CMS; `env_file` на `qwenpaw/.env` — не подключён.
+
+### 10.10 💡 Два вида «сервисов» — edge vs платформа (обсуждение)
+
+**Не путать** «сервис» в Q10 (edge) и **встроенные** возможности Agent CMS на apex.
+
+| Вид | Где живёт | Снаружи | Примеры |
+| --- | --- | --- | --- |
+| **A. Edge-сервис** | **Отдельный контейнер**, часто **чужой Docker-образ** (+ bind `0-services-data/<id>/`, свой `.env` §10.9) | **Свой поддомен** `{slug}.domain` | QwenPaw, Netdata/Grafana (`monitoring.*`), Hermes, OpenClaw; статика **`all.*`** (без тяжёлого образа) |
+| **B. Платформа CMS** | Stack **`agent-cms`**: `cms` / `mcp` / `control` — **один образ**, разные `command` | **Apex** `domain` + **`/app-*`** | Editor, MCP HTTP, Control, `platform_apps_list`, health/index, блок «Edge-сервисы» в мониторинге Control |
+| **C. Пограничное** | Отдельный контейнер, но **не edge** | Apex или внутренний порт | **`control`** — админка платформы, не `monitoring.domain` |
+
+**Правило выбора:**
+
+- Сторонний продукт, свой UI/API, нагрузка VPS, OpenClaw/Hermes как отдельный runtime → **A (edge)**, если нужен **отдельный origin**; **на все образы не напасёшься** — только нужные поддомены.
+- Один продукт = **один `serviceId`** и обычно **один поддомен**; API + UI в **одном** образе (как QwenPaw) → одна запись. **Три образа** (OpenClaw, Hermes API, Hermes UI) → **три** edge-сервиса, три поддомена, три папки в `0-services-data/`.
+- «Как живёт **мой** CMS, workspace, ссылки на edge» → **B**, без нового образа.
+
+**Пример: `monitoring.maptex.ru` (Netdata и т.п.) — v0 вручную:**
+
+1. DNS `monitoring` → VPS.
+2. Сервис в `docker-compose.edge-services.yml` (`image: netdata/netdata`, `expose`, сеть `agent-cms`).
+3. Caddy: `monitoring.{domain}` → `reverse_proxy monitoring:PORT`.
+4. `AGENT_CMS_EDGE_SERVICES_ENABLED=1` → `agent-cms-cli restart`.
+5. Браузер → Caddy → контейнер; **CMS на apex не проксирует** этот UI.
+
+**Безопасность:** дашборд нагрузки — **auth / VPN / не светить** (метрики VPS). Control «Мониторинг» ≠ Netdata; там только CMS + список edge (`platform_services_list`).
+
+**Связь с §10.8:** manifest как раз для **типа A**, чтобы не править git под каждый новый образ; **тип B** остаётся в репозитории Agent CMS.
