@@ -1489,14 +1489,35 @@ function formatMcpMonitorDetail({ pingOk, httpUp, portText, singleDoor, hostPort
 
 let lastEdgeAppsPayload = null;
 
+/** API platform/* с браузера Control — через публичный origin (не :3000 внутри Docker). */
+function getPlatformApiOrigin() {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const path = String(window.location.pathname || "");
+    if (
+      path.startsWith("/app-control") ||
+      document.documentElement.dataset.controlLauncher === "web" ||
+      isDockerDeployment() ||
+      usesSingleHttpDoor(lastServer || bootstrap?.server)
+    ) {
+      return window.location.origin.replace(/\/+$/, "");
+    }
+  }
+  const door = getClientDoorHttpOrigin();
+  if (door) return door.replace(/\/+$/, "");
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin.replace(/\/+$/, "");
+  }
+  return "";
+}
+
 async function fetchEdgeAppsPayload() {
-  const base = getClientDoorHttpOrigin();
+  const base = getPlatformApiOrigin();
   if (!base) {
     lastEdgeAppsPayload = null;
     return;
   }
   try {
-    const res = await fetch(`${String(base).replace(/\/+$/, "")}/api/platform/apps/edge`, {
+    const res = await fetch(`${base}/api/platform/apps/edge`, {
       credentials: "include",
       cache: "no-store"
     });
@@ -1547,7 +1568,10 @@ function renderEdgeAppsMonitorCard(app) {
 
 function renderEdgeAppsMonitorSection() {
   const payload = lastEdgeAppsPayload;
-  if (!payload?.edgeEnabled) return "";
+  if (!payload?.edgeEnabled) {
+    if (payload && payload.edgeEnabled === false) return "";
+    return "";
+  }
   const apps = Array.isArray(payload.apps) ? payload.apps : [];
   if (!apps.length) return "";
   const routingHint =
