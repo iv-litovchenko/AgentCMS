@@ -23195,6 +23195,7 @@ async function handleApiForAgent(req, res, url) {
       const payload = await buildOpsStatus({
         projectRoot: getProjectRoot(),
         hostHeader: String(req.headers?.host || ""),
+        req,
         getPlatformSettings,
         buildAgentMcpPing,
         packageVersion
