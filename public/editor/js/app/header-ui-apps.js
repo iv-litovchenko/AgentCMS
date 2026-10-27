@@ -5,6 +5,7 @@
   const toggleBtn = document.getElementById("header-ui-apps-btn");
   const menuNode = document.getElementById("header-ui-apps-menu");
   const listNode = document.getElementById("header-ui-apps-list");
+  const edgeGroupNode = document.getElementById("header-ui-apps-edge-group");
   const edgeListNode = document.getElementById("header-ui-apps-edge-list");
   if (!toggleBtn || !menuNode || !listNode) return;
 
@@ -55,10 +56,10 @@
     edgeListNode.replaceChildren();
     const qwenpaw = (services || []).find((row) => String(row.serviceId || row.slug || "").trim() === "qwenpaw");
     if (!qwenpaw) {
-      edgeListNode.hidden = true;
+      if (edgeGroupNode) edgeGroupNode.classList.add("hidden");
       return;
     }
-    edgeListNode.hidden = false;
+    if (edgeGroupNode) edgeGroupNode.classList.remove("hidden");
     const running = qwenpaw.running !== false;
     const btn = document.createElement("button");
     btn.type = "button";
@@ -76,7 +77,7 @@
         <span class="header-ui-apps-menu-open" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4.5 2.5H11.5V9.5M11.5 2.5L2.5 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>`;
-    btn.querySelector(".header-ui-apps-menu-label").textContent = qwenpaw.title || "Agent CMS QwenPaw";
+    btn.querySelector(".header-ui-apps-menu-label").textContent = qwenpaw.title || "QwenPaw";
     const metaHost = (() => {
       try {
         return new URL(String(qwenpaw.publicUrl || "")).host;
@@ -148,8 +149,8 @@
     const servicesData = await servicesRes.json().catch(() => ({}));
     if (servicesRes.ok && Array.isArray(servicesData.services)) {
       renderEdgeServices(servicesData.services);
-    } else if (edgeListNode) {
-      edgeListNode.hidden = true;
+    } else if (edgeGroupNode) {
+      edgeGroupNode.classList.add("hidden");
     }
     loaded = true;
   }

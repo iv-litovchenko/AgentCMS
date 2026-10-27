@@ -27165,10 +27165,33 @@ a.header-tool-btn {
   background: rgba(251, 146, 60, 0.12);
 }
 
-.header-ui-apps-footer {
+.header-ui-apps-footer,
+.header-ui-apps-group {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.header-ui-apps-group-head {
+  padding: 2px 8px 6px;
+}
+
+.header-ui-apps-group-title {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.header-ui-apps-group-hint {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.header-ui-apps-group.hidden {
+  display: none;
 }
 
 .header-ui-apps-menu-icon--companion {

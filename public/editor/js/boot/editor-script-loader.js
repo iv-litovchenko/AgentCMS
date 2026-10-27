@@ -215,7 +215,7 @@
         await loadScript("/editor/js/panels/discuss-panel.js?v=0.5.259");
         await loadScript("/editor/js/app/privacy-mode.js?v=5");
         await loadScript("/editor/js/app/header-ui-locale.js?v=1");
-        await loadScript("/editor/js/app/header-ui-apps.js?v=3");
+        await loadScript("/editor/js/app/header-ui-apps.js?v=5");
         await loadScript("/editor/js/panels/viz-maps-aside.js?v=1");
         await loadModuleScript("/editor/js/viz/scene3d-preview.js?v=2");
         await loadScript("/editor/js/app/sensitive-input.js?v=3");
