@@ -476,3 +476,28 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 | **`AGENT_CMS_EDGE_SERVICES_GENERATE`** | **`1`** — при `agent-cms-cli restart` пересобрать **`docker-compose.edge-services.generated.yml`** + фрагмент Caddy из manifest; **`0`** — только статический overlay из git (v0). |
 
 **Поток:** Control/MCP правят manifest → `restart` → compose + Caddy + `platform_services_list` из одного источника. v0: manifest нет, QwenPaw/`all` зашиты в repo.
+
+### 10.9 💡 v1 — свой `.env` у каждого edge-сервиса (идея)
+
+**Зачем:** ключи Kilo/OpenAI, порты, флаги QwenPaw/Hermes **не смешивать** с корневым `.env` CMS (`APP_LOCK_*`, `AGENT_CMS_MCP_TOKEN`, `AGENT_CMS_*`).
+
+**Канон (черновик):**
+
+```text
+workspaces/0-services-data/
+└── qwenpaw/
+    ├── .env              ← только этот контейнер (env_file в compose)
+    ├── …                 ← /app/working (runtime, не в git)
+    ├── _secret/
+    └── _backups/
+```
+
+| Уровень | Что хранить |
+| --- | --- |
+| **Корень репо `.env`** | Платформа: lock, MCP, `AGENT_CMS_EDGE_SERVICES_ENABLED`, `AGENT_CMS_PUBLIC_DOMAIN`, `AGENT_CMS_SERVICES_DATA_DIR` |
+| **`<service-id>/.env`** | Секреты и настройки **конкретного** образа (API keys, model id, `QWENPAW_*` и т.д.) |
+| **Manifest (§10.8)** | Ссылка `envFile: workspaces/0-services-data/qwenpaw/.env` или inline `env` только для автогена compose |
+
+**Правила:** `.env` сервиса **не в git** (как корневой `.env`); в `0-services-data/.gitignore` — игнор `/*/.env`; пример — `qwenpaw/.env.example` в repo (без секретов).
+
+**v0 сейчас:** один корневой `.env` + `AGENT_CMS_QWENPAW_INTERNAL_URL` для CMS; `env_file` на `qwenpaw/.env` — не подключён.
