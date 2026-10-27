@@ -32,6 +32,9 @@ if [[ ! -f .env ]]; then
 fi
 echo "→ .env на месте (редактируйте в репо при смене паролей / домена / MCP token)."
 
+echo "→ dev TLS (.dev-certs/) для https://127.0.0.1:3443 …"
+bash "$ROOT/scripts/setup-dev-certs.sh"
+
 if [[ "${AGENT_CMS_SETUP_FROM_WELCOME:-}" != "1" ]]; then
   echo ""
   echo "  Дальше: cms-start.command или npm run cms:start"

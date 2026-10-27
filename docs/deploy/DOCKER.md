@@ -10,7 +10,7 @@
 
 1. **Docker Desktop** + `.env` в репозитории.
 2. Поднять стек: **`cms-start.command`** / `npm run cms:start` (первый раз или после кода — **`cms-rebuild.command`** / `npm run cms:rebuild`).
-3. Работать в **Chrome/Safari**: Editor `http://127.0.0.1:3000/`, Control `/app-control/`, chat `/app-chat/`.
+3. Работать в **Chrome/Safari**: Editor **`https://127.0.0.1:3443/`** (dev TLS из `.dev-certs/`, при старте — `setup-dev-certs.sh`), Control `/app-control/`, chat `/app-chat/`. Порт **3000** — HTTP внутри compose (healthcheck, `http://cms:3000`); снаружи ориентируйтесь на **`AGENT_CMS_PUBLIC_URL`**.
 
 **Node на Mac для сервера не ставим** — он уже внутри образов `cms`, `mcp`, `control`.
 

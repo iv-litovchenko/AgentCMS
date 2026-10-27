@@ -155,7 +155,7 @@ agent_cms_public_base() {
       echo "http://127.0.0.1"
       return
     fi
-    echo "http://127.0.0.1:3000"
+    echo "https://127.0.0.1:3443"
     return
   fi
   echo "${url%/}"

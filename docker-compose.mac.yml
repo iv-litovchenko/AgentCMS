@@ -1,4 +1,4 @@
-# Mac / Docker Desktop — порты на localhost
+# Mac / Docker Desktop — localhost :3000 (HTTP, внутренний) + :3443 (HTTPS, браузер / PUBLIC_URL)
 #   docker compose -f docker-compose.mac.yml up -d --build
 # Доп. корни workspace: docker-compose.workspace-mounts.yml — Control / MCP
 #
@@ -14,18 +14,24 @@ services:
       - .env
     ports:
       - "${AGENT_CMS_EDITOR_HTTP_PORT:-3000}:3000"
+      - "${AGENT_CMS_EDITOR_HTTPS_PORT:-3443}:3443"
     environment:
       HOST: "0.0.0.0"
       VOICE_HOST: "0.0.0.0"
       PORT: "3000"
+      AGENT_CMS_EDITOR_HTTPS_PORT: "${AGENT_CMS_EDITOR_HTTPS_PORT:-3443}"
+      TLS_PORT: "${AGENT_CMS_EDITOR_HTTPS_PORT:-3443}"
+      TLS_KEY: "/app/.dev-certs/key.pem"
+      TLS_CERT: "/app/.dev-certs/cert.pem"
       VOICE_PORT: "3088"
-      AGENT_CMS_HTTP_TO_HTTPS: "0"
+      # 0 — healthcheck и cms/mcp/control ходят на http://cms:3000 без 308 на :3443
+      AGENT_CMS_HTTP_TO_HTTPS: "${AGENT_CMS_HTTP_TO_HTTPS:-0}"
       CONTROL_AUTOSTART: "0"
       AGENT_CMS_CONTROL_INTERNAL_URL: "http://control:3288"
       AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
       AGENT_CMS_COMMANDER_INTERNAL_URL: "http://127.0.0.1:3188"
       AGENT_CMS_SINGLE_HTTP_DOOR: "1"
-      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-https://127.0.0.1:3443}"
       AGENT_CMS_DOCKER_OPS: "1"
       AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.mac.yml"
       AGENT_CMS_DEPLOY_PLATFORM: "mac"
@@ -45,6 +51,7 @@ services:
       - ./lib:/app/lib:ro
       - ./server.js:/app/server.js:ro
       - ./control-server.js:/app/control-server.js:ro
+      - ./.dev-certs:/app/.dev-certs:ro
     healthcheck:
       test:
         [
@@ -109,7 +116,7 @@ services:
       AGENT_CMS_COMPOSE_SERVICE: "cms"
       AGENT_CMS_DOCKER_UP_SERVICES: "cms mcp"
       AGENT_CMS_MCP_INTERNAL_URL: "http://mcp:3490"
-      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-http://127.0.0.1:3000}"
+      AGENT_CMS_PUBLIC_URL: "${AGENT_CMS_PUBLIC_URL:-https://127.0.0.1:3443}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
       AGENT_CMS_HOST_HOME: "${HOME}"
       AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.mac.yml"

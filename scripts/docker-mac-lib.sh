@@ -66,7 +66,7 @@ docker_mac_compose() {
 
 docker_mac_open_urls() {
   local public_url
-  public_url="$(docker_mac_read_env_var AGENT_CMS_PUBLIC_URL "http://127.0.0.1:3000")"
+  public_url="$(docker_mac_read_env_var AGENT_CMS_PUBLIC_URL "https://127.0.0.1:3443")"
   local base="${public_url%/}"
   local control_url="${base}/app-control/"
   local editor_url="${base}/"

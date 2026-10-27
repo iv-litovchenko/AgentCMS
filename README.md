@@ -699,7 +699,7 @@ npm run cms:desktop   # dev-окно без сборки
 | **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | Password-gated apps | `editor,chat,commander,control` |
 | **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | In-CMS HTTP→HTTPS redirect | `0` |
 | **`AGENT_CMS_WORKSPACES_DIR`** | Основной каталог на **хосте** → `/app/workspaces` (workspace = **подпапки**). Доп. корни — **workspace-mounts** (Control / MCP), не правка базового compose | Primary host workspaces mount | `./workspaces` или `/Users/…/AgentCMS-workspaces` |
-| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac: `http://127.0.0.1:3000` · VPS: `https://ваш-домен` |
+| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac Docker: `https://127.0.0.1:3443` · VPS: `https://ваш-домен` |
 | **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
 | **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
 | **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
