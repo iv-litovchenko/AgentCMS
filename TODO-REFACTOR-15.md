@@ -418,7 +418,7 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 **Канон v0:** явные host → `qwenpaw`, `all`; **остальные** `*.domain` → **статическая заглушка** (`edge-static/unknown`), **не CMS**. Apex `sitename.ru` → CMS без изменений.
 
-**Ограничение v0:** неизвестный `foo.*` → заглушка на **`http://foo…`** и **`https://foo…`** через **`tls internal`** (предупреждение браузера). Полноценный LE wildcard `*.domain` (DNS-01) — позже; явные `qwenpaw` / `all` / apex — LE как раньше.
+**Ограничение v0:** неизвестный `foo.*` → заглушка только **`http://foo…`**. **`https://foo…`** без LE wildcard (DNS-01) не открывается — **не** делать site `*.domain` / `tls internal`: перехватывает `qwenpaw` / `all` и ломает Let's Encrypt. Маршрут unknown — matcher в `:80` (expression), не wildcard site.
 
 ### 10.5 Границы / риски
 

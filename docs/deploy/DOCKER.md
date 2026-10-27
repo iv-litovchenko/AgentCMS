@@ -114,7 +114,7 @@ docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp contro
 
 DNS (prod): `*.ваш-домен` → A на VPS. Новый edge-app ≈ сервис в **`docker-compose.edge-apps.yml`** + блок в **`docs/deploy/docker-Caddyfile.edge`**. После правок — **`agent-cms-cli restart`**.
 
-**HTTPS wildcard** (один LE cert на `*.domain`) — DNS-01 у регистратора, позже. Сейчас известные host — Let's Encrypt; **случайный** `foo.domain` — заглушка на HTTP и HTTPS (`tls internal`, браузер может показать предупреждение о сертификате).
+**HTTPS wildcard** (один LE cert на `*.domain`) — DNS-01 у регистратора, позже. Известные host (`maptex.ru`, `qwenpaw.`, `all.`) — Let's Encrypt. Случайный `foo.domain` — заглушка только по **HTTP**; по HTTPS без wildcard cert не обслуживается (намеренно: wildcard site в Caddy ломает LE на известных поддоменах).
 
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 
