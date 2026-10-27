@@ -69,6 +69,81 @@ function syncAppLockScreen() {
   }
 }
 
+const ENV_PRESET_VARS = [
+  { key: "AGENT_CMS_EDGE_APPS", value: "1" },
+  { key: "APP_LOCK_LOGIN", value: "admin" },
+  { key: "APP_LOCK_PASSWORD", value: "admin" },
+  { key: "AGENT_CMS_PUBLIC_DOMAIN", value: "maptex.ru" },
+  { key: "AGENT_CMS_PUBLIC_URL", value: "https://maptex.ru" },
+  { key: "AGENT_CMS_CADDY_EMAIL", value: "no-replay@maptex.ru" }
+];
+
+function parseEnvFileMap(content) {
+  const map = new Map();
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"') && val.length >= 2) ||
+      (val.startsWith("'") && val.endsWith("'") && val.length >= 2)
+    ) {
+      val = val.slice(1, -1);
+    }
+    map.set(key, val);
+  }
+  return map;
+}
+
+function upsertEnvFileLine(content, key, value) {
+  const lines = String(content ?? "").split("\n");
+  let found = false;
+  const next = lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return line;
+    const eq = trimmed.indexOf("=");
+    const k = trimmed.slice(0, eq).trim();
+    if (k !== key) return line;
+    found = true;
+    return `${key}=${value}`;
+  });
+  if (!found) {
+    if (next.length && next[next.length - 1] !== "") next.push("");
+    next.push(`${key}=${value}`);
+  }
+  return next.join("\n");
+}
+
+function renderEnvPresetButtons() {
+  const host = document.getElementById("env-file-presets");
+  const editor = document.getElementById("env-file-editor");
+  if (!host) return;
+  host.replaceChildren();
+  const locked = !editor || editor.disabled;
+  const map = editor ? parseEnvFileMap(editor.value) : new Map();
+  for (const preset of ENV_PRESET_VARS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "env-preset-btn";
+    const current = map.get(preset.key);
+    const ok = current === preset.value;
+    btn.classList.add(ok ? "env-preset-btn--ok" : "env-preset-btn--missing");
+    btn.textContent = preset.key;
+    const titleOk = ok ? "значение совпадает" : current ? `сейчас: ${current}` : "нет в .env";
+    btn.title = `${preset.key}=${preset.value} (${titleOk})`;
+    btn.disabled = locked;
+    btn.addEventListener("click", () => {
+      if (!editor || editor.disabled) return;
+      editor.value = upsertEnvFileLine(editor.value, preset.key, preset.value);
+      renderEnvPresetButtons();
+    });
+    host.appendChild(btn);
+  }
+}
+
 function syncEnvFileEditorAccess() {
   const editor = document.getElementById("env-file-editor");
   const example = document.getElementById("env-file-example");
@@ -82,6 +157,7 @@ function syncEnvFileEditorAccess() {
   if (saveBtn) saveBtn.disabled = !canUse || locked;
   if (reloadBtn) reloadBtn.disabled = !canUse;
   if (hint) hint.hidden = !locked;
+  renderEnvPresetButtons();
 }
 
 async function loadEnvFileEditor() {
@@ -133,6 +209,7 @@ async function loadEnvFileEditor() {
   } catch (error) {
     if (status) status.textContent = String(error.message || error);
   }
+  renderEnvPresetButtons();
 }
 
 let workspaceMountsDraft = [];
@@ -386,6 +463,7 @@ function bindEnvFileEditor() {
   }
   saveBtn.dataset.bound = "1";
 
+  editor.addEventListener("input", () => renderEnvPresetButtons());
   reloadBtn.addEventListener("click", () => loadEnvFileEditor());
   saveBtn.addEventListener("click", async () => {
     if (needsAppLockLogin()) return;

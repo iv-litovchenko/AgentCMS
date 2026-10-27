@@ -181,6 +181,11 @@
         <div class="section-body">
           <p class="env-file-meta" id="env-file-meta"></p>
           <p class="env-file-lock-hint" id="env-file-lock-hint" hidden>Сначала войдите (кнопка «Выйти» / экран блокировки) — .env содержит секреты. Справочник .env.example справа доступен без входа.</p>
+          <div class="env-file-presets-wrap">
+            <span class="env-file-presets-label">Минимум для VPS / edge</span>
+            <div class="env-file-presets" id="env-file-presets" aria-label="Обязательные переменные .env"></div>
+          </div>
+          <p class="env-file-presets-hint">Красная — нет или другое значение; зелёная — совпадает. Нажатие вставит или заменит строку в .env слева.</p>
           <div class="env-file-split">
             <div class="env-file-pane">
               <div class="env-file-pane-head">

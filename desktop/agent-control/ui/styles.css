@@ -1074,6 +1074,82 @@ body.is-booting {
   color: #fcd34d;
 }
 
+.env-file-presets-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 6px;
+}
+
+.env-file-presets-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.env-file-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.env-preset-btn {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter 0.12s ease, transform 0.08s ease;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-preset-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.env-preset-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.env-preset-btn--missing {
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.35);
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.env-preset-btn--missing:not(:disabled):hover {
+  filter: brightness(1.12);
+}
+
+.env-preset-btn--ok {
+  color: #bbf7d0;
+  background: rgba(22, 101, 52, 0.4);
+  border-color: rgba(74, 222, 128, 0.5);
+}
+
+.env-preset-btn--ok:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.env-file-presets-hint {
+  margin: 0 0 10px;
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .env-file-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
