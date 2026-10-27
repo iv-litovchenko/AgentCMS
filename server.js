@@ -23027,7 +23027,8 @@ async function handleApiForAgent(req, res, url) {
       const payload = await buildPlatformInfo({
         projectRoot,
         agentId: getActiveAgentId(),
-        agentRootRel: path.relative(projectRoot, agentRoot).replace(/\\/g, "/") || "."
+        agentRootRel: path.relative(projectRoot, agentRoot).replace(/\\/g, "/") || ".",
+        req
       });
       return sendJson(res, 200, payload);
     } catch (error) {
