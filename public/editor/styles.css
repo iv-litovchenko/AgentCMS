@@ -27143,6 +27143,28 @@ a.header-tool-btn {
   border-color: #8b5cf6;
 }
 
+.header-ui-apps-menu-item--qwenpaw {
+  border-color: rgba(251, 146, 60, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+}
+
+.header-ui-apps-menu-item--qwenpaw:hover {
+  border-color: #fb923c;
+}
+
+.header-ui-apps-menu-icon--emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  border-radius: 8px;
+  background: rgba(251, 146, 60, 0.12);
+}
+
 .header-ui-apps-footer {
   margin-top: 8px;
   padding-top: 8px;
