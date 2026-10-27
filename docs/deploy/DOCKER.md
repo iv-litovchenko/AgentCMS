@@ -101,7 +101,7 @@ docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp contro
 
 ## Edge-приложения на поддоменах (Q10, v0)
 
-**Не заменяют `/app-*`** на apex. Включение: **`AGENT_CMS_EDGE_APPS=1`** в `.env`.
+**Не заменяют `/app-*`** на apex. По умолчанию **`AGENT_CMS_EDGE_APPS=1`** (в `.env.example` и compose); выключить edge: **`0`** + restart.
 
 | Платформа | Compose overlay | Маршрутизация |
 |-----------|-----------------|---------------|

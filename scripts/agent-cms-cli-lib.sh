@@ -71,7 +71,7 @@ agent_cms_compose_args() {
   local platform
   platform="$(agent_cms_platform)"
   args=(-f "$(agent_cms_compose_file)" -f docker-compose.workspace-mounts.yml)
-  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 0)" == "1" ]]; then
+  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 1)" == "1" ]]; then
     if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
       if [[ -f docker-compose.edge-apps.mac.yml ]]; then
         args+=(-f docker-compose.edge-apps.mac.yml)
@@ -94,7 +94,7 @@ agent_cms_compose_up_services() {
   if [[ "$platform" == "linux" ]]; then
     services="$services caddy"
   fi
-  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 0)" == "1" ]]; then
+  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 1)" == "1" ]]; then
     services="$services qwenpaw"
   fi
   echo "$services"

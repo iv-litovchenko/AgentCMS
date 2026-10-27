@@ -42,6 +42,7 @@ services:
       AGENT_CMS_DOCKER_OPS: "1"
       AGENT_CMS_HOST_COMPOSE_FILE: "docker-compose.linux.yml"
       AGENT_CMS_DEPLOY_PLATFORM: "linux"
+      AGENT_CMS_EDGE_APPS: "${AGENT_CMS_EDGE_APPS:-1}"
       COMPOSE_PROJECT_NAME: "agent-cms"
       AGENT_CMS_SITE_TITLE: "${AGENT_CMS_SITE_TITLE:-Agent CMS}"
       AGENT_CMS_HOST_PROJECT: "/host-project"
