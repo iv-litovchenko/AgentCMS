@@ -1,7 +1,7 @@
-# Edge-приложения на поддоменах (Q10). Не трогает /app-* на apex.
-#   AGENT_CMS_EDGE_APPS=1 в .env
-#   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml up -d
-# После правок: agent-cms-cli restart (force-recreate caddy + qwenpaw)
+# Edge-сервисы на поддоменах (Q10). Не трогает /app-* на apex.
+#   AGENT_CMS_EDGE_SERVICES_ENABLED=1 в .env
+#   Данные: workspaces/${AGENT_CMS_SERVICES_DATA_DIR}/{serviceId}/ (default 0-services-data/qwenpaw)
+#   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-services.yml up -d
 
 name: agent-cms
 
@@ -16,9 +16,9 @@ services:
     environment:
       QWENPAW_PORT: "8088"
     volumes:
-      - qwenpaw-data:/app/working
-      - qwenpaw-secrets:/app/working.secret
-      - qwenpaw-backups:/app/working.backups
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}/${AGENT_CMS_SERVICES_DATA_DIR:-0-services-data}/qwenpaw:/app/working
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}/${AGENT_CMS_SERVICES_DATA_DIR:-0-services-data}/qwenpaw/_secret:/app/working.secret
+      - ${AGENT_CMS_WORKSPACES_DIR:-./workspaces}/${AGENT_CMS_SERVICES_DATA_DIR:-0-services-data}/qwenpaw/_backups:/app/working.backups
 
   caddy:
     environment:
@@ -39,6 +39,5 @@ services:
         condition: service_started
 
 volumes:
-  qwenpaw-data:
-  qwenpaw-secrets:
-  qwenpaw-backups:
+  caddy-data:
+  caddy-config:

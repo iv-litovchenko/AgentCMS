@@ -164,7 +164,7 @@ const liveChecks = [
     expectLocation: (loc) => loc && loc.includes("/app-commander")
   },
   { name: "platform apps API", path: "/api/platform/apps", expectStatus: (s) => s === 200, json: true },
-  { name: "platform edge apps API", path: "/api/platform/apps/edge", expectStatus: (s) => s === 200, json: true },
+  { name: "platform edge services API", path: "/api/platform/services", expectStatus: (s) => s === 200, json: true },
   {
     name: "editor styles.css",
     path: "/editor/styles.css",

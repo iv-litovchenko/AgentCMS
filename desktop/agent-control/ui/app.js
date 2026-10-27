@@ -70,7 +70,7 @@ function syncAppLockScreen() {
 }
 
 const ENV_PRESET_VARS = [
-  { key: "AGENT_CMS_EDGE_APPS", value: "1" },
+  { key: "AGENT_CMS_EDGE_SERVICES_ENABLED", value: "1" },
   { key: "APP_LOCK_LOGIN", value: "admin" },
   { key: "APP_LOCK_PASSWORD", value: "admin" },
   { key: "AGENT_CMS_PUBLIC_DOMAIN", value: "maptex.ru" },
@@ -1517,7 +1517,7 @@ async function fetchEdgeAppsPayload() {
     return;
   }
   try {
-    const res = await fetch(`${base}/api/platform/apps/edge`, {
+    const res = await fetch(`${base}/api/platform/services`, {
       credentials: "include",
       cache: "no-store"
     });
@@ -1544,7 +1544,7 @@ function renderEdgeAppsMonitorCard(app) {
   return `
     <article
       class="svc-rack-card svc-rack-card--edge${canOpen ? " svc-rack-card--link" : ""}"
-      data-service-id="edge-${escapeAttr(app.appId)}"
+      data-service-id="edge-${escapeAttr(app.serviceId)}"
       data-accent="edge"
       data-state="${state}"
       title="${escapeAttr(app.description || app.title || "")}"
@@ -1568,11 +1568,11 @@ function renderEdgeAppsMonitorCard(app) {
 
 function renderEdgeAppsMonitorSection() {
   const payload = lastEdgeAppsPayload;
-  if (!payload?.edgeEnabled) {
-    if (payload && payload.edgeEnabled === false) return "";
+  if (!payload?.servicesEnabled) {
+    if (payload && payload.servicesEnabled === false) return "";
     return "";
   }
-  const apps = Array.isArray(payload.apps) ? payload.apps : [];
+  const apps = Array.isArray(payload.services) ? payload.services : [];
   if (!apps.length) return "";
   const routingHint =
     payload.routing === "cms-http-gate"
@@ -1582,7 +1582,7 @@ function renderEdgeAppsMonitorSection() {
         : String(payload.routing || "edge");
   return `
     <div class="svc-rack svc-rack--edge">
-      <h3 class="svc-rack-edge-title">Edge-приложения</h3>
+      <h3 class="svc-rack-edge-title">Edge-сервисы</h3>
       <p class="svc-rack-edge-hint">${escapeAttr(routingHint)} · apex: <code>${escapeAttr(payload.apexHost || "—")}</code></p>
       <div class="svc-rack-grid">${apps.map((app) => renderEdgeAppsMonitorCard(app)).join("")}</div>
     </div>

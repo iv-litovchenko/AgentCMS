@@ -23123,17 +23123,17 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/platform/apps/edge") {
+  if (req.method === "GET" && url.pathname === "/api/platform/services") {
     try {
-      const { buildPlatformAppsEdgePayload } = require("./lib/platform/platform-edge-apps");
-      const payload = await buildPlatformAppsEdgePayload({
+      const { buildPlatformServicesPayload } = require("./lib/platform/platform-edge-services");
+      const payload = await buildPlatformServicesPayload({
         projectRoot: getProjectRoot(),
         req
       });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to build edge apps",
+        error: "Failed to build edge services",
         details: String(error?.message || error)
       });
     }

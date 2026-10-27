@@ -99,16 +99,23 @@ docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp contro
 
 Проверка: `npm run check:app-door`.
 
-## Edge-приложения на поддоменах (Q10, v0)
+## Edge-сервисы на поддоменах (Q10, v0)
 
-**Не заменяют `/app-*`** на apex. По умолчанию **`AGENT_CMS_EDGE_APPS=1`** (в `.env.example` и compose); выключить edge: **`0`** + restart.
+**Не заменяют `/app-*`** на apex. По умолчанию **`AGENT_CMS_EDGE_SERVICES_ENABLED=1`**; выключить: **`0`** + restart.
 
 | Платформа | Compose overlay | Маршрутизация |
 |-----------|-----------------|---------------|
-| **Linux/VPS** | `docker-compose.edge-apps.yml` (+ Caddy) | Caddy по `Host` |
-| **Mac** | `docker-compose.edge-apps.mac.yml` | CMS `:3000`, `AGENT_CMS_EDGE_HTTP_GATE=1`, `AGENT_CMS_PUBLIC_DOMAIN=localhost` → `http://qwenpaw.localhost:3000`, `http://all.localhost:3000` |
+| **Linux/VPS** | `docker-compose.edge-services.yml` (+ Caddy) | Caddy по `Host` |
+| **Mac** | `docker-compose.edge-services.mac.yml` | CMS `:3000`, `AGENT_CMS_EDGE_HTTP_GATE=1` → `http://qwenpaw.localhost:3000` |
 
-MCP: **`platform_apps_edge_list`** → `GET /api/platform/apps/edge`. Control: блок **Edge-приложения** в мониторинге.
+MCP: **`platform_services_list`** → `GET /api/platform/services`. Control: **Edge-сервисы**.
+
+**Данные на диске** (bind):  
+`workspaces/${AGENT_CMS_SERVICES_DATA_DIR}/<service-id>/` → контейнер (QwenPaw: корень → `/app/working`, `_secret`, `_backups` рядом).  
+Пример: `/opt/agent-cms/workspaces/0-services-data/qwenpaw/`.
+
+`mkdir -p workspaces/0-services-data/qwenpaw/{_secret,_backups}` → `restart`.  
+Перенос со volume / старых путей → `…/0-services-data/qwenpaw/`.
 
 | Host | Куда |
 |------|------|
@@ -119,26 +126,26 @@ MCP: **`platform_apps_edge_list`** → `GET /api/platform/apps/edge`. Control: �
 
 Локально с **`AGENT_CMS_PUBLIC_DOMAIN=localhost`**: `http://qwenpaw.localhost/`, `http://all.localhost/`, `http://foo.localhost/` → заглушка.
 
-DNS (prod): `*.ваш-домен` → A на VPS. Новый edge-app ≈ сервис в **`docker-compose.edge-apps.yml`** + блок в **`docs/deploy/docker-Caddyfile.edge`**. После правок — **`agent-cms-cli restart`**.
+DNS (prod): `*.ваш-домен` → A на VPS. Новый edge-сервис ≈ запись в **`docker-compose.edge-services.yml`** + Caddy. **`agent-cms-cli restart`**.
 
 **HTTPS wildcard** (один LE cert на `*.domain`) — DNS-01 у регистратора, позже. Известные host (`maptex.ru`, `qwenpaw.`, `all.`) — Let's Encrypt. Случайный `foo.domain` — заглушка только по **HTTP**; по HTTPS без wildcard cert не обслуживается (намеренно: wildcard site в Caddy ломает LE на известных поддоменах).
 
 **Если после правок Caddy «всё упало»** (пустой ответ, TLS без сертификата):
 
-1. `git pull`, проверить `.env`: `AGENT_CMS_PUBLIC_DOMAIN=maptex.ru`, `AGENT_CMS_EDGE_APPS=1`, `AGENT_CMS_CADDY_EMAIL=…`.
+1. `git pull`, проверить `.env`: `AGENT_CMS_PUBLIC_DOMAIN=maptex.ru`, `AGENT_CMS_EDGE_SERVICES_ENABLED=1`, `AGENT_CMS_CADDY_EMAIL=…`.
 2. Валидация конфига (edge overlay):
    ```bash
    cd /opt/agent-cms
-   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml run --rm caddy caddy validate --config /etc/caddy/Caddyfile
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-services.yml run --rm caddy caddy validate --config /etc/caddy/Caddyfile
    ```
 3. `agent-cms-cli restart` (или `--force-recreate caddy`).
 4. Если HTTPS всё ещё с «Caddy Local Authority» — пересоздать volume сертификатов и снова поднять Caddy (Let's Encrypt перевыпустит):
    ```bash
-   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml stop caddy
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-services.yml stop caddy
    docker volume rm agent-cms_caddy-data agent-cms_caddy-config 2>/dev/null || true
-   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.yml up -d caddy
+   docker compose -f docker-compose.linux.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-services.yml up -d caddy
    ```
-5. **Аварийно без edge:** `AGENT_CMS_EDGE_APPS=0` в `.env` → `restart` (базовый `docker-Caddyfile`, только apex CMS).
+5. **Аварийно без edge:** `AGENT_CMS_EDGE_SERVICES_ENABLED=0` в `.env` → `restart` (базовый `docker-Caddyfile`, только apex CMS).
 
 **Ручная проверка:** mic/WebRTC в `/app-chat` по HTTPS с телефона.
 

@@ -66,22 +66,26 @@ agent_cms_compose_file() {
   esac
 }
 
+agent_cms_edge_services_enabled() {
+  [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_SERVICES_ENABLED 1)" == "1" ]]
+}
+
 agent_cms_compose_args() {
   local -a args
   local platform
   platform="$(agent_cms_platform)"
   args=(-f "$(agent_cms_compose_file)" -f docker-compose.workspace-mounts.yml)
-  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 1)" == "1" ]]; then
+  if agent_cms_edge_services_enabled; then
     if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
-      if [[ -f docker-compose.edge-apps.mac.yml ]]; then
-        args+=(-f docker-compose.edge-apps.mac.yml)
+      if [[ -f docker-compose.edge-services.mac.yml ]]; then
+        args+=(-f docker-compose.edge-services.mac.yml)
       else
-        echo "⚠ AGENT_CMS_EDGE_APPS=1, но docker-compose.edge-apps.mac.yml не найден" >&2
+        echo "⚠ AGENT_CMS_EDGE_SERVICES_ENABLED=1, но docker-compose.edge-services.mac.yml не найден" >&2
       fi
-    elif [[ -f docker-compose.edge-apps.yml ]]; then
-      args+=(-f docker-compose.edge-apps.yml)
+    elif [[ -f docker-compose.edge-services.yml ]]; then
+      args+=(-f docker-compose.edge-services.yml)
     else
-      echo "⚠ AGENT_CMS_EDGE_APPS=1, но docker-compose.edge-apps.yml не найден" >&2
+      echo "⚠ AGENT_CMS_EDGE_SERVICES_ENABLED=1, но docker-compose.edge-services.yml не найден" >&2
     fi
   fi
   printf '%s\n' "${args[@]}"
@@ -94,7 +98,7 @@ agent_cms_compose_up_services() {
   if [[ "$platform" == "linux" ]]; then
     services="$services caddy"
   fi
-  if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 1)" == "1" ]]; then
+  if agent_cms_edge_services_enabled; then
     services="$services qwenpaw"
   fi
   echo "$services"

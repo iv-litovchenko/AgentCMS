@@ -86,12 +86,11 @@ export function registerPlatformTools(reg, client) {
   });
 
   registerCanonicalWithLegacyAlias(reg, {
-    canonical: "platform_apps_edge_list",
-    legacy: "list_platform_edge_apps",
+    canonical: "platform_services_list",
     description:
-      "Edge-apps on subdomains (all.*, qwenpaw.*, etc.): public URLs, proxy|static kind, running probe. Separate from /app-* platform_apps_list.",
+      "Edge-services on subdomains (all.*, qwenpaw.*, etc.): public URLs, proxy|static kind, running probe, dataPathRel on disk. Separate from /app-* platform_apps_list.",
     schema: z.object({}),
-    handler: () => client.get("/api/platform/apps/edge", {}, { agentScope: false }),
+    handler: () => client.get("/api/platform/services", {}, { agentScope: false }),
     options: { agentScope: false }
   });
 
