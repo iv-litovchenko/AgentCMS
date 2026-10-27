@@ -14,6 +14,7 @@
 | 8 | Mount хранилищ / «не видно ws» | ✅ закрыто |
 | 9.1 | Установщик Mac / Windows / Linux | 🟡 v1 закрыто (`install.sh`; Windows/WSL; v1.1 — native) |
 | 9.2 | CLI `agent-cms` (вместо raw compose/git) | 🟡 v1 закрыто (lifecycle/rebuild; v1.1 — update≈Q3, env lock) |
+| 10 | Edge-приложения на поддоменах (Caddy + compose) | 📌 открыто — не трогаем `/app-*` |
 
 ---
 
@@ -373,3 +374,59 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 ├── ⚙️  config      → env show · (env set — позже, lock)
 └── 📥 install     → install · uninstall (→ 9.1)
 ```
+
+---
+
+## 📌 Вопрос 10 — edge-приложения на поддоменах (вне CMS, без смены Q1)
+
+**Статус:** 📌 **открыто** (идея согласована; реализации в репо пока нет).
+
+**Не путать с Q7.4:** там — поддомены *вместо* `/app-chat` для **платформенных** UI. **Q10 — другое:** канон Q1 **остаётся** — Agent CMS на основном хосте (`maptex.ru` / `localhost:3000`) и пути **`/app-*`**. Поддомены — для **отдельных внешних сервисов** (сторонний образ, свой UI/API), которые живут **рядом** с CMS в compose и проксируются **Caddy по `Host`**.
+
+### 10.1 Зачем
+
+- Пример: **QwenPaw** — контейнер [`agentscope/qwenpaw`](https://hub.docker.com/r/agentscope/qwenpaw) (или аналог), свой порт внутри сети `agent-cms`.
+- Снаружи: **`qwenpaw.localhost`** (dev) · **`qwenpaw.sitename.ru`** (prod).
+- CMS не встраивает этот UI в роутер `server.js` — только **reverse proxy на edge**.
+
+### 10.2 Именование (канон — черновик)
+
+| Роль | Поддомен | Комментарий |
+| --- | --- | --- |
+| **Основная платформа** | apex / `www` | `https://sitename.ru/` + `/app-*` (Q1) |
+| **Одно edge-app** | `{appId}.` | `qwenpaw.`, `foo.` — **appId** = slug сервиса в compose |
+| **Каталог / агрегатор** | **`apps.`** (рекомендуем) | `apps.localhost` · `apps.sitename.ru` — одна страница: ссылки на edge-apps + CMS |
+
+**Почему не `all.`:** размыто («всё подряд»), плохо читается в URL и в логах. Альтернативы, если `apps` не зайдёт: **`portal.`**, **`dock.`** — но **`apps.`** короче и привычнее для «launcher вне CMS».
+
+Отдельный контейнер агрегатора (статика или лёгкий nginx/caddy snippet + JSON манифест списка) — **да, отдельный сервис**, не часть `cms`. Манифест можно позже тянуть из `.agent-cms-global` или Control (ops), v0 — статический `index.html` в образе/volume.
+
+### 10.3 Инфра (чеклист)
+
+1. **DNS (prod):** `*.sitename.ru` → A на VPS (Beget и т.п.); apex как сейчас.
+2. **Compose:** сервис `qwenpaw` (image, env, `expose`, без publish на хост); сеть `agent-cms`.
+3. **Caddy** (`docs/deploy/docker-Caddyfile` или overlay):
+   - `qwenpaw.{domain}` → `reverse_proxy qwenpaw:PORT`;
+   - `apps.{domain}` → агрегатор;
+   - `{domain}` / `:80` → как сейчас → `cms:3000`.
+4. **TLS:** wildcard `*.sitename.ru` (Let’s Encrypt) или отдельный cert на каждый поддомен; локально часто достаточно **HTTP** `:80` + `*.localhost` → 127.0.0.1 в браузере.
+5. **После `.env` / Caddy:** recreate (`agent-cms-cli restart` на Linux), не rebuild образа CMS — см. DOCKER.md.
+
+### 10.4 Границы / риски
+
+- **Cookies / CORS / SSO** — разные origin; app-lock CMS **не** распространяется на `qwenpaw.*` автоматически.
+- **Секреты** — env **у каждого** edge-сервиса; не смешивать с whitelist CMS `.env.example` без явного решения.
+- **Реестр Q1 (`platform_apps_list`)** — только **встроенные** `app-*`; edge-apps — отдельный список (манифест агрегатора или будущий MCP `platform_edge_apps_list` — не в v0).
+- **MCP Host allowlist** — при обращении к MCP с поддомена дописать хосты в `AGENT_CMS_MCP_ALLOWED_HOSTS` (если нужно).
+
+### 10.5 Артефакты (когда браться)
+
+- [ ] `docker-compose.edge-apps.yml` (optional `-f`) или секция в `linux.yml` за флагом.
+- [ ] Фрагмент Caddy + пример `qwenpaw` + **`apps`** (агрегатор).
+- [ ] README / DOCKER.md — одна таблица «основной домен vs поддомен edge».
+- [ ] Control (опц.): ссылки на `apps.*` и здоровье контейнеров — не блокер v0.
+
+> **NOTE**
+> - ✅ **Решение:** `/app-*` **не трогаем**; поддомены — **только** сторонние/edge контейнеры + **`apps.`** как каталог.
+> - 💡 Q7.4 (chat.localhost) остаётся **отложено**; Q10 не заменяет path-маршруты CMS.
+> - 📌 Связь с REFACTOR-19 / MCP-instances — только если edge-app нужен в workspace; иначе чисто infra.
