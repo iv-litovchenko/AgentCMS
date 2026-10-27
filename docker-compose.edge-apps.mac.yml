@@ -1,0 +1,32 @@
+# Edge на Mac/Windows без Caddy: qwenpaw + маршрутизация Host на CMS :3000 (AGENT_CMS_EDGE_HTTP_GATE=1).
+#   AGENT_CMS_EDGE_APPS=1
+#   docker compose -f docker-compose.mac.yml -f docker-compose.workspace-mounts.yml -f docker-compose.edge-apps.mac.yml up -d
+
+name: agent-cms
+
+services:
+  qwenpaw:
+    image: agentscope/qwenpaw:${QWENPAW_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "8088"
+    environment:
+      QWENPAW_PORT: "8088"
+    volumes:
+      - qwenpaw-data:/app/working
+      - qwenpaw-secrets:/app/working.secret
+      - qwenpaw-backups:/app/working.backups
+
+  cms:
+    environment:
+      AGENT_CMS_EDGE_HTTP_GATE: "1"
+      AGENT_CMS_PUBLIC_DOMAIN: "${AGENT_CMS_PUBLIC_DOMAIN:-localhost}"
+      AGENT_CMS_QWENPAW_INTERNAL_URL: "http://qwenpaw:8088"
+    depends_on:
+      qwenpaw:
+        condition: service_started
+
+volumes:
+  qwenpaw-data:
+  qwenpaw-secrets:
+  qwenpaw-backups:

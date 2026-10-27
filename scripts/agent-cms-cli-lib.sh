@@ -68,9 +68,17 @@ agent_cms_compose_file() {
 
 agent_cms_compose_args() {
   local -a args
+  local platform
+  platform="$(agent_cms_platform)"
   args=(-f "$(agent_cms_compose_file)" -f docker-compose.workspace-mounts.yml)
   if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 0)" == "1" ]]; then
-    if [[ -f docker-compose.edge-apps.yml ]]; then
+    if [[ "$platform" == "mac" || "$platform" == "windows" ]]; then
+      if [[ -f docker-compose.edge-apps.mac.yml ]]; then
+        args+=(-f docker-compose.edge-apps.mac.yml)
+      else
+        echo "⚠ AGENT_CMS_EDGE_APPS=1, но docker-compose.edge-apps.mac.yml не найден" >&2
+      fi
+    elif [[ -f docker-compose.edge-apps.yml ]]; then
       args+=(-f docker-compose.edge-apps.yml)
     else
       echo "⚠ AGENT_CMS_EDGE_APPS=1, но docker-compose.edge-apps.yml не найден" >&2
@@ -80,7 +88,12 @@ agent_cms_compose_args() {
 }
 
 agent_cms_compose_up_services() {
-  local services="cms mcp control caddy"
+  local platform
+  platform="$(agent_cms_platform)"
+  local services="cms mcp control"
+  if [[ "$platform" == "linux" ]]; then
+    services="$services caddy"
+  fi
   if [[ "$(agent_cms_read_env_var AGENT_CMS_EDGE_APPS 0)" == "1" ]]; then
     services="$services qwenpaw"
   fi

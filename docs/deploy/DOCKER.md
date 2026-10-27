@@ -101,7 +101,14 @@ docker compose -f docker-compose.linux.yml up -d --force-recreate cms mcp contro
 
 ## Edge-приложения на поддоменах (Q10, v0)
 
-**Не заменяют `/app-*`** на apex. Включение: **`AGENT_CMS_EDGE_APPS=1`** в `.env` (Linux/VPS, есть **Caddy**).
+**Не заменяют `/app-*`** на apex. Включение: **`AGENT_CMS_EDGE_APPS=1`** в `.env`.
+
+| Платформа | Compose overlay | Маршрутизация |
+|-----------|-----------------|---------------|
+| **Linux/VPS** | `docker-compose.edge-apps.yml` (+ Caddy) | Caddy по `Host` |
+| **Mac** | `docker-compose.edge-apps.mac.yml` | CMS `:3000`, `AGENT_CMS_EDGE_HTTP_GATE=1`, `AGENT_CMS_PUBLIC_DOMAIN=localhost` → `http://qwenpaw.localhost:3000`, `http://all.localhost:3000` |
+
+MCP: **`platform_apps_edge_list`** → `GET /api/platform/apps/edge`. Control: блок **Edge-приложения** в мониторинге.
 
 | Host | Куда |
 |------|------|

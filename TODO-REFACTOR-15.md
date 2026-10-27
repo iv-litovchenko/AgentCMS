@@ -88,6 +88,7 @@ MCP со списком приложений: что где работает, п
 | Канон | Legacy alias | HTTP (CMS) |
 | --- | --- | --- |
 | **`platform_apps_list`** | `list_platform_apps` | `GET /api/platform/apps` |
+| **`platform_apps_edge_list`** | `list_platform_edge_apps` | `GET /api/platform/apps/edge` |
 
 Ответ (кратко): `{ apps: [{ appId, title, kind, publicPath, publicUrl, internalPort?, running? }] }` — строки из таблицы «Канон: платформенные приложения» + вычисленный URL.
 
@@ -379,15 +380,15 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 ## 📌 Вопрос 10 — edge-приложения на поддоменах (вне CMS, без смены Q1)
 
-**Статус:** 🟡 **v0 в репо** — `AGENT_CMS_EDGE_APPS=1`, `docker-compose.edge-apps.yml`, `docker-Caddyfile.edge`, статика `all` / `unknown`. Дальше: Hermes и др., wildcard TLS, Mac без Caddy.
+**Статус:** 🟡 **v0 в репо** — `AGENT_CMS_EDGE_APPS=1`, Caddy (Linux) + **Mac HTTP gate**, `platform_apps_edge_list`, Control edge health. Дальше: Hermes и др.
 
-**Не путать с Q7.4:** там — поддомены *вместо* `/app-chat` для **платформенных** UI. **Q10 — другое:** канон Q1 **остаётся** — Agent CMS на основном хосте (`maptex.ru` / `localhost:3000`) и пути **`/app-*`**. Поддомены — для **отдельных внешних сервисов** (сторонний образ, свой UI/API), которые живут **рядом** с CMS в compose и проксируются **Caddy по `Host`**.
+**Не путать с Q7.4:** там — поддомены *вместо* `/app-chat` для **платформенных** UI. **Q10 — другое:** канон Q1 **остаётся** — Agent CMS на основном хосте (`maptex.ru` / `localhost:3000`) и пути **`/app-*`**. Поддомены — для **отдельных внешних сервисов** (сторонний образ, свой UI/API), которые живут **рядом** с CMS в compose; снаружи — **Caddy по `Host`** (VPS) или **CMS HTTP gate** (Mac).
 
 ### 10.1 Зачем
 
 - Пример: **QwenPaw** — контейнер [`agentscope/qwenpaw`](https://hub.docker.com/r/agentscope/qwenpaw) (или аналог), свой порт внутри сети `agent-cms`.
 - Снаружи: **`qwenpaw.localhost`** (dev) · **`qwenpaw.sitename.ru`** (prod).
-- CMS не встраивает этот UI в роутер `server.js` — только **reverse proxy на edge**.
+- **Linux/VPS:** Caddy по `Host`, CMS **не** роутит edge. **Mac v0:** CMS `:3000` + `AGENT_CMS_EDGE_HTTP_GATE` (`edge-host-gateway` в `server.js`).
 
 ### 10.2 Именование (канон — черновик)
 
@@ -418,13 +419,13 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 
 **Канон v0:** явные host → `qwenpaw`, `all`; **остальные** `*.domain` → **статическая заглушка** (`edge-static/unknown`), **не CMS**. Apex `sitename.ru` → CMS без изменений.
 
-**Ограничение v0:** неизвестный `foo.*` → заглушка только **`http://foo…`**. **`https://foo…`** без LE wildcard (DNS-01) не открывается — **не** делать site `*.domain` / `tls internal`: перехватывает `qwenpaw` / `all` и ломает Let's Encrypt. Маршрут unknown — matcher в `:80` (expression), не wildcard site.
+**Ограничение v0:** неизвестный `foo.*` → заглушка только **`http://foo…`**. **`https://foo…`** без LE wildcard (DNS-01) не открывается — **не** делать site `*.domain` / `tls internal`: перехватывает `qwenpaw` / `all` и ломает Let's Encrypt. Маршрут unknown — matcher `host` в блоке `:80`, не wildcard site.
 
 ### 10.5 Границы / риски
 
 - **Cookies / CORS / SSO** — разные origin; app-lock CMS **не** распространяется на `qwenpaw.*` автоматически.
 - **Секреты** — env **у каждого** edge-сервиса; не смешивать с whitelist CMS `.env.example` без явного решения.
-- **Реестр Q1 (`platform_apps_list`)** — только **встроенные** `app-*`; edge-apps — отдельный список (манифест агрегатора или будущий MCP `platform_edge_apps_list` — не в v0).
+- **Реестр Q1 (`platform_apps_list`)** — только **встроенные** `app-*`; edge — **`platform_apps_edge_list`** / `GET /api/platform/apps/edge`.
 - **MCP Host allowlist** — при обращении к MCP с поддомена дописать хосты в `AGENT_CMS_MCP_ALLOWED_HOSTS` (если нужно).
 
 ### 10.6 Артефакты
@@ -432,10 +433,34 @@ Day-to-day Docker на Mac/Linux: **`agent-cms start|stop|restart|down|rebuild|u
 - [x] `docker-compose.edge-apps.yml` + **`AGENT_CMS_EDGE_APPS=1`** в CLI compose args.
 - [x] `docs/deploy/docker-Caddyfile.edge` + `qwenpaw` + **`all.`** + `*.domain` → unknown.
 - [x] DOCKER.md — таблица host → backend.
-- [ ] Control: ссылки на `all.*`, health qwenpaw.
+- [x] Control: ссылки / health edge (`/api/platform/apps/edge`, мониторинг).
+- [x] Mac без Caddy — `docker-compose.edge-apps.mac.yml` + `AGENT_CMS_EDGE_HTTP_GATE`.
+- [x] MCP **`platform_apps_edge_list`** (+ legacy `list_platform_edge_apps`).
 - [ ] Hermes и др. — по одному сервису + строка в Caddy (динамический каталог без compose — не v0).
+- [ ] 🟡 Wildcard HTTPS `*.domain` (DNS-01) — не блокер v0.
 
 > **NOTE**
 > - ✅ **Решение:** `/app-*` **не трогаем**; поддомены — edge-контейнеры + **`all.`** как каталог.
 > - 💡 Q7.4 (chat.localhost) остаётся **отложено**; Q10 не заменяет path-маршруты CMS.
 > - 📌 Связь с REFACTOR-19 / MCP-instances — только если edge-app нужен в workspace; иначе чисто infra.
+
+### 10.7 Q10 — что решили (кратко)
+
+| Решение | Статус |
+|--------|--------|
+| **`/app-*` на apex не трогаем** — CMS на главном домене | ✅ |
+| **Поддомены только для сторонних app** (не Q7.4, не `/app-chat` на subdomain) | ✅ |
+| **Каталог-агрегатор — `all.`** («Все»), не `apps.` | ✅ |
+| **Edge-app — `{slug}.`** (пример `qwenpaw.`) | ✅ |
+| **Прокси по Host:** **Caddy** (Linux/VPS); CMS **не** роутит edge на prod | ✅ VPS |
+| **Mac без Caddy** — edge на **`localhost:3000`** (`AGENT_CMS_EDGE_HTTP_GATE`, `edge-host-gateway`) | ✅ v0 |
+| **Неизвестный `blabla.*` → заглушка**, не Editor CMS | ✅ v0 (`http://`); 🟡 `https://` без wildcard LE |
+| **Включение — `AGENT_CMS_EDGE_APPS=1`** + overlay compose | ✅ |
+| **Пример v0 — QwenPaw** (`docker-compose.edge-apps.yml` / `.mac.yml`) | ✅ |
+| **Доку — README, DOCKER.md, `.env.example`** | ✅ |
+| **Новый edge-app = compose + строка Caddy** (Hermes и т.д.) | ✅ принцип · ❌ автоматики |
+| **Динамически без правки compose** | ❌ не v0 |
+| **Wildcard HTTPS `*.domain` (один cert, DNS-01)** | 🟡 позже · не блокер v0 |
+| **Control — ссылки / health edge** | ✅ (`/api/platform/apps/edge`, мониторинг) |
+| **MCP `platform_apps_edge_list`** (legacy `list_platform_edge_apps`) | ✅ |
+| **App-lock / cookies единые с edge** | ❌ нет, разные origin |

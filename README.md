@@ -684,7 +684,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 Рабочий файл — **`.env` в корне репозитория** (шаблон — [`.env.example`](.env.example)). Его читают **Docker Compose**, **CMS / Control / MCP** и клиенты (публичный URL, токены). На **VPS** обязательно задайте **`AGENT_CMS_PUBLIC_URL`**, **`AGENT_CMS_PUBLIC_DOMAIN`**, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`**. На **Mac** чаще достаточно пароля и MCP-tокена; остальное — по умолчанию из example.
 
-> **Что такое «edge» / `AGENT_CMS_EDGE_APPS`:** не функция CMS, а **«приложения с края»** — отдельные программы в своих контейнерах, которые открываются **по поддомену** (`qwenpaw.maptex.ru`), а не по `/app-*`. Agent CMS остаётся на **главном домене**; Caddy только **разводит трафик** по имени хоста. Слово *edge* в инфраструктуре = «рядом с платформой, снаружи ядра», у нас так и в коде: **edge-apps**.
+> **Что такое «edge» / `AGENT_CMS_EDGE_APPS`:** не функция CMS, а **«приложения с края»** — отдельные программы в своих контейнерах, которые открываются **по поддомену** (`qwenpaw.maptex.ru`), а не по `/app-*`. Agent CMS остаётся на **главном домене**; на **VPS/Linux** маршрутизацию по `Host` делает **Caddy**, на **Mac** — **CMS :3000** (`AGENT_CMS_EDGE_HTTP_GATE`, `docker-compose.edge-apps.mac.yml`). Слово *edge* = «рядом с платформой, снаружи ядра» — **edge-apps**.
 
 После правок **`.env`**: **recreate** контейнеров (`agent-cms-cli restart` на VPS/Linux = `--force-recreate`; на Mac — см. [DOCKER.md](docs/deploy/DOCKER.md)), **не** `rebuild`. Mounts / workspace-mounts — `up -d` с нужными `-f …`. В **Control** — редактор `.env` / `.env.example`; через MCP — **`platform_env_keys_list`**, **`platform_env_key_read`**, **`platform_env_key_write`** (запись — app-lock). Краткий справочник: [docs/env-reference.md](docs/env-reference.md).
 
@@ -703,9 +703,10 @@ npm run cms:desktop   # dev-окно без сборки
 | **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
 | **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
 | **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
-| **`AGENT_CMS_PUBLIC_DOMAIN`** | Домен для **Caddy** (VPS) | Caddy site domain | `example.com` |
+| **`AGENT_CMS_PUBLIC_DOMAIN`** | Apex для **Caddy** (VPS) и edge (`*.domain` / **`*.localhost`** на Mac) | Public apex / Caddy domain | VPS: `maptex.ru` · Mac: `localhost` |
 | **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
-| **`AGENT_CMS_EDGE_APPS`** | **`1`** — **сторонние приложения на поддоменах** (не часть CMS): отдельные Docker-контейнеры за Caddy (`qwenpaw.домен`, каталог **`all.домен`**, заглушка для неизвестных `*.домен`). Основной сайт и **`/app-*`** без изменений. Только **Linux/VPS + Caddy**; после включения — **`agent-cms-cli restart`**. Подробно: [DOCKER.md](docs/deploy/DOCKER.md#edge-приложения-на-поддоменах-q10-v0) · [Q10](TODO-REFACTOR-15.md) | Enable subdomain sidecar apps (QwenPaw, `all.*` catalog) via `docker-compose.edge-apps.yml` | `0` / закоммент. · VPS: `1` |
+| **`AGENT_CMS_EDGE_APPS`** | **`1`** — **edge-apps на поддоменах** (`qwenpaw.*`, **`all.*`**, заглушка `http://foo.*`): **Linux/VPS** — Caddy + `docker-compose.edge-apps.yml`; **Mac** — `docker-compose.edge-apps.mac.yml`, **`http://qwenpaw.localhost:3000`**. MCP: **`platform_apps_edge_list`**. Control → Edge в мониторинге. **`agent-cms-cli restart`**. [DOCKER.md](docs/deploy/DOCKER.md#edge-приложения-на-поддоменах-q10-v0) · [Q10](TODO-REFACTOR-15.md) | Subdomain edge apps | `0` · prod/Mac: `1` |
+| **`AGENT_CMS_EDGE_HTTP_GATE`** | **`1`** — CMS на `:3000` маршрутизирует edge по `Host` (Mac overlay). VPS + Caddy — не задавать / **`0`** | CMS Host gateway without Caddy | Mac: auto |
 | **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
 | **`AGENT_CMS_MCP_ICON_URL`** | *(опц.)* Своя иконка для Claude/Cursor; иначе **`{AGENT_CMS_PUBLIC_URL}/app-mcp/icon`** (PNG) | MCP connector icon URL | `https://ваш-домен/app-mcp/icon` |
 | **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
@@ -821,18 +822,19 @@ Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [табл
 
 ## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 229** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 230** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
 │
-├── ⚙️ Платформа (Platform) · 10
+├── ⚙️ Платформа (Platform) · 11
 │   ├── 🟢 platform_info_get
 │   ├── 🟢 platform_health_get
 │   ├── 🟢 platform_docs_list
 │   ├── 🟢 platform_doc_read
 │   ├── 🟢 platform_config_list
 │   ├── 🟢 platform_apps_list
+│   ├── 🟢 platform_apps_edge_list
 │   ├── 🟢 platform_env_keys_list
 │   ├── 🟢 platform_env_key_read
 │   ├── 🟢 platform_env_key_write

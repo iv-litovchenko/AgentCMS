@@ -1487,6 +1487,84 @@ function formatMcpMonitorDetail({ pingOk, httpUp, portText, singleDoor, hostPort
   return parts.join(" · ") || `HTTP :${portText}`;
 }
 
+let lastEdgeAppsPayload = null;
+
+async function fetchEdgeAppsPayload() {
+  const base = getClientDoorHttpOrigin();
+  if (!base) {
+    lastEdgeAppsPayload = null;
+    return;
+  }
+  try {
+    const res = await fetch(`${String(base).replace(/\/+$/, "")}/api/platform/apps/edge`, {
+      credentials: "include",
+      cache: "no-store"
+    });
+    if (!res.ok) {
+      lastEdgeAppsPayload = null;
+      return;
+    }
+    lastEdgeAppsPayload = await res.json();
+  } catch {
+    lastEdgeAppsPayload = null;
+  }
+}
+
+function renderEdgeAppsMonitorCard(app) {
+  const running = Boolean(app?.running);
+  const state = running ? "on" : "off";
+  const label = running ? "online" : "offline";
+  const openUrl = String(app?.publicUrl || "").trim();
+  const canOpen = running && openUrl;
+  const hostLabel = openUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") || app?.slug || "edge";
+  const openBtn = canOpen
+    ? `<button type="button" class="svc-rack-go" data-svc-open="${escapeAttr(openUrl)}" title="Открыть" aria-label="Открыть ${escapeAttr(app.title || app.slug)}">↗</button>`
+    : "";
+  return `
+    <article
+      class="svc-rack-card svc-rack-card--edge${canOpen ? " svc-rack-card--link" : ""}"
+      data-service-id="edge-${escapeAttr(app.appId)}"
+      data-accent="edge"
+      data-state="${state}"
+      title="${escapeAttr(app.description || app.title || "")}"
+    >
+      <div class="svc-rack-head">
+        <span class="svc-rack-icon svc-rack-icon--emoji" aria-hidden="true">${app.icon || "🛸"}</span>
+        <div class="svc-rack-head-text">
+          <strong class="svc-rack-name">${escapeAttr(app.title || app.slug)}</strong>
+          <code class="svc-rack-port">${escapeAttr(hostLabel)}</code>
+        </div>
+        ${openBtn}
+      </div>
+      <p class="svc-rack-sub">${escapeAttr(app.kind || "edge")} · ${escapeAttr(app.slug)}.*</p>
+      <footer class="svc-rack-foot">
+        <span class="svc-rack-led" aria-hidden="true"></span>
+        <span class="svc-rack-status">${label}</span>
+      </footer>
+    </article>
+  `;
+}
+
+function renderEdgeAppsMonitorSection() {
+  const payload = lastEdgeAppsPayload;
+  if (!payload?.edgeEnabled) return "";
+  const apps = Array.isArray(payload.apps) ? payload.apps : [];
+  if (!apps.length) return "";
+  const routingHint =
+    payload.routing === "cms-http-gate"
+      ? "Mac/Windows: Host → CMS :3000"
+      : payload.routing === "caddy"
+        ? "Linux: Caddy по Host"
+        : String(payload.routing || "edge");
+  return `
+    <div class="svc-rack svc-rack--edge">
+      <h3 class="svc-rack-edge-title">Edge-приложения</h3>
+      <p class="svc-rack-edge-hint">${escapeAttr(routingHint)} · apex: <code>${escapeAttr(payload.apexHost || "—")}</code></p>
+      <div class="svc-rack-grid">${apps.map((app) => renderEdgeAppsMonitorCard(app)).join("")}</div>
+    </div>
+  `;
+}
+
 function renderServiceMonitorRackCard(def, server, ports) {
   const row = getServiceMonitorRowState(def, server, ports);
   const urls = getServiceMonitorUrlPair(def, server, ports);
@@ -1535,9 +1613,10 @@ function renderServicesMonitor() {
   root.innerHTML = `
     <div class="svc-rack">
       <div class="svc-rack-grid">${SERVICE_MONITOR_DEFS.map((def) => renderServiceMonitorRackCard(def, server, ports)).join("")}</div>
+      ${renderEdgeAppsMonitorSection()}
       <details class="svc-rack-note">
         <summary>Одна дверь (app-*)</summary>
-        <p>Снаружи один host:port (<code>AGENT_CMS_PUBLIC_URL</code>). UI: <code>/</code>, <code>/app-chat</code>, <code>/app-commander</code>, <code>/app-control</code>; агенты: <code>/app-mcp</code> + Bearer. Electron .app на Mac (опционально): <code>npm run cms:electron-build</code> на хосте. Legacy: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code>.</p>
+        <p>Снаружи один host:port (<code>AGENT_CMS_PUBLIC_URL</code>). UI: <code>/</code>, <code>/app-chat</code>, <code>/app-commander</code>, <code>/app-control</code>; агенты: <code>/app-mcp</code> + Bearer. Edge: <code>all.*</code>, <code>qwenpaw.*</code> (см. блок выше). Electron .app на Mac (опционально): <code>npm run cms:electron-build</code> на хосте. Legacy: <code>AGENT_CMS_EXPOSE_INTERNAL_PORTS=1</code>.</p>
       </details>
     </div>
   `;
@@ -2244,6 +2323,7 @@ async function handleServerStatusUpdate(server, options = {}) {
   suppressServerDownNotify = false;
 
   if (server?.running) {
+    await fetchEdgeAppsPayload();
     try {
       const result = await window.agentControl.testUrl(getTestUrl("mcp"));
       mcpOk = result.ok;
@@ -2251,6 +2331,7 @@ async function handleServerStatusUpdate(server, options = {}) {
       mcpOk = false;
     }
   } else {
+    lastEdgeAppsPayload = null;
     mcpOk = null;
   }
 

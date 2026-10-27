@@ -23123,6 +23123,22 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/platform/apps/edge") {
+    try {
+      const { buildPlatformAppsEdgePayload } = require("./lib/platform/platform-edge-apps");
+      const payload = await buildPlatformAppsEdgePayload({
+        projectRoot: getProjectRoot(),
+        req
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build edge apps",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/platform/health") {
     try {
       const [monitor, disk] = await Promise.all([
@@ -34505,6 +34521,11 @@ function createRequestHandler() {
 
     if (url.pathname.startsWith("/api/")) {
       return handleApi(req, res, url);
+    }
+
+    const { tryEdgeHostGateway } = require("./lib/http/edge-host-gateway");
+    if (tryEdgeHostGateway(req, res, url, getProjectRoot())) {
+      return;
     }
 
     const mobileRedirect = shellMobileRedirectTarget(url.pathname);
