@@ -43,11 +43,18 @@ RUN set -eux; \
     arm64) DARCH="aarch64"; COMPOSE_ARCH="aarch64" ;; \
     *) echo "unsupported arch: $ARCH"; exit 1 ;; \
   esac; \
-  curl -fsSL "https://download.docker.com/linux/static/stable/${DARCH}/docker-27.3.1.tgz" \
+  curl -fsSL --connect-timeout 30 --retry 5 --retry-delay 3 --retry-all-errors \
+    "https://download.docker.com/linux/static/stable/${DARCH}/docker-27.3.1.tgz" \
     | tar xzv -C /usr/local/bin --strip-components=1 docker/docker; \
   mkdir -p /usr/local/lib/docker/cli-plugins; \
-  curl -fsSL "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-${COMPOSE_ARCH}" \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose; \
+  COMPOSE_URL="https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-${COMPOSE_ARCH}"; \
+  for attempt in 1 2 3 4 5 6; do \
+    curl -fsSL --connect-timeout 30 --retry 3 --retry-delay 2 --retry-all-errors \
+      "$COMPOSE_URL" -o /usr/local/lib/docker/cli-plugins/docker-compose && break; \
+    echo "compose download attempt ${attempt} failed, retry in 5s…" >&2; \
+    sleep 5; \
+  done; \
+  test -s /usr/local/lib/docker/cli-plugins/docker-compose; \
   chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 ENV NODE_ENV=production

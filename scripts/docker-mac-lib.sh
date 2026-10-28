@@ -9,6 +9,24 @@ export AGENT_CMS_ROOT="$DOCKER_MAC_ROOT"
 
 COMPOSE_FILE="${AGENT_CMS_COMPOSE_FILE:-docker-compose.mac.yml}"
 
+docker_mac_read_env_var() {
+  local key="$1"
+  local fallback="$2"
+  if [[ -f .env ]]; then
+    local line
+    line="$(grep -E "^${key}=" .env 2>/dev/null | tail -1 || true)"
+    if [[ -n "$line" ]]; then
+      local val="${line#*=}"
+      val="${val%$'\r'}"
+      val="${val#\"}"
+      val="${val%\"}"
+      echo "$val"
+      return
+    fi
+  fi
+  echo "$fallback"
+}
+
 docker_mac_up_services() {
   if [[ -n "${AGENT_CMS_DOCKER_UP_SERVICES:-}" ]]; then
     echo "$AGENT_CMS_DOCKER_UP_SERVICES"
@@ -20,8 +38,6 @@ docker_mac_up_services() {
   fi
   echo "$services"
 }
-
-UP_SERVICES="$(docker_mac_up_services)"
 
 docker_mac_pause_on_exit() {
   if [[ "${DOCKER_MAC_NO_PAUSE:-}" == "1" ]]; then
@@ -52,24 +68,6 @@ docker_mac_ensure_env() {
     docker_mac_pause_on_exit
     exit 1
   fi
-}
-
-docker_mac_read_env_var() {
-  local key="$1"
-  local fallback="$2"
-  if [[ -f .env ]]; then
-    local line
-    line="$(grep -E "^${key}=" .env 2>/dev/null | tail -1 || true)"
-    if [[ -n "$line" ]]; then
-      local val="${line#*=}"
-      val="${val%$'\r'}"
-      val="${val#\"}"
-      val="${val%\"}"
-      echo "$val"
-      return
-    fi
-  fi
-  echo "$fallback"
 }
 
 docker_mac_compose_args() {
@@ -123,3 +121,5 @@ docker_mac_open_urls() {
     echo "  (браузер не открываем; agent-cms-cli open control | Electron ACMS-*)"
   fi
 }
+
+UP_SERVICES="$(docker_mac_up_services)"
