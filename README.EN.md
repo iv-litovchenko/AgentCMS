@@ -344,6 +344,9 @@ agent-cms-cli mcp claude-desktop add --https   # Claude app (mcp-remote, mkcert 
 agent-cms-cli mcp claude-code add --https
 agent-cms-cli mcp codex add --https
 agent-cms-cli mcp claude-code add --http       # :3000, no TLS
+agent-cms-cli mcp claude-desktop remove
+agent-cms-cli mcp claude-code remove
+agent-cms-cli mcp codex remove
 agent-cms-cli mcp status
 # add with no flag — AGENT_CMS_PUBLIC_URL from .env
 ```

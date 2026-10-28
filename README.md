@@ -691,9 +691,11 @@ agent-cms-cli mcp claude-desktop add --https   # приложение Claude (mc
 agent-cms-cli mcp claude-code add --https      # Claude Code (терминал)
 agent-cms-cli mcp codex add --https
 agent-cms-cli mcp claude-code add --http       # без TLS, проще для CLI
+agent-cms-cli mcp claude-desktop remove      # убрать agent-cms-mac
+agent-cms-cli mcp claude-code remove         # убрать agent-cms
+agent-cms-cli mcp codex remove
 agent-cms-cli mcp status                       # PUBLIC / HTTPS / HTTP + mcp list
-# add без флага — AGENT_CMS_PUBLIC_URL из .env
-# remove: agent-cms-cli mcp <target> remove [name]
+# add без флага — AGENT_CMS_PUBLIC_URL из .env; своё имя: … remove my-name
 ```
 
 **Cursor · другие HTTP-клиенты (канон — JSON / URL):**

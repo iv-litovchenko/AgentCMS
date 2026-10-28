@@ -17,5 +17,9 @@ agent_cms_print_mcp_cli_hints() {
   echo "    agent-cms-cli mcp codex add --https"
   echo "    agent-cms-cli mcp codex add --http"
   echo "  (без флага add = URL из AGENT_CMS_PUBLIC_URL: ${mcp_https})"
+  echo "  MCP CLI — remove:"
+  echo "    agent-cms-cli mcp claude-desktop remove"
+  echo "    agent-cms-cli mcp claude-code remove"
+  echo "    agent-cms-cli mcp codex remove"
   echo "  Проверка:  agent-cms-cli mcp status"
 }

@@ -320,6 +320,9 @@ EOF
         echo "Usage: agent-cms-cli mcp <target> add|remove [--https|--http] [name]" >&2
         echo "       agent-cms-cli mcp status" >&2
         echo "Targets: claude-desktop | claude-code | codex" >&2
+        echo "Examples:" >&2
+        echo "  agent-cms-cli mcp claude-code add --https" >&2
+        echo "  agent-cms-cli mcp claude-desktop remove" >&2
         exit 1
         ;;
     esac
