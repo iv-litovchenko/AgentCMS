@@ -2359,6 +2359,7 @@ const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/editor/image-missing.svg";
 const PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS = 3500;
 const PREVIEW_LOAD_TIMEOUT_DEFAULT_MS = 5000;
+const PREVIEW_LOAD_TIMEOUT_AGENT_AVATAR_MS = 120000;
 const FREE_MEMORY_UPLOAD_DISABLED = true;
 const PREVIEW_FILE_BASENAME = "preview";
 const AGENT_KIT_FOLDER_DEFAULT = "awn-topics/0-agent-kit";
@@ -10313,6 +10314,9 @@ function createPreviewFallbackNode({ emoji = "", fallbackText = "?", emojiClass,
 function resolvePreviewLoadTimeoutMs(imageUrl) {
   const url = String(imageUrl || "").trim();
   if (!url) return PREVIEW_LOAD_TIMEOUT_DEFAULT_MS;
+  if (isWorkspaceAgentPreviewApiUrl(url) || url.includes("/api/media/file")) {
+    return PREVIEW_LOAD_TIMEOUT_AGENT_AVATAR_MS;
+  }
   if (/^https?:\/\//i.test(url)) {
     try {
       const parsed = new URL(url, window.location.origin);
@@ -17284,9 +17288,17 @@ async function openWorkspaceStorageTopic() {
 
 function finalizeRegistryAgentPreviewUrl(url, agent) {
   if (!url || !agent?.id) return url;
-  const withAgent = appendAgentToApiUrl(url, agent.id);
-  const thumbUrl = appendMediaThumbToApiUrl(withAgent, MEDIA_THUMB_MAX_AVATAR);
-  return appendCacheBuster(thumbUrl, resolveAgentPreviewCacheToken(agent));
+  let withAgent = appendAgentToApiUrl(url, agent.id);
+  const isDirectMediaFile =
+    withAgent.includes("/api/media/file") && !/[?&]thumb=1(?:&|$)/.test(withAgent);
+  if (isDirectMediaFile || isWorkspaceAgentPreviewApiUrl(withAgent)) {
+    if (isWorkspaceAgentPreviewApiUrl(withAgent)) {
+      withAgent = stripMediaThumbFromApiUrl(withAgent);
+    }
+  } else {
+    withAgent = appendMediaThumbToApiUrl(withAgent, MEDIA_THUMB_MAX_AVATAR);
+  }
+  return appendCacheBuster(withAgent, resolveAgentPreviewCacheToken(agent));
 }
 
 function getRegistryAgentPreviewUrl(agent) {

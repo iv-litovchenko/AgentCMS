@@ -16800,14 +16800,46 @@ async function listAgentSliderImages(agentPath) {
 async function getAgentPreviewMeta(agent) {
   const enriched = enrichAgentEntry(agent);
   try {
-    const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(enriched.rootAbsolute);
-    if (previewAbsolute) {
-      return {
-        hasPreview: true,
-        previewUrl: `/api/agents/workspace-preview?path=${encodeURIComponent(enriched.path)}`
-      };
+    const manifestRel = AREA_MANIFEST_FILE;
+    const previewRaw = String(enriched.previewRel || "").trim();
+    if (previewRaw) {
+      const fieldMeta = await resolveAwnPreviewFieldMeta(manifestRel, previewRaw);
+      if (fieldMeta.hasPreview && fieldMeta.previewUrl) {
+        return fieldMeta;
+      }
     }
-    return { hasPreview: false, previewUrl: null };
+
+    const previewAbsolute = findAgentWorkspacePreviewAbsoluteSync(enriched.rootAbsolute);
+    if (!previewAbsolute) {
+      return { hasPreview: false, previewUrl: null };
+    }
+
+    const manifestAbsolute = normalizeWorkspacePath(manifestRel);
+    const storageRoot =
+      manifestAbsolute && (await fileExists(manifestAbsolute))
+        ? getNodeStorageRootAbsolute(manifestAbsolute)
+        : null;
+    if (storageRoot) {
+      const storageResolved = path.resolve(storageRoot);
+      const previewResolved = path.resolve(previewAbsolute);
+      if (
+        previewResolved === storageResolved ||
+        previewResolved.startsWith(`${storageResolved}${path.sep}`)
+      ) {
+        const relFile = path.relative(storageResolved, previewResolved).replace(/\\/g, "/");
+        if (relFile && !relFile.startsWith("..")) {
+          return {
+            hasPreview: true,
+            previewUrl: `/api/media/file?path=${encodeURIComponent(manifestRel)}&file=${encodeURIComponent(relFile)}`
+          };
+        }
+      }
+    }
+
+    return {
+      hasPreview: true,
+      previewUrl: `/api/agents/workspace-preview?path=${encodeURIComponent(enriched.path)}`
+    };
   } catch {
     return { hasPreview: false, previewUrl: null };
   }
