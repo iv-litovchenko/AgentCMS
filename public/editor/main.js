@@ -8313,6 +8313,9 @@ const READ_STATE_FILE_NAME = "read.json";
 const READ_CONTENT_FILE_NAME = "read-content.json";
 const SLOT_NAVIGATION_SORT_FILE = "sort.json";
 const nodeReadStateCache = new Map();
+let menuNodeReadBatchCacheKey = "";
+let menuNodeReadDeferTimer = 0;
+let menuNodeReadSeq = 0;
 
 function isReadStateServiceFileName(name) {
   const base = String(name || "").trim().toLowerCase();
@@ -8419,6 +8422,84 @@ async function fetchNodeReadState(manifestPath, { force = false } = {}) {
   }
 }
 
+async function fetchNodeReadBatch(manifestPaths, agentId = activeWorkspaceId) {
+  const paths = [...new Set((manifestPaths || []).map((item) => String(item || "").trim()).filter(Boolean))];
+  if (!paths.length) return { summaries: {} };
+  const response = await fetch(buildApiUrl("/api/node/read/batch", {}, agentId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paths })
+  });
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  return response.json();
+}
+
+function invalidateMenuNodeReadBatchCache() {
+  menuNodeReadBatchCacheKey = "";
+}
+
+function computeMenuNodeReadBatchCacheKey(agentId, paths) {
+  return `${agentId}\0${paths.join("\0")}`;
+}
+
+async function refreshMenuReadStateSummary(
+  menu = currentMenuData,
+  agentId = activeWorkspaceId,
+  options = {}
+) {
+  const force = Boolean(options.force);
+  const seq = ++menuNodeReadSeq;
+  const paths = collectVisibleMenuTopicManifestApiPaths(agentId);
+  if (!paths.length) {
+    if (agentId === activeWorkspaceId) refreshMenuReadBadges(agentId);
+    return null;
+  }
+
+  const cacheKey = computeMenuNodeReadBatchCacheKey(agentId, paths);
+  if (
+    !force &&
+    cacheKey === menuNodeReadBatchCacheKey &&
+    paths.every((manifestPath) => nodeReadStateCache.has(normalizeMenuNodePath(manifestPath)))
+  ) {
+    if (agentId === activeWorkspaceId) refreshMenuReadBadges(agentId);
+    return null;
+  }
+
+  try {
+    const data = await fetchNodeReadBatch(paths, agentId);
+    if (seq !== menuNodeReadSeq) return null;
+    for (const [manifestPath, state] of Object.entries(data.summaries || {})) {
+      setCachedNodeReadState(manifestPath, { read: state.read, paths: state.paths });
+    }
+    menuNodeReadBatchCacheKey = cacheKey;
+    if (agentId === activeWorkspaceId) {
+      refreshMenuReadBadges(agentId);
+      if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+        refreshEntryOverviewReadBadges();
+      }
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function scheduleMenuReadStateSync(menu = currentMenuData, agentId = activeWorkspaceId) {
+  if (!activeWorkspaceId || agentId !== activeWorkspaceId) return;
+  if (menuNodeReadDeferTimer) window.clearTimeout(menuNodeReadDeferTimer);
+  const run = () => {
+    menuNodeReadDeferTimer = 0;
+    void refreshMenuReadStateSummary(menu, agentId);
+  };
+  menuNodeReadDeferTimer = window.setTimeout(() => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => run(), { timeout: 2200 });
+    } else {
+      run();
+    }
+  }, 200);
+}
+
 async function markNodePageRead(manifestPath) {
   const key = normalizeMenuNodePath(manifestPath);
   if (!key) return;
@@ -8469,9 +8550,7 @@ function collectMenuManifestPaths(node, acc = []) {
 }
 
 async function prefetchMenuReadStates(menu, agentId = activeWorkspaceId) {
-  if (!menu) return;
-  const paths = [...new Set(collectMenuManifestPaths({ title: getAgentTreeTitle(agentId), ...menu }))];
-  await Promise.all(paths.map((manifestPath) => fetchNodeReadState(manifestPath)));
+  await refreshMenuReadStateSummary(menu, agentId);
 }
 
 function createUnreadBadge({ title = "Не просмотрено" } = {}) {
@@ -16757,6 +16836,7 @@ async function switchActiveAgent(nextAgentId) {
     agentFocusItemsCache = [];
     agentFocusItemsLoadedAgentId = null;
     invalidateMenuIntakeBatchCache();
+    invalidateMenuNodeReadBatchCache();
     closeHeaderFocusPopover();
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
@@ -16914,7 +16994,10 @@ function getMenuQueryRoot() {
 function invalidateMenuAgentCache(agentId = activeWorkspaceId) {
   menuCacheByAgent.delete(agentId);
   menuRuntimeFlagsByAgent.delete(agentId);
-  if (agentId === activeWorkspaceId) invalidateMenuIntakeBatchCache();
+  if (agentId === activeWorkspaceId) {
+    invalidateMenuIntakeBatchCache();
+    invalidateMenuNodeReadBatchCache();
+  }
 }
 
 function canonicalizeRegistryDraftPath(rawPath) {
@@ -107207,7 +107290,7 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
     refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     refreshMenuTreeRuntimeBadges(agentId);
-    void prefetchMenuReadStates(menu, agentId).then(() => refreshMenuReadBadges(agentId));
+    scheduleMenuReadStateSync(menu, agentId);
   }
 
   if (agentId === activeWorkspaceId) {

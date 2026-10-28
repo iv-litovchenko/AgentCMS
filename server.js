@@ -9354,6 +9354,37 @@ async function getNodeReadStatePayload(manifestRelPath) {
   };
 }
 
+async function buildNodeReadBatchSummary(paths) {
+  const uniquePaths = [
+    ...new Set(
+      (Array.isArray(paths) ? paths : [])
+        .map((item) => String(item || "").trim().replace(/\\/g, "/"))
+        .filter(Boolean)
+    )
+  ].slice(0, 120);
+
+  const summaries = {};
+  for (const manifestRelPath of uniquePaths) {
+    try {
+      const payload = await getNodeReadStatePayload(manifestRelPath);
+      if (payload.error) continue;
+      summaries[manifestRelPath] = {
+        read: payload.read,
+        paths: payload.paths,
+        pageExists: payload.pageExists,
+        contentExists: payload.contentExists
+      };
+    } catch {
+      // skip invalid paths
+    }
+  }
+
+  return {
+    summaries,
+    totals: { topics: Object.keys(summaries).length }
+  };
+}
+
 async function invalidateNodeReadStateForManifest(manifestRelPath) {
   const nodeDirAbsolute = await resolveNodeDirAbsoluteFromManifest(manifestRelPath);
   if (!nodeDirAbsolute) return;
@@ -26536,6 +26567,20 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to read node read state",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/node/read/batch") {
+    try {
+      const payload = await readJsonBody(req);
+      const paths = Array.isArray(payload.paths) ? payload.paths : [];
+      const batch = await buildNodeReadBatchSummary(paths);
+      return sendJson(res, 200, batch);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read node read batch",
+        details: String(error && error.message ? error.message : error)
       });
     }
   }

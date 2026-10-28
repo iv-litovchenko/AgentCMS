@@ -26,6 +26,7 @@
 | 6 | **Дерево тем** — 1× `menu?agent=` на F5 | 🟡 | coalesce лишних `refreshMenu` — нет |
 | 7 | **Каналы** — 0 boot; load при expand | ✅ | catalog при expand; **intake/batch** отдельно от stats |
 | 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | idle после menu; только **видимые** темы; кэш ключ paths |
+| 7c | **`POST /api/node/read/batch`** — «!» прочитано в меню | ✅ | вместо N× GET `/api/node/read`; idle; записи темы — в `paths[]` одного manifest |
 | | **Sidebar низ** | | |
 | 8 | **DB / медиа / repos** — 0 boot; expand / ⟲ | ✅ | sidebar DB: `GET …/awn-databases?summary=1`; repos list без `readmeBody` |
 | 9 | **Static footer** — без LT/index на boot | ✅ | panels при expand footer |
