@@ -28,7 +28,7 @@
 | 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | idle после menu; только **видимые** темы; кэш ключ paths |
 | 7c | **`POST /api/node/read/batch`** — «!» прочитано в меню | ✅ | вместо N× GET `/api/node/read`; idle; записи темы — в `paths[]` одного manifest |
 | | **Sidebar низ** | | |
-| 8 | **DB / медиа / repos** — 0 boot; expand / ⟲ | ✅ | sidebar DB: `GET …/awn-databases?summary=1`; repos list без `readmeBody` |
+| 8 | **DB / медиа / repos / каналы** — не с tree | ✅ | не в `refreshMenu`; idle **1.5s** + только **раскрытые** bands **по очереди**; DB `summary=1`; repos без README/ensureAwnId |
 | 9 | **Static footer** — без LT/index на boot | ✅ | panels при expand footer |
 | 10 | **Stats** — idle, без env на boot | ✅ | **`workspace-stats` 1×** на agent; ⟲ reload; counts из menu без повтора |
 | 11 | **О системе** — env только popover | ✅ | нет boot `syncMenuSystemEnvironment()` |

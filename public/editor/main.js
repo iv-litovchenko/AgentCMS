@@ -16837,6 +16837,11 @@ async function switchActiveAgent(nextAgentId) {
     agentFocusItemsLoadedAgentId = null;
     invalidateMenuIntakeBatchCache();
     invalidateMenuNodeReadBatchCache();
+    menuBandCatalogLoadSeq += 1;
+    if (menuBandCatalogDeferTimer) {
+      window.clearTimeout(menuBandCatalogDeferTimer);
+      menuBandCatalogDeferTimer = 0;
+    }
     closeHeaderFocusPopover();
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
@@ -107314,6 +107319,7 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
   if (agentId === activeWorkspaceId) {
     scheduleMenuAgentStatsSync(menu);
     scheduleMenuIntakeSummarySync(menu, agentId);
+    scheduleDeferredExpandedBandCatalogs(agentId);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
     syncWorkspaceTreeCutMarkers();
@@ -133906,10 +133912,54 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
   }
 }
 
+let menuBandCatalogLoadSeq = 0;
+let menuBandCatalogDeferTimer = 0;
+
+function scheduleDeferredExpandedBandCatalogs(agentId = activeWorkspaceId) {
+  if (!agentId || agentId !== activeWorkspaceId) return;
+  if (menuBandCatalogDeferTimer) window.clearTimeout(menuBandCatalogDeferTimer);
+  menuBandCatalogDeferTimer = window.setTimeout(() => {
+    menuBandCatalogDeferTimer = 0;
+    const run = () => void loadExpandedMenuBandCatalogsSequential(agentId);
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run, { timeout: 4000 });
+    } else {
+      run();
+    }
+  }, 1500);
+}
+
+async function loadExpandedMenuBandCatalogsSequential(agentId = activeWorkspaceId) {
+  const seq = ++menuBandCatalogLoadSeq;
+  const scopedId = resolveAgentMenuStatsScope(agentId);
+  if (!scopedId) return;
+
+  const steps = [];
+  if (isMenuAwnChannelsBandExpanded()) {
+    steps.push(() => refreshMenuAwnChannels(scopedId));
+  }
+  if (isMenuRepositoriesBandExpanded()) {
+    steps.push(() => refreshMenuRepositories(scopedId));
+  }
+  if (isMenuMediaLibraryBandExpanded()) {
+    steps.push(() => refreshMenuMediaLibraries(scopedId));
+  }
+  if (isMenuAwnDataBandExpanded()) {
+    steps.push(() => refreshMenuAwnDataStores(scopedId, { showLoading: false }));
+  }
+  if (isMenuStaticFooterExpanded()) {
+    steps.push(() => refreshMenuAgentStaticSummaries(scopedId, { staticFooterOnly: true }));
+  }
+
+  for (const step of steps) {
+    if (seq !== menuBandCatalogLoadSeq) return;
+    await step();
+  }
+}
+
+/** @deprecated use scheduleDeferredExpandedBandCatalogs */
 function scheduleVisibleMenuAgentStaticSummaries(agentId = activeWorkspaceId) {
-  window.requestAnimationFrame(() => {
-    refreshMenuAgentStaticSummaries(agentId);
-  });
+  scheduleDeferredExpandedBandCatalogs(agentId);
 }
 
 function refreshMenuAgentStaticSummaries(agentId = activeWorkspaceId, options = {}) {
@@ -135340,7 +135390,6 @@ async function refreshMenu(options = {}) {
   });
   if (agentId === activeWorkspaceId) {
     updateActiveButton();
-    scheduleVisibleMenuAgentStaticSummaries(agentId);
     void syncAgentWorkspaceViewFromWorkspaceConfig(agentId).then(() => {
       if (agentId === activeWorkspaceId && isAgentWorkspaceCanvasVisible()) {
         applyAgentWorkspaceCanvasUi();
