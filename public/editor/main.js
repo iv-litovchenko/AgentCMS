@@ -9052,7 +9052,14 @@ function syncAgentPreview(previewMeta = null, options = {}) {
         String(previewUrl).includes("/api/media/file"));
     let fullSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
     let nextSrc = appendMediaThumbToApiUrl(fullSrc, MEDIA_THUMB_MAX_PREVIEW);
-    if (useRegistryAvatarUrl) {
+    if (String(previewUrl).includes("/api/preview/image")) {
+      const finalized = finalizeNodePreviewApiUrl(previewUrl, activeWorkspaceId);
+      if (finalized) {
+        nextSrc = finalized;
+        fullSrc = appendAgentToApiUrl(stripMediaThumbFromApiUrl(finalized));
+      }
+    }
+    if (useRegistryAvatarUrl && registryPreviewUrl) {
       nextSrc = registryPreviewUrl;
       fullSrc = appendAgentToApiUrl(stripMediaThumbFromApiUrl(registryPreviewUrl));
     }
@@ -10584,6 +10591,7 @@ function resolveAgentPreviewCacheToken(agentOrId) {
 function bumpAgentPreviewCacheToken(agentId) {
   const agent = agentsCache.find((entry) => entry.id === agentId);
   if (agent) agent.previewCacheToken = String(Date.now());
+  clearAgentKitTopicPreviewUrlCache(agentId);
 }
 
 function bumpAgentPreviewCacheTokenByPath(agentPath) {
@@ -11760,14 +11768,10 @@ function bindAppLandingMainTopicsOpenDelegation() {
 function resolveFocusPreviewUrl(rawUrl, agentId) {
   const url = String(rawUrl || "").trim();
   if (!url) return null;
-  const agent = agentsCache.find((entry) => entry.id === agentId) || { id: agentId };
-  if (url.startsWith("/api/agents/workspace-preview")) {
-    return finalizeRegistryAgentPreviewUrl(url, agent);
-  }
   if (url.startsWith("/api/")) {
-    return appendCacheBuster(appendAgentToApiUrl(url, agentId), resolveAgentPreviewCacheToken(agent));
+    return finalizeNodePreviewApiUrl(url, agentId);
   }
-  return appendCacheBuster(url, resolveAgentPreviewCacheToken(agent));
+  return appendCacheBuster(url, resolveAgentPreviewCacheToken(agentId));
 }
 
 function createFocusThumbCell(previewUrl, fallbackText, sizeClass = "", emoji = "", nodePath = "") {
@@ -17373,14 +17377,69 @@ function getAgentKitTopicManifestRel(kind = "agent", agentId = activeWorkspaceId
   return `${kitFolder}/${slot}/manifest.md`;
 }
 
-function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeWorkspaceId) {
+const agentKitTopicPreviewUrlCache = new Map();
+
+function clearAgentKitTopicPreviewUrlCache(agentId = activeWorkspaceId) {
+  const prefix = `${String(agentId || "").trim()}:`;
+  if (!prefix || prefix === ":") {
+    agentKitTopicPreviewUrlCache.clear();
+    return;
+  }
+  for (const key of agentKitTopicPreviewUrlCache.keys()) {
+    if (key.startsWith(prefix)) agentKitTopicPreviewUrlCache.delete(key);
+  }
+}
+
+function finalizeNodePreviewApiUrl(rawUrl, agentId = activeWorkspaceId) {
+  const url = String(rawUrl || "").trim();
+  if (!url) return null;
+  const agent = getAgentMeta(agentId) || { id: agentId };
+  if (
+    url.startsWith("/api/preview/image") ||
+    url.startsWith("/api/media/file") ||
+    url.startsWith("/api/agents/workspace-preview")
+  ) {
+    return finalizeRegistryAgentPreviewUrl(url, agent);
+  }
+  if (url.startsWith("/api/")) {
+    return appendMediaThumbToApiUrl(
+      appendCacheBuster(appendAgentToApiUrl(url, agentId), resolveAgentPreviewCacheToken(agent)),
+      MEDIA_THUMB_MAX_AVATAR
+    );
+  }
+  return appendCacheBuster(url, resolveAgentPreviewCacheToken(agent));
+}
+
+async function resolveAgentKitTopicPreviewUrl(kind = "agent", agentId = activeWorkspaceId) {
   const manifestPath = getAgentKitTopicManifestRel(kind, agentId);
-  if (!manifestPath) return null;
-  const url = `/api/preview/image?path=${encodeURIComponent(manifestPath)}`;
-  return appendMediaThumbToApiUrl(
-    appendCacheBuster(appendAgentToApiUrl(url, agentId)),
-    MEDIA_THUMB_MAX_AVATAR
-  );
+  if (!manifestPath || !agentId) return null;
+  const cacheKey = `${agentId}:${kind}`;
+  if (agentKitTopicPreviewUrlCache.has(cacheKey)) {
+    return agentKitTopicPreviewUrlCache.get(cacheKey);
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/preview", { path: manifestPath }, agentId));
+    if (!response.ok) {
+      agentKitTopicPreviewUrlCache.set(cacheKey, null);
+      return null;
+    }
+    const data = await response.json();
+    if (!data?.exists || !data?.imageUrl) {
+      agentKitTopicPreviewUrlCache.set(cacheKey, null);
+      return null;
+    }
+    const finalized = finalizeNodePreviewApiUrl(data.imageUrl, agentId);
+    agentKitTopicPreviewUrlCache.set(cacheKey, finalized);
+    return finalized;
+  } catch {
+    agentKitTopicPreviewUrlCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+/** @deprecated sync blind /api/preview/image URLs — use resolveAgentKitTopicPreviewUrl */
+function getAgentKitTopicPreviewUrl() {
+  return null;
 }
 
 function mountIdentityAvatarWithFallbacks(
@@ -17436,27 +17495,52 @@ function mountIdentityAvatarWithFallbacks(
 
 function resolveSidebarAgentToolbarPreviewUrl(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
+  const registryPreviewUrl = agent ? getRegistryAgentPreviewUrl(agent) : null;
   return {
-    primaryUrl: getAgentKitTopicPreviewUrl("agent", agentId),
-    secondaryUrl: agent ? getRegistryAgentPreviewUrl(agent) : null
+    primaryUrl: registryPreviewUrl,
+    secondaryUrl: null
   };
+}
+
+function mountIdentityAvatarWithKitFallback(
+  container,
+  { registryUrl = "", kitKind = "agent", agentId = activeWorkspaceId, useKit = false, ...rest } = {}
+) {
+  const apply = (primaryUrl, secondaryUrl = "") => {
+    mountIdentityAvatarWithFallbacks(container, {
+      primaryUrl,
+      secondaryUrl,
+      ...rest
+    });
+  };
+  if (registryUrl) {
+    apply(registryUrl, "");
+    return;
+  }
+  if (!useKit) {
+    apply("", "");
+    return;
+  }
+  void resolveAgentKitTopicPreviewUrl(kitKind, agentId).then((kitUrl) => {
+    if (!container?.isConnected) return;
+    apply(kitUrl || "", "");
+  });
 }
 
 function syncIdentityToolbarAvatars(agentId = activeWorkspaceId) {
   const agent = getAgentMeta(agentId);
   const showKitAvatars = Boolean(agentId && !isPlatformAgentId(agentId));
   const showSidebarAvatar = Boolean(agentId);
+  const registryPreviewUrl = agent ? getRegistryAgentPreviewUrl(agent) : "";
 
   if (sidebarAgentAvatarBtn && sidebarAgentAvatarMountNode) {
     sidebarAgentAvatarBtn.classList.toggle("hidden", !showSidebarAvatar);
     if (showSidebarAvatar) {
-      const registryPreviewUrl = agent ? getRegistryAgentPreviewUrl(agent) : "";
-      const { primaryUrl, secondaryUrl } = showKitAvatars
-        ? resolveSidebarAgentToolbarPreviewUrl(agentId)
-        : { primaryUrl: registryPreviewUrl, secondaryUrl: null };
-      mountIdentityAvatarWithFallbacks(sidebarAgentAvatarMountNode, {
-        primaryUrl,
-        secondaryUrl,
+      mountIdentityAvatarWithKitFallback(sidebarAgentAvatarMountNode, {
+        registryUrl: registryPreviewUrl,
+        kitKind: "agent",
+        agentId,
+        useKit: showKitAvatars,
         emoji: resolveAwnEmoji(agent),
         fallbackText: getAgentPickerInitials(agent),
         emojiClass: "sidebar-agent-toolbar-avatar-emoji",
@@ -17471,11 +17555,13 @@ function syncIdentityToolbarAvatars(agentId = activeWorkspaceId) {
   if (headerUserProfileBtn && headerUserProfileAvatarMountNode) {
     headerUserProfileBtn.classList.remove("hidden");
     headerProfileWrapNode?.classList.remove("hidden");
-    mountPreviewOrFallback(headerUserProfileAvatarMountNode, {
-      previewUrl: showKitAvatars ? getAgentKitTopicPreviewUrl("user", agentId) : "",
+    mountIdentityAvatarWithKitFallback(headerUserProfileAvatarMountNode, {
+      registryUrl: registryPreviewUrl,
+      kitKind: "user",
+      agentId,
+      useKit: showKitAvatars,
       emoji: "",
       fallbackText: "",
-      emptyClass: "header-user-profile-avatar-icon",
       emojiClass: "header-user-profile-avatar-emoji",
       initialsClass: "header-user-profile-avatar-initials"
     });

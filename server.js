@@ -31263,15 +31263,26 @@ async function handleApiForAgent(req, res, url) {
     }
 
     const previewMeta = await getNodePreviewMeta(relPath);
-    if (!previewMeta.hasPreview || !previewMeta.previewUrl) {
-      return sendJson(res, 200, { exists: false, file: null, imageUrl: null });
+    if (previewMeta.hasPreview && previewMeta.previewUrl) {
+      return sendJson(res, 200, {
+        exists: true,
+        file: previewMeta.previewFile || null,
+        imageUrl: previewMeta.previewUrl
+      });
     }
 
-    return sendJson(res, 200, {
-      exists: true,
-      file: previewMeta.previewFile || null,
-      imageUrl: previewMeta.previewUrl
-    });
+    if (isManifest && nodeAbsolute) {
+      const sidecarAbsolute = await findNodePreviewImageAbsolute(nodeAbsolute);
+      if (sidecarAbsolute) {
+        return sendJson(res, 200, {
+          exists: true,
+          file: path.basename(sidecarAbsolute),
+          imageUrl: `/api/preview/image?path=${encodeURIComponent(relPath)}`
+        });
+      }
+    }
+
+    return sendJson(res, 200, { exists: false, file: null, imageUrl: null });
   }
 
   if (req.method === "GET" && url.pathname === "/api/preview/image") {
