@@ -1,7 +1,8 @@
 # AGENT CMS (0.0.1-beta)
 
 <p align="center">
-  <strong>English</strong> <em>(current)</em> | <a href="README.md"><strong>Русский</strong></a>
+  <img src="docs/images/badges/badge-lang-en.svg" alt="English" height="28" title="English (current)">&nbsp;&nbsp;&nbsp;
+  <a href="README.md" title="Русский"><img src="docs/images/badges/badge-lang-ru.svg" alt="Русский" height="28"></a>
 </p>
 
 <p align="center">
