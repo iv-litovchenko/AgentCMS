@@ -152,7 +152,7 @@ const CHANNEL_BUILTIN_PRESETS = [
   {
     slug: '0-mcp-feedback',
     icon: '⚠️',
-    name: 'Замечания по MCP',
+    name: 'Замечания и баги по MCP',
     hintTitle: 'Замечания агента после вызовов MCP: ошибки, needsAuth, таймауты и странное поведение коннекторов — ingress до triage'
   },
   {
