@@ -367,7 +367,7 @@
         editorSecondaryPanelsPromise = Promise.resolve();
       } else {
         editorSecondaryPanelsPromise = Promise.all([
-          loadScript("/editor/js/panels/languagetool-panel.js?v=2"),
+          loadScript("/editor/js/panels/languagetool-panel.js?v=3"),
           loadScript("/editor/js/panels/file-find-bar.js?v=2"),
           loadScript("/editor/js/editor/marker-blocks-preview.js?v=11")
         ]);

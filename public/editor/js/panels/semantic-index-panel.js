@@ -254,10 +254,14 @@
   }
 
   function getActiveAgentId() {
-    if (panelCtx.isAgentWorkspaceSessionActive?.() === false) return "";
+    if (!panelCtx.isAgentWorkspaceSessionActive?.()) return "";
     const fromCtx = panelCtx.getActiveAgentId?.();
     if (fromCtx) return fromCtx;
     return resolveActiveAgentIdFromLocation();
+  }
+
+  function canRefreshWorkspaceIndexMonitor() {
+    return Boolean(getActiveAgentId());
   }
 
   function buildApiUrl(path, params = {}) {
@@ -746,8 +750,7 @@
   }
 
   async function refreshStatus() {
-    const agentId = getActiveAgentId();
-    if (!agentId) {
+    if (!canRefreshWorkspaceIndexMonitor()) {
       syncCacheResetButtonState(false);
       summaryStatsNode.textContent = "агент не выбран";
       summaryStatsNode.classList.add("is-empty");
@@ -1914,6 +1917,7 @@
 
   let refreshTimer = null;
   window.addEventListener("workspace-index-file-saved", () => {
+    if (!canRefreshWorkspaceIndexMonitor()) return;
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => refreshStatus(), 600);
   });
@@ -1927,7 +1931,9 @@
           getActiveAgentId: panelCtx.getActiveAgentId
         });
       }
-      void refreshStatus();
+      if (canRefreshWorkspaceIndexMonitor()) {
+        void refreshStatus();
+      }
     },
     refreshStatus
   };

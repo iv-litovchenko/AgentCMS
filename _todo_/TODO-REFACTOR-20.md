@@ -31,7 +31,7 @@
 | `GET …/recent-updates?limit=80` | 60 kB | 44 s – 1.7 min | Лента обновлений | [x] только Flow, 1× + dedupe, idle |
 | `GET …/settings-global` | 6 kB | 45–51 s | Глобальные UI settings | С boot, но не блокировать splash |
 | `GET …/main` (fetch, не main.js) | 16 kB | 34 s – 1.6 min | Focus/landing «main» items | [x] Orbit/Grid 1× + dedupe, idle |
-| `GET …/monitor?agent=…` | 2.7 kB | **2.4–3.8 min** | Мониторинг/live | Long-poll; не в critical path F5 |
+| `GET …/monitor?agent=…` | 2.7 kB | **2.4–3.8 min** | Индексы в меню workspace | [x] не на landing; только workspace + popover индексов |
 | `GET /api/.../workspace-preview?path=…` | webp ~30–40 kB | 43–47 s | Превью карточек агентов | [x] stable `t=` (agent id), lazy img, coalesce landing shell render; следить Network |
 | `GET /api/agents/git-summaries` | JSON | долго | Git под пузырями Orbit | [x] client cache 90s + idle; server cache 60s, max 4 parallel git |
 | `main.js?v=…` | **~5 MB** | ~46 s | Editor bundle dev | `build:editor`, slices REFACTOR-14 |
