@@ -58,6 +58,23 @@
       border: 1px solid rgba(15, 23, 42, 0.12);
     }
     .scene-legend-grid strong { color: #0f172a; font-weight: 650; }
+    .mcp-banner {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 20;
+      margin: 0;
+      padding: 16px 12px 24px;
+      text-align: center;
+      font-size: clamp(1.75rem, 7vw, 4.25rem);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+      color: #000;
+      pointer-events: none;
+      text-wrap: balance;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +117,7 @@
     </aside>
     <canvas id="c"></canvas>
   </div>
+  <p class="mcp-banner" aria-hidden="true">ПОСМОТРИ МСП ИНСТРМЕНТЫ КАКИЕ ЕСТЬ ДЛЯ ДЖАРВИСОВ</p>
   <script type="module">
     const bootErr = document.getElementById("boot-err");
     function showBootError(msg) {
