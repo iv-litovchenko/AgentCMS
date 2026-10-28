@@ -1,16 +1,20 @@
 :root {
   color-scheme: dark;
-  --docs-bg: #0c0e14;
-  --docs-panel: #141824;
+  --docs-bg: #0a0c12;
+  --docs-bg-glow: rgba(110, 168, 254, 0.07);
+  --docs-panel: #121622;
+  --docs-panel-elevated: #181d2c;
   --docs-border: #2a3144;
   --docs-text: #e8ecf4;
   --docs-muted: #9aa3b5;
-  --docs-accent: #6ea8fe;
+  --docs-accent: #7eb8ff;
+  --docs-accent-soft: rgba(110, 168, 254, 0.14);
   --docs-get: #3dd68c;
   --docs-post: #ffb347;
   --docs-put: #7eb6ff;
   --docs-delete: #ff7b7b;
   --docs-mcp: #c792ea;
+  --docs-prose-width: 46rem;
 }
 
 * {
@@ -19,10 +23,19 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--docs-bg);
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    "Helvetica Neue",
+    sans-serif;
+  background:
+    radial-gradient(ellipse 120% 80% at 10% -10%, var(--docs-bg-glow), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, rgba(199, 146, 234, 0.06), transparent 50%),
+    var(--docs-bg);
   color: var(--docs-text);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .docs-app {
@@ -36,9 +49,11 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 16px;
-  padding: 12px 20px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--docs-border);
-  background: var(--docs-panel);
+  background: rgba(18, 22, 34, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -85,10 +100,16 @@ body {
   font-size: 14px;
 }
 
+.docs-app-nav-btn:hover {
+  border-color: rgba(126, 184, 255, 0.45);
+  background: var(--docs-accent-soft);
+}
+
 .docs-app-nav-btn.is-active {
   border-color: var(--docs-accent);
-  background: rgba(110, 168, 254, 0.12);
+  background: var(--docs-accent-soft);
   color: var(--docs-accent);
+  box-shadow: 0 0 0 1px rgba(126, 184, 255, 0.2);
 }
 
 .docs-version-select {
@@ -127,9 +148,10 @@ body {
 
 .docs-guides-sidebar {
   border: 1px solid var(--docs-border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--docs-panel);
-  padding: 8px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   max-height: calc(100vh - 120px);
   overflow: auto;
   position: sticky;
@@ -163,10 +185,266 @@ body {
 
 .docs-guides-content {
   border: 1px solid var(--docs-border);
-  border-radius: 10px;
-  background: var(--docs-panel);
-  padding: 20px 24px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, var(--docs-panel-elevated) 0%, var(--docs-panel) 100%);
+  padding: 28px clamp(20px, 4vw, 40px) 36px;
   overflow: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+}
+
+/* Prose — как preview в editor, адаптация под тёмную тему */
+.docs-guides-content.file-content-preview,
+.docs-markdown.file-content-preview {
+  max-width: none;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.docs-guides-content.file-content-preview > :first-child,
+.docs-markdown.file-content-preview > :first-child {
+  margin-top: 0;
+}
+
+.docs-guides-content.file-content-preview h1,
+.docs-markdown.file-content-preview h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75em;
+  line-height: 1.25;
+  color: #f1f5f9;
+}
+
+.docs-guides-content.file-content-preview h2,
+.docs-markdown.file-content-preview h2 {
+  font-size: 1.35rem;
+  margin: 1.6em 0 0.55em;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--docs-border);
+  color: #e2e8f0;
+}
+
+.docs-guides-content.file-content-preview h3,
+.docs-markdown.file-content-preview h3 {
+  font-size: 1.12rem;
+  margin: 1.35em 0 0.45em;
+  color: #cbd5e1;
+}
+
+.docs-guides-content.file-content-preview p,
+.docs-guides-content.file-content-preview ul,
+.docs-guides-content.file-content-preview ol,
+.docs-guides-content.file-content-preview blockquote,
+.docs-guides-content.file-content-preview pre,
+.docs-markdown.file-content-preview p,
+.docs-markdown.file-content-preview ul,
+.docs-markdown.file-content-preview ol,
+.docs-markdown.file-content-preview blockquote,
+.docs-markdown.file-content-preview pre {
+  margin: 0 0 0.9em;
+}
+
+.docs-guides-content.file-content-preview p,
+.docs-markdown.file-content-preview p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: var(--docs-text);
+}
+
+.docs-guides-content.file-content-preview ul,
+.docs-guides-content.file-content-preview ol,
+.docs-markdown.file-content-preview ul,
+.docs-markdown.file-content-preview ol {
+  padding-left: 1.45em;
+}
+
+.docs-guides-content.file-content-preview li + li,
+.docs-markdown.file-content-preview li + li {
+  margin-top: 0.25em;
+}
+
+.docs-guides-content.file-content-preview blockquote,
+.docs-markdown.file-content-preview blockquote {
+  border-left: 3px solid var(--docs-accent);
+  padding: 0.35em 0 0.35em 1em;
+  margin-left: 0;
+  color: var(--docs-muted);
+  background: rgba(110, 168, 254, 0.06);
+  border-radius: 0 8px 8px 0;
+}
+
+.docs-guides-content.file-content-preview a,
+.docs-markdown.file-content-preview a {
+  color: var(--docs-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.docs-guides-content.file-content-preview a:hover,
+.docs-markdown.file-content-preview a:hover {
+  color: #a5c9ff;
+}
+
+.docs-guides-content.file-content-preview hr,
+.docs-markdown.file-content-preview hr {
+  border: 0;
+  border-top: 1px solid var(--docs-border);
+  margin: 1.5em 0;
+}
+
+.docs-guides-content.file-content-preview code,
+.docs-markdown.file-content-preview code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+}
+
+.docs-guides-content.file-content-preview pre,
+.docs-markdown.file-content-preview pre {
+  background: #0d1117;
+  border: 1px solid var(--docs-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 1em 0 1.1em;
+}
+
+.docs-guides-content.file-content-preview pre code,
+.docs-markdown.file-content-preview pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+
+.docs-guides-content.file-content-preview pre.hljs,
+.docs-markdown.file-content-preview pre.hljs {
+  background: #0d1117;
+}
+
+.docs-guides-content.file-content-preview table,
+.docs-markdown.file-content-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.92em;
+}
+
+.docs-guides-content.file-content-preview th,
+.docs-guides-content.file-content-preview td,
+.docs-markdown.file-content-preview th,
+.docs-markdown.file-content-preview td {
+  border: 1px solid var(--docs-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.docs-guides-content.file-content-preview th,
+.docs-markdown.file-content-preview th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+}
+
+.docs-guides-content.file-content-preview mark,
+.docs-guides-content.file-content-preview .md-highlight,
+.docs-markdown.file-content-preview mark,
+.docs-markdown.file-content-preview .md-highlight {
+  border-radius: 4px;
+  padding: 0.08em 0.28em;
+  box-decoration-break: clone;
+}
+
+.docs-guides-content.file-content-preview .md-highlight--yellow,
+.docs-guides-content.file-content-preview mark,
+.docs-markdown.file-content-preview .md-highlight--yellow,
+.docs-markdown.file-content-preview mark {
+  background: rgba(254, 240, 138, 0.35);
+  color: #fef08a;
+}
+
+.docs-guides-content.file-content-preview .md-highlight--green,
+.docs-markdown.file-content-preview .md-highlight--green {
+  background: rgba(74, 222, 128, 0.2);
+  color: #86efac;
+}
+
+.docs-guides-content.file-content-preview .md-highlight--blue,
+.docs-markdown.file-content-preview .md-highlight--blue {
+  background: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
+}
+
+.docs-guides-content.file-content-preview .markdown-alert,
+.docs-markdown.file-content-preview .markdown-alert {
+  padding: 0.65rem 1rem;
+  margin: 1rem 0;
+  border-left: 0.25em solid #64748b;
+  border-radius: 0 10px 10px 0;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-title,
+.docs-markdown.file-content-preview .markdown-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-note,
+.docs-guides-content.file-content-preview .markdown-alert-info,
+.docs-markdown.file-content-preview .markdown-alert-note,
+.docs-markdown.file-content-preview .markdown-alert-info {
+  border-left-color: #58a6ff;
+  background: rgba(56, 139, 253, 0.12);
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-tip,
+.docs-markdown.file-content-preview .markdown-alert-tip {
+  border-left-color: #3fb950;
+  background: rgba(63, 185, 80, 0.1);
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-warning,
+.docs-markdown.file-content-preview .markdown-alert-warning {
+  border-left-color: #d29922;
+  background: rgba(210, 153, 34, 0.12);
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-caution,
+.docs-markdown.file-content-preview .markdown-alert-caution {
+  border-left-color: #f85149;
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.docs-guides-content.file-content-preview .markdown-alert-important,
+.docs-markdown.file-content-preview .markdown-alert-important {
+  border-left-color: #a371f7;
+  background: rgba(163, 113, 247, 0.12);
+}
+
+.docs-guides-content.file-content-preview ul.contains-task-list,
+.docs-markdown.file-content-preview ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.2em;
+}
+
+.docs-guides-content.file-content-preview .task-list-item,
+.docs-markdown.file-content-preview .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.docs-guides-content.file-content-preview .task-list-item input,
+.docs-markdown.file-content-preview .task-list-item input {
+  margin-top: 0.35em;
+  accent-color: var(--docs-accent);
 }
 
 .docs-markdown h1,
@@ -185,7 +463,8 @@ body {
 .docs-markdown img {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .docs-markdown .markdown-preview-image-wrap {
@@ -267,9 +546,14 @@ body {
 
 .docs-accordion {
   border: 1px solid var(--docs-border);
-  border-radius: 8px;
-  background: var(--docs-panel);
+  border-radius: 10px;
+  background: var(--docs-panel-elevated);
   overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.docs-accordion[open] {
+  border-color: rgba(126, 184, 255, 0.35);
 }
 
 .docs-accordion-summary {

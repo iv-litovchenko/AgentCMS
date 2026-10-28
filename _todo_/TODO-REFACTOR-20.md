@@ -111,7 +111,7 @@ GET /api/health               → connection-status в editor (без docs-meta)
 - [x] Modals + ~17 KB JS + CSS api-docs вырезаны из editor; кнопки → app-docs
 - [x] Удалены `api-docs-ui.js`, `mcp-docs-primitives-help.js`
 - [ ] `APP_LOCK_APPS` — при необходимости `docs`
-- [ ] app-docs: preview картинок в guides как в editor (A6)
+- [x] app-docs: prose (alerts, ==mark==, task lists, hljs), стили guides как preview editor
 - [ ] `npm run build:editor` — обновить `main.built.js` для prod
 
 ---

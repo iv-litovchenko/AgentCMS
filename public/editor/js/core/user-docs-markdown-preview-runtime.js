@@ -111,6 +111,41 @@
     return raw;
   }
 
+  const HIGHLIGHT_TONES = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
+
+  function escapeHtml(text) {
+    return String(text ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function applyGuideMarkdownPlugins(md) {
+    if (!md?.inline?.ruler) return md;
+    md.inline.ruler.before("emphasis", "guide_shell_mark", (state, silent) => {
+      const start = state.pos;
+      if (state.src.charCodeAt(start) !== 0x3d /* = */) return false;
+      if (state.src.charCodeAt(start + 1) !== 0x3d) return false;
+      const match = state.src.slice(start).match(/^==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/i);
+      if (!match) return false;
+      if (!silent) {
+        const token = state.push("guide_shell_mark", "", 0);
+        token.content = match[2];
+        token.meta = { tone: String(match[1] || "yellow").toLowerCase() };
+      }
+      state.pos += match[0].length;
+      return true;
+    });
+    md.renderer.rules.guide_shell_mark = (tokens, idx) => {
+      const token = tokens[idx];
+      const tone = String(token.meta?.tone || "yellow").toLowerCase();
+      const toneClass = HIGHLIGHT_TONES.has(tone) ? tone : "yellow";
+      return `<mark class="md-highlight md-highlight--${toneClass}">${escapeHtml(token.content)}</mark>`;
+    };
+    return md;
+  }
+
   function configureMarkdownIt(md, guideRelPath = "") {
     if (!md?.renderer?.rules) return md;
     const defaultImage =
@@ -230,6 +265,7 @@
     buildDocsApiUrl,
     resolveGuideNodePath,
     resolveGuideImageSrc,
+    applyGuideMarkdownPlugins,
     configureMarkdownIt,
     hydrateGuideMarkdownRoot
   };

@@ -24,11 +24,40 @@
   let mcpVersion = DEFAULT_DOC_VERSION;
   let selectedGuidePath = "";
 
-  let md =
-    typeof window.markdownit === "function" ? window.markdownit({ html: false, linkify: true, breaks: true }) : null;
-  if (md && window.UserDocsMarkdownPreview?.configureMarkdownIt) {
-    md = window.UserDocsMarkdownPreview.configureMarkdownIt(md, "");
+  function buildMarkdownIt() {
+    if (typeof window.markdownit !== "function") return null;
+    const instance = window.markdownit({
+      html: false,
+      linkify: true,
+      breaks: true,
+      typographer: true,
+      highlight(source, language) {
+        const code = String(source || "");
+        if (language && typeof window.hljs?.highlight === "function") {
+          try {
+            if (!window.hljs.getLanguage(language)) {
+              return `<pre class="hljs"><code>${escapeHtml(code)}</code></pre>`;
+            }
+            return `<pre class="hljs"><code>${window.hljs.highlight(code, { language }).value}</code></pre>`;
+          } catch {
+            /* fall through */
+          }
+        }
+        return `<pre class="hljs"><code>${escapeHtml(code)}</code></pre>`;
+      }
+    });
+    if (typeof window.markdownItGitHubAlerts === "function") {
+      instance.use(window.markdownItGitHubAlerts, { markers: "*" });
+    }
+    if (typeof window.markdownItTaskLists === "function") {
+      instance.use(window.markdownItTaskLists);
+    }
+    window.UserDocsMarkdownPreview?.applyGuideMarkdownPlugins?.(instance);
+    window.UserDocsMarkdownPreview?.configureMarkdownIt?.(instance, "");
+    return instance;
   }
+
+  let md = buildMarkdownIt();
 
   function escapeHtml(text) {
     return String(text ?? "")
@@ -341,6 +370,20 @@
         useImageThumbs: true
       });
       window.UserDocsMarkdownPreview?.hydrateGuideMarkdownRoot?.(container, guideRelPath);
+      container.querySelectorAll("a[href^='http']").forEach((link) => {
+        link.setAttribute("target", "_blank");
+        link.setAttribute("rel", "noopener noreferrer");
+      });
+      if (typeof window.hljs?.highlightElement === "function") {
+        container.querySelectorAll("pre code").forEach((block) => {
+          if (block.closest("pre.hljs")) return;
+          try {
+            window.hljs.highlightElement(block);
+          } catch {
+            /* ignore */
+          }
+        });
+      }
       return;
     }
     container.innerHTML = `<pre>${escapeHtml(markdown)}</pre>`;
