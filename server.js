@@ -17822,6 +17822,11 @@ async function resolveAgentRootGitRepoAbsolute() {
   return null;
 }
 
+const GIT_SUMMARIES_CACHE_MS = 60_000;
+const GIT_SUMMARIES_MAX_PARALLEL = 4;
+/** @type {{ at: number, summaries: Record<string, unknown> } | null} */
+let gitSummariesResponseCache = null;
+
 async function buildGitLocationSummary(dirAbsolute, projectRoot) {
   const resolved = path.resolve(dirAbsolute);
   const rel = path.relative(projectRoot, resolved).replace(/\\/g, "/") || ".";
@@ -22463,19 +22468,40 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/agents/git-summaries") {
     try {
+      const forceRefresh = url.searchParams.get("refresh") === "1";
+      if (
+        !forceRefresh &&
+        gitSummariesResponseCache &&
+        Date.now() - gitSummariesResponseCache.at < GIT_SUMMARIES_CACHE_MS
+      ) {
+        res.setHeader("Cache-Control", "private, max-age=30");
+        return sendJson(res, 200, {
+          summaries: gitSummariesResponseCache.summaries,
+          cached: true
+        });
+      }
       refreshAgentsFromDisk();
       const projectRoot = getProjectRoot();
-      const summaries = {};
-      await Promise.all(
-        getAgentsPublicList()
-          .filter((entry) => entry.folderExists !== false && entry.virtual !== true)
-          .map(async (entry) => {
-            const resolved = resolveAgent(entry.id);
-            if (!resolved?.rootAbsolute) return;
-            summaries[entry.id] = await buildGitLocationSummary(resolved.rootAbsolute, projectRoot);
-          })
+      const entries = getAgentsPublicList().filter(
+        (entry) => entry.folderExists !== false && entry.virtual !== true
       );
-      return sendJson(res, 200, { summaries });
+      const summaries = {};
+      let scanIndex = 0;
+      const workerCount = Math.min(GIT_SUMMARIES_MAX_PARALLEL, Math.max(1, entries.length));
+      await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+          while (scanIndex < entries.length) {
+            const entry = entries[scanIndex];
+            scanIndex += 1;
+            const resolved = resolveAgent(entry.id);
+            if (!resolved?.rootAbsolute) continue;
+            summaries[entry.id] = await buildGitLocationSummary(resolved.rootAbsolute, projectRoot);
+          }
+        })
+      );
+      gitSummariesResponseCache = { at: Date.now(), summaries: { ...summaries } };
+      res.setHeader("Cache-Control", "private, max-age=30");
+      return sendJson(res, 200, { summaries, cached: false });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read agent git summaries",

@@ -177,6 +177,35 @@ function buildOrbitBubbleLayouts(agents) {
 }
 
 let landingOrbitGitLoadSeq = 0;
+/** @type {Record<string, unknown> | null} */
+let landingOrbitGitSummariesCache = null;
+let landingOrbitGitSummariesCacheKey = "";
+let landingOrbitGitSummariesCachedAt = 0;
+let landingOrbitGitFetchPromise = null;
+let landingOrbitGitRefreshScheduled = 0;
+const LANDING_ORBIT_GIT_CACHE_MS = 90_000;
+
+function getLandingOrbitGitAgentCacheKey() {
+  const agents = host?.getAgentsForLandingOrbit?.() || [];
+  return agents
+    .map((agent) => String(agent?.id || "").trim())
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
+function applyCachedLandingOrbitGitSummariesIfFresh() {
+  const key = getLandingOrbitGitAgentCacheKey();
+  if (
+    !landingOrbitGitSummariesCache ||
+    key !== landingOrbitGitSummariesCacheKey ||
+    Date.now() - landingOrbitGitSummariesCachedAt > LANDING_ORBIT_GIT_CACHE_MS
+  ) {
+    return false;
+  }
+  applyLandingOrbitGitSummaries(landingOrbitGitSummariesCache);
+  return true;
+}
 
 function getRegistryAgentAwnStatus(agent) {
   return String(agent?.awnProps?.["awn-status"] ?? agent?.status ?? "").trim();
@@ -275,18 +304,56 @@ function applyLandingOrbitGitSummaries(summaries = {}) {
   }
 }
 
-export async function refreshLandingOrbitGitSummaries() {
+async function fetchLandingOrbitGitSummariesFromApi() {
+  if (landingOrbitGitFetchPromise) return landingOrbitGitFetchPromise;
+  landingOrbitGitFetchPromise = (async () => {
+    const response = await fetch("/api/agents/git-summaries", { cache: "no-store" });
+    if (!response.ok) throw new Error(`git-summaries:${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    return data?.summaries && typeof data.summaries === "object" ? data.summaries : {};
+  })().finally(() => {
+    landingOrbitGitFetchPromise = null;
+  });
+  return landingOrbitGitFetchPromise;
+}
+
+export async function refreshLandingOrbitGitSummaries({ force = false } = {}) {
+  if (host?.getLandingAgentsView?.() !== "orbit") return;
+  const cacheKey = getLandingOrbitGitAgentCacheKey();
+  if (!force && applyCachedLandingOrbitGitSummariesIfFresh()) return;
+
   const seq = ++landingOrbitGitLoadSeq;
   try {
-    const response = await fetch("/api/agents/git-summaries");
-    if (!response.ok) return;
-    const data = await response.json().catch(() => ({}));
+    const summaries = await fetchLandingOrbitGitSummariesFromApi();
     if (seq !== landingOrbitGitLoadSeq) return;
-    applyLandingOrbitGitSummaries(data?.summaries || {});
+    landingOrbitGitSummariesCache = summaries;
+    landingOrbitGitSummariesCacheKey = cacheKey;
+    landingOrbitGitSummariesCachedAt = Date.now();
+    applyLandingOrbitGitSummaries(summaries);
   } catch {
     if (seq !== landingOrbitGitLoadSeq) return;
-    applyLandingOrbitGitSummaries({});
+    applyLandingOrbitGitSummaries(landingOrbitGitSummariesCache || {});
   }
+}
+
+export function scheduleLandingOrbitGitSummariesRefresh({ force = false } = {}) {
+  if (host?.getLandingAgentsView?.() !== "orbit") return;
+  if (!force && applyCachedLandingOrbitGitSummariesIfFresh()) return;
+  if (landingOrbitGitRefreshScheduled) return;
+  landingOrbitGitRefreshScheduled = requestAnimationFrame(() => {
+    landingOrbitGitRefreshScheduled = 0;
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => void refreshLandingOrbitGitSummaries({ force }), { timeout: 2500 });
+    } else {
+      window.setTimeout(() => void refreshLandingOrbitGitSummaries({ force }), 400);
+    }
+  });
+}
+
+export function invalidateLandingOrbitGitSummariesCache() {
+  landingOrbitGitSummariesCache = null;
+  landingOrbitGitSummariesCacheKey = "";
+  landingOrbitGitSummariesCachedAt = 0;
 }
 
 function createAppLandingOrbitBubble(agent, index, total, share, layoutOverride = null) {
@@ -485,7 +552,8 @@ export function renderAppLandingOrbit() {
   setLandingOrbitFocusCache(host.getLandingHubOrbitTopicItems());
   syncOrbitDiveSelection();
   host.appLandingInnerNode?.classList.toggle("is-orbit-direct-open", ORBIT_BUBBLE_OPENS_WORKSPACE);
-  void refreshLandingOrbitGitSummaries();
+  applyCachedLandingOrbitGitSummariesIfFresh();
+  scheduleLandingOrbitGitSummariesRefresh();
 }
 
 const ORBIT_FOCUS_TWIG_LIMIT = 8;

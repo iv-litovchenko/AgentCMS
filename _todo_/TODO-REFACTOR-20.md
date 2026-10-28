@@ -33,6 +33,7 @@
 | `GET …/main` (fetch, не main.js) | 16 kB | 34 s – 1.6 min | Focus/landing «main» items | Только landing route |
 | `GET …/monitor?agent=…` | 2.7 kB | **2.4–3.8 min** | Мониторинг/live | Long-poll; не в critical path F5 |
 | `GET /api/.../workspace-preview?path=…` | webp ~30–40 kB | 43–47 s | Превью карточек агентов | [x] stable `t=` (agent id), lazy img, coalesce landing shell render; следить Network |
+| `GET /api/agents/git-summaries` | JSON | долго | Git под пузырями Orbit | [x] client cache 90s + idle; server cache 60s, max 4 parallel git |
 | `main.js?v=…` | **~5 MB** | ~46 s | Editor bundle dev | `build:editor`, slices REFACTOR-14 |
 | `context-buffer-panel.js` | 14 kB | ~53 s | Панель context buffer | Уже premain; проверить нужность на `/` |
 | `GET …/status` (app-lock) | 0.5 kB | ~37 s | App lock scanner | Sync в index по дизайну |
