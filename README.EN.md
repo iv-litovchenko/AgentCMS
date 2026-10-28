@@ -282,7 +282,7 @@ After **`.env`** changes: **recreate** containers, **not** `rebuild`. MCP: **`pl
 | **`AGENT_CMS_HOST_PROJECT`** | Repo path on host | `.` |
 | **`AGENT_CMS_IMAGE_TAG`** | Image tag | `local` |
 | **`VOICE_AUTOSTART`** | Voice autostart in cms | `1` |
-| **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP behind proxy | Mac `0` |
+| **`AGENT_CMS_MCP_BEHIND_PROXY`** | MCP behind proxy (`1` in Docker Mac/Linux via `/app-mcp`) | `1` |
 | **`MCP_LEGACY_ALIASES`** | Deprecated MCP tool names | пусто / `0` |
 | **`MCP_LEGACY_TOOLS`** | Legacy MCP FS tools | пусто / `0` |
 
