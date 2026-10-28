@@ -2,15 +2,18 @@
 
 Канон: один public host — MCP **`{AGENT_CMS_PUBLIC_URL}/app-mcp`** + Bearer **`AGENT_CMS_MCP_TOKEN`**. Dev с отдельным процессом: **`AGENT_CMS_EXPOSE_INTERNAL_PORTS=1`** → `http://127.0.0.1:3490/mcp`.
 
-## Claude Desktop (stdio → CMS в Docker)
+## Claude Desktop (приложение / чат)
 
-Файл: `~/Library/Application Support/Claude/claude_desktop_config.json`
+HTTP MCP через **`mcp-remote`** (URL из `.env`, Bearer если задан):
 
-Скопируй блок из [`claude-desktop-docker.json`](./claude-desktop-docker.json) и **поправь `args`** на свой путь к `mcp-server/index.js`.
+```bash
+agent-cms-cli mcp claude-desktop add
+agent-cms-cli mcp claude-desktop remove
+```
 
-`AGENT_CMS_BASE_URL` = **хост-порт CMS**, не внутренний `cms:3000` контейнера.
+Файл: `~/Library/Application Support/Claude/claude_desktop_config.json`. После **add** — полностью закройте Claude Desktop (Cmd+Q) и откройте снова.
 
-Перезапуск Claude Desktop после сохранения.
+Legacy stdio: [`claude-desktop-docker.json`](./claude-desktop-docker.json) + `node …/mcp-server/index.js` (dev, не равно `/app-mcp` в Docker).
 
 ## Cursor (HTTP MCP из контейнера `mcp`)
 
