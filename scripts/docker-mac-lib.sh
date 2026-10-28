@@ -91,28 +91,8 @@ docker_mac_compose() {
   docker compose "${compose_args[@]}" "$@"
 }
 
-docker_mac_print_mcp_cli_hints() {
-  local base="$1"
-  local http_port
-  http_port="$(docker_mac_read_env_var AGENT_CMS_EDITOR_HTTP_PORT "3000")"
-  local mcp_https="${base}/app-mcp"
-  local mcp_http="http://127.0.0.1:${http_port}/app-mcp"
-
-  echo ""
-  echo "  MCP CLI — Claude (без токена, auth none):"
-  echo "    claude mcp add --transport http agent-cms ${mcp_https}"
-  echo "    claude mcp add --transport http agent-cms ${mcp_http}"
-  echo "  MCP CLI — Claude (AGENT_CMS_MCP_TOKEN из .env):"
-  echo "    claude mcp add --transport http agent-cms ${mcp_https} \\"
-  echo "      --header \"Authorization: Bearer \$AGENT_CMS_MCP_TOKEN\""
-  echo "  MCP CLI — Codex (без токена):"
-  echo "    codex mcp add agent-cms --url \"${mcp_https}\""
-  echo "    codex mcp add agent-cms --url \"${mcp_http}\""
-  echo "  MCP CLI — Codex (токен: export AGENT_CMS_MCP_TOKEN=… из .env):"
-  echo "    codex mcp add agent-cms --url \"${mcp_https}\" --bearer-token-env-var AGENT_CMS_MCP_TOKEN"
-  echo "  Проверка:  claude mcp list  ·  codex mcp list"
-  echo "  Удалить:   claude mcp remove agent-cms  ·  codex mcp remove agent-cms"
-}
+# shellcheck source=mcp-connector-cli-hints.sh
+source "$(dirname "${BASH_SOURCE[0]}")/mcp-connector-cli-hints.sh"
 
 docker_mac_open_urls() {
   local public_url
@@ -141,7 +121,7 @@ docker_mac_open_urls() {
     [[ -z "$edge_port" ]] && edge_port="3443"
     echo "  Edge:     https://qwenpaw.localhost:${edge_port}/  (поддомены только *.localhost, не *.127.0.0.1)"
   fi
-  docker_mac_print_mcp_cli_hints "$base"
+  agent_cms_print_mcp_cli_hints "$base" "$(docker_mac_read_env_var AGENT_CMS_EDITOR_HTTP_PORT "3000")"
   if [[ "$(uname -s)" == "Darwin" && "$open_browser" != "1" ]]; then
     echo "  (браузер не открываем; agent-cms-cli open control | Electron ACMS-*)"
   fi

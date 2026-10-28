@@ -167,9 +167,15 @@ case "$cmd" in
       echo "→ docker compose up -d (cms, mcp, control, caddy)"
       agent_cms_compose up -d cms mcp control caddy
       base="$(agent_cms_public_base)"
-      echo "MCP-connector: ${base}/app-mcp"
-      echo "Editor:  ${base}/"
-      echo "Control: ${base}/app-control/"
+      echo ""
+      echo "  MCP-connector: ${base}/app-mcp"
+      echo "  Control:  ${base}/app-control/"
+      echo "  Editor:   ${base}/"
+      # shellcheck source=mcp-connector-cli-hints.sh
+      source "$CLI_DIR/mcp-connector-cli-hints.sh"
+      agent_cms_print_mcp_cli_hints "$base" "$(agent_cms_read_env_var AGENT_CMS_EDITOR_HTTP_PORT "3000")"
+      echo "  (compose: docker-compose.linux.yml)"
+      echo ""
     fi
     ;;
   stop)

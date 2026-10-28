@@ -33,10 +33,15 @@ echo ""
 docker compose "${compose_args[@]}" ps
 echo ""
 if [[ "$AGENT_CMS_PUBLIC_DOMAIN" != "localhost" ]]; then
-  echo "Editor:  https://${AGENT_CMS_PUBLIC_DOMAIN}/"
-  echo "Control: https://${AGENT_CMS_PUBLIC_DOMAIN}/app-control"
-  echo "MCP:     https://${AGENT_CMS_PUBLIC_DOMAIN}/app-mcp  (Bearer AGENT_CMS_MCP_TOKEN)"
+  base="https://${AGENT_CMS_PUBLIC_DOMAIN}"
 else
-  echo "Editor:  http://127.0.0.1/  (Caddy :80, AGENT_CMS_PUBLIC_DOMAIN=localhost)"
-  echo "MCP:     http://127.0.0.1/mcp"
+  base="http://127.0.0.1"
 fi
+echo "  MCP-connector: ${base}/app-mcp"
+echo "  Control:  ${base}/app-control/"
+echo "  Editor:   ${base}/"
+# shellcheck source=mcp-connector-cli-hints.sh
+source "$(dirname "$0")/mcp-connector-cli-hints.sh"
+agent_cms_print_mcp_cli_hints "$base" "3000"
+echo "  (compose: docker-compose.linux.yml)"
+echo ""
