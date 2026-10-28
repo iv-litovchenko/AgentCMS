@@ -2202,7 +2202,6 @@ const headerProfileEnvBtn = document.getElementById("header-profile-env-btn");
 const headerProfileSystemInfoBtn = document.getElementById("header-profile-system-info-btn");
 const headerProfileAgentBtn = document.getElementById("header-profile-agent-btn");
 const headerProfileSettingsBtn = document.getElementById("header-profile-settings-btn");
-const headerProfileFocusBtn = document.getElementById("header-profile-focus-btn");
 const webSiteBtn = document.getElementById("web-site-btn");
 const appLockLogoutBtn = document.getElementById("app-lock-logout-btn");
 let headerProfileMenuOpen = false;
@@ -16751,6 +16750,7 @@ async function switchActiveAgent(nextAgentId) {
     activeWorkspaceId = nextAgentId;
     agentFocusItemsCache = [];
     agentFocusItemsLoadedAgentId = null;
+    invalidateMenuIntakeBatchCache();
     closeHeaderFocusPopover();
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
@@ -16907,6 +16907,7 @@ function getMenuQueryRoot() {
 function invalidateMenuAgentCache(agentId = activeWorkspaceId) {
   menuCacheByAgent.delete(agentId);
   menuRuntimeFlagsByAgent.delete(agentId);
+  if (agentId === activeWorkspaceId) invalidateMenuIntakeBatchCache();
 }
 
 function canonicalizeRegistryDraftPath(rawPath) {
@@ -22640,6 +22641,9 @@ let menuIntakeSeq = 0;
 const CHANNEL_AUTO_POLL_INTERVAL_MS = 20000;
 let channelAutoPollTimer = null;
 let menuIntakeFetchSeq = 0;
+let menuIntakeBatchCacheKey = "";
+let menuIntakeDeferTimer = 0;
+const MENU_INTAKE_BATCH_MAX_PATHS = 120;
 let activeExternalFilePath = null;
 let activeFlatStorageFilePath = null;
 let pendingDirectExternalFile = null;
@@ -89254,6 +89258,75 @@ async function fetchIntakeBatch(manifestPaths, agentId = activeWorkspaceId) {
   return response.json();
 }
 
+function invalidateMenuIntakeBatchCache() {
+  menuIntakeBatchCacheKey = "";
+}
+
+function computeMenuIntakeBatchCacheKey(agentId, paths) {
+  return `${agentId}\0${paths.join("\0")}`;
+}
+
+function collectVisibleMenuTopicManifestApiPaths(agentId = activeWorkspaceId) {
+  if (menuSearchQuery.trim()) {
+    return collectMenuTopicManifestApiPaths(currentMenuData, agentId).slice(0, MENU_INTAKE_BATCH_MAX_PATHS);
+  }
+  const rootHost = menuAgentPanes.get(agentId) || getMenuQueryRoot();
+  if (!rootHost) return [];
+  const seen = new Set();
+  const paths = [];
+  const pushNodePath = (nodePath) => {
+    const normalized = normalizeMenuNodePath(String(nodePath || "").trim());
+    if (!normalized || !isNodeMdPath(normalized) || isPartNodePath(normalized)) return;
+    const manifestPath = resolveManifestPathForNodeApi(normalized);
+    if (!manifestPath || seen.has(manifestPath)) return;
+    seen.add(manifestPath);
+    paths.push(manifestPath);
+  };
+  for (const itemEl of rootHost.querySelectorAll(".menu-item[data-path]")) {
+    pushNodePath(itemEl.dataset.path);
+  }
+  for (const cardEl of rootHost.querySelectorAll(".menu-card-body[data-path]")) {
+    pushNodePath(cardEl.dataset.path);
+  }
+  if (agentId === activeWorkspaceId && activePath) {
+    const activeManifest = resolveManifestPathForNodeApi(normalizeMenuNodePath(activePath));
+    if (activeManifest && !seen.has(activeManifest)) {
+      paths.unshift(activeManifest);
+    }
+  }
+  return paths.slice(0, MENU_INTAKE_BATCH_MAX_PATHS);
+}
+
+function summarizeMenuIntakeFromCache(paths) {
+  let inboxPending = 0;
+  let threadUnread = 0;
+  let mentionUnread = 0;
+  for (const manifestPath of paths) {
+    const intake = topicIntakeCacheByPath.get(manifestPath);
+    if (!intake) continue;
+    inboxPending += Number(intake?.inbox?.pending) || 0;
+    threadUnread += getThreadUnreadCount(manifestPath, intake);
+    mentionUnread += Number(intake?.mentions?.unread) || 0;
+  }
+  return { inboxPending, threadUnread, mentionUnread };
+}
+
+function scheduleMenuIntakeSummarySync(menu = currentMenuData, agentId = activeWorkspaceId) {
+  if (!activeWorkspaceId || agentId !== activeWorkspaceId) return;
+  if (menuIntakeDeferTimer) window.clearTimeout(menuIntakeDeferTimer);
+  const run = () => {
+    menuIntakeDeferTimer = 0;
+    void refreshMenuIntakeSummary(menu, agentId);
+  };
+  menuIntakeDeferTimer = window.setTimeout(() => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => run(), { timeout: 2500 });
+    } else {
+      run();
+    }
+  }, 180);
+}
+
 function collectMenuTopicManifestApiPaths(menu, agentId = activeWorkspaceId) {
   return [
     ...new Set(
@@ -89647,12 +89720,27 @@ function syncMenuIntakeBadges(agentId = activeWorkspaceId) {
   }
 }
 
-async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = activeWorkspaceId) {
+async function refreshMenuIntakeSummary(
+  menu = currentMenuData,
+  agentId = activeWorkspaceId,
+  options = {}
+) {
+  const force = Boolean(options.force);
   const seq = ++menuIntakeSeq;
-  const paths = collectMenuTopicManifestApiPaths(menu, agentId);
+  const paths = collectVisibleMenuTopicManifestApiPaths(agentId);
   if (!paths.length) {
     if (agentId === activeWorkspaceId) syncMenuIntakeBadges(agentId);
     return null;
+  }
+
+  const cacheKey = computeMenuIntakeBatchCacheKey(agentId, paths);
+  if (
+    !force &&
+    cacheKey === menuIntakeBatchCacheKey &&
+    paths.every((manifestPath) => topicIntakeCacheByPath.has(manifestPath))
+  ) {
+    if (agentId === activeWorkspaceId) syncMenuIntakeBadges(agentId);
+    return summarizeMenuIntakeFromCache(paths);
   }
 
   try {
@@ -89662,6 +89750,7 @@ async function refreshMenuIntakeSummary(menu = currentMenuData, agentId = active
     for (const [manifestPath, intake] of Object.entries(data.summaries || {})) {
       topicIntakeCacheByPath.set(manifestPath, intake);
     }
+    menuIntakeBatchCacheKey = cacheKey;
 
     if (agentId === activeWorkspaceId) {
       syncTopicIntakeDomainLabels();
@@ -92268,7 +92357,8 @@ function syncChannelLiveUpdates() {
     syncChannelAutoPoll();
     channelPollTimer = setInterval(() => {
       if (document.hidden || !activeWorkspaceId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
+      invalidateMenuIntakeBatchCache();
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId, { force: true });
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
@@ -92286,7 +92376,8 @@ function syncChannelLiveUpdates() {
     });
     channelEventSource.addEventListener("update", () => {
       if (document.hidden || !activeWorkspaceId) return;
-      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
+      invalidateMenuIntakeBatchCache();
+      void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId, { force: true });
       if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
@@ -92304,7 +92395,8 @@ function syncChannelLiveUpdates() {
       syncChannelAutoPoll();
       channelPollTimer = setInterval(() => {
         if (document.hidden || !activeWorkspaceId) return;
-        void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
+        invalidateMenuIntakeBatchCache();
+        void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId, { force: true });
         if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
         if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED) {
@@ -107114,6 +107206,7 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
 
   if (agentId === activeWorkspaceId) {
     scheduleMenuAgentStatsSync(menu);
+    scheduleMenuIntakeSummarySync(menu, agentId);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
     syncWorkspaceTreeCutMarkers();
@@ -108007,13 +108100,7 @@ async function syncMenuAgentStats(menu = currentMenuData, options = {}) {
   renderMenuAgentStatsContent({ counts });
 
   try {
-    const intakePromise = isMenuAwnChannelsBandExpanded()
-      ? refreshMenuIntakeSummary(menu, activeWorkspaceId).catch(() => null)
-      : Promise.resolve(null);
-    const [workspace] = await Promise.all([
-      fetchAgentWorkspaceStats().catch(() => null),
-      intakePromise
-    ]);
+    const workspace = await fetchAgentWorkspaceStats().catch(() => null);
     if (seq !== menuAgentStatsSeq) return;
     if (workspace) {
       menuAgentWorkspaceStatsCache = workspace;
@@ -120946,7 +121033,7 @@ function setMenuAwnChannelsBandExpanded(expanded) {
   syncSidebarBottomFocusMode();
   if (expanded) {
     void refreshMenuAwnChannels();
-    void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
+    void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId, { force: true });
   }
 }
 
@@ -135858,11 +135945,6 @@ headerProfileAgentBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("agent");
 });
-headerProfileFocusBtn?.addEventListener("click", () => {
-  closeHeaderProfileMenu();
-  openHeaderFocusPopover();
-});
-
 headerProfileSettingsBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("user");

@@ -24,7 +24,8 @@
 | 4 | **Avatar** — один URL, lazy, **thumb** webp, не полный PNG | 🟡 | `thumb=1&max=720`; слайдер catalog отдельно (п.15) |
 | 5 | **NOTE.md** — fetch только если band раскрыт | ✅ | `refreshNotePreview` по expanded |
 | 6 | **Дерево тем** — 1× `menu?agent=` на F5 | 🟡 | coalesce лишних `refreshMenu` — нет |
-| 7 | **Каналы** — 0 boot; load при expand | ✅ | visible-only summaries + intake при expand |
+| 7 | **Каналы** — 0 boot; load при expand | ✅ | catalog при expand; **intake/batch** отдельно от stats |
+| 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | idle после menu; только **видимые** темы; кэш ключ paths |
 | | **Sidebar низ** | | |
 | 8 | **DB / медиа / repos** — 0 boot; expand / ⟲ | ✅ | default collapsed |
 | 9 | **Static footer** — без LT/index на boot | ✅ | panels при expand footer |
