@@ -63,5 +63,10 @@
     "id": "kimi",
     "file": "kimi-k3.html",
     "label": "Kimi K3 Max"
+  },
+  {
+    "id": "scene3d",
+    "file": "scene3d-demo.html",
+    "label": "Scene3D demo"
   }
 ]

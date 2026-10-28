@@ -19,6 +19,7 @@ ORDER = [
     "muse-spark.html",
     "glm-5p3-flash.html",
     "kimi-k3.html",
+    "scene3d-demo.html",
 ]
 
 META: dict[str, tuple[str, str]] = {
@@ -32,6 +33,7 @@ META: dict[str, tuple[str, str]] = {
     "muse-spark.html": ("muse", "Muse Spark"),
     "glm-5p3-flash.html": ("glm", "GLM 5p3 Flash"),
     "kimi-k3.html": ("kimi", "Kimi K3 Max"),
+    "scene3d-demo.html": ("scene3d", "Scene3D demo"),
 }
 
 

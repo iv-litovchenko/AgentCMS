@@ -19254,6 +19254,11 @@ async function serveStatic(reqPath, res, req) {
     res.end();
     return;
   }
+  if (rawPath === "/scene3d-demo.html") {
+    res.writeHead(301, { Location: "/app-commander/scene3d-demo.html" });
+    res.end();
+    return;
+  }
   if (rawPath === "/app-control") {
     res.writeHead(301, { Location: "/app-control/" });
     res.end();
