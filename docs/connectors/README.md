@@ -7,11 +7,14 @@
 HTTP MCP через **`mcp-remote`** (URL из `.env`, Bearer если задан):
 
 ```bash
-agent-cms-cli mcp claude-desktop add
-agent-cms-cli mcp claude-desktop remove
+agent-cms-cli mcp claude-desktop add    # приложение Claude
+agent-cms-cli mcp claude-code add       # Claude Code (терминал)
+agent-cms-cli mcp codex add             # Codex (~/.codex/config.toml)
+agent-cms-cli mcp status
+# remove: … mcp <target> remove [name]
 ```
 
-Файл: `~/Library/Application Support/Claude/claude_desktop_config.json`. После **add** — полностью закройте Claude Desktop (Cmd+Q) и откройте снова.
+Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`. После **claude-desktop add** — Cmd+Q и снова открыть приложение.
 
 Legacy stdio: [`claude-desktop-docker.json`](./claude-desktop-docker.json) + `node …/mcp-server/index.js` (dev, не равно `/app-mcp` в Docker).
 

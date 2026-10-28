@@ -337,6 +337,16 @@ After **`.env`** changes: **recreate** containers, **not** `rebuild`. MCP: **`pl
 
 **HTTP only:** `{PUBLIC_URL}/app-mcp` + Bearer **`AGENT_CMS_MCP_TOKEN`**. Set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Control guide copies the JSON. Large files: `upload_begin` + `sourceUrl`, or PUT, or `upload_chunk` → `complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#configuration-env). Stdio `node mcp-server` — dev-only, not documented as equal.
 
+**CLI — local connector (URL + token from `.env`; printed after `agent-cms-cli start`):**
+
+```bash
+agent-cms-cli mcp claude-desktop add    # Claude app (mcp-remote)
+agent-cms-cli mcp claude-code add       # Claude Code (terminal)
+agent-cms-cli mcp codex add             # Codex (~/.codex/config.toml)
+agent-cms-cli mcp status
+# remove: agent-cms-cli mcp <target> remove [name]
+```
+
 
 ## MCP tool map `user-agent-cms`
 

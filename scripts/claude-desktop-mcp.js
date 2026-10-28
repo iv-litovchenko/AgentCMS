@@ -4,21 +4,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-
-function readEnvFile(envPath) {
-  const out = {};
-  if (!fs.existsSync(envPath)) return out;
-  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
-    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!m) continue;
-    let val = m[2].trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    out[m[1]] = val;
-  }
-  return out;
-}
+const { loadAgentCmsEnv, resolveMcpUrl, mcpToken } = require("./mcp-connector-env.js");
 
 function configPath() {
   if (process.platform === "darwin") {
@@ -29,13 +15,6 @@ function configPath() {
     return path.join(appData, "Claude", "claude_desktop_config.json");
   }
   return path.join(os.homedir(), ".config", "Claude", "claude_desktop_config.json");
-}
-
-function resolveMcpUrl(env) {
-  const base = String(env.AGENT_CMS_PUBLIC_URL || "").replace(/\/+$/, "");
-  if (base) return `${base}/app-mcp`;
-  const port = String(env.AGENT_CMS_EDITOR_HTTP_PORT || "3000").trim() || "3000";
-  return `http://127.0.0.1:${port}/app-mcp`;
 }
 
 function buildServerEntry(mcpUrl, token) {
@@ -66,8 +45,7 @@ function loadConfig(filePath) {
 function main() {
   const action = process.argv[2] || "add";
   const name = process.argv[3] || "agent-cms-mac";
-  const root = process.env.AGENT_CMS_HOME || process.env.AGENT_CMS_ROOT || path.join(__dirname, "..");
-  const env = readEnvFile(path.join(root, ".env"));
+  const { env } = loadAgentCmsEnv();
   const filePath = configPath();
 
   if (action === "remove") {
@@ -92,7 +70,7 @@ function main() {
   }
 
   const mcpUrl = resolveMcpUrl(env);
-  const token = String(env.AGENT_CMS_MCP_TOKEN || "").trim();
+  const token = mcpToken(env);
   const data = loadConfig(filePath);
   if (!data.mcpServers || typeof data.mcpServers !== "object") data.mcpServers = {};
   data.mcpServers[name] = buildServerEntry(mcpUrl, token);

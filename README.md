@@ -683,7 +683,17 @@ npm run cms:desktop   # dev-окно без сборки
 
 Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](_todo_/TODO.MCP-INSTANCES.md).
 
-**Cursor · Claude Desktop · другие MCP-клиенты (канон — HTTP):**
+**CLI — локальный коннектор (URL и токен из `.env`, после `agent-cms-cli start` те же строки в терминале):**
+
+```bash
+agent-cms-cli mcp claude-desktop add    # приложение Claude (mcp-remote)
+agent-cms-cli mcp claude-code add       # Claude Code (терминал)
+agent-cms-cli mcp codex add             # Codex CLI + Desktop (~/.codex/config.toml)
+agent-cms-cli mcp status                # URL, Desktop JSON, claude/codex mcp list
+# remove: agent-cms-cli mcp <target> remove [name]
+```
+
+**Cursor · другие HTTP-клиенты (канон — JSON / URL):**
 
 ```json
 {
