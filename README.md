@@ -1,107 +1,77 @@
 # AGENT CMS (0.0.1-beta)
 
 <p align="center">
+  <a href="README.EN.md"><strong>English</strong></a> | <strong>Русский</strong> <em>(текущий)</em>
+</p>
+
+<p align="center">
   <a href="docs/deploy/DOCKER.md"><img src="docs/images/badges/badge-docker.svg" alt="Docker" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-установка--macos-gb-install--macos"><img src="docs/images/badges/badge-macos.svg" alt="macOS" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server"><img src="docs/images/badges/badge-linux.svg" alt="Linux" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#установка-macos"><img src="docs/images/badges/badge-macos.svg" alt="macOS" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#установка-ubuntu-vps-сервер"><img src="docs/images/badges/badge-linux.svg" alt="Linux" height="28"></a>&nbsp;&nbsp;&nbsp;
   <a href="docs/deploy/DOCKER.md" title="Windows (beta, WSL)"><img src="docs/images/badges/badge-windows-beta.svg" alt="Windows beta" height="28"></a>
 </p>
 
 <p align="center">
-  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-claude.svg" alt="Claude" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others"><img src="docs/images/badges/badge-codex.svg" alt="Codex" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#подключение-скиллов-для-агента-claude-codex-и-другие"><img src="docs/images/badges/badge-claude.svg" alt="Claude" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#подключение-скиллов-для-агента-claude-codex-и-другие"><img src="docs/images/badges/badge-codex.svg" alt="Codex" height="28"></a>&nbsp;&nbsp;&nbsp;
   <a href="mcp-server/README.md"><img src="docs/images/badges/badge-qwenpaw.svg" alt="QwenPaw" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-подключение-mcp-gb-mcp-connection"><img src="docs/images/badges/badge-mcp.svg" alt="MCP (Model Context Protocol)" height="28"></a>
+  <a href="#подключение-mcp"><img src="docs/images/badges/badge-mcp.svg" alt="MCP (Model Context Protocol)" height="28"></a>
 </p>
 
 <p align="center">
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-nodejs.svg" alt="Node.js" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-express.svg" alt="Express" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-sqlite.svg" alt="SQLite" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-markdown.svg" alt="Markdown" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-electron.svg" alt="Electron" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-mermaid.svg" alt="Mermaid" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <a href="#-стек-gb-stack"><img src="docs/images/badges/badge-threejs.svg" alt="Three.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-nodejs.svg" alt="Node.js" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-express.svg" alt="Express" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-sqlite.svg" alt="SQLite" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-markdown.svg" alt="Markdown" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-electron.svg" alt="Electron" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-mermaid.svg" alt="Mermaid" height="28"></a>&nbsp;&nbsp;&nbsp;
+  <a href="#стек"><img src="docs/images/badges/badge-threejs.svg" alt="Three.js" height="28"></a>&nbsp;&nbsp;&nbsp;
   <a href="docs/deploy/vps-caddy-letsencrypt.md"><img src="docs/images/badges/badge-caddy.svg" alt="Caddy" height="28"></a>
 </p>
 
 ---
 
-## 🇷🇺 Содержание (🇬🇧 Table of contents)
+## Содержание
 
-🇷🇺 **[ru]**
-
-- [Кросс-платформенная цифровая память для человека и его ИИ-агентов](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
-- [Приложения и клиенты](#-приложения-и-клиенты-gb-apps-and-clients)
-- [Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
-- [Зачем](#-зачем-gb-why)
-- [Для кого](#-для-кого-gb-who-its-for)
-- [Как устроено — основные термины](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
-- [Принципы](#-принципы-gb-principles)
-- [Стек](#-стек-gb-stack)
-- [Рекомендуемые требования](#-рекомендуемые-требования-gb-recommended-requirements)
-- [Установка — установщик (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
-- [Установка — macOS (вручную)](#-установка--macos-gb-install--macos)
-- [Установка — Ubuntu VPS / сервер (вручную)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
-- [CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)
-- [Electron — сборка `.app` и ярлыки](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
-- [Настройка — `.env`](#-настройка--env-gb-configuration--env)
-- [Подключение скиллов для агента — Claude, Codex и другие](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
-- [Подключение MCP](#-подключение-mcp-gb-mcp-connection)
-- [Канон MCP user-agent-cms](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-- [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
-- [Мечта](#-мечта-gb-vision)
-- [Лицензия](#-лицензия-gb-license)
-- [Ссылки](#-ссылки-gb-links)
-- [С чего начать?](#-с-чего-начать-gb-where-to-start)
+- [Кросс-платформенная цифровая память для человека и его ИИ-агентов](#кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов)
+- [Приложения и клиенты](#приложения-и-клиенты)
+- [Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.](#один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище)
+- [Зачем](#зачем)
+- [Для кого](#для-кого)
+- [Как устроено — основные термины](#как-устроено-основные-термины)
+- [Принципы](#принципы)
+- [Стек](#стек)
+- [Рекомендуемые требования](#рекомендуемые-требования)
+- [Установка — установщик (Mac / Windows / Linux)](#установка-установщик-mac-windows-linux)
+- [Установка — macOS](#установка-macos)
+- [Установка — Ubuntu VPS / сервер](#установка-ubuntu-vps-сервер)
+- [CLI `agent-cms-cli`](#cli-agent-cms-cli)
+- [Electron — сборка `.app` и ярлыки](#electron-сборка-app-и-ярлыки)
+- [Настройка — `.env`](#настройка-env)
+- [Подключение скиллов для агента — Claude, Codex и другие](#подключение-скиллов-для-агента-claude-codex-и-другие)
+- [Подключение MCP](#подключение-mcp)
+- [Канон MCP `user-agent-cms`](#канон-mcp-user-agent-cms)
+- [Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀](#справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь)
+- [Мечта](#мечта)
+- [Лицензия](#лицензия)
+- [Ссылки](#ссылки)
+- [С чего начать?](#с-чего-начать)
 
 ---
 
-> 🇬🇧 **[en]**
->
-> - [Cross-platform digital memory for you and your AI agents](#-кросс-платформенная-цифровая-память-для-человека-и-его-ии-агентов-gb-cross-platform-digital-memory-for-you-and-your-ai-agents)
-> - [Apps and clients](#-приложения-и-клиенты-gb-apps-and-clients)
-> - [One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.](#-один-workspace-три-входа-ui-mcp-и-голос-разные-интерфейсы-одно-хранилище-gb-one-workspace-three-entry-points-ui-mcp-and-voice-are-different-interfaces-one-store)
-> - [Why](#-зачем-gb-why)
-> - [Who it’s for](#-для-кого-gb-who-its-for)
-> - [How it works — key terms](#-как-устроено-основные-термины-gb-how-it-works-key-terms)
-> - [Principles](#-принципы-gb-principles)
-> - [Stack](#-стек-gb-stack)
-> - [Recommended requirements](#-рекомендуемые-требования-gb-recommended-requirements)
-> - [Install — installer (Mac / Windows / Linux)](#-установка--установщик-mac--windows--linux-gb-install--installer)
-> - [Install — macOS (manual)](#-установка--macos-gb-install--macos)
-> - [Install — Ubuntu VPS / server (manual)](#-установка--ubuntu-vps--сервер-gb-install--ubuntu-vps--server)
-> - [CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)
-> - [Electron — build `.app` & shortcuts](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts)
-> - [Configuration — `.env`](#-настройка--env-gb-configuration--env)
-> - [Agent skills — Claude, Codex, and others](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others)
-> - [MCP connection](#-подключение-mcp-gb-mcp-connection)
-> - [MCP tool map `user-agent-cms`](#-канон-mcp-user-agent-cms-gb-mcp-tool-map-user-agent-cms)
-> - [References for agents and indexing — models, go learn 😀](#-справочники-для-агентов-и-индексации-модельки-и-нейронки-обучайтесь-gb-references-for-agents-and-indexing-models-go-learn)
-> - [Vision](#-мечта-gb-vision)
-> - [License](#-лицензия-gb-license)
-> - [Links](#-ссылки-gb-links)
-> - [Where to start?](#-с-чего-начать-gb-where-to-start)
+## Кросс-платформенная цифровая память для человека и его ИИ-агентов
 
----
-
-## 🇷🇺 Кросс-платформенная цифровая память для человека и его ИИ-агентов (🇬🇧 Cross-platform digital memory for you and your AI agents)
 
 ![Workspace map: Agent CMS and connected agents / Карта workspace: Agent CMS и связанные агенты](docs/images/1.png)
 
 ![Agent CMS — graph visualization and atlas / Agent CMS — граф связей и атлас](docs/images/0.png)
 
-🇷🇺 **[ru]**
 
 **Старт в MCP-чате:** «Привет — выбери `<тестовое хранилище>`, загрузи контекст хранилища (необязательно) и документацию (необязательно).»
 
-> 🇬🇧 **[en]**
->
-> **Start an MCP chat:** “Hi — pick a `<test workspace>`, load the workspace context (optional), and the documentation (optional).”
 
 ![Chat with an agent: test workspace and context overview / Чат с агентом: тестовое хранилище и краткий обзор контекста](docs/images/6.png)
 
-🇷🇺 **[ru]**
 
 **Agent CMS** — оболочка для хранения заметок, документов, медиа, мыслей, секретов и других данных вместе с ИИ-агентом — по определённым правилам (каналы, страницы, темы, области, инфоблоки, репозитории).
 
@@ -115,30 +85,22 @@
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **Agent CMS** is a shell for storing notes, documents, media, thoughts, secrets, and other data together with an AI agent — under clear rules (channels, pages, themes, areas, infoblocks, repositories).
->
-> A normal folder on your desktop becomes an “upgraded folder” — a **workspace** where AI agents and you can navigate freely (you mostly remember what’s inside; when you don’t, you ask the agent).
->
-> Everything lives in ordinary files on disk (text, YAML settings tables), with no separate database. You work through **Claude Desktop**, **Codex Desktop**, and a browser window (Agent CMS editor); the agent connects via **MCP**. You and the agent see the same content — a **shared box**.
->
-> **CMS** — Content Management System · **Context** Management System.
->
-> A map of ideas and system pieces (workspace), Mermaid — in the repo root: [README.diagram.md](README.diagram.md). The CMS home page shows this diagram.
 
-## 🇷🇺 Приложения и клиенты (🇬🇧 Apps and clients)
+## Приложения и клиенты
 
-| App | 🇷🇺 | 🇬🇧 |
-| --- | --- | --- |
-| **Agent CMS Editor** | Основной редактор: дерево папок, темы и области, настройки, поиск по материалам, память и MCP | Main editor: folder tree, themes and areas, settings, search, memory, and MCP |
-| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере | Voice dialog with the agent — same data from desktop, phone, or browser |
-| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки | Start the server, build desktop apps, dependencies, and shortcuts |
-| **Agent CMS Toolbar** | Панель на любой странице в браузере: что открыто на вкладке, ссылки и медиа, вставка в поля ввода — не уходя с сайта | Panel on any browser tab: what’s open, links and media, paste into inputs — without leaving the site |
-| **Google Chrome extension** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) | Side panel on a tab with shell and voice; install from [`browser-extension/`](browser-extension/) ([guide](browser-extension/README.md)) |
-| **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) | Voice-only link to your Agent CMS: talk to the agent from your phone — mic, reply, and TTS; project in [`mobile/iphone-shell/`](mobile/iphone-shell/) |
 
-## 🇷🇺 Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище. (🇬🇧 One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.)
+| App | Описание |
+| --- | --- |
+| **Agent CMS Editor** | Основной редактор: дерево папок, темы и области, настройки, поиск по материалам, память и MCP |
+| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере |
+| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки |
+| **Agent CMS Toolbar** | Панель на любой странице в браузере: что открыто на вкладке, ссылки и медиа, вставка в поля ввода — не уходя с сайта |
+| **Google Chrome extension** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) |
+| **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) |
+
+
+## Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.
+
 
 ![Agent CMS — editor and theme tree / редактор и дерево тем](docs/images/2.png)
 
@@ -148,51 +110,39 @@
   <img src="docs/images/5.jpeg" alt="Agent CMS Voice — voice client / голосовой клиент" />
 </p>
 
-🇷🇺 **[ru]**
 
 На скриншотах: **редактор** с деревом тем и областей, **браузер** (захват вкладки и Agent Shell), **голос** (Voice) — разные интерфейсы, одно и то же хранилище на диске.
 
 ---
 
-> 🇬🇧 **[en]**
->
-> Above: the **editor** with the theme tree, the **browser** (tab capture and Agent Shell), and **voice** (Voice) — different interfaces, the same workspace on disk.
 
-## 🇷🇺 Зачем (🇬🇧 Why)
+## Зачем
+
 
 ![Agent via MCP: feed, indexes, and workspace diagnostics / Агент через MCP: лента, индексы и диагностика хранилища](docs/images/7.png)
 
-🇷🇺 **[ru]**
 
 Заметки, файлы и ссылки часто разбросаны по разным программам. В обычном чате с ИИ контекст между сессиями не сохраняется. Здесь всё в одном **хранилище (workspace)** — **три входа** (редактор, MCP, голос) и дерево **область → тема → слот → запись**: и вы, и агент знаете, **где искать** и **куда класть** новое. Формат — **Markdown и YAML** на диске, без отдельной БД; когда файлов становится много, помогают **индексы** (слова, смысл, связи). Со временем накапливается память и связи между областями. Источник правды — **диск**, не переписка. Данные остаются у вас: копировать, бэкапить и версионировать как обычные файлы.
 
 ---
 
-> 🇬🇧 **[en]**
->
-> Notes, files, and links often sit in different apps. In a normal AI chat, context doesn’t survive between sessions. Here everything lives in one **workspace** — **three entry points** (editor, MCP, voice) and a tree **area → theme → slot → record**: you and the agent know **where to look** and **where to put** new material. Format is **Markdown and YAML** on disk, no separate DB; when files pile up, **indexes** help (words, meaning, links). Over time you build memory and ties across areas. Source of truth is **disk**, not the chat. Data stays with you: copy, back up, and version like any files.
 
-## 🇷🇺 Для кого (🇬🇧 Who it’s for)
+## Для кого
+
 
 <p align="center">
   <img src="docs/images/8.jpg" alt="One system for all incoming chaos / Единая система для всего входящего хаоса" />
 </p>
 
-🇷🇺 **[ru]**
 
 - **Лично** — заметки, дела, обучение, здоровье, медиа в одном дереве; голосом записал — агент разложил по местам.
 - **Команда** — общая база знаний: области по проектам, единые правила для людей и ИИ, MCP для корпоративных агентов (роли, журнал, vault-слоты — по мере внедрения).
 
 ---
 
-> 🇬🇧 **[en]**
->
-> - **Personal** — notes, tasks, learning, health, media in one tree; speak a thought — the agent files it in the right place.
-> - **Teams** — shared knowledge base: areas per project, one rule set for people and AI, MCP for corporate agents (roles, journal, vault slots — as you roll them out).
 
-## 🇷🇺 Как устроено — основные термины (🇬🇧 How it works — key terms)
+## Как устроено — основные термины
 
-🇷🇺 **[ru]**
 
 **Платформа** — общая часть программы: типы записей, справочники и настройки, которые действуют для всех хранилищ.
 
@@ -222,37 +172,9 @@
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **Platform** — shared program layer: record types, catalogs, and settings for all workspaces.
->
-> **Workspace** — your project folder: menu sections, themes, text files and attachments. Each agent can have its own workspace.
->
-> **Tree** — section → theme → shelf (slot) → file record. Example: “Work” → “Renovation” → “Documents” → `estimate.md`. You shape the structure; there’s no fixed template.
->
-> **Infoblocks** — for tables and lists with the same fields (expenses, contacts, directories). For free-form notes, the tree is usually easier.
->
-> **Repositories** — a separate zone in the workspace for code projects (git clone, short `manifest.md` for the agent); source code stays out of the notes tree.
->
-> **Sidecar** — next to a photo or PDF, a `.sidecar.md` holds description, tags, and links when you can’t put text in the file itself.
->
-> **Internals** — passwords in `.env`; temporary indexes and search cache in `.agent-cms/`.
->
-> **Workspace search** — indexes rebuild from your files; UI and agent (MCP) support several modes:
->
-> - **by words** — full-text search in bodies and properties;
-> - **by meaning** — “similar idea” chunks (semantic index, RAG);
-> - **hybrid** — words + meaning + frontmatter filters in one query (handy for agents);
-> - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
-> - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
->
-> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md).
->
-> All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
-## 🇷🇺 Принципы (🇬🇧 Principles)
+## Принципы
 
-🇷🇺 **[ru]**
 
 1. **Общий язык** — одни правила для человека и агента.
 2. **Файлы вместо БД** — контент на диске; индексы (смысл, слова, связи) пересобираются из файлов.
@@ -260,26 +182,22 @@
 
 ---
 
-> 🇬🇧 **[en]**
->
-> 1. **Shared language** — one rule set for human and agent.
-> 2. **Files over DB** — content on disk; indexes (meaning, words, links) rebuild from files.
-> 3. **1+1 synergy** — you keep order; the agent remembers context and acts in the workspace.
 
-## 🇷🇺 Стек (🇬🇧 Stack)
+## Стек
+
 
 - **Node.js** — сервер, MCP, индексация, API
 - **Файловое хранилище** — Markdown, YAML, JSON
 - **SQLite** — семантический, полнотекстовый и link-индексы
 - **MCP** — Cursor, Claude и другие агенты
 - **Веб-UI** — vanilla JS, Toast UI Editor, Mermaid
-- **Electron** — опциональные окна над тем же URL ([сборка и ярлыки](#-electron--сборка-app-и-ярлыки-gb-electron--build-app--shortcuts))
+- **Electron** — опциональные окна над тем же URL ([сборка и ярлыки](#electron-сборка-app-и-ярлыки))
 - **Голос** — voice-server, TTS, 3D-shell (Three.js)
 - **OCR и медиа** — Tesseract.js, Sharp; Office/PDF
 
-## 🇷🇺 Рекомендуемые требования (🇬🇧 Recommended requirements)
 
-🇷🇺 **[ru]**
+## Рекомендуемые требования
+
 
 | | **macOS (локально)** | **Ubuntu VPS / сервер** |
 | --- | --- | --- |
@@ -287,24 +205,21 @@
 | **Docker** | **Docker Desktop** + [`docker-compose.mac.yml`](docker-compose.mac.yml) | **Engine + Compose plugin** + [`docker-compose.linux.yml`](docker-compose.linux.yml) |
 | **RAM** | 8 GB+ комфортно | мин. **2 GB**; комфорт **4 GB** |
 | **Диск** | место под репо и workspaces | **30 GB+** NVMe; код в **`/opt/agent-cms`** |
-| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установщик / Linux](#-установка--установщик-mac--windows--linux-gb-install--installer) |
+| **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установщик / Linux](#установка-установщик-mac-windows-linux) |
 | **Не на сервере** | — | Electron, Control desktop, GUI |
 
 Prod (TLS, reverse proxy): [TODO.SERVER.md](_todo_/TODO.SERVER.md).
 
 ---
 
-> 🇬🇧 **[en]**
->
-> Prefer the **installer** (below), then daily ops via **`agent-cms-cli`** (`agent-cms` alias). Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [_todo_/TODO-REFACTOR-15.md](_todo_/TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
 
-## 🇷🇺 Установка — установщик (Mac / Windows / Linux) (🇬🇧 Install — installer)
+## Установка — установщик (Mac / Windows / Linux)
+
 
 ![Agent CMS Control — server and desktop apps / сервер и desktop-приложения](docs/images/4.png)
 
-🇷🇺 **[ru]**
 
-**Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)** — `start`, `status`, `update` и т.д. (алиас **`agent-cms`**).
+**Канон:** один раз ставите платформу через **установщик** (без ручного `git clone`), дальше в терминале работаете через **[CLI `agent-cms-cli`](#cli-agent-cms-cli)** — `start`, `status`, `update` и т.д. (алиас **`agent-cms`**).
 
 | ОС | Куда кладётся код | Compose |
 | --- | --- | --- |
@@ -361,26 +276,20 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 Обновление кода: **`agent-cms-cli update`** (`git pull` только). Стек после этого: **`agent-cms-cli rebuild`**.  
 **Не нужно** после install: `npm install` на хосте для CMS, `npm run build:editor` — в репо уже есть `public/editor/main.built.js`.
 
-Дальше: [скиллы](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) → [MCP](#-подключение-mcp-gb-mcp-connection).
+Дальше: [скиллы](#подключение-скиллов-для-агента-claude-codex-и-другие) → [MCP](#подключение-mcp).
 
 > **NOTE**
 > - 💡 **Mac:** после **`start`** / **`rebuild`** — по умолчанию только URL; автобраузер — **`AGENT_CMS_OPEN_BROWSER=1`** в `.env` или на команду (см. [`.env.example`](.env.example)).
 > - 💡 Доставка **без npm**: [`scripts/install.sh`](scripts/install.sh) + symlink [`scripts/agent-cms`](scripts/agent-cms) → `~/.local/bin/agent-cms-cli` (и `agent-cms`). Конфиг: `~/.config/agent-cms/home`.
-> - ⚠️ `curl | bash` / `irm | iex` — только с **доверенного** URL (официальный GitHub). [Ручная установка](#-установка--macos-gb-install--macos) — запасной путь.
+> - ⚠️ `curl | bash` / `irm | iex` — только с **доверенного** URL (официальный GitHub). [Ручная установка](#установка-macos) — запасной путь.
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **Canonical flow:** [`install.sh`](scripts/install.sh) once (no manual clone), then **`agent-cms-cli`** for daily ops (`agent-cms` alias). No npm publish. Manual blocks below = fallback.
->
-> **After install:** PATH from profile / `profile.d` (or `export PATH="$HOME/.local/bin:$PATH"`) → Docker **Running** → `agent-cms-cli doctor` → **`agent-cms-cli rebuild`** (first time) → **`agent-cms-cli start`** → **`agent-cms-cli status`** → `agent-cms-cli open control`. Optional on Mac: **`agent-cms-cli electron-app build`** + **`shortcuts`**. No host **`npm install`** for CMS. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
-## 🇷🇺 Установка — macOS (🇬🇧 Install — macOS)
+## Установка — macOS
 
-🇷🇺 **[ru]**
 
-**Шпаргалка — Mac (канон: [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) + [`agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)):**
+**Шпаргалка — Mac (канон: [установщик](#установка-установщик-mac-windows-linux) + [`agent-cms-cli`](#cli-agent-cms-cli)):**
 
 ```text
 # Mac — Agent CMS (шпаргалка)
@@ -441,7 +350,7 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
 Подробнее: DOCKER.md · скиллы и MCP — секции ниже в README
 ```
 
-**Ручной путь** (если [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) ещё не используете). **Docker Compose V2** — `docker compose` (с пробелом). **`.env`** уже в репозитории.
+**Ручной путь** (если [установщик](#установка-установщик-mac-windows-linux) ещё не используете). **Docker Compose V2** — `docker compose` (с пробелом). **`.env`** уже в репозитории.
 
 ```bash
 # 1) Docker Desktop — https://www.docker.com/products/docker-desktop/
@@ -462,17 +371,13 @@ docker compose -f docker-compose.mac.yml up -d --build
 
 ---
 
-> 🇬🇧 **[en]**
->
-> [Docker Desktop](https://www.docker.com/products/docker-desktop/) → clone → **`cms-rebuild.command`** then **`cms-start.command`**. Then [skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) and [MCP](#-подключение-mcp-gb-mcp-connection).
 
-## 🇷🇺 Установка — Ubuntu VPS / сервер (🇬🇧 Install — Ubuntu VPS / server)
+## Установка — Ubuntu VPS / сервер
 
-🇷🇺 **[ru]**
 
-**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). На VPS код в **`/opt/agent-cms`** (`--vps`). **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#-настройка--env-gb-configuration--env)).
+**Prod — Docker** ([`docker-compose.linux.yml`](docker-compose.linux.yml), Caddy **80/443**), [DOCKER.md](docs/deploy/DOCKER.md). На VPS код в **`/opt/agent-cms`** (`--vps`). **`.env` в git** — на VPS задайте домен, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`** (см. [настройку `.env`](#настройка-env)).
 
-**Канон:** сначала Docker + firewall, затем [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) (без ручного `git clone`) и дальше **[`agent-cms-cli`](#-cli-agent-cms-cli-gb-cli-agent-cms-cli)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
+**Канон:** сначала Docker + firewall, затем [установщик](#установка-установщик-mac-windows-linux) (без ручного `git clone`) и дальше **[`agent-cms-cli`](#cli-agent-cms-cli)**. Наружу только **22, 80, 443** (Editor/Control/MCP через Caddy на **443**).
 
 ```bash
 # === 1) Ubuntu VPS — Docker Engine ===
@@ -532,17 +437,13 @@ docker compose -f docker-compose.linux.yml ps
 
 ---
 
-> 🇬🇧 **[en]**
->
-> VPS: Docker CE + **ufw 22/80/443**, then **`curl …/install.sh | bash`** (target **`/opt/agent-cms`**) and **`agent-cms-cli rebuild`**. Manual clone in the collapsible block. [DOCKER.md](docs/deploy/DOCKER.md).
 
-## 🇷🇺 CLI `agent-cms-cli` (🇬🇧 CLI `agent-cms-cli`)
+## CLI `agent-cms-cli`
 
-🇷🇺 **[ru]**
 
 Утилита в **PATH** вместо длинных `docker compose -f …` и `.command`-файлов. Имя команды: **`agent-cms-cli`**; алиас **`agent-cms`** (тот же [`scripts/agent-cms`](scripts/agent-cms)).
 
-**Конфиг:** каталог установки из [установщика](#-установка--установщик-mac--windows--linux-gb-install--installer) или env **`AGENT_CMS_HOME`**; compose-файл выбирается по ОС; URL — из `.env` (`AGENT_CMS_PUBLIC_URL`).
+**Конфиг:** каталог установки из [установщика](#установка-установщик-mac-windows-linux) или env **`AGENT_CMS_HOME`**; compose-файл выбирается по ОС; URL — из `.env` (`AGENT_CMS_PUBLIC_URL`).
 
 ```bash
 agent-cms-cli --version
@@ -604,7 +505,7 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 | **update** | `update` | Control → «Обновить» / `deploy-update` |
 | **open** | `open editor\|chat\|control\|commander\|mcp-url` | копировать URL из README |
 | **config** | `env show`, `env set` | MCP `platform_env_key_*` / Control |
-| **install** | `install`, `uninstall` | [установщик](#-установка--установщик-mac--windows--linux-gb-install--installer) |
+| **install** | `install`, `uninstall` | [установщик](#установка-установщик-mac-windows-linux) |
 
 > **NOTE**
 > - 💡 Локально без установщика: `export AGENT_CMS_HOME=/path/to/AgentCMS` или `./scripts/agent-cms …` из корня репо.
@@ -615,13 +516,9 @@ agent-cms-cli uninstall --purge   # + compose down (каталог репо не
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **`agent-cms-cli`** ([`scripts/agent-cms`](scripts/agent-cms)) wraps compose/git — no npm package required for daily ops. Alias **`agent-cms`**. Electron .app: **`agent-cms-cli electron-app build`** (alias: **`electron build`**).
 
-## 🇷🇺 Electron — сборка `.app` и ярлыки (🇬🇧 Electron — build `.app` & shortcuts)
+## Electron — сборка `.app` и ярлыки
 
-🇷🇺 **[ru]**
 
 **Канон:** сервер — **Docker** (или dev `npm start`); Electron **не поднимает CMS**, только открывает **`AGENT_CMS_PUBLIC_URL`** + path (`/`, `/app-chat/`, `/app-control/`, `/app-commander/`). Подробнее: [`desktop/README.md`](desktop/README.md). Legacy (встроенный сервер): **`AGENT_CMS_ELECTRON_LEGACY=1`**.
 
@@ -674,13 +571,9 @@ npm run cms:desktop   # dev-окно без сборки
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **`electron-app build [pack|dist] [all|editor|chat|control|commander]`** — shortcuts: **ACMS-Editor**, **ACMS-Chat**, **ACMS-Control**, **ACMS-Commander**. See [`desktop/README.md`](desktop/README.md).
 
-## 🇷🇺 Настройка — `.env` (🇬🇧 Configuration — `.env`)
+## Настройка — `.env`
 
-🇷🇺 **[ru]**
 
 Рабочий файл — **`.env` в корне репозитория** (шаблон — [`.env.example`](.env.example)). Его читают **Docker Compose**, **CMS / Control / MCP** и клиенты (публичный URL, токены). На **VPS** обязательно задайте **`AGENT_CMS_PUBLIC_URL`**, **`AGENT_CMS_PUBLIC_DOMAIN`**, **`APP_LOCK_*`**, **`AGENT_CMS_MCP_TOKEN`**. На **Mac** чаще достаточно пароля и MCP-tокена; остальное — по умолчанию из example.
 
@@ -692,42 +585,42 @@ npm run cms:desktop   # dev-окно без сборки
 
 **Ключи из `.env.example`** (whitelist платформы):
 
-| Ключ | 🇷🇺 Назначение | 🇬🇧 Purpose | Пример / Example |
-| --- | --- | --- | --- |
-| **`APP_LOCK_LOGIN`** | Логин app-lock (Control, ops, запись `.env` через MCP) | App-lock login | `admin` |
-| **`APP_LOCK_PASSWORD`** | Пароль app-lock | App-lock password | смените с `changeme` |
-| **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | Password-gated apps | `editor,chat,commander,control` |
-| **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | In-CMS HTTP→HTTPS redirect | `0` |
-| **`AGENT_CMS_WORKSPACES_DIR`** | Основной каталог на **хосте** → `/app/workspaces` (workspace = **подпапки**). Доп. корни — **workspace-mounts** (Control / MCP), не правка базового compose | Primary host workspaces mount | `./workspaces` или `/Users/…/AgentCMS-workspaces` |
-| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Public base URL | Mac Docker: `https://127.0.0.1:3443` · VPS: `https://ваш-домен` |
-| **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | Single HTTP door + path routes | `1` |
-| **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | Expose legacy dev ports | закомментирован / `0` |
-| **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
-| **`AGENT_CMS_PUBLIC_DOMAIN`** | Apex для **Caddy** (VPS) и edge (`*.domain` / **`*.localhost`** на Mac) | Public apex / Caddy domain | VPS: `maptex.ru` · Mac: `localhost` |
-| **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
-| **`AGENT_CMS_EDGE_SERVICES_ENABLED`** | **`1`** — **edge-сервисы** (`qwenpaw.*`, **`all.*`**, заглушка `http://foo.*`): Caddy + `docker-compose.edge-services.yml` / Mac overlay. MCP: **`platform_services_list`**. [DOCKER.md](docs/deploy/DOCKER.md#edge-сервисы-на-поддоменах-q10-v0) · [Q10](_todo_/TODO-REFACTOR-15.md) | Subdomain edge services | **`1`** |
-| **`AGENT_CMS_EDGE_HTTP_GATE`** | **`1`** — CMS на `:3000` маршрутизирует edge по `Host` (Mac). VPS + Caddy — **`0`** / не задавать | CMS Host gateway without Caddy | Mac: auto |
-| **`AGENT_CMS_SERVICES_DATA_DIR`** | Имя папки под данные сервисов: **`workspaces/<dir>/<service-id>/`** | Edge services data root | `0-services-data` |
-| **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
-| **`AGENT_CMS_MCP_ICON_URL`** | *(опц.)* Своя иконка для Claude/Cursor; иначе **`{AGENT_CMS_PUBLIC_URL}/app-mcp/icon`** (PNG) | MCP connector icon URL | `https://ваш-домен/app-mcp/icon` |
-| **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | MCP Host allowlist | `localhost,127.0.0.1` (+ ваш домен на VPS) |
-| **`AGENT_CMS_MCP_BASE64_MAX_BYTES`** | Макс. **декодированный** размер для MCP base64 (`content_binary_write`, `content_write` `data=…`); больше — `content_binary_upload_*` | MCP base64 upload cap (decoded bytes) | `1048576` (1 MiB; можно меньше) |
-| **`AGENT_CMS_LIST_DEFAULT_LIMIT`** | Размер страницы по умолчанию для MCP **`contents_list_*`** (max 100) | Default MCP list page size | `20` |
-| **`AGENT_CMS_LIST_DEFAULT_MAX_DEPTH`** | Default **`maxDepth`** для **`contents_list_tree`** | Default list tree depth | `3` |
-| **`AGENT_CMS_LIST_ALLOW_PREVIEW`** | `0` — отключить body snippets в list preview | Disable list body snippets | `1` |
-| **`AGENT_CMS_DEPLOY_UPDATE_ENABLED`** | `1` — кнопка «Обновить» в Control (**git pull + rebuild**) | Control deploy update button | `0` / `1` на VPS по желанию |
-| **`AGENT_CMS_DEPLOY_PLATFORM`** | Подпись платформы в Control: **`mac`** \| **`linux`** \| **`windows`** | Control platform chip | в compose часто уже задано |
-| **`WEB_SEARCH_MODE`** | Режим веб-поиска в MCP | Web search mode | `direct` |
-| **`GOOGLE_SEARCH_API_KEY`** | Google Custom Search API key (если используете) | Google CSE API key | пусто / ключ |
-| **`GOOGLE_SEARCH_ENGINE_ID`** | ID поисковой машины (cx) | Google CSE engine ID | пусто / id |
-| **`GOOGLE_SEARCH_LANG`** | Язык запросов | Query language | `ru` |
-| **`GOOGLE_SEARCH_COUNTRY`** | Страна (регион) | Country bias | `RU` |
-| **`GOOGLE_SEARCH_GL`** | Параметр `gl` | Google `gl` | `ru` |
-| **`GOOGLE_SEARCH_SAFE`** | SafeSearch | SafeSearch level | `active` |
+| Ключ | Назначение | Пример |
+| --- | --- | --- |
+| **`APP_LOCK_LOGIN`** | Логин app-lock (Control, ops, запись `.env` через MCP) | `admin` |
+| **`APP_LOCK_PASSWORD`** | Пароль app-lock | смените с `changeme` |
+| **`APP_LOCK_APPS`** | UI-приложения под паролем (через запятую) | `editor,chat,commander,control` |
+| **`AGENT_CMS_HTTP_TO_HTTPS`** | `1` — редирект HTTP→HTTPS **внутри CMS**; на VPS с **Caddy** оставьте **`0`** | `0` |
+| **`AGENT_CMS_WORKSPACES_DIR`** | Основной каталог на **хосте** → `/app/workspaces` (workspace = **подпапки**). Доп. корни — **workspace-mounts** (Control / MCP), не правка базового compose | `./workspaces` или `/Users/…/AgentCMS-workspaces` |
+| **`AGENT_CMS_PUBLIC_URL`** | Публичный базовый URL (**Editor, `/app-control`, `/app-mcp`, Electron**) | Mac Docker: `https://127.0.0.1:3443` · VPS: `https://ваш-домен` |
+| **`AGENT_CMS_SINGLE_HTTP_DOOR`** | `1` — одна HTTP-дверь, пути `/app-*` на CMS; `0` — legacy dev с отдельными портами | `1` |
+| **`AGENT_CMS_EXPOSE_INTERNAL_PORTS`** | `1` — проброс отдельных портов (legacy **npm start**); в Docker обычно не нужно | закомментирован / `0` |
+| **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | `Agent CMS` |
+| **`AGENT_CMS_PUBLIC_DOMAIN`** | Apex для **Caddy** (VPS) и edge (`*.domain` / **`*.localhost`** на Mac) | VPS: `maptex.ru` · Mac: `localhost` |
+| **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | `admin@example.com` |
+| **`AGENT_CMS_EDGE_SERVICES_ENABLED`** | **`1`** — **edge-сервисы** (`qwenpaw.*`, **`all.*`**, заглушка `http://foo.*`): Caddy + `docker-compose.edge-services.yml` / Mac overlay. MCP: **`platform_services_list`**. [DOCKER.md](docs/deploy/DOCKER.md#edge-сервисы-на-поддоменах-q10-v0) · [Q10](_todo_/TODO-REFACTOR-15.md) | **`1`** |
+| **`AGENT_CMS_EDGE_HTTP_GATE`** | **`1`** — CMS на `:3000` маршрутизирует edge по `Host` (Mac). VPS + Caddy — **`0`** / не задавать | Mac: auto |
+| **`AGENT_CMS_SERVICES_DATA_DIR`** | Имя папки под данные сервисов: **`workspaces/<dir>/<service-id>/`** | `0-services-data` |
+| **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | длинный секрет |
+| **`AGENT_CMS_MCP_ICON_URL`** | *(опц.)* Своя иконка для Claude/Cursor; иначе **`{AGENT_CMS_PUBLIC_URL}/app-mcp/icon`** (PNG) | `https://ваш-домен/app-mcp/icon` |
+| **`AGENT_CMS_MCP_ALLOWED_HOSTS`** | Разрешённые `Host` для MCP (через запятую) | `localhost,127.0.0.1` (+ ваш домен на VPS) |
+| **`AGENT_CMS_MCP_BASE64_MAX_BYTES`** | Макс. **декодированный** размер для MCP base64 (`content_binary_write`, `content_write` `data=…`); больше — `content_binary_upload_*` | `1048576` (1 MiB; можно меньше) |
+| **`AGENT_CMS_LIST_DEFAULT_LIMIT`** | Размер страницы по умолчанию для MCP **`contents_list_*`** (max 100) | `20` |
+| **`AGENT_CMS_LIST_DEFAULT_MAX_DEPTH`** | Default **`maxDepth`** для **`contents_list_tree`** | `3` |
+| **`AGENT_CMS_LIST_ALLOW_PREVIEW`** | `0` — отключить body snippets в list preview | `1` |
+| **`AGENT_CMS_DEPLOY_UPDATE_ENABLED`** | `1` — кнопка «Обновить» в Control (**git pull + rebuild**) | `0` / `1` на VPS по желанию |
+| **`AGENT_CMS_DEPLOY_PLATFORM`** | Подпись платформы в Control: **`mac`**, **`linux`**, **`windows`** | в compose часто уже задано |
+| **`WEB_SEARCH_MODE`** | Режим веб-поиска в MCP | `direct` |
+| **`GOOGLE_SEARCH_API_KEY`** | Google Custom Search API key (если используете) | пусто / ключ |
+| **`GOOGLE_SEARCH_ENGINE_ID`** | ID поисковой машины (cx) | пусто / id |
+| **`GOOGLE_SEARCH_LANG`** | Язык запросов | `ru` |
+| **`GOOGLE_SEARCH_COUNTRY`** | Страна (регион) | `RU` |
+| **`GOOGLE_SEARCH_GL`** | Параметр `gl` | `ru` |
+| **`GOOGLE_SEARCH_SAFE`** | SafeSearch | `active` |
 
 **Дополнительно в Compose** (можно задать в `.env`, в `.env.example` не дублируются):
 
-| Ключ | 🇷🇺 · 🇬🇧 | Пример |
+| Ключ | Описание | Пример |
 | --- | --- | --- |
 | **`AGENT_CMS_EDITOR_HTTP_PORT`** | Порт CMS на localhost (Mac) · CMS host port | `3000` |
 | **`AGENT_CMS_HOST_PROJECT`** | Путь к репо на хосте (mount `.env`, compose) · Repo path on host | `.` |
@@ -739,11 +632,11 @@ npm run cms:desktop   # dev-окно без сборки
 
 **Хост / CLI (часть — в [`.env.example`](.env.example), не в whitelist MCP):**
 
-| Переменная | 🇷🇺 | 🇬🇧 | Пример |
-| --- | --- | --- | --- |
-| **`AGENT_CMS_OPEN_BROWSER`** | **Mac:** `1` — после **`start`** / **`rebuild`** открыть Control в браузере; `0` — только URL | Mac auto-open Control after start | в `.env` или `AGENT_CMS_OPEN_BROWSER=1 agent-cms-cli start` |
-| **`AGENT_CMS_ELECTRON_LEGACY`** | Electron `.app` со встроенным сервером (не URL-shell) | Electron embedded server mode | `1` |
-| **`AGENT_CMS_HOME`** | Каталог репо для CLI (иначе `~/.config/agent-cms/home`) | CLI repo root | `~/agent-cms` |
+| Переменная | Описание | Пример |
+| --- | --- | --- |
+| **`AGENT_CMS_OPEN_BROWSER`** | **Mac:** `1` — после **`start`** / **`rebuild`** открыть Control в браузере; `0` — только URL | в `.env` или `AGENT_CMS_OPEN_BROWSER=1 agent-cms-cli start` |
+| **`AGENT_CMS_ELECTRON_LEGACY`** | Electron `.app` со встроенным сервером (не URL-shell) | `1` |
+| **`AGENT_CMS_HOME`** | Каталог репо для CLI (иначе `~/.config/agent-cms/home`) | `~/agent-cms` |
 
 > **NOTE**
 > - 💡 Не используйте устаревшие **`PORT` / `TLS_PORT` / `MAPTEX_DOMAIN`** как главный URL — канон **`AGENT_CMS_PUBLIC_URL`** ([docs/env-reference.md](docs/env-reference.md)).
@@ -751,29 +644,27 @@ npm run cms:desktop   # dev-окно без сборки
 
 ---
 
-> 🇬🇧 **[en]**
->
-> Edit **`.env`** at the repo root ([`.env.example`](.env.example)). Table above lists every **whitelist** key; use **`AGENT_CMS_PUBLIC_URL`**, domain, app-lock, and MCP token on production. Optional Compose / MCP-process keys in the second table (**`MCP_LEGACY_*`** — [mcp-server/README.md](mcp-server/README.md)). MCP: **`platform_env_keys_list`**. Details: [docs/env-reference.md](docs/env-reference.md).
 
-## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
+## Подключение скиллов для агента — Claude, Codex и другие
+
 
 Исходники — **`_skills_/GLOBAL-SKILL-*.md`** в [репозитории на GitHub](https://github.com/iv-litovchenko/AgentCMS/tree/main/_skills_). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
-| 🇷🇺 Файл · 🇬🇧 File | 🇷🇺 Скилл · 🇬🇧 Skill | 🇷🇺 Зачем · 🇬🇧 Purpose |
+| Файл | Скилл | Зачем |
 | --- | --- | --- |
-| [GLOBAL-SKILL-0-MCP-WELCOME.md](_skills_/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | 🇷🇺 Ввод, старт MCP, карта скиллов<br>🇬🇧 Intro, MCP start, skill map |
-| [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | 🇷🇺 Хранилище и MCP tools<br>🇬🇧 Workspace and MCP tools |
-| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](_skills_/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | 🇷🇺 Стиль ответов (🗄️ / 🌐 / 💭)<br>🇬🇧 Reply style (🗄️ / 🌐 / 💭) |
-| [GLOBAL-SKILL-3-RULES.md](_skills_/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | 🇷🇺 Глобальные правила<br>🇬🇧 Global rules |
-| [GLOBAL-SKILL-4-MARKDOWN.md](_skills_/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | 🇷🇺 Разметка в md<br>🇬🇧 Markdown in records |
-| [GLOBAL-SKILL-5-SEARCH.md](_skills_/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | 🇷🇺 Поиск, индексы, DQL<br>🇬🇧 Search, indexes, DQL |
-| [GLOBAL-SKILL-6-MODULES.md](_skills_/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | 🇷🇺 Git и модули<br>🇬🇧 Git and modules |
-| [GLOBAL-SKILL-7-VIZ-MAPS.md](_skills_/GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | 🇷🇺 Карты `*.viz.md`, «Атлас», `viz_map_*`<br>🇬🇧 Viz maps `*.viz.md`, Atlas, `viz_map_*` |
-| [GLOBAL-SKILL-8-SLOTS-LEGACY.md](_skills_/GLOBAL-SKILL-8-SLOTS-LEGACY.md) | `agent-cms-slots-legacy` | 🇷🇺 Legacy slot/kind<br>🇬🇧 Legacy slot/kind |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](_skills_/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | Ввод, старт MCP, карта скиллов |
+| [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | Хранилище и MCP tools |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](_skills_/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | Стиль ответов (🗄️ / 🌐 / 💭) |
+| [GLOBAL-SKILL-3-RULES.md](_skills_/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | Глобальные правила |
+| [GLOBAL-SKILL-4-MARKDOWN.md](_skills_/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | Разметка в md |
+| [GLOBAL-SKILL-5-SEARCH.md](_skills_/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | Поиск, индексы, DQL |
+| [GLOBAL-SKILL-6-MODULES.md](_skills_/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | Git и модули |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](_skills_/GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | Карты `*.viz.md`, «Атлас», `viz_map_*` |
+| [GLOBAL-SKILL-8-SLOTS-LEGACY.md](_skills_/GLOBAL-SKILL-8-SLOTS-LEGACY.md) | `agent-cms-slots-legacy` | Legacy slot/kind |
 
 **Как установить**
 
-1. Сначала [подключите MCP](#-подключение-mcp-gb-mcp-connection).
+1. Сначала [подключите MCP](#подключение-mcp).
 2. **Cursor / Codex / Claude Code** — для каждого скилла: `.cursor/skills/<name>/SKILL.md` с **полным** текстом `GLOBAL-SKILL-*.md` (имя папки = поле `name`) или попросите агента поставить скиллы из GitHub.
 3. **Claude Desktop** — **Settings → Capabilities → Skills**: файлы из корня репо. Минимум **`agent-cms`**; **`agent-cms-welcome`** — по желанию.
 4. Рекомендуется также **`agent-cms-response-style`** и **`agent-cms-rules`** — они **не** входят в `get_session_context`.
@@ -783,13 +674,9 @@ npm run cms:desktop   # dev-окно без сборки
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub (`_skills_/`). Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `platform_skills_list` / `platform_skill_read`. Refresh after `git pull`.
 
-## 🇷🇺 Подключение MCP (🇬🇧 MCP connection)
+## Подключение MCP
 
-🇷🇺 **[ru]**
 
 Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](_todo_/TODO.MCP-INSTANCES.md).
 
@@ -814,15 +701,13 @@ npm run cms:desktop   # dev-окно без сборки
 
 **Файлы / фото (MCP):** мелкие — `content_binary_write` (base64); **публичный URL** — `content_binary_write_from_url` или `content_binary_upload_begin` + **`sourceUrl`** (CMS сама качает); **большие** — `upload_begin` → **PUT** `putUrl` → `complete` (Mac) или **`upload_chunk`** → `complete` (облако); читать — `content_binary_read` / `content_read` + base64; ссылка в браузере — `content_binary_url_get`. Подробнее: [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md) §5.
 
-Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#-настройка--env-gb-configuration--env) (блок «Дополнительно в Compose»).
+Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#настройка-env) (блок «Дополнительно в Compose»).
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **HTTP only:** `{PUBLIC_URL}/app-mcp` + Bearer **`AGENT_CMS_MCP_TOKEN`**. Set **`AGENT_CMS_PUBLIC_URL`** for upload `putUrl` and MCP icons. Control guide copies the JSON. Large files: `upload_begin` + `sourceUrl`, or PUT, or `upload_chunk` → `complete`. See [docs/connectors/README.md](docs/connectors/README.md). Legacy MCP env: [Configuration — `.env`](#-настройка--env-gb-configuration--env). Stdio `node mcp-server` — dev-only, not documented as equal.
 
-## 🇷🇺 Канон MCP `user-agent-cms` (🇬🇧 MCP tool map `user-agent-cms`)
+## Канон MCP `user-agent-cms`
+
 
 **🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 232** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
@@ -1211,25 +1096,19 @@ user-agent-cms
     └── 🟢 batch_tools_invoke
 ```
 
-## 🇷🇺 Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀 (🇬🇧 References for agents and indexing — models, go learn 😀)
 
-🇷🇺 **[ru]**
+## Справочники для агентов и индексации — модельки и нейронки, обучайтесь 😀
 
-Файлы **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others).
+
+Файлы **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#подключение-скиллов-для-агента-claude-codex-и-другие).
 
 См. также: [TODO.md](_todo_/TODO.md) · [TODO-file.md](_todo_/TODO-file.md) · [TODO.TimeTracker.md](_todo_/TODO.TimeTracker.md) · [TODO.Transfer.md](_todo_/TODO.Transfer.md)
 
 ---
 
-> 🇬🇧 **[en]**
->
-> **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (CMS home), full README on [GitHub](https://github.com/iv-litovchenko/AgentCMS). [Agent skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) above.
->
-> See also: [TODO.md](_todo_/TODO.md) · [TODO-file.md](_todo_/TODO-file.md) · [TODO.TimeTracker.md](_todo_/TODO.TimeTracker.md) · [TODO.Transfer.md](_todo_/TODO.Transfer.md)
 
-## 🇷🇺 Мечта (🇬🇧 Vision)
+## Мечта
 
-🇷🇺 **[ru]**
 
 Вырваться за рамки «ещё одного редактора с MCP»: **универсальная память** — слой ОС для человека и нейросетей. Одно хранилище, с которым можно общаться естественным голосом, структурировать мысли и факты, связывать области и темы и не терять контекст между сессиями. Не диалог с чистого листа, а совместная память на диске: вы и ИИ пополняете её изо дня в день — живая, накапливаемая из ваших цифровых данных и знаний в едином месте.
 
@@ -1241,41 +1120,29 @@ user-agent-cms
 
 ---
 
-> 🇬🇧 **[en]**
->
-> Go beyond “another editor with MCP”: a **universal memory** — an OS layer for people and models. One workspace you can speak to naturally, structure thoughts and facts, link areas and themes, and keep context across sessions. Not a blank-slate chat, but shared memory on disk: you and AI add to it day by day — living, growing from your digital data and knowledge in one place.
->
-> So everyone can have a digital assistant that remembers your digital life — with your permission, on your disk — beside you in study, work, and hobbies when you ask, when you sort materials together, and when you return to them again.
->
-> Books and films already showed it: Dumbledore’s Pensieve, Tony Stark’s JARVIS. Not decoration — the wish for your own memory you can return to and a helper that understands it. Agent CMS is a step toward that platform on your disk; ahead are bolder interfaces than screen and keyboard: voice, movement, presence — so the link between human and machine has fewer barriers.
->
-> **The vision in one task.** Build an **ideal digital memory** — not a chaos folder, but something you can reopen a month later and continue right away. A live example: you open a **channel or archive with 1000 messages** (Telegram, mail, feed) and tell the agent: *“Collect what matters for analysis — facts, decisions, agreements, links.”* The agent doesn’t “summarize the chat in the reply”; it **puts the result in the workspace**: inbox, themes and slots, fields and links. Then **indexes** kick in (words, meaning, fields, link graph) — search, compare, refine extracts, ask new questions **from disk**, not from a raw export. File it once — memory stays yours, on your machine, and grows with new channels and projects.
 
-## 🇷🇺 Лицензия (🇬🇧 License)
+## Лицензия
+
 
 Copyright © 2026 Agent CMS
 
 Исходный код распространяется под [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-or-later).
 
-## 🇷🇺 Ссылки (🇬🇧 Links)
+
+## Ссылки
+
 
 - Сайт: [https://agent-cms.ru/](https://agent-cms.ru/)
 - GitHub: [https://github.com/iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
 - Telegram: [https://t.me/AgentCMS](https://t.me/AgentCMS) (@AgentCMS — про жизнь с ИИ и технологиями)
 - Почта: [iv-litovchenko@mail.ru](mailto:iv-litovchenko@mail.ru)
 
-## 🇷🇺 С чего начать? (🇬🇧 Where to start?)
 
-🇷🇺 **[ru]**
+## С чего начать?
+
 
 Общайтесь — знакомтесь! 👋
 
 Буду рад всем, кому близка тема цифровой памяти и агентов на своих файлах — пишите в [Telegram](https://t.me/AgentCMS) или на [почту](mailto:iv-litovchenko@mail.ru).
 
 ---
-
-> 🇬🇧 **[en]**
->
-> Say hi — get to know the project! 👋
->
-> Glad to hear from anyone into digital memory and agents on their own files — write on [Telegram](https://t.me/AgentCMS) or [email](mailto:iv-litovchenko@mail.ru).
