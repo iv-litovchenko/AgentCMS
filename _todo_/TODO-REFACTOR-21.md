@@ -27,7 +27,7 @@
 | 7 | **Каналы** — 0 boot; load при expand | ✅ | catalog при expand; **intake/batch** отдельно от stats |
 | 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | idle после menu; только **видимые** темы; кэш ключ paths |
 | | **Sidebar низ** | | |
-| 8 | **DB / медиа / repos** — 0 boot; expand / ⟲ | ✅ | default collapsed |
+| 8 | **DB / медиа / repos** — 0 boot; expand / ⟲ | ✅ | sidebar DB: `GET …/awn-databases?summary=1`; repos list без `readmeBody` |
 | 9 | **Static footer** — без LT/index на boot | ✅ | panels при expand footer |
 | 10 | **Stats** — idle, без env на boot | ✅ | **`workspace-stats` 1×** на agent; ⟲ reload; counts из menu без повтора |
 | 11 | **О системе** — env только popover | ✅ | нет boot `syncMenuSystemEnvironment()` |
@@ -66,6 +66,7 @@
 | 2026-10-29 | Avatar: `thumb=1` для media/file + workspace-preview; thumb cache на server |
 | 2026-10-29 | `workspace-stats` 1× + reload; git remote только sidebar/git view; menu markers — `hasGitSelf` |
 | 2026-10-29 | Bands: каталоги после `refreshMenu` idle; фокус workspace — как landing main (`scheduleWorkspaceAgentFocusLoadIfNeeded`) |
+| 2026-10-29 | Bands perf: `summary=1` для sidebar DB; repos list без README body; bands rAF не idle 2.5s; каналы без force intake |
 
 ## 🔗 Связано
 

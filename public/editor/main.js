@@ -121033,7 +121033,6 @@ function setMenuAwnChannelsBandExpanded(expanded) {
   syncSidebarBottomFocusMode();
   if (expanded) {
     void refreshMenuAwnChannels();
-    void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId, { force: true });
   }
 }
 
@@ -133770,17 +133769,24 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
   }
 
   try {
-    const response = await fetch(buildApiUrl("/api/awn-databases", {}, resolvedAgent));
+    const response = await fetch(buildApiUrl("/api/awn-databases", { summary: "1" }, resolvedAgent));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
     renderMenuAwnDataStores(data);
-    void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
-      if (!menuAwnDataIndexRowNode?.isConnected) return;
-      menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
-      syncMenuAwnDataIndexRowState();
-    });
+    const probeIndex = () => {
+      void probeAwnDataIndexExists(resolvedAgent).then((exists) => {
+        if (!menuAwnDataIndexRowNode?.isConnected) return;
+        menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
+        syncMenuAwnDataIndexRowState();
+      });
+    };
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(probeIndex, { timeout: 1200 });
+    } else {
+      window.setTimeout(probeIndex, 0);
+    }
   } catch {
     if (seq !== menuAwnDataStoresLoadSeq) return;
     renderMenuAwnDataStores(null, { error: true });
@@ -133788,12 +133794,9 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
 }
 
 function scheduleVisibleMenuAgentStaticSummaries(agentId = activeWorkspaceId) {
-  const run = () => refreshMenuAgentStaticSummaries(agentId);
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(() => run(), { timeout: 2500 });
-  } else {
-    window.setTimeout(() => run(), 400);
-  }
+  window.requestAnimationFrame(() => {
+    refreshMenuAgentStaticSummaries(agentId);
+  });
 }
 
 function refreshMenuAgentStaticSummaries(agentId = activeWorkspaceId, options = {}) {

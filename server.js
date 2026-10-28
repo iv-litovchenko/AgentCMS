@@ -27837,7 +27837,17 @@ async function handleApiForAgent(req, res, url) {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
       const storeId = String(url.searchParams.get("store") || "").trim();
-      const payload = getAwnDataPayload(agentRoot, getProjectRoot(), storeId);
+      const summaryParam = String(url.searchParams.get("summary") || "").trim().toLowerCase();
+      const includeRecordsParam = String(url.searchParams.get("includeRecords") || "").trim();
+      const catalogSummary =
+        !storeId &&
+        (summaryParam === "1" ||
+          summaryParam === "true" ||
+          includeRecordsParam === "0" ||
+          includeRecordsParam.toLowerCase() === "false");
+      const payload = getAwnDataPayload(agentRoot, getProjectRoot(), storeId, {
+        includeRecords: !catalogSummary
+      });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
