@@ -22,3 +22,5 @@
 **Следующие slices (P1):** folder/path constants (agent-kit/container), `MODE_GROUPS` / navigation, save/API helpers.
 
 **Размеры:** `npm run measure:editor` — смотреть `main.js` raw после каждого slice.
+
+**REFACTOR-20 (главная + workspace, docs вне editor):** [REFACTOR-20-status.md](./REFACTOR-20-status.md) · baseline [REFACTOR-20-baseline.md](./REFACTOR-20-baseline.md) · `npm run check:refactor-20`

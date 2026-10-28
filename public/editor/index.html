@@ -11,10 +11,28 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/_resources/favicon.png" />
     <link rel="apple-touch-icon" href="/_resources/apple-touch-icon.png" />
     <link rel="stylesheet" href="/editor/styles.css?v=0.5.1003" />
-    <link rel="modulepreload" href="/editor/js/landing/landing-chunk-boot.js?v=2" />
-    <link rel="modulepreload" href="/editor/js/landing/landing-runtime.js?v=29" />
     <link rel="stylesheet" href="/_resources/vendor/highlight-github.min.css" />
     <script src="/editor/js/core/project-version.js?v=1"></script>
+    <script src="/editor/js/boot/editor-boot-route.js?v=1"></script>
+    <script>
+      (function maybePreloadLandingChunk() {
+        try {
+          if (!window.AgentCmsBootRoute?.needsLandingChunkAtBoot()) return;
+          var urls = [
+            "/editor/js/landing/landing-chunk-boot.js?v=2",
+            "/editor/js/landing/landing-runtime.js?v=29"
+          ];
+          for (var i = 0; i < urls.length; i++) {
+            var link = document.createElement("link");
+            link.rel = "modulepreload";
+            link.href = urls[i];
+            document.head.appendChild(link);
+          }
+        } catch (_err) {
+          /* ignore */
+        }
+      })();
+    </script>
     <script>
       (function markAgentCmsDesktopFromQuery() {
         try {
@@ -8824,23 +8842,6 @@ awn-type: awn.page.ws
       </div>
     </div>
 
-    <div id="user-docs-modal" class="modal-overlay hidden">
-      <div class="modal-card md-showcase-card">
-        <div class="md-showcase-header docs-modal-header">
-          <div>
-            <div class="modal-message" id="user-docs-title">Руководства</div>
-            <p id="user-docs-subtitle" class="md-showcase-subtitle">Agent CMS · выберите документ</p>
-          </div>
-          <div class="docs-modal-toolbar">
-            <select id="user-docs-version-select" class="docs-version-select" aria-label="Выбор документа">
-            </select>
-            <button id="user-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
-          </div>
-        </div>
-        <div id="user-docs-content" class="md-showcase-content file-content-preview"></div>
-      </div>
-    </div>
-
     <div id="best-practices-modal" class="modal-overlay hidden">
       <div class="modal-card md-showcase-card">
         <div class="md-showcase-header">
@@ -8851,41 +8852,6 @@ awn-type: awn.page.ws
           <button id="best-practices-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
         <div id="best-practices-content" class="md-showcase-content file-content-preview"></div>
-      </div>
-    </div>
-
-    <div id="api-docs-modal" class="modal-overlay hidden">
-      <div class="modal-card api-docs-card">
-        <div class="api-docs-header docs-modal-header">
-          <div>
-            <div class="modal-message" id="api-docs-title">HTTP API</div>
-            <p id="api-docs-subtitle" class="api-docs-subtitle"></p>
-          </div>
-          <div class="docs-modal-toolbar">
-            <select id="api-docs-version-select" class="docs-version-select" aria-label="Версия документации">
-              <option value="0.0.2" selected>Актуальная (0.0.2)</option>
-              <option value="0.0.1">Предыдущая (0.0.1)</option>
-              <option value="0.0.0">Предыдущая (0.0.0)</option>
-            </select>
-            <button id="api-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
-          </div>
-        </div>
-        <div id="api-docs-notes" class="api-docs-notes"></div>
-        <div class="api-docs-body">
-          <div class="api-docs-search-bar">
-            <input
-              id="api-docs-search"
-              class="docs-search-input"
-              type="search"
-              placeholder="Поиск: путь, метод, описание…"
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="Поиск по HTTP API"
-            />
-            <p id="api-docs-search-empty" class="api-docs-search-empty hidden" role="status">Ничего не найдено</p>
-          </div>
-          <div id="api-docs-content" class="api-docs-content"></div>
-        </div>
       </div>
     </div>
 
@@ -9078,121 +9044,6 @@ awn-type: awn.page.ws
       </div>
     </div>
 
-    <div id="mcp-docs-modal" class="modal-overlay hidden">
-      <div class="modal-card api-docs-card mcp-docs-card">
-        <div class="api-docs-header docs-modal-header">
-          <div>
-            <div class="modal-message" id="mcp-docs-title">MCP Server</div>
-            <p id="mcp-docs-subtitle" class="api-docs-subtitle"></p>
-          </div>
-          <div class="docs-modal-toolbar">
-            <button id="mcp-docs-help-btn" class="docs-toolbar-btn" type="button" aria-expanded="false">
-              Помощь
-            </button>
-            <select id="mcp-docs-version-select" class="docs-version-select" aria-label="Версия документации">
-              <option value="0.0.2" selected>Актуальная (0.0.2)</option>
-              <option value="0.0.1">Предыдущая (0.0.1)</option>
-              <option value="0.0.0">Предыдущая (0.0.0)</option>
-            </select>
-            <button id="mcp-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
-          </div>
-        </div>
-        <div id="mcp-docs-notes" class="api-docs-notes mcp-docs-notes"></div>
-        <pre id="mcp-docs-config" class="mcp-docs-config hidden" aria-label="Скопируй агенту: подключение MCP и JSON конфиг"></pre>
-        <div id="mcp-docs-tools-wrap" class="api-docs-body">
-          <div class="api-docs-search-bar">
-            <input
-              id="mcp-docs-search"
-              class="docs-search-input"
-              type="search"
-              placeholder="Поиск: tool, описание, HTTP…"
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="Поиск по MCP tools"
-            />
-            <p id="mcp-docs-search-empty" class="api-docs-search-empty hidden" role="status">Ничего не найдено</p>
-          </div>
-          <div id="mcp-docs-content" class="api-docs-content"></div>
-        </div>
-        <div id="mcp-docs-help-panel" class="api-docs-content mcp-docs-help-panel hidden" hidden>
-          <p class="mcp-docs-help-lead">
-            Model Context Protocol (MCP) — способ подключить внешний сервер к IDE (Cursor, Claude Desktop). Ниже — виды
-            возможностей по спецификации. В Agent CMS сейчас реализованы в основном <strong>Tools</strong>; остальное —
-            для понимания протокола.
-          </p>
-          <section class="api-docs-group">
-            <h3 class="api-docs-group-title">Виды возможностей MCP</h3>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-mcp">TOOL</span>
-                <code class="api-docs-path">tools / tools/call</code>
-              </div>
-              <p class="api-docs-desc">
-                Действия: вызов функции с аргументами и ответом (JSON или текст). Агент сам решает, когда вызвать.
-                Список ниже в этой модалке — это tools Agent CMS (<code>list_workspaces</code>,
-                <code>get_database</code>, …).
-              </p>
-            </article>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-resource">RESOURCE</span>
-                <code class="api-docs-path">resources / read</code>
-              </div>
-              <p class="api-docs-desc">
-                Чтение данных по URI без «команды»: документ, индекс, снимок контекста. Клиент подтягивает resource в чат,
-                когда нужно. У Agent CMS пока не exposed; аналог — HTTP <code>/api/mcp-docs</code> или tools вроде
-                <code>get_session_context</code>.
-              </p>
-            </article>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-prompt">PROMPT</span>
-                <code class="api-docs-path">prompts / get</code>
-              </div>
-              <p class="api-docs-desc">
-                Готовые шаблоны сообщений с параметрами — обычно пункты меню в IDE («разбери inbox», «настрой workspace»).
-                Не заменяют tools; ускоряют старт сценария для человека.
-              </p>
-            </article>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-cap">CAPABILITY</span>
-                <code class="api-docs-path">initialize</code>
-              </div>
-              <p class="api-docs-desc">
-                Не отдельная кнопка для пользователя: сервер при подключении сообщает, что умеет (tools, resources, prompts,
-                версии). Клиент строит список доступного.
-              </p>
-            </article>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-root">ROOT</span>
-                <code class="api-docs-path">roots</code>
-              </div>
-              <p class="api-docs-desc">
-                Границы файловой системы: какие папки MCP-серверу разрешены. Нужно для file-based серверов; у Agent CMS доступ
-                идёт через API workspace и <code>agentId</code>, не через прямой диск IDE.
-              </p>
-            </article>
-            <article class="api-docs-endpoint mcp-docs-tool">
-              <div class="api-docs-endpoint-head">
-                <span class="api-docs-method api-docs-method-sample">SAMPLING</span>
-                <code class="api-docs-path">sampling</code>
-              </div>
-              <p class="api-docs-desc">
-                Сервер просит клиент сделать мини-запрос к модели (ответ LLM через IDE). Редко нужно, если вся логика в чате
-                пользователя.
-              </p>
-            </article>
-          </section>
-          <p class="mcp-docs-help-foot">
-            Подсказки в жёлтой полосе выше и JSON для Cursor — для людей при настройке. Модель в чате по умолчанию видит
-            описания tools из MCP, а не эту модалку.
-          </p>
-        </div>
-      </div>
-    </div>
-
     <script src="/editor/js/boot/editor-script-loader.js?v=27"></script>
     <script src="/editor/js/app/app-lock.js?v=16"></script>
     <script src="/editor/js/app/app-lock-scanner.js?v=1"></script>
@@ -9274,9 +9125,18 @@ awn-type: awn.page.ws
           else (document.head || document.documentElement).appendChild(boot);
         }
         function startEditorMain(src) {
-          loadLandingChunkBoot(function () {
-            insertMainScript(src);
-          });
+          var needsLanding =
+            window.AgentCmsBootRoute && typeof window.AgentCmsBootRoute.needsLandingChunkAtBoot === "function"
+              ? window.AgentCmsBootRoute.needsLandingChunkAtBoot()
+              : String(location.pathname || "/").replace(/\/+$/, "") === "" ||
+                String(location.pathname || "/").replace(/\/+$/, "") === "/";
+          if (needsLanding) {
+            loadLandingChunkBoot(function () {
+              insertMainScript(src);
+            });
+            return;
+          }
+          insertMainScript(src);
         }
         if (!useBuilt) {
           var preMain = [

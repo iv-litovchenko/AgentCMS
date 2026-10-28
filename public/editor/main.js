@@ -2301,53 +2301,24 @@ const COMPONENTS_IDEAS_TOPIC_PATH = "components-ideas.md";
 const COMPONENTS_IDEAS_SUBTITLE = "My Graph ORM · черновик онтологии";
 let componentsIdeasMarkdownCache = null;
 const userDocsBtn = document.getElementById("user-docs-btn");
-const userDocsModalNode = document.getElementById("user-docs-modal");
-const userDocsCloseBtn = document.getElementById("user-docs-close-btn");
-const userDocsContentNode = document.getElementById("user-docs-content");
-const userDocsVersionSelectNode = document.getElementById("user-docs-version-select");
-const userDocsSubtitleNode = document.getElementById("user-docs-subtitle");
-const DEFAULT_DOC_VERSION = "0.0.2";
-const DOC_VERSION_IDS = new Set(["0.0.0", "0.0.1", "0.0.2"]);
-const DOC_VERSION_STORAGE_KEY = "yamlcms.docVersion";
+const apiDocsBtn = document.getElementById("api-docs-btn");
+const mcpDocsBtn = document.getElementById("mcp-docs-btn");
 
-function normalizeDocVersionClient(version, fallback = DEFAULT_DOC_VERSION) {
-  const value = String(version ?? fallback).trim();
-  return DOC_VERSION_IDS.has(value) ? value : fallback;
+function openAgentCmsDocsApp(view = "guides") {
+  closeHeaderProfileMenu();
+  const safe = String(view || "guides").trim().toLowerCase();
+  const v = safe === "api" || safe === "mcp" ? safe : "guides";
+  window.open(`/app-docs/?view=${encodeURIComponent(v)}`, "_blank", "noopener,noreferrer");
 }
+
 const DOCUMENTATION_AGENT_ID = "0-ws-core";
 const DOCUMENTATION_TOPIC_DIR = "dokumentatsii";
 const DOCUMENTATION_MAIN_SLOT = "awn-storage/main";
-const USER_GUIDE_STORAGE_KEY = "yamlcms.userGuidePath";
-const userDocsCacheByPath = Object.create(null);
-let userDocsIndexCache = null;
-let userDocsSelectedPath = "";
-let docsMetaCache = null;
 const bestPracticesBtn = document.getElementById("best-practices-btn");
 const bestPracticesModalNode = document.getElementById("best-practices-modal");
 const bestPracticesCloseBtn = document.getElementById("best-practices-close-btn");
 const bestPracticesContentNode = document.getElementById("best-practices-content");
 let bestPracticesCache = null;
-const apiDocsBtn = document.getElementById("api-docs-btn");
-const apiDocsModalNode = document.getElementById("api-docs-modal");
-const apiDocsCloseBtn = document.getElementById("api-docs-close-btn");
-const apiDocsContentNode = document.getElementById("api-docs-content");
-const apiDocsNotesNode = document.getElementById("api-docs-notes");
-const apiDocsTitleNode = document.getElementById("api-docs-title");
-const apiDocsSubtitleNode = document.getElementById("api-docs-subtitle");
-const apiDocsVersionSelectNode = document.getElementById("api-docs-version-select");
-const apiDocsCacheByVersion = Object.create(null);
-let apiDocsVersion = DEFAULT_DOC_VERSION;
-const mcpDocsBtn = document.getElementById("mcp-docs-btn");
-const mcpDocsModalNode = document.getElementById("mcp-docs-modal");
-const mcpDocsCloseBtn = document.getElementById("mcp-docs-close-btn");
-const mcpDocsContentNode = document.getElementById("mcp-docs-content");
-const mcpDocsNotesNode = document.getElementById("mcp-docs-notes");
-const mcpDocsConfigNode = document.getElementById("mcp-docs-config");
-const mcpDocsTitleNode = document.getElementById("mcp-docs-title");
-const mcpDocsSubtitleNode = document.getElementById("mcp-docs-subtitle");
-const mcpDocsVersionSelectNode = document.getElementById("mcp-docs-version-select");
-const mcpDocsCacheByVersion = Object.create(null);
-let mcpDocsVersion = DEFAULT_DOC_VERSION;
 
 function readStorageItem(key) {
   try {
@@ -5346,10 +5317,12 @@ async function loadAgents() {
   if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
   }
-  try {
-    await loadLandingAgentsGroups();
-  } catch {
-    landingAgentsGroupsCache = [];
+  if (isAppLandingRoute) {
+    try {
+      await loadLandingAgentsGroups();
+    } catch {
+      landingAgentsGroupsCache = [];
+    }
   }
   renderAgentSelect();
   updateWorkspaceShareLinkButton();
@@ -135118,16 +135091,37 @@ function formatBootLoadErrorMessage(error) {
   return message;
 }
 
+/** REFACTOR-20 phase D — workspace CHPU F5 without blocking on landing/post-main panels. */
+function isEditorWorkspaceBootRoute() {
+  return globalThis.AgentCmsBootRoute?.isWorkspaceBootRoute?.() === true;
+}
+
+function startDeferredWorkspaceHeavyScripts() {
+  void Promise.all([
+    ensureEditorPostMainScriptsLoaded(),
+    ensureEditorSecondaryPanelsLoaded()
+  ]).catch(() => {});
+}
+
 async function init() {
-  await Promise.all([
+  const workspaceBoot = isEditorWorkspaceBootRoute();
+  const bootScriptLoads = [
     ensureEditorCoreHelpersLoaded(),
     ensureEditorCmsCoreLoaded(),
     ensureEditorMarkdownPreviewLoaded(),
     ensureEditorUiIconsLoaded(),
-    ensureEditorPostMainScriptsLoaded(),
-    ensureEditorSecondaryPanelsLoaded(),
     ensureConnectionStatusLoaded()
-  ]).catch(() => {});
+  ];
+  if (!workspaceBoot) {
+    bootScriptLoads.push(
+      ensureEditorPostMainScriptsLoaded(),
+      ensureEditorSecondaryPanelsLoaded()
+    );
+  }
+  await Promise.all(bootScriptLoads).catch(() => {});
+  if (workspaceBoot) {
+    startDeferredWorkspaceHeavyScripts();
+  }
 
   setupMaintenancePaneUi();
   const bootRouteEarly = parseAppRoute(location.pathname);
@@ -135166,14 +135160,23 @@ async function init() {
 
     await loadAgents();
     if (isAgentWorkspaceSessionActive()) {
-      window.WorkspaceIndexPanel?.refreshStatus?.();
+      void ensureEditorMenuPanelsUi().then(() => {
+        window.WorkspaceIndexPanel?.refreshStatus?.();
+      });
     }
     if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
-    await ensureWorkspaceComfortScriptsLoaded().catch(() => {});
-    setupWorkspaceIdleScreensaver();
-    setupWorkspacePomodoro();
-    if (activeWorkspaceId) reloadWorkspaceIdleScreensaverSettings(activeWorkspaceId);
-    if (activeWorkspaceId) reloadWorkspacePomodoroForAgent(activeWorkspaceId);
+    const mountWorkspaceComfort = () => {
+      setupWorkspaceIdleScreensaver();
+      setupWorkspacePomodoro();
+      if (activeWorkspaceId) reloadWorkspaceIdleScreensaverSettings(activeWorkspaceId);
+      if (activeWorkspaceId) reloadWorkspacePomodoroForAgent(activeWorkspaceId);
+    };
+    if (activeWorkspaceId && workspaceBoot) {
+      void ensureWorkspaceComfortScriptsLoaded().then(mountWorkspaceComfort).catch(() => {});
+    } else if (activeWorkspaceId) {
+      await ensureWorkspaceComfortScriptsLoaded().catch(() => {});
+      mountWorkspaceComfort();
+    }
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 
@@ -135439,378 +135442,6 @@ window.addEventListener(
   { passive: true }
 );
 
-function createApiDocsEndpointNode(endpoint) {
-  const node = document.createElement("article");
-  node.className = "api-docs-endpoint";
-
-  const headNode = document.createElement("div");
-  headNode.className = "api-docs-endpoint-head";
-
-  const method = String(endpoint.method || "GET").toUpperCase();
-  const methodNode = document.createElement("span");
-  methodNode.className = `api-docs-method api-docs-method-${method.toLowerCase()}`;
-  methodNode.textContent = method;
-
-  const pathNode = document.createElement("code");
-  pathNode.className = "api-docs-path";
-  pathNode.textContent = endpoint.path || "";
-
-  headNode.append(methodNode, pathNode);
-
-  const descNode = document.createElement("p");
-  descNode.className = "api-docs-desc";
-  descNode.textContent = endpoint.description || "";
-
-  const metaNode = document.createElement("div");
-  metaNode.className = "api-docs-meta";
-
-  if (endpoint.agentScope !== false) {
-    const row = document.createElement("div");
-    row.innerHTML = "<strong>Agent:</strong> ";
-    const code = document.createElement("code");
-    code.textContent = "?agent=<id>";
-    row.appendChild(code);
-    metaNode.appendChild(row);
-  }
-
-  const queryRow = document.createElement("div");
-  queryRow.innerHTML = "<strong>Query:</strong> ";
-  const queryCode = document.createElement("code");
-  queryCode.textContent = endpoint.query?.length ? endpoint.query.join(", ") : "—";
-  queryRow.appendChild(queryCode);
-  metaNode.appendChild(queryRow);
-
-  if (endpoint.body) {
-    const bodyRow = document.createElement("div");
-    bodyRow.innerHTML = "<strong>Body:</strong> ";
-    const bodyCode = document.createElement("code");
-    bodyCode.textContent = endpoint.body;
-    bodyRow.appendChild(bodyCode);
-    metaNode.appendChild(bodyRow);
-  }
-
-  if (endpoint.response) {
-    const responseRow = document.createElement("div");
-    responseRow.innerHTML = "<strong>Response:</strong> ";
-    const responseCode = document.createElement("code");
-    responseCode.textContent = endpoint.response;
-    responseRow.appendChild(responseCode);
-    metaNode.appendChild(responseRow);
-  }
-
-  node.append(headNode, descNode, metaNode);
-  node.dataset.apiDocsSearch = [
-    endpoint.path,
-    endpoint.method,
-    endpoint.description,
-    endpoint.body,
-    endpoint.response,
-    ...(Array.isArray(endpoint.query) ? endpoint.query : [])
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return node;
-}
-
-function getSelectedDocVersion(selectNode, fallback = DEFAULT_DOC_VERSION) {
-  return normalizeDocVersionClient(selectNode?.value, fallback);
-}
-
-function readStoredDocVersion() {
-  return DEFAULT_DOC_VERSION;
-}
-
-function storeDocVersion(version) {
-  try {
-    localStorage.setItem(DOC_VERSION_STORAGE_KEY, normalizeDocVersionClient(version));
-  } catch {
-    /* ignore */
-  }
-}
-
-async function fetchDocsMeta(force = false) {
-  if (docsMetaCache && !force) return docsMetaCache;
-  const response = await fetch("/api/docs-meta", { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  docsMetaCache = await response.json();
-  return docsMetaCache;
-}
-
-function fillDocVersionSelect(selectNode, selectedVersion = DEFAULT_DOC_VERSION, countKind = null) {
-  if (!selectNode) return;
-  const version = normalizeDocVersionClient(selectedVersion);
-  const meta = docsMetaCache;
-  if (meta?.versions?.length) {
-    selectNode.replaceChildren();
-    for (const item of meta.versions) {
-      const option = document.createElement("option");
-      option.value = item.id;
-      let label = item.label;
-      if (countKind === "api" && Number.isFinite(item.apiEndpointCount)) {
-        label += ` — ${item.apiEndpointCount} методов`;
-      } else if (countKind === "mcp" && Number.isFinite(item.mcpToolCount)) {
-        label += ` — ${item.mcpToolCount} методов`;
-      }
-      option.textContent = label;
-      if (item.id === version) option.selected = true;
-      selectNode.appendChild(option);
-    }
-    return;
-  }
-  selectNode.value = version;
-}
-
-function syncApiMcpDocVersionSelects(version = DEFAULT_DOC_VERSION) {
-  fillDocVersionSelect(apiDocsVersionSelectNode, version, "api");
-  fillDocVersionSelect(mcpDocsVersionSelectNode, version, "mcp");
-}
-
-/** @deprecated use syncApiMcpDocVersionSelects */
-function syncAllDocVersionSelects(version = DEFAULT_DOC_VERSION) {
-  syncApiMcpDocVersionSelects(version);
-}
-
-async function fetchApiDocs(version, force = false) {
-  const v = normalizeDocVersionClient(version);
-  if (force) delete apiDocsCacheByVersion[v];
-  if (!apiDocsCacheByVersion[v]) {
-    const response = await fetch(`/api/docs?version=${encodeURIComponent(v)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    apiDocsCacheByVersion[v] = await response.json();
-  }
-  return apiDocsCacheByVersion[v];
-}
-
-function renderApiDocsModal(data) {
-  if (apiDocsTitleNode) apiDocsTitleNode.textContent = data.title || "HTTP API";
-  if (apiDocsSubtitleNode) {
-    const ver = data.version || apiDocsVersion;
-    const label = data.versionLabel ? ` · ${data.versionLabel}` : "";
-    apiDocsSubtitleNode.textContent = `${data.baseUrl || "/api"} · v${ver}${label} · ${(data.groups || []).length} разделов`;
-  }
-  if (apiDocsNotesNode) {
-    apiDocsNotesNode.innerHTML = (data.notes || []).map((note) => `<p>${escapeHtml(note)}</p>`).join("");
-  }
-  if (!apiDocsContentNode) return;
-  apiDocsContentNode.innerHTML = "";
-  const groups = data.groups || [];
-  groups.forEach((group, index) => {
-    const endpoints = group.endpoints || [];
-    const accordion = document.createElement("details");
-    accordion.className = "api-docs-accordion";
-    accordion.open = false;
-    accordion.dataset.apiDocsGroup = String(group.title || "").toLowerCase();
-
-    const summary = document.createElement("summary");
-    summary.className = "api-docs-accordion-summary";
-
-    const titleSpan = document.createElement("span");
-    titleSpan.className = "api-docs-group-title";
-    titleSpan.textContent = group.title || "";
-
-    const countSpan = document.createElement("span");
-    countSpan.className = "api-docs-accordion-count";
-    countSpan.textContent = String(endpoints.length);
-
-    summary.append(titleSpan, countSpan);
-
-    const body = document.createElement("div");
-    body.className = "api-docs-accordion-body";
-    for (const endpoint of endpoints) {
-      body.appendChild(createApiDocsEndpointNode(endpoint));
-    }
-
-    accordion.append(summary, body);
-    apiDocsContentNode.appendChild(accordion);
-  });
-  window.resetApiDocsSearch?.();
-}
-
-async function openApiDocsModal() {
-  if (!apiDocsModalNode) return;
-  try {
-    await ensureEditorSecondaryPanelsLoaded().catch(() => {});
-    window.resetApiDocsSearch?.();
-    await fetchDocsMeta();
-    apiDocsVersion = DEFAULT_DOC_VERSION;
-    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
-    renderApiDocsModal(await fetchApiDocs(DEFAULT_DOC_VERSION));
-    apiDocsModalNode.classList.remove("hidden");
-  } catch (error) {
-    showToast(`Не удалось загрузить API docs: ${error.message}`, "error");
-  }
-}
-
-function closeApiDocsModal() {
-  apiDocsModalNode?.classList.add("hidden");
-}
-
-function createMcpDocsToolNode(tool) {
-  const node = document.createElement("article");
-  node.className = "api-docs-endpoint mcp-docs-tool";
-
-  const headNode = document.createElement("div");
-  headNode.className = "api-docs-endpoint-head";
-
-  const badgeNode = document.createElement("span");
-  badgeNode.className = "api-docs-method api-docs-method-mcp";
-  badgeNode.textContent = "TOOL";
-
-  const nameNode = document.createElement("code");
-  nameNode.className = "api-docs-path";
-  nameNode.textContent = tool.name || "";
-
-  headNode.append(badgeNode, nameNode);
-
-  const descNode = document.createElement("p");
-  descNode.className = "api-docs-desc";
-  descNode.textContent = tool.description || "";
-
-  const metaNode = document.createElement("div");
-  metaNode.className = "api-docs-meta";
-
-  const paramsRow = document.createElement("div");
-  paramsRow.innerHTML = "<strong>Parameters:</strong> ";
-  const paramsCode = document.createElement("code");
-  paramsCode.textContent = tool.parameters || "—";
-  paramsRow.appendChild(paramsCode);
-  metaNode.appendChild(paramsRow);
-
-  if (tool.http) {
-    const httpRow = document.createElement("div");
-    httpRow.innerHTML = "<strong>HTTP:</strong> ";
-    const httpCode = document.createElement("code");
-    httpCode.textContent = tool.http;
-    httpRow.appendChild(httpCode);
-    metaNode.appendChild(httpRow);
-  }
-
-  node.append(headNode, descNode, metaNode);
-  node.dataset.apiDocsSearch = [tool.name, tool.description, tool.parameters, tool.http].filter(Boolean).join(" ").toLowerCase();
-  return node;
-}
-
-function renderMcpDocsModal(data) {
-  if (mcpDocsTitleNode) mcpDocsTitleNode.textContent = data.title || "MCP Server";
-  if (mcpDocsSubtitleNode) {
-    const ver = data.version || mcpDocsVersion;
-    const label = data.versionLabel ? ` · ${data.versionLabel}` : "";
-    const parts = [`v${ver}${label}`, data.subtitle, data.packagePath].filter(Boolean);
-    mcpDocsSubtitleNode.textContent = parts.join(" · ");
-  }
-  if (mcpDocsNotesNode) {
-    mcpDocsNotesNode.innerHTML = (data.notes || []).map((note) => `<p>${escapeHtml(note)}</p>`).join("");
-  }
-  if (mcpDocsConfigNode) {
-    let handoff = String(data.configHandoff || "").trim();
-    if (!handoff && data.cursorConfig) {
-      const example = data.cursorConfigExample || {
-        mcpServers: {
-          "agent-cms": data.cursorConfig
-        }
-      };
-      const cmsBaseUrl = String(data.cmsBaseUrl || data.cursorConfig?.env?.AGENT_CMS_BASE_URL || "").trim();
-      handoff = [
-        "Задача: подключить MCP Agent CMS в Claude Desktop или Cursor.",
-        "",
-        cmsBaseUrl ? `1. Agent CMS должен быть запущен (${cmsBaseUrl}).` : "1. Agent CMS должен быть запущен.",
-        "2. AGENT_CMS_AGENT в env НЕ добавляй — agentId выбирается в каждом чате (list_workspaces).",
-        "3. Вставь JSON ниже в конфиг MCP (Cursor / Claude Desktop).",
-        "   Замени <ABS_PATH> на абсолютный путь к корню репозитория YamlCMS на машине.",
-        "",
-        JSON.stringify(example, null, 2),
-        "",
-        "4. Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → тот же agentId во всех tools."
-      ].join("\n");
-    }
-    if (handoff) {
-      mcpDocsConfigNode.textContent = handoff;
-      mcpDocsConfigNode.dataset.mode = "handoff";
-      mcpDocsConfigNode.setAttribute(
-        "aria-label",
-        "Скопируй агенту: подключение MCP и JSON конфиг"
-      );
-      mcpDocsConfigNode.classList.remove("hidden");
-    } else if (data.cursorConfig) {
-      const example = data.cursorConfigExample || {
-        mcpServers: {
-          "agent-cms": data.cursorConfig
-        }
-      };
-      mcpDocsConfigNode.textContent = JSON.stringify(example, null, 2);
-      mcpDocsConfigNode.dataset.mode = "json";
-      mcpDocsConfigNode.setAttribute("aria-label", "Пример конфигурации Cursor");
-      mcpDocsConfigNode.classList.remove("hidden");
-    } else {
-      mcpDocsConfigNode.classList.add("hidden");
-    }
-  }
-  if (!mcpDocsContentNode) return;
-  mcpDocsContentNode.innerHTML = "";
-  for (const group of data.groups || []) {
-    const tools = group.tools || [];
-    const accordion = document.createElement("details");
-    accordion.className = "api-docs-accordion";
-    accordion.open = false;
-    accordion.dataset.apiDocsGroup = String(group.title || "").toLowerCase();
-
-    const summary = document.createElement("summary");
-    summary.className = "api-docs-accordion-summary";
-
-    const titleSpan = document.createElement("span");
-    titleSpan.className = "api-docs-group-title";
-    titleSpan.textContent = group.title || "";
-
-    const countSpan = document.createElement("span");
-    countSpan.className = "api-docs-accordion-count";
-    countSpan.textContent = String(tools.length);
-
-    summary.append(titleSpan, countSpan);
-
-    const body = document.createElement("div");
-    body.className = "api-docs-accordion-body";
-    for (const tool of tools) {
-      body.appendChild(createMcpDocsToolNode(tool));
-    }
-
-    accordion.append(summary, body);
-    mcpDocsContentNode.appendChild(accordion);
-  }
-  window.resetMcpDocsSearch?.();
-}
-
-async function fetchMcpDocs(version, force = false) {
-  const v = normalizeDocVersionClient(version);
-  if (force) delete mcpDocsCacheByVersion[v];
-  if (!mcpDocsCacheByVersion[v]) {
-    const response = await fetch(`/api/mcp-docs?version=${encodeURIComponent(v)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    mcpDocsCacheByVersion[v] = await response.json();
-  }
-  return mcpDocsCacheByVersion[v];
-}
-
-async function openMcpDocsModal() {
-  if (!mcpDocsModalNode) return;
-  try {
-    window.resetMcpDocsHelpView?.();
-    window.resetMcpDocsSearch?.();
-    await fetchDocsMeta();
-    mcpDocsVersion = DEFAULT_DOC_VERSION;
-    syncAllDocVersionSelects(DEFAULT_DOC_VERSION);
-    renderMcpDocsModal(await fetchMcpDocs(DEFAULT_DOC_VERSION, true));
-    mcpDocsModalNode.classList.remove("hidden");
-  } catch (error) {
-    showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");
-  }
-}
-
-function closeMcpDocsModal() {
-  window.resetMcpDocsHelpView?.();
-  mcpDocsModalNode?.classList.add("hidden");
-}
-
 async function openMdShowcaseModal() {
   if (!mdShowcaseModalNode || !mdShowcaseContentNode) return;
   try {
@@ -135929,113 +135560,6 @@ function closeComponentsIdeasModal() {
   componentsIdeasModalNode?.classList.add("hidden");
 }
 
-async function fetchUserDocsIndex(force = false) {
-  if (userDocsIndexCache && !force) return userDocsIndexCache;
-  const response = await fetch("/api/user-docs-index", { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  userDocsIndexCache = await response.json();
-  return userDocsIndexCache;
-}
-
-function readStoredUserGuidePath() {
-  try {
-    return String(localStorage.getItem(USER_GUIDE_STORAGE_KEY) || "").trim();
-  } catch {
-    return "";
-  }
-}
-
-function storeUserGuidePath(relPath) {
-  try {
-    localStorage.setItem(USER_GUIDE_STORAGE_KEY, String(relPath || "").trim());
-  } catch {
-    /* ignore */
-  }
-}
-
-function resolveUserGuidePath(index, preferred = "") {
-  const guides = index?.guides || [];
-  if (!guides.length) return "";
-  const candidates = [
-    String(preferred || "").trim(),
-    readStoredUserGuidePath(),
-    String(index.defaultPath || "").trim()
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if (guides.some((guide) => guide.path === candidate)) return candidate;
-  }
-  return guides[0].path;
-}
-
-function fillUserDocsGuideSelect(selectNode, index, selectedPath = "") {
-  if (!selectNode) return;
-  const guides = index?.guides || [];
-  selectNode.replaceChildren();
-  for (const guide of guides) {
-    const option = document.createElement("option");
-    option.value = guide.path;
-    option.textContent = guide.label || guide.awnName || guide.path;
-    if (guide.path === selectedPath) option.selected = true;
-    selectNode.appendChild(option);
-  }
-}
-
-async function fetchUserGuideMarkdown(relPath, force = false) {
-  const path = String(relPath || "").trim();
-  if (!path) throw new Error("Не выбран документ");
-  if (force) delete userDocsCacheByPath[path];
-  if (!userDocsCacheByPath[path]) {
-    const response = await fetch(`/api/user-docs?path=${encodeURIComponent(path)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    userDocsCacheByPath[path] = await response.text();
-  }
-  return userDocsCacheByPath[path];
-}
-
-function syncUserDocsSubtitleForGuide(index, relPath) {
-  if (!userDocsSubtitleNode) return;
-  const guide = (index?.guides || []).find((entry) => entry.path === relPath);
-  userDocsSubtitleNode.textContent = guide
-    ? `Agent CMS · ${guide.awnName}`
-    : "Agent CMS · руководства";
-}
-
-async function loadUserGuideIntoModal(relPath, index, { force = false } = {}) {
-  const path = resolveUserGuidePath(index, relPath);
-  if (!path || !userDocsContentNode) throw new Error("Нет доступных руководств");
-  userDocsSelectedPath = path;
-  storeUserGuidePath(path);
-  fillUserDocsGuideSelect(userDocsVersionSelectNode, index, path);
-  syncUserDocsSubtitleForGuide(index, path);
-  setMarkdownPreviewHtml(
-    userDocsContentNode,
-    await fetchUserGuideMarkdown(path, force),
-    buildDocumentationMarkdownPreviewOptions(path)
-  );
-}
-
-async function applyDocVersionChange(version) {
-  const v = normalizeDocVersionClient(version);
-  syncAllDocVersionSelects(v);
-  apiDocsVersion = v;
-  mcpDocsVersion = v;
-}
-
-async function openUserDocsModal() {
-  if (!userDocsModalNode || !userDocsContentNode) return;
-  try {
-    const index = await fetchUserDocsIndex();
-    await loadUserGuideIntoModal(userDocsSelectedPath, index);
-    userDocsModalNode.classList.remove("hidden");
-  } catch (error) {
-    showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
-  }
-}
-
-function closeUserDocsModal() {
-  userDocsModalNode?.classList.add("hidden");
-}
-
 async function openBestPracticesModal() {
   if (!bestPracticesModalNode || !bestPracticesContentNode) return;
   try {
@@ -136075,31 +135599,8 @@ componentsIdeasModalNode?.addEventListener("click", (event) => {
   if (event.target === componentsIdeasModalNode) closeComponentsIdeasModal();
 });
 
-function openAgentCmsDocsApp(view = "guides") {
-  closeHeaderProfileMenu();
-  const safe = String(view || "guides").trim().toLowerCase();
-  const v = safe === "api" || safe === "mcp" ? safe : "guides";
-  const url = `/app-docs/?view=${encodeURIComponent(v)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
 userDocsBtn?.addEventListener("click", () => {
   openAgentCmsDocsApp("guides");
-});
-userDocsVersionSelectNode?.addEventListener("change", () => {
-  void (async () => {
-    try {
-      const index = await fetchUserDocsIndex();
-      const path = String(userDocsVersionSelectNode?.value || "").trim();
-      await loadUserGuideIntoModal(path, index, { force: true });
-    } catch (error) {
-      showToast(`Не удалось загрузить документацию: ${error.message}`, "error");
-    }
-  })();
-});
-userDocsCloseBtn?.addEventListener("click", closeUserDocsModal);
-userDocsModalNode?.addEventListener("click", (event) => {
-  if (event.target === userDocsModalNode) closeUserDocsModal();
 });
 
 bestPracticesBtn?.addEventListener("click", () => {
@@ -136117,22 +135618,6 @@ apiDocsBtn?.addEventListener("click", () => {
 
 agentAwnTypesBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("awn-types");
-});
-
-apiDocsVersionSelectNode?.addEventListener("change", () => {
-  void (async () => {
-    try {
-      const version = getSelectedDocVersion(apiDocsVersionSelectNode);
-      await applyDocVersionChange(version);
-      renderApiDocsModal(await fetchApiDocs(version, true));
-    } catch (error) {
-      showToast(`Не удалось загрузить API docs: ${error.message}`, "error");
-    }
-  })();
-});
-apiDocsCloseBtn?.addEventListener("click", closeApiDocsModal);
-apiDocsModalNode?.addEventListener("click", (event) => {
-  if (event.target === apiDocsModalNode) closeApiDocsModal();
 });
 
 mcpDocsBtn?.addEventListener("click", () => {
@@ -136170,21 +135655,6 @@ menuAgentStatsEnvOverlayNode?.addEventListener("click", (event) => {
 webSiteBtn?.addEventListener("click", closeHeaderProfileMenu);
 appLockLogoutBtn?.addEventListener("click", closeHeaderProfileMenu);
 document.getElementById("header-app-lock-logout-btn")?.addEventListener("click", closeHeaderProfileMenu);
-mcpDocsVersionSelectNode?.addEventListener("change", () => {
-  void (async () => {
-    try {
-      const version = getSelectedDocVersion(mcpDocsVersionSelectNode);
-      await applyDocVersionChange(version);
-      renderMcpDocsModal(await fetchMcpDocs(version, true));
-    } catch (error) {
-      showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");
-    }
-  })();
-});
-mcpDocsCloseBtn?.addEventListener("click", closeMcpDocsModal);
-mcpDocsModalNode?.addEventListener("click", (event) => {
-  if (event.target === mcpDocsModalNode) closeMcpDocsModal();
-});
 
 agentsRegistryModalNode?.addEventListener("click", (event) => {
   const sortBtn = event.target.closest(".agents-registry-sort-btn");

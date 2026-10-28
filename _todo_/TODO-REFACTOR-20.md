@@ -2,11 +2,29 @@
 
 😊😊😊😊 Пиши туда в самом начале
 
-**Статус:** 🟡 идея (2026-10-28) — не начато
+**Статус:** 🟡 код boot/docs в основном готов; замеры, prod bundle и регрессии — нет (2026-10-28)
 
 **Связь:** продолжение по смыслу [REFACTOR-14](TODO-REFACTOR-14.md) (boot, lazy, slices `main.js`), но **фокус на двух маршрутах UI** — landing `/` и **внутренние** экраны workspace (дерево, редактор записи, слоты, панели). Общий пункт в [_todo_/TODO.md](TODO.md): «Оптимизация … JS, главная и страницы редактирования».
 
 **Чат Cursor:** `<!-- uuid при старте работы -->`
+
+---
+
+## ✅ Готово
+
+- **A** — `/api/health`, docs-meta только в app-docs + кэш; app-docs (`public/docs/`, `/app-docs`); модалки/docs JS/CSS вырезаны из editor; профиль → справочник
+- **C** — landing chunk + modulepreload только на `/`; workspace F5 без eager `landing-chunk-boot`; graph/map lazy по view
+- **D (boot)** — `loadLandingAgentsGroups` только на landing; workspace: defer postMain/secondary/comfort; menu panels по demand (`REFACTOR-20-phase-d.md`)
+- **B (auto)** — `docs/REFACTOR-20-baseline.md`, `check:refactor-20`, devtools-steps, status
+
+## ⏳ Доделать (кратко)
+
+1. **B** — DevTools Performance + Coverage на F5 `/` и workspace; таблицы в baseline
+2. **A хвост** — preview картинок в app-docs guides; `build:editor` → `main.built.js`; `APP_LOCK_APPS` для docs при необходимости
+3. **D хвост** — slices `main.js` (REFACTOR-14 P1); правая панель слотов async (TODO.md)
+4. **Prod** — smoke `?editorBuilt=1` на `/` и workspace; gzip main/core после slices
+5. **Регрессии** — `check:editor-boot`; ручной smoke (save, режимы, preview, file-hub)
+6. **Критерии** — цифры baseline + подтверждение меньше unused JS + smoke dev/prod без регрессий
 
 ---
 
@@ -31,11 +49,10 @@
 | **Почему это странно** | Health-check **привязан к «тяжёлому» API**: на каждый вызов для **каждой** версии доков (`0.0.0`…`0.0.2`) грузятся `docs/api-*.js` + `docs/mcp-*.js` и **пересчитываются** все endpoint/tool counts — даже если пользователь **никогда** не открывал панель документации. |
 | **Где ещё** | `connection-status` в prod-entry (`editor-entry.js`) и lazy loader — баннер «сервер не отвечает», патч `window.fetch` на `/api/*`. |
 
-**Решение (обсудить, не сделано):**
+**Решение:**
 
-- [ ] Вынести лёгкий **`GET /api/health`** или **`/api/ping`** → `{ ok: true }` (или reuse существующий минимальный route, если есть).
-- [ ] Переключить `connection-status.js` на него; **`/api/docs-meta`** оставить только для UI справки (по открытию панели docs).
-- [ ] Опционально: кэшировать counts в `getDocsMeta()` / не считать на каждый GET.
+- [x] **`GET /api/health`**; `connection-status.js` переключён.
+- [x] **`/api/docs-meta`** — только app-docs; кэш counts в `getDocsMeta()`.
 
 ---
 
@@ -66,12 +83,13 @@ GET /api/health               → connection-status в editor (без docs-meta)
 
 **Чеклист (когда пойдём в код):**
 
-- [ ] `public/docs/` — лёгкий shell, свой CSS, search, версии
-- [ ] `lib/platform/platform-apps.js` — `appId: "docs"`, `publicPath: "/app-docs"`, `showInEditorDropdown: true`
-- [ ] Убрать modals + handlers из editor; кнопки → `/app-docs/?view=…`
-- [ ] Вынести `api-docs-ui.js`, `mcp-docs-primitives-help.js`, логику из `main.js`
-- [ ] Убрать `fetchDocsMeta()` с boot editor; health — п.1
+- [x] `public/docs/` — shell, CSS, search, версии
+- [x] `platform-apps.js` — `docs` / `/app-docs`
+- [x] Modals + ~17 KB JS + CSS api-docs вырезаны из editor; кнопки → app-docs
+- [x] Удалены `api-docs-ui.js`, `mcp-docs-primitives-help.js`
 - [ ] `APP_LOCK_APPS` — при необходимости `docs`
+- [ ] app-docs: preview картинок в guides как в editor (A6)
+- [ ] `npm run build:editor` — обновить `main.built.js` для prod
 
 ---
 
@@ -95,21 +113,22 @@ GET /api/health               → connection-status в editor (без docs-meta)
 ```
 REFACTOR-20
 │
-├── Фаза 0 — baseline по двум URL
-│   ├── Performance trace: F5 `/` и F5 типичный workspace (Scripting / Parse / LCP)
-│   ├── Coverage: % unused JS на landing vs внутренней
-│   └── Таблица «до» в docs/REFACTOR-20-baseline.md (создать при старте)
+├── Фаза B — baseline по двум URL
+│   ├── [x] `docs/REFACTOR-20-baseline.md` + `check:refactor-20` + devtools-steps
+│   ├── [ ] Performance trace: F5 `/` и workspace (Scripting / Parse / LCP) — вручную
+│   └── [ ] Coverage: % unused JS — вручную
 │
-├── Фаза 1 — главная
-│   ├── Проверить, что landing-* только на `/` (import() / loader guards)
-│   ├── Отложить graph/agent-map до явного режима
-│   └── Убрать лишние sync-скрипты из index для landing-only пути (если останутся)
+├── Фаза C — главная `/`
+│   ├── [x] `editor-boot-route.js` — landing-chunk boot + modulepreload только на `/`
+│   ├── [x] workspace F5 (`/0-ws-*`) — main.js без eager `landing-chunk-boot`
+│   └── [x] graph/map — уже `renderWorkspaceGraphViewLazy` по view (map/graph/…)
 │
-├── Фаза 2 — внутренняя страница
-│   ├── Route guard: не инициализировать landing при workspace route
-│   ├── Lazy: menu panels, comfort, document-viewer — только при открытии панели/файла
-│   ├── Дальнейшие slices из main (MODE_GROUPS, save/API, folder constants) — см. REFACTOR-14 P1
-│   └── Правая панель слотов: async + только заполненные (пересечение с TODO.md)
+├── Фаза D — внутренняя страница
+│   ├── [x] Route guard: `loadLandingAgentsGroups` только на landing route
+│   ├── [x] Workspace boot: defer postMain + secondary; comfort + menu panels lazy/async
+│   ├── [x] `docs/REFACTOR-20-phase-d.md`
+│   ├── [ ] Дальнейшие slices из main (MODE_GROUPS, save/API, folder constants) — REFACTOR-14 P1
+│   └── [ ] Правая панель слотов: async + только заполненные (TODO.md)
 │
 ├── Фаза 3 — prod
 │   ├── Smoke `?editorBuilt=1` на обоих маршрутах
@@ -124,11 +143,13 @@ REFACTOR-20
 
 ## ✅ Критерии «готово» (черновик)
 
-- [ ] F5 `/`: зафиксирован baseline Scripting/Parse; landing не тянет workspace-only модули.
-- [ ] F5 workspace: зафиксирован baseline; landing/graph не в critical path.
-- [ ] Coverage: снижение unused JS на обоих URL (целевые % — после фазы 0).
+- [x] F5 `/`: landing не тянет workspace-only модули в boot (фаза C).
+- [x] F5 workspace: landing/graph не в critical path boot (фазы C + D).
+- [ ] F5 `/` и workspace: **цифры** Scripting/Parse/LCP в baseline.
+- [ ] Coverage: снижение unused JS на обоих URL (целевые % — после замеров).
 - [ ] Smoke UI dev + prod built — без регрессий на главной и на редактировании записи.
-- [ ] Документ `docs/REFACTOR-20-baseline.md` + строка в `docs/REFACTOR-14-status.md` или отдельный `docs/REFACTOR-20-status.md`.
+- [x] `docs/REFACTOR-20-baseline.md`, `docs/REFACTOR-20-status.md`, `npm run check:refactor-20`
+- [ ] Таблицы Performance/Coverage в baseline заполнены (DevTools)
 
 ---
 
@@ -145,3 +166,7 @@ REFACTOR-20
 | Дата | Что сделано |
 |------|-------------|
 | 2026-10-28 | Создан файл REFACTOR-20, scope: главная + внутренние страницы editor |
+| 2026-10-28 | Фаза A: app-docs, health, modals/JS/CSS docs убраны из editor |
+| 2026-10-28 | Фаза B: baseline doc, check:refactor-20, devtools-steps, REFACTOR-20-status |
+| 2026-10-28 | Фаза C: editor-boot-route, условный landing boot в index.html |
+| 2026-10-28 | Фаза D: workspace boot defer postMain/secondary/comfort; landing groups guard |

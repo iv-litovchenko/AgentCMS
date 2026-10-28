@@ -66,6 +66,8 @@
     "build:editor:watch": "node scripts/build-editor.js --watch",
     "measure:editor": "node scripts/measure-editor-boot.js",
     "check:editor-boot": "node scripts/refactor-14-boot-check.js",
+    "check:refactor-20": "node scripts/refactor-20-baseline-check.js",
+    "check:refactor-20:offline": "node scripts/refactor-20-baseline-check.js --offline",
     "check:app-door": "node scripts/refactor-15-app-door-check.js",
     "check:app-door:offline": "node scripts/refactor-15-app-door-check.js --offline"
   },

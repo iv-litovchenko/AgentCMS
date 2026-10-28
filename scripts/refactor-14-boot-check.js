@@ -57,9 +57,7 @@ const DEFERRED_POST_MAIN = [
 const DEFERRED_SECONDARY = [
   "languagetool-panel.js",
   "file-find-bar.js",
-  "marker-blocks-preview.js",
-  "mcp-docs-primitives-help.js",
-  "api-docs-ui.js"
+  "marker-blocks-preview.js"
 ];
 
 const DEFERRED_SHELL = ["file-hub-queue-client.js", "connection-status.js"];
