@@ -63,6 +63,7 @@
 | 2026-10-28 | Demand-load bands, focus, NOTE, env, footer — `main.js` |
 | 2026-10-29 | Таблица со статусами ✅/🟡/⬜ |
 | 2026-10-29 | Avatar: `thumb=1` для media/file + workspace-preview; thumb cache на server |
+| 2026-10-29 | `workspace-stats` 1× + reload; git remote только sidebar/git view; menu markers — `hasGitSelf` |
 
 ## 🔗 Связано
 

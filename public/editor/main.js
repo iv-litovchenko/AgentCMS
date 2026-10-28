@@ -16749,8 +16749,6 @@ async function switchActiveAgent(nextAgentId) {
     if (hasCachedView) {
       currentMenuData = cachedMenu;
       syncAgentGitToolbarUi();
-      void prefetchAgentGitToolbarRepoState();
-      if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
     } else {
       syncAgentGitToolbarUi();
     }
@@ -16798,6 +16796,8 @@ async function switchActiveAgent(nextAgentId) {
           applyAgentWorkspaceCanvasUi();
         }
         agentFocusItemsLoadedAgentId = null;
+        menuAgentWorkspaceStatsCache = null;
+        menuAgentWorkspaceStatsAgentId = null;
         if (switchedAgentId !== activeWorkspaceId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
@@ -106981,8 +106981,6 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
     syncMenuPinBranchUi(agentId);
     ensureSidebarWorkspacePageIndexRow();
     syncAgentGitToolbarUi();
-    void prefetchAgentGitToolbarRepoState();
-    if (resolveActiveAgentWorkspaceGitRepo()) void refreshAgentGitRemoteIndicator();
   }
 
   enableMenuLinkDragSources(target);
@@ -107004,6 +107002,8 @@ let menuAgentStatsSeq = 0;
 let menuAgentStatsDeferTimer = 0;
 let menuAgentStorageSummaryCache = null;
 let menuAgentStorageSummarySeq = 0;
+let menuAgentWorkspaceStatsCache = null;
+let menuAgentWorkspaceStatsAgentId = null;
 let menuAgentStatsSummaryReloading = false;
 let menuSystemEnvironmentSeq = 0;
 const MENU_AGENT_INDEX_LAYER_LABELS = {
@@ -107855,7 +107855,7 @@ function scheduleMenuAgentStatsSync(menu = currentMenuData) {
   }, 120);
 }
 
-async function syncMenuAgentStats(menu = currentMenuData) {
+async function syncMenuAgentStats(menu = currentMenuData, options = {}) {
   if (!menuAgentStatsNode) return;
 
   if (!activeWorkspaceId) {
@@ -107863,9 +107863,24 @@ async function syncMenuAgentStats(menu = currentMenuData) {
     return;
   }
 
+  const force = Boolean(options.force);
   const seq = ++menuAgentStatsSeq;
   const counts = countAgentMenuNodes(menu);
   menuAgentStatsNode.classList.remove("hidden");
+
+  if (
+    !force &&
+    menuAgentWorkspaceStatsAgentId === activeWorkspaceId &&
+    menuAgentWorkspaceStatsCache
+  ) {
+    renderMenuAgentStatsContent({
+      counts,
+      workspace: menuAgentWorkspaceStatsCache,
+      summaryLine: menuAgentStorageSummaryCache?.summaryLine
+    });
+    return;
+  }
+
   renderMenuAgentStatsContent({ counts });
 
   try {
@@ -107877,6 +107892,10 @@ async function syncMenuAgentStats(menu = currentMenuData) {
       intakePromise
     ]);
     if (seq !== menuAgentStatsSeq) return;
+    if (workspace) {
+      menuAgentWorkspaceStatsCache = workspace;
+      menuAgentWorkspaceStatsAgentId = activeWorkspaceId;
+    }
     renderMenuAgentStatsContent({
       counts,
       workspace,
@@ -110912,6 +110931,11 @@ function syncAgentAwnTypesToolbarUi() {
   );
 }
 
+function openAgentGitWorkspaceView() {
+  void refreshAgentGitRemoteIndicator();
+  setAgentWorkspaceView("git");
+}
+
 function initAgentGitToolbar() {
   if (agentGitBtn) {
     mountAgentToolbarBtnIcon(agentGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
@@ -110923,20 +110947,10 @@ function initAgentGitToolbar() {
       sidebarGitBtn.dataset.gitToolbarBound = "1";
       sidebarGitBtn.addEventListener("click", () => {
         closeAgentsPickerPopover();
-        setAgentWorkspaceView("git");
+        openAgentGitWorkspaceView();
       });
     }
   }
-  if (!window.__agentGitRemoteCheckBound) {
-    window.__agentGitRemoteCheckBound = true;
-    window.addEventListener("focus", () => {
-      void refreshAgentGitRemoteIndicator();
-    });
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") void refreshAgentGitRemoteIndicator();
-    });
-  }
-  scheduleAgentGitRemoteCheck();
   syncAgentGitToolbarUi();
 }
 
@@ -121984,10 +121998,14 @@ function setupMenuStaticFooterGroup() {
       event.preventDefault();
       event.stopPropagation();
       if (reloadBtn.disabled || reloadBtn.classList.contains("is-loading")) return;
-      void refreshMenuAgentStorageSummary({
-        updatePopover: isMenuAgentStatsSummaryPopoverOpen(),
-        showReloadSpinner: true
-      });
+      menuAgentWorkspaceStatsCache = null;
+      void (async () => {
+        await refreshMenuAgentStorageSummary({
+          updatePopover: isMenuAgentStatsSummaryPopoverOpen(),
+          showReloadSpinner: true
+        });
+        await syncMenuAgentStats(currentMenuData, { force: true });
+      })();
       return;
     }
     const statsBtn = event.target.closest("#menu-agent-stats-open-btn");
@@ -136244,7 +136262,7 @@ window.addEventListener(
 syncSidebarNotePreviewAccordion();
 
 agentGitBtn?.addEventListener("click", () => {
-  setAgentWorkspaceView("git");
+  openAgentGitWorkspaceView();
 });
 
 agentLargeFilesBtn?.addEventListener("click", () => {
