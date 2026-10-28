@@ -7,12 +7,19 @@
 HTTP MCP через **`mcp-remote`** (URL из `.env`, Bearer если задан):
 
 ```bash
-agent-cms-cli mcp claude-desktop add --https   # https://127.0.0.1:3443/app-mcp (Mac)
-agent-cms-cli mcp claude-code add --http       # http://127.0.0.1:3000/app-mcp
+# add
+agent-cms-cli mcp claude-desktop add --https
+agent-cms-cli mcp claude-desktop add --http
+agent-cms-cli mcp claude-code add --https
+agent-cms-cli mcp claude-code add --http
 agent-cms-cli mcp codex add --https
+agent-cms-cli mcp codex add --http
+
+# remove
 agent-cms-cli mcp claude-desktop remove
 agent-cms-cli mcp claude-code remove
 agent-cms-cli mcp codex remove
+
 agent-cms-cli mcp status
 # add без флага — AGENT_CMS_PUBLIC_URL
 ```

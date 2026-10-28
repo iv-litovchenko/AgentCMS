@@ -686,16 +686,21 @@ npm run cms:desktop   # dev-окно без сборки
 **CLI — локальный коннектор (URL и токен из `.env`, после `agent-cms-cli start` те же строки в терминале):**
 
 ```bash
-# Mac Docker: HTTPS :3443 (mkcert) или HTTP :3000
+# add — Mac Docker: HTTPS :3443 (mkcert) или HTTP :3000
 agent-cms-cli mcp claude-desktop add --https   # приложение Claude (mcp-remote)
+agent-cms-cli mcp claude-desktop add --http
 agent-cms-cli mcp claude-code add --https      # Claude Code (терминал)
+agent-cms-cli mcp claude-code add --http
 agent-cms-cli mcp codex add --https
-agent-cms-cli mcp claude-code add --http       # без TLS, проще для CLI
-agent-cms-cli mcp claude-desktop remove      # убрать agent-cms-mac
-agent-cms-cli mcp claude-code remove         # убрать agent-cms
+agent-cms-cli mcp codex add --http
+
+# remove
+agent-cms-cli mcp claude-desktop remove      # agent-cms-mac
+agent-cms-cli mcp claude-code remove         # agent-cms
 agent-cms-cli mcp codex remove
+
 agent-cms-cli mcp status                       # PUBLIC / HTTPS / HTTP + mcp list
-# add без флага — AGENT_CMS_PUBLIC_URL из .env; своё имя: … remove my-name
+# add без флага — AGENT_CMS_PUBLIC_URL из .env; своё имя: … add|remove my-name
 ```
 
 **Cursor · другие HTTP-клиенты (канон — JSON / URL):**
