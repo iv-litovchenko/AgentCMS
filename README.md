@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="README.EN.md" title="English"><img src="docs/images/badges/badge-lang-en.svg" alt="English" height="28"></a>&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/badges/badge-lang-ru.svg" alt="Русский" height="28" title="Русский (текущий)">
+  <img src="docs/images/badges/badge-lang-ru-current.svg" alt="Русский" height="28" title="Русский (текущий)">
 </p>
 
 <p align="center">
