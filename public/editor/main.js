@@ -9286,6 +9286,7 @@ function openHeaderFocusPopover() {
   headerFocusPopoverNode.classList.remove("hidden");
   syncHeaderFocusButtonState();
   positionHeaderFocusPopover();
+  if (activeWorkspaceId) void loadAgentFocusItems(activeWorkspaceId);
 }
 
 function toggleHeaderFocusPopover() {
@@ -10013,10 +10014,13 @@ function buildAgentSliderMediaApiUrl(mediaFile, agentId = activeWorkspaceId) {
   const manifestPath =
     String(agentSliderCatalog.manifestPath || AGENT_SLIDER_MANIFEST_REF).trim() ||
     AGENT_SLIDER_MANIFEST_REF;
-  return buildApiUrl(
-    "/api/media/file",
-    { path: manifestPath, file: relFile, folder: STORAGE_SUBFOLDER_FILES },
-    agentId
+  return appendMediaThumbToApiUrl(
+    buildApiUrl(
+      "/api/media/file",
+      { path: manifestPath, file: relFile, folder: STORAGE_SUBFOLDER_FILES },
+      agentId
+    ),
+    MEDIA_THUMB_MAX_PREVIEW
   );
 }
 
@@ -12676,21 +12680,57 @@ async function loadGlobalFlowItems({ showLoading = false, force = false } = {}) 
   }
 }
 
-async function loadAgentFocusItems(agentId = activeWorkspaceId) {
+let agentFocusItemsInflight = null;
+let agentFocusItemsInflightAgentId = null;
+let agentFocusItemsLoadedAgentId = null;
+
+async function loadAgentFocusItems(agentId = activeWorkspaceId, options = {}) {
+  const force = Boolean(options.force);
   if (!agentId) {
     agentFocusItemsCache = [];
+    agentFocusItemsLoadedAgentId = null;
     renderAgentFocusPanels();
     return;
   }
-  try {
-    const response = await fetch(`/api/agents/focus?agent=${encodeURIComponent(agentId)}`);
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
-    agentFocusItemsCache = Array.isArray(data.items) ? data.items : [];
-  } catch {
-    agentFocusItemsCache = [];
+  if (
+    !force &&
+    agentFocusItemsLoadedAgentId === agentId &&
+    agentFocusItemsInflightAgentId !== agentId
+  ) {
+    renderAgentFocusPanels();
+    return;
   }
-  renderAgentFocusPanels();
+  if (agentFocusItemsInflight && agentFocusItemsInflightAgentId === agentId) {
+    return agentFocusItemsInflight;
+  }
+
+  agentFocusItemsInflightAgentId = agentId;
+  agentFocusItemsInflight = (async () => {
+    try {
+      const response = await fetch(`/api/agents/focus?agent=${encodeURIComponent(agentId)}`);
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      if (agentId !== activeWorkspaceId && agentId !== agentFocusItemsInflightAgentId) return;
+      agentFocusItemsCache = Array.isArray(data.items) ? data.items : [];
+      agentFocusItemsLoadedAgentId = agentId;
+    } catch {
+      if (agentId === activeWorkspaceId || agentId === agentFocusItemsInflightAgentId) {
+        agentFocusItemsCache = [];
+        agentFocusItemsLoadedAgentId = agentId;
+      }
+    } finally {
+      renderAgentFocusPanels();
+    }
+  })();
+
+  try {
+    await agentFocusItemsInflight;
+  } finally {
+    if (agentFocusItemsInflightAgentId === agentId) {
+      agentFocusItemsInflight = null;
+      agentFocusItemsInflightAgentId = null;
+    }
+  }
 }
 
 function isAppLandingViewActive() {
@@ -12705,7 +12745,7 @@ async function refreshAllFocusPanels() {
       tasks.push(loadGlobalFlowItems({ force: true }));
     }
   } else if (activeWorkspaceId) {
-    tasks.push(loadAgentFocusItems(activeWorkspaceId), loadGlobalMainItems({ force: true }));
+    tasks.push(loadAgentFocusItems(activeWorkspaceId, { force: true }), loadGlobalMainItems({ force: true }));
   }
   if (tasks.length) await Promise.all(tasks);
 }
@@ -16749,7 +16789,7 @@ async function switchActiveAgent(nextAgentId) {
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
         }
-        void syncAgentTodoPreview();
+        if (isSidebarNotePreviewExpanded()) void syncAgentTodoPreview();
         await refreshAgentSliderCatalog(true);
         if (switchedAgentId !== activeWorkspaceId) return;
         syncAgentPreview();
@@ -16757,16 +16797,12 @@ async function switchActiveAgent(nextAgentId) {
         if (isAgentWorkspaceCanvasVisible()) {
           applyAgentWorkspaceCanvasUi();
         }
-        if (!isAppLandingViewActive()) {
-          void loadAgentFocusItems(switchedAgentId);
-        }
+        agentFocusItemsLoadedAgentId = null;
         if (switchedAgentId !== activeWorkspaceId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
         void loadAppFooterIdeasPreview();
-        refreshMenuAgentStaticSummaries(switchedAgentId);
-        window.AwnDashboards?.refreshMenuStats?.(switchedAgentId);
-        window.WorkspaceIndexPanel?.refreshStatus?.();
+        scheduleVisibleMenuAgentStaticSummaries(switchedAgentId);
       } catch (error) {
         console.warn("switchActiveAgent background load failed", error);
       }
@@ -17475,15 +17511,10 @@ async function openWorkspaceStorageTopic() {
 function finalizeRegistryAgentPreviewUrl(url, agent) {
   if (!url || !agent?.id) return url;
   let withAgent = appendAgentToApiUrl(url, agent.id);
-  const isDirectMediaFile =
-    withAgent.includes("/api/media/file") && !/[?&]thumb=1(?:&|$)/.test(withAgent);
-  if (isDirectMediaFile || isWorkspaceAgentPreviewApiUrl(withAgent)) {
-    if (isWorkspaceAgentPreviewApiUrl(withAgent)) {
-      withAgent = stripMediaThumbFromApiUrl(withAgent);
-    }
-  } else {
-    withAgent = appendMediaThumbToApiUrl(withAgent, MEDIA_THUMB_MAX_AVATAR);
-  }
+  withAgent = appendMediaThumbToApiUrl(
+    isWorkspaceAgentPreviewApiUrl(withAgent) ? stripMediaThumbFromApiUrl(withAgent) : withAgent,
+    MEDIA_THUMB_MAX_AVATAR
+  );
   return appendCacheBuster(withAgent, resolveAgentPreviewCacheToken(agent));
 }
 
@@ -107811,9 +107842,16 @@ function scheduleMenuAgentStatsSync(menu = currentMenuData) {
   if (menuAgentStatsDeferTimer) {
     window.clearTimeout(menuAgentStatsDeferTimer);
   }
-  menuAgentStatsDeferTimer = window.setTimeout(() => {
+  const run = () => {
     menuAgentStatsDeferTimer = 0;
     void syncMenuAgentStats(menu);
+  };
+  menuAgentStatsDeferTimer = window.setTimeout(() => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => run(), { timeout: 2000 });
+    } else {
+      run();
+    }
   }, 120);
 }
 
@@ -107826,16 +107864,17 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   }
 
   const seq = ++menuAgentStatsSeq;
-  menuAgentStorageSummaryCache = null;
   const counts = countAgentMenuNodes(menu);
   menuAgentStatsNode.classList.remove("hidden");
-  renderMenuAgentStatsContent({ counts, loading: true });
-  syncMenuSystemEnvironment();
+  renderMenuAgentStatsContent({ counts });
 
   try {
-    const [workspace, intakeTotals] = await Promise.all([
+    const intakePromise = isMenuAwnChannelsBandExpanded()
+      ? refreshMenuIntakeSummary(menu, activeWorkspaceId).catch(() => null)
+      : Promise.resolve(null);
+    const [workspace] = await Promise.all([
       fetchAgentWorkspaceStats().catch(() => null),
-      refreshMenuIntakeSummary(menu, activeWorkspaceId).catch(() => null)
+      intakePromise
     ]);
     if (seq !== menuAgentStatsSeq) return;
     renderMenuAgentStatsContent({
@@ -118835,8 +118874,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   syncAppHomeButton();
   updateBreadcrumbsForActiveMode();
   applyAgentWorkspaceCanvasUi();
-  void loadAgentFocusItems();
-  void syncAgentTodoPreview();
+  if (isSidebarNotePreviewExpanded()) void syncAgentTodoPreview();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
 }
@@ -120152,9 +120190,9 @@ function isMenuAwnDataBandExpanded() {
     const saved = localStorage.getItem(MENU_AWN_DATA_BAND_OPEN_KEY);
     if (saved === "0") return false;
     if (saved === "1") return true;
-    return true;
+    return false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -120163,9 +120201,9 @@ function isMenuStaticFooterExpanded() {
     const saved = localStorage.getItem(MENU_STATIC_FOOTER_OPEN_KEY);
     if (saved === "0") return false;
     if (saved === "1") return true;
-    return true;
+    return false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -120309,7 +120347,10 @@ function applySidebarNotePreviewExpanded(expanded, { persist = true } = {}) {
     }
   }
   syncSidebarNotePreviewAccordion();
-  if (expanded) scheduleAgentTodoPreviewExpandSync();
+  if (expanded) {
+    scheduleAgentTodoPreviewExpandSync();
+    void syncAgentTodoPreview();
+  }
 }
 
 function applyMenuTreeBandExpanded(expanded, { persist = true } = {}) {
@@ -120419,6 +120460,7 @@ function setMenuAwnDataBandExpanded(expanded) {
   }
   syncMenuAwnDataBandAccordionUi();
   syncSidebarBottomFocusMode();
+  if (expanded) void refreshMenuAwnDataStores(activeWorkspaceId, { showLoading: false });
 }
 
 function toggleMenuAwnDataBandExpanded() {
@@ -120544,9 +120586,9 @@ function isMenuRepositoriesBandExpanded() {
     const saved = localStorage.getItem(MENU_REPOSITORIES_BAND_OPEN_KEY);
     if (saved === "0") return false;
     if (saved === "1") return true;
-    return true;
+    return false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -120608,6 +120650,10 @@ function setMenuStaticFooterExpanded(expanded) {
   }
   syncMenuStaticFooterAccordionUi();
   syncSidebarBottomFocusMode();
+  if (expanded) {
+    void ensureEditorMenuPanelsUi();
+    refreshMenuAgentStaticSummaries(activeWorkspaceId, { staticFooterOnly: true });
+  }
 }
 
 function toggleMenuStaticFooterExpanded() {
@@ -120758,7 +120804,10 @@ function setMenuAwnChannelsBandExpanded(expanded) {
   }
   applyMenuAwnChannelsBandExpanded(expanded);
   syncSidebarBottomFocusMode();
-  if (expanded) void refreshMenuAwnChannels();
+  if (expanded) {
+    void refreshMenuAwnChannels();
+    void refreshMenuIntakeSummary(currentMenuData, activeWorkspaceId);
+  }
 }
 
 function toggleMenuAwnChannelsBandExpanded() {
@@ -121813,15 +121862,18 @@ function setupMenuAwnDataIndexRow() {
       });
   });
 
-  void probeAwnDataIndexExists().then((exists) => {
-    if (!menuAwnDataIndexRowNode?.isConnected) return;
-    menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
-    syncMenuAwnDataIndexRowState();
-  });
+  if (isMenuAwnDataBandExpanded()) {
+    void probeAwnDataIndexExists().then((exists) => {
+      if (!menuAwnDataIndexRowNode?.isConnected) return;
+      menuAwnDataIndexRowNode.dataset.awnDatabaseHasIndex = exists ? "1" : "0";
+      syncMenuAwnDataIndexRowState();
+    });
+  }
 }
 
 function setupMenuMediaLibraryBandGroup() {
   syncMenuMediaLibraryBandAccordionUi();
+  if (isMenuMediaLibraryBandExpanded()) void refreshMenuMediaLibraries();
   menuMediaLibraryBandToggleBtn?.addEventListener("click", () => {
     toggleMenuMediaLibraryBandExpanded();
   });
@@ -121843,6 +121895,7 @@ function setupMenuAwnScriptsBandGroup() {
 
 function setupMenuRepositoriesBandGroup() {
   syncMenuRepositoriesBandAccordionUi();
+  if (isMenuRepositoriesBandExpanded()) void refreshMenuRepositories();
   menuRepositoriesBandToggleBtn?.addEventListener("click", () => {
     toggleMenuRepositoriesBandExpanded();
   });
@@ -121869,6 +121922,9 @@ function setupMenuAwnDataBandGroup() {
   syncMenuAwnDataBandAccordionUi();
   syncSidebarBottomFocusMode();
   setupMenuAwnDataIndexRow();
+  if (isMenuAwnDataBandExpanded()) {
+    void refreshMenuAwnDataStores(activeWorkspaceId, { showLoading: false });
+  }
   menuAwnDataBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnDataBandExpanded();
   });
@@ -121984,7 +122040,6 @@ function setupMenuStaticFooterGroup() {
     closeMenuAgentStatsSummaryPopover();
     toggleMenuAgentStatsEnvPopover();
   });
-  refreshMenuAgentStaticSummaries();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
@@ -121992,7 +122047,7 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
   setupMenuAwnBackupUi();
-  void ensureEditorMenuPanelsUi();
+  scheduleVisibleMenuAgentStaticSummaries();
 }
 
 function setupWorkspaceIndexPanelUi() {
@@ -133508,17 +133563,41 @@ async function refreshMenuAwnDataStores(agentId = activeWorkspaceId, { showLoadi
   }
 }
 
-function refreshMenuAgentStaticSummaries(agentId = activeWorkspaceId) {
+function scheduleVisibleMenuAgentStaticSummaries(agentId = activeWorkspaceId) {
+  const run = () => refreshMenuAgentStaticSummaries(agentId);
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => run(), { timeout: 2500 });
+  } else {
+    window.setTimeout(() => run(), 400);
+  }
+}
+
+function refreshMenuAgentStaticSummaries(agentId = activeWorkspaceId, options = {}) {
   const scopedId = resolveAgentMenuStatsScope(agentId);
   if (!scopedId) return;
-  void refreshMenuGoogleDriveStats(scopedId);
-  void refreshMenuAwnDataStores(scopedId);
-  void refreshMenuRepositories(scopedId);
-  void refreshMenuMediaLibraries(scopedId);
-  void refreshMenuAwnChannels(scopedId);
-  void refreshMenuAwnDialogsStats(scopedId);
-  void refreshMenuAwnFactsStats(scopedId);
-  void refreshMenuAwnTempStats(scopedId);
+  const forceAll = Boolean(options.forceAll);
+  const staticFooterOnly = Boolean(options.staticFooterOnly);
+
+  if (staticFooterOnly) {
+    void refreshMenuGoogleDriveStats(scopedId);
+    void refreshMenuAwnDialogsStats(scopedId);
+    void refreshMenuAwnFactsStats(scopedId);
+    void refreshMenuAwnTempStats(scopedId);
+    return;
+  }
+
+  if (forceAll || isMenuAwnChannelsBandExpanded()) void refreshMenuAwnChannels(scopedId);
+  if (forceAll || isMenuAwnDataBandExpanded()) {
+    void refreshMenuAwnDataStores(scopedId, { showLoading: false });
+  }
+  if (forceAll || isMenuRepositoriesBandExpanded()) void refreshMenuRepositories(scopedId);
+  if (forceAll || isMenuMediaLibraryBandExpanded()) void refreshMenuMediaLibraries(scopedId);
+  if (forceAll || isMenuStaticFooterExpanded()) {
+    void refreshMenuGoogleDriveStats(scopedId);
+    void refreshMenuAwnDialogsStats(scopedId);
+    void refreshMenuAwnFactsStats(scopedId);
+    void refreshMenuAwnTempStats(scopedId);
+  }
 }
 
 async function refreshMenuGoogleDriveStats(agentId = activeWorkspaceId) {
@@ -135421,11 +135500,6 @@ async function init() {
     }
 
     await loadAgents();
-    if (isAgentWorkspaceSessionActive()) {
-      void ensureEditorMenuPanelsUi().then(() => {
-        window.WorkspaceIndexPanel?.refreshStatus?.();
-      });
-    }
     if (activeWorkspaceId) await loadUserSettingsForAgent(activeWorkspaceId).catch(() => {});
     const mountWorkspaceComfort = () => {
       setupWorkspaceIdleScreensaver();
@@ -135443,7 +135517,7 @@ async function init() {
     applyAgentGraphSettingsUi();
 
     if (activeWorkspaceId) {
-      void loadSystemFiles({ refreshNotePreview: true });
+      void loadSystemFiles({ refreshNotePreview: isSidebarNotePreviewExpanded() });
     }
 
     const bootRoute = parseAppRoute(location.pathname);
@@ -135459,10 +135533,6 @@ async function init() {
       await applyAppRouteFromUrl();
     } finally {
       resumeAppRouteSync();
-    }
-
-    if (activeWorkspaceId && !isAppLandingViewActive()) {
-      void loadAgentFocusItems(activeWorkspaceId);
     }
 
     syncAppRouteToUrl({ replace: true });
@@ -137877,12 +137947,11 @@ window.addEventListener("agentcms-open-agent-cms-settings-file", (event) => {
 });
 
 window.addEventListener("agentcms-system-files-changed", () => {
-  void loadSystemFiles({ refreshNotePreview: true });
+  void loadSystemFiles({ refreshNotePreview: isSidebarNotePreviewExpanded() });
 });
 
 initLiveFileSync();
 initNavPreviewHoverZoom();
-void syncMenuSystemEnvironment();
 
 if (!globalThis.__AGENTCMS_EDITOR_BUNDLE__) {
   globalThis.__agentCmsRunBoot();

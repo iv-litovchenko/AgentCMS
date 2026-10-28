@@ -123,6 +123,63 @@ GET /api/health               → connection-status в editor (без docs-meta)
 | Landing | `https://localhost:3000/` | shell, выбор workspace, лёгкий UI | orbit/flow/platform map, graph, RMM brain |
 | Внутренний | `/0-ws-test/…`, `/0-ws-core/…` | menu, routing, save, props base, connection | landing chunks, тяжёлый preview, mermaid, wysiwyg |
 
+---
+
+## Workspace F5 (`/ws-focus`, …) — «1 запрос · async · по demand»
+
+> **Чеклист реализации (✅/⬜):** [_todo_/TODO-REFACTOR-21.md](TODO-REFACTOR-21.md)
+
+**Принцип:** на boot workspace — только **critical path** (agents, **одно** дерево меню если нужно открыть CHPU, routing). Остальное: **один** fetch на блок, **после** первого кадра / **idle** / **при раскрытии** band или popover. Повторы — dedupe + кэш сессии. **Свернутые** band’ы и закрытые popover’ы — **0** запросов.
+
+### Header (toolbar)
+
+| UI | Целевой API | Когда грузить | Сейчас | Статус |
+|----|-------------|---------------|--------|--------|
+| **◎ Фокус** `#header-focus-toggle` | `GET /api/agents/focus?agent=…` | 1× при **первом** открытии popover (или idle после меню); badge count из кэша | часто с boot / дубли с sidebar focus | ⏳ |
+| **Индекс** `#header-index-toggle` | `GET /api/workspace-index/monitor` (+ policy/id по необходимости) | 1× при **открытии** popover; event `header-index-popover-open` | [x] не на landing; на workspace — только по popover | 🟡 проверить dedupe |
+| Git / share / прочие header tools | по фиче | только по клику | см. baseline | ⏳ |
+
+### Sidebar — верх (агент)
+
+| UI | Целевой API | Когда грузить | Сейчас | Статус |
+|----|-------------|---------------|--------|--------|
+| **`#agent-preview-thumb`** | 1 URL: `media/file` или `workspace-preview` (stable `t=`) | 1× после `agents`; не блокировать меню | [x] registry URL + lazy; слайдер — отдельно | 🟡 |
+| **NOTE / todo band** `#agent-todo-preview` | `GET /api/file` или system-files slice для `NOTE.md` | 1× если band **expanded** (или idle, если пользователь всегда открывает) | часто с boot | ⏳ |
+| **Темы (дерево)** `#menu-tree-band` | `GET /api/menu?agent=…` | 1× на вход в workspace (**critical** для навигации); refresh только по ⟲ | boot + refreshMenu цепочки | 🟡 coalesce |
+| **Мультиканальность** `#menu-awn-channels-band` | intake/summary API band’а | 0 на boot; 1× при **expand** или ⟲ | может тянуться с меню | ⏳ |
+
+### Sidebar — низ (bands)
+
+| UI | Целевой API | Когда грузить | Сейчас | Статус |
+|----|-------------|---------------|--------|--------|
+| **Статистика** `#menu-agent-stats` (63 тем · GB…) | storage/workspace summary | 1× **idle** или по `#menu-agent-stats-reload-btn`; не блокировать дерево | refresh при boot / несколько источников | ⏳ |
+| **О системе** env popover | env/manifest/meta (1 endpoint или bundle) | 1× при **открытии** popover | «Загрузка…» + возможные дубли | ⏳ |
+| **Накопители** `#menu-awn-databases-band` | catalog/summary DB band | 0 если свёрнут; 1× expand / ⟲ | refresh на boot | ⏳ |
+| **Медиатеки** `#menu-media-library-band` | media libraries catalog | 0 если свёрнут; 1× expand / ⟲ | refresh на boot | ⏳ |
+| **Репозитории** `#menu-repositories-band` | repos list API | 0 если свёрнут; 1× expand / ⟲ | skeleton «Загрузка…» на boot | ⏳ |
+| **Системные секции** `#menu-static-footer` | LanguageTool, index monitor, dashboards… | **0 на boot**; каждая секция — 1× при **expand** секции / footer | [x] index monitor не на landing; footer init тянет panels | 🟡 |
+
+### Voice / Shell (согласовано с Editor)
+
+| UI | Целевой API | Когда | Статус |
+|----|-------------|-------|--------|
+| Shell hero avatar | тот же registry preview URL | 1× при смене agent | [x] `agent-registry-preview-url.js` |
+
+### Что ещё легко забыть (workspace boot)
+
+| Область | Риск |
+|---------|------|
+| `loadSystemFiles` / `_registration` / buffer | лишние file API до открытия записи |
+| `loadAwnTypes`, taxonomies, field catalog | тяжёлые каталоги на boot |
+| `loadAgentFocusItems` + `refreshAllFocusPanels` | дубли focus/main с landing-логикой |
+| Agent **slider** catalog / playback | отдельно от одного avatar URL |
+| **Notifications** / channel **SSE** / intake poll | long-poll только в workspace session |
+| `settings-global`, **context-buffer** text | idle или по открытию панели |
+| **Git** toolbar (status/fetch) | по открытию git view или lazy |
+| **WorkspaceIndexPanel** / **AwnDashboards** | только expand / `ensureEditorMenuPanelsUi` при необходимости |
+| **Preview** записей (node, search, graph) | не путать с avatar; грузить при открытии темы |
+| Повтор **`/api/agents`** | после registry save — invalidate, не storm |
+
 Замеры и чеклисты наследуем из REFACTOR-14:
 
 - `npm run measure:editor`
@@ -193,3 +250,82 @@ REFACTOR-20
 | 2026-10-28 | Фаза B: baseline doc, check:refactor-20, devtools-steps, REFACTOR-20-status |
 | 2026-10-28 | Фаза C: editor-boot-route, условный landing boot в index.html |
 | 2026-10-28 | Фаза D: workspace boot defer postMain/secondary/comfort; landing groups guard |
+| 2026-10-29 | REFACTOR-21: demand-load sidebar в `main.js`; чеклист ниже |
+
+---
+
+## Workspace F5 — сводный чеклист (долгосрочно)
+
+> Реализация: [TODO-REFACTOR-21.md](TODO-REFACTOR-21.md). Легенда: **[x]** сделано · **[~]** частично · **[ ]** не сделано.
+
+### Кратко по блокам
+
+| Блок | Идея | Готово |
+|------|------|:------:|
+| Фокус (header) | 1× `focus?agent=` — async, первое открытие popover; dedupe кэш | [x] |
+| Avatar | 1× preview URL, не блокирует menu | [~] |
+| NOTE band | 1× file/system — только если band открыт | [x] |
+| Каналы / DB / медиа / repos | 0 на boot; 1× при expand или ⟲ | [x] |
+| Дерево тем | 1× `menu?agent=` — critical path; без лишних refresh | [~] |
+| Stats строка | 1× summary — idle или по reload | [~] |
+| Static footer | никаких LT/index/dashboard на boot | [x] |
+| Индекс (header) | 1× monitor bundle при popover | [x] |
+| О системе | 1× env/meta при открытии popover | [x] |
+| Shell hero avatar | тот же registry preview URL | [x] |
+
+### 1. Header
+
+| UI / API | Когда | Готово |
+|----------|-------|:------:|
+| **◎ Фокус** — `GET /api/agents/focus?agent=…` | первое открытие popover | [x] |
+| **Индекс** — `GET /api/workspace-index/monitor` (+ policy/id) | открытие popover | [x] |
+| Git / share / прочие header tools | по клику | [ ] |
+
+### 2. Sidebar — верх
+
+| UI / API | Когда | Готово |
+|----------|-------|:------:|
+| `#agent-preview-thumb` — 1 URL preview | после agents, lazy | [~] |
+| NOTE `#agent-todo-preview` — file / system-files | band expanded | [x] |
+| **Темы** `#menu-tree-band` — `GET /api/menu?agent=…` | 1× вход workspace; ⟲ без дублей | [~] |
+| **Каналы** `#menu-awn-channels-band` — intake/summary | 0 boot; expand / ⟲ | [x] |
+
+### 3. Sidebar — низ
+
+| UI / API | Когда | Готово |
+|----------|-------|:------:|
+| **Stats** `#menu-agent-stats` — workspace/storage summary | idle или reload btn | [~] |
+| **О системе** env popover — env/meta | открытие popover | [x] |
+| **DB** `#menu-awn-databases-band` — catalog | 0 если свёрнут; expand / ⟲ | [x] |
+| **Медиатеки** `#menu-media-library-band` — catalog | 0 если свёрнут; expand / ⟲ | [x] |
+| **Репозитории** `#menu-repositories-band` — list | 0 если свёрнут; expand / ⟲ | [x] |
+| **Static footer** `#menu-static-footer` — LT, index, dashboards | 0 boot; expand footer / секции | [x] |
+
+### 4. Voice / Shell
+
+| UI | Когда | Готово |
+|----|-------|:------:|
+| Shell hero avatar — `agent-registry-preview-url.js` | смена agent | [x] |
+
+### 5. Риски (легко забыть на workspace boot)
+
+| Область | Не на boot | Готово |
+|---------|------------|:------:|
+| `loadSystemFiles` / registration / context-buffer | file API до открытия записи | [~] |
+| `loadAwnTypes`, field/taxonomy каталоги | тяжёлые справочники | [~] |
+| Дубли focus — `loadAgentFocusItems` + panels | общий кэш / dedupe | [x] |
+| Agent slider catalog / playback | отдельно от thumb URL | [ ] |
+| Notifications / SSE / intake poll | только workspace session | [~] |
+| `settings-global`, pomodoro/screensaver | idle или по UI | [ ] |
+| Git toolbar status/fetch | не critical path | [ ] |
+| `ensureEditorMenuPanelsUi` | не при setup footer на boot | [x] |
+| Preview записей (search/graph/node) | при открытии темы | [ ] |
+| Повтор `/api/agents` после save registry | invalidate, не storm | [ ] |
+
+### Следующий шаг (из REFACTOR-21)
+
+| Задача | Готово |
+|--------|:------:|
+| Defer bands + focus кэш (channels/DB/media/repos/footer) | [x] |
+| Smoke F5 workspace — Network, свёрнутые bands = 0 запросов | [ ] |
+| Coalesce `refreshMenu` / дожать stats + system-files | [~] |

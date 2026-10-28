@@ -77,15 +77,10 @@ function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_AVATAR) {
 export function finalizeRegistryAgentPreviewUrl(url, agent) {
   if (!url || !agent?.id) return url;
   let withAgent = appendAgentToApiUrl(url, agent.id);
-  const isDirectMediaFile =
-    withAgent.includes("/api/media/file") && !/[?&]thumb=1(?:&|$)/.test(withAgent);
-  if (isDirectMediaFile || isWorkspaceAgentPreviewApiUrl(withAgent)) {
-    if (isWorkspaceAgentPreviewApiUrl(withAgent)) {
-      withAgent = stripMediaThumbFromApiUrl(withAgent);
-    }
-  } else {
-    withAgent = appendMediaThumbToApiUrl(withAgent, MEDIA_THUMB_MAX_AVATAR);
-  }
+  withAgent = appendMediaThumbToApiUrl(
+    isWorkspaceAgentPreviewApiUrl(withAgent) ? stripMediaThumbFromApiUrl(withAgent) : withAgent,
+    MEDIA_THUMB_MAX_AVATAR
+  );
   return appendCacheBuster(withAgent, resolveAgentPreviewCacheToken(agent));
 }
 

@@ -30892,7 +30892,8 @@ async function handleApiForAgent(req, res, url) {
       const thumb = wantsThumbVariant(url.searchParams);
       const sent = await sendImageFileResponse(res, fileAbsolute, {
         thumb,
-        thumbMax: clampThumbMax(url.searchParams.get("max"))
+        thumbMax: clampThumbMax(url.searchParams.get("max")),
+        thumbCacheRoot: getAgentRoot()
       });
       if (!sent) return sendJson(res, 404, { error: "Media file not found" });
     } catch (error) {
