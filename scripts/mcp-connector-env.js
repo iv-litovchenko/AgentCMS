@@ -35,6 +35,21 @@ function resolveMcpHttpAlt(env) {
   return `http://127.0.0.1:${port}/app-mcp`;
 }
 
+/** Mac Docker: HTTPS на :3443 (mkcert), если PUBLIC_URL не https. */
+function resolveMcpHttpsUrl(env) {
+  const base = String(env.AGENT_CMS_PUBLIC_URL || "").replace(/\/+$/, "");
+  if (base.startsWith("https://")) return `${base}/app-mcp`;
+  const port =
+    String(env.AGENT_CMS_EDITOR_HTTPS_PORT || env.TLS_PORT || "3443").trim() || "3443";
+  return `https://127.0.0.1:${port}/app-mcp`;
+}
+
+function resolveMcpUrlForMode(env, mode) {
+  if (mode === "http") return resolveMcpHttpAlt(env);
+  if (mode === "https") return resolveMcpHttpsUrl(env);
+  return resolveMcpUrl(env);
+}
+
 function mcpToken(env) {
   return String(env.AGENT_CMS_MCP_TOKEN || "").trim();
 }
@@ -44,5 +59,7 @@ module.exports = {
   loadAgentCmsEnv,
   resolveMcpUrl,
   resolveMcpHttpAlt,
+  resolveMcpHttpsUrl,
+  resolveMcpUrlForMode,
   mcpToken
 };

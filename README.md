@@ -686,10 +686,13 @@ npm run cms:desktop   # dev-окно без сборки
 **CLI — локальный коннектор (URL и токен из `.env`, после `agent-cms-cli start` те же строки в терминале):**
 
 ```bash
-agent-cms-cli mcp claude-desktop add    # приложение Claude (mcp-remote)
-agent-cms-cli mcp claude-code add       # Claude Code (терминал)
-agent-cms-cli mcp codex add             # Codex CLI + Desktop (~/.codex/config.toml)
-agent-cms-cli mcp status                # URL, Desktop JSON, claude/codex mcp list
+# Mac Docker: HTTPS :3443 (mkcert) или HTTP :3000
+agent-cms-cli mcp claude-desktop add --https   # приложение Claude (mcp-remote)
+agent-cms-cli mcp claude-code add --https      # Claude Code (терминал)
+agent-cms-cli mcp codex add --https
+agent-cms-cli mcp claude-code add --http       # без TLS, проще для CLI
+agent-cms-cli mcp status                       # PUBLIC / HTTPS / HTTP + mcp list
+# add без флага — AGENT_CMS_PUBLIC_URL из .env
 # remove: agent-cms-cli mcp <target> remove [name]
 ```
 

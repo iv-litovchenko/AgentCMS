@@ -35,7 +35,7 @@ Agent CMS — CLI для Docker-стека (без npm).
   rebuild
   update               только git pull --ff-only (без rebuild)
   open editor|chat|control|commander|mcp-url
-  mcp claude-desktop|claude-code|codex add|remove [name]
+  mcp claude-desktop|claude-code|codex add|remove [--https|--http] [name]
   mcp status
   env show [--reveal] [KEY]   env set KEY=VALUE
   install              повторный запуск install.sh из AGENT_CMS_HOME
@@ -311,13 +311,13 @@ EOF
     export AGENT_CMS_HOME
     case "$sub" in
       claude-desktop | claude-code | codex)
-        exec node "$AGENT_CMS_HOME/scripts/agent-cms-mcp-cli.js" "$sub" "${3:-add}" "${4:-}"
+        exec node "$AGENT_CMS_HOME/scripts/agent-cms-mcp-cli.js" "${@:2}"
         ;;
       status)
         exec node "$AGENT_CMS_HOME/scripts/agent-cms-mcp-cli.js" status
         ;;
       *)
-        echo "Usage: agent-cms-cli mcp <target> add|remove [name]" >&2
+        echo "Usage: agent-cms-cli mcp <target> add|remove [--https|--http] [name]" >&2
         echo "       agent-cms-cli mcp status" >&2
         echo "Targets: claude-desktop | claude-code | codex" >&2
         exit 1

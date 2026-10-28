@@ -9,6 +9,8 @@ const {
   loadAgentCmsEnv,
   resolveMcpUrl,
   resolveMcpHttpAlt,
+  resolveMcpHttpsUrl,
+  resolveMcpUrlForMode,
   mcpToken
 } = require("./mcp-connector-env.js");
 
@@ -58,24 +60,27 @@ function codexRemove(name) {
   run("codex", ["mcp", "remove", name]);
 }
 
-function claudeDesktopViaNode(action, name) {
+function claudeDesktopViaNode(action, name, mcpUrl) {
   const script = path.join(__dirname, "claude-desktop-mcp.js");
+  const env = { ...process.env, AGENT_CMS_MCP_CONNECTOR_URL: mcpUrl };
   const r = spawnSync(process.execPath, [script, action, name], {
     stdio: "inherit",
-    env: process.env
+    env
   });
   process.exit(r.status ?? (r.error ? 1 : 0));
 }
 
 function printStatus({ env }) {
-  const mcpUrl = resolveMcpUrl(env);
+  const mcpPublic = resolveMcpUrl(env);
   const mcpHttp = resolveMcpHttpAlt(env);
+  const mcpHttps = resolveMcpHttpsUrl(env);
   const token = mcpToken(env);
   const desktopPath = claudeDesktopConfigPath();
 
   console.log("Agent CMS MCP (из .env):");
-  console.log(`  URL:     ${mcpUrl}`);
-  console.log(`  HTTP:    ${mcpHttp}`);
+  console.log(`  PUBLIC:  ${mcpPublic}  (add без флага — AGENT_CMS_PUBLIC_URL)`);
+  console.log(`  HTTPS:   ${mcpHttps}  (add --https)`);
+  console.log(`  HTTP:    ${mcpHttp}  (add --http)`);
   console.log(`  Token:   ${token ? "задан (AGENT_CMS_MCP_TOKEN)" : "нет (auth none)"}`);
   console.log(`  Desktop: ${desktopPath}`);
 
@@ -101,42 +106,71 @@ function printStatus({ env }) {
   }
 }
 
+function parseConnectorArgs(argv) {
+  const target = argv[0];
+  if (!target) return { error: "missing target" };
+
+  if (target === "status") return { target: "status" };
+
+  const action = argv[1] || "add";
+  if (action !== "add" && action !== "remove") {
+    return { error: "bad action" };
+  }
+
+  let urlMode = "public";
+  let name;
+  for (let i = 2; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--http") urlMode = "http";
+    else if (a === "--https") urlMode = "https";
+    else if (!a.startsWith("--")) name = a;
+  }
+
+  let defaultName = "agent-cms";
+  if (target === "claude-desktop") defaultName = "agent-cms-mac";
+
+  return {
+    target,
+    action,
+    urlMode,
+    name: name || defaultName
+  };
+}
+
 function usage() {
-  console.error(`Usage: agent-cms-mcp-cli.js <target> <add|remove> [name]
+  console.error(`Usage: agent-cms-mcp-cli.js <target> add|remove [--https|--http] [name]
        agent-cms-mcp-cli.js status
 
-Targets:
-  claude-desktop   Claude.app (claude_desktop_config.json + mcp-remote)
-  claude-code      Claude Code (claude mcp add)
-  codex            Codex CLI/Desktop (~/.codex/config.toml)
+  add без флага — URL из AGENT_CMS_PUBLIC_URL (+ /app-mcp)
+  add --https   — https://127.0.0.1:3443/app-mcp (или PUBLIC_URL если уже https)
+  add --http    — http://127.0.0.1:3000/app-mcp
 
-Default names: claude-desktop → agent-cms-mac; claude-code / codex → agent-cms`);
+Targets: claude-desktop | claude-code | codex`);
   process.exit(1);
 }
 
 function main() {
-  const target = process.argv[2];
-  if (!target) usage();
+  const parsed = parseConnectorArgs(process.argv.slice(2));
+  if (parsed.error) usage();
 
   const { env } = loadAgentCmsEnv();
-  const mcpUrl = resolveMcpUrl(env);
-  const token = mcpToken(env);
 
-  if (target === "status") {
+  if (parsed.target === "status") {
     printStatus({ env });
     return;
   }
 
-  const action = process.argv[3] || "add";
-  if (action !== "add" && action !== "remove") usage();
+  const { target, action, urlMode, name } = parsed;
+  const mcpUrl = resolveMcpUrlForMode(env, urlMode);
+  const token = mcpToken(env);
 
-  let defaultName = "agent-cms";
-  if (target === "claude-desktop") defaultName = "agent-cms-mac";
-  const name = process.argv[4] || defaultName;
+  if (action === "add") {
+    console.log(`MCP URL: ${mcpUrl}`);
+  }
 
   switch (target) {
     case "claude-desktop":
-      claudeDesktopViaNode(action, name);
+      claudeDesktopViaNode(action, name, mcpUrl);
       break;
     case "claude-code":
       if (action === "add") claudeCodeAdd(name, mcpUrl, token);

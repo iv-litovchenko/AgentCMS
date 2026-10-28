@@ -340,11 +340,12 @@ After **`.env`** changes: **recreate** containers, **not** `rebuild`. MCP: **`pl
 **CLI — local connector (URL + token from `.env`; printed after `agent-cms-cli start`):**
 
 ```bash
-agent-cms-cli mcp claude-desktop add    # Claude app (mcp-remote)
-agent-cms-cli mcp claude-code add       # Claude Code (terminal)
-agent-cms-cli mcp codex add             # Codex (~/.codex/config.toml)
+agent-cms-cli mcp claude-desktop add --https   # Claude app (mcp-remote, mkcert :3443)
+agent-cms-cli mcp claude-code add --https
+agent-cms-cli mcp codex add --https
+agent-cms-cli mcp claude-code add --http       # :3000, no TLS
 agent-cms-cli mcp status
-# remove: agent-cms-cli mcp <target> remove [name]
+# add with no flag — AGENT_CMS_PUBLIC_URL from .env
 ```
 
 

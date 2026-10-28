@@ -7,11 +7,11 @@
 HTTP MCP через **`mcp-remote`** (URL из `.env`, Bearer если задан):
 
 ```bash
-agent-cms-cli mcp claude-desktop add    # приложение Claude
-agent-cms-cli mcp claude-code add       # Claude Code (терминал)
-agent-cms-cli mcp codex add             # Codex (~/.codex/config.toml)
+agent-cms-cli mcp claude-desktop add --https   # https://127.0.0.1:3443/app-mcp (Mac)
+agent-cms-cli mcp claude-code add --http       # http://127.0.0.1:3000/app-mcp
+agent-cms-cli mcp codex add --https
 agent-cms-cli mcp status
-# remove: … mcp <target> remove [name]
+# add без флага — AGENT_CMS_PUBLIC_URL; remove: … mcp <target> remove [name]
 ```
 
 Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`. После **claude-desktop add** — Cmd+Q и снова открыть приложение.

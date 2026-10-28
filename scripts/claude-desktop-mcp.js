@@ -69,7 +69,7 @@ function main() {
     process.exit(1);
   }
 
-  const mcpUrl = resolveMcpUrl(env);
+  const mcpUrl = String(process.env.AGENT_CMS_MCP_CONNECTOR_URL || "").trim() || resolveMcpUrl(env);
   const token = mcpToken(env);
   const data = loadConfig(filePath);
   if (!data.mcpServers || typeof data.mcpServers !== "object") data.mcpServers = {};
