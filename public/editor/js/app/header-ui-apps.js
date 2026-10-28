@@ -14,7 +14,8 @@
   const APP_ICON_FILE = {
     chat: "voice.svg",
     commander: "commander.svg",
-    control: "control.svg"
+    control: "control.svg",
+    docs: "reference.svg"
   };
 
   let loaded = false;

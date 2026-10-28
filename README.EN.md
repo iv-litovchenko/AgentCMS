@@ -361,7 +361,7 @@ agent-cms-cli mcp status
 ## MCP tool map `user-agent-cms`
 
 
-**🟢** canonical · **⚪** testing · **🟡** stub / idea · **🔴** under review · **🔵** draft (REST exists, MCP in progress) · **Итого 🟢: 232** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** canonical · **⚪** testing · **🟡** stub / idea · **🔴** under review · **🔵** draft (REST exists, MCP in progress) · **Итого 🟢: 233** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -744,8 +744,9 @@ user-agent-cms
 │   ├── 🟢 user_notifications_list
 │   └── 🟢 user_notification_send
 │
-└── ⚡ Специальные (Special) · 1
-    └── 🟢 batch_tools_invoke
+└── ⚡ Специальные (Special) · 2
+    ├── 🟢 batch_tools_invoke
+    └── 🟢 paschal_eggs — one JSON: author, stats, UI eggs (_content_/easter-eggs/); HTTP GET /api/platform/paschal-eggs
 ```
 
 

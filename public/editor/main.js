@@ -83102,28 +83102,24 @@ function getWorkspacePageIndexRelPath() {
   return WORKSPACE_PAGE_INDEX_REL_PATH;
 }
 
-async function probeWorkspacePageIndexExists() {
-  if (await resolveExistingWorkspacePageIndexRelPath()) return true;
-  try {
-    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"));
-    if (!response.ok) return false;
-    const payload = await response.json();
-    return Boolean(payload?.indexFile?.exists);
-  } catch {
-    return false;
+function syncSidebarWorkspacePageIndexRowUi() {
+  const row = document.getElementById("sidebar-workspace-page-index-row");
+  if (!row) return;
+  const footer = row.querySelector(".sidebar-workspace-page-index-open");
+  const refreshBtn = row.querySelector(".sidebar-workspace-page-index-refresh");
+  if (!footer) return;
+  const hasIndex = row.dataset.workspaceHasIndex === "1";
+  const indexRelPath = getWorkspacePageIndexRelPath();
+  footer.textContent = "Индекс (оглавление) тем";
+  footer.classList.toggle("is-available", hasIndex);
+  footer.classList.toggle("is-generated", !hasIndex);
+  footer.title = hasIndex
+    ? `Открыть ${indexRelPath}`
+    : `Открыть preview оглавления (⟲ — сохранить ${indexRelPath} на диск)`;
+  if (refreshBtn) {
+    refreshBtn.title = `Пересобрать и сохранить ${indexRelPath}`;
+    refreshBtn.setAttribute("aria-label", `Обновить ${indexRelPath}`);
   }
-}
-
-async function resolveExistingWorkspacePageIndexRelPath() {
-  for (const relPath of [getWorkspacePageIndexRelPath(), WORKSPACE_PAGE_INDEX_LEGACY_FILE]) {
-    try {
-      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-      if (response.ok) return relPath;
-    } catch {
-      // ignore
-    }
-  }
-  return null;
 }
 
 function formatWorkspacePageIndexPayloadAsMarkdown(payload) {
@@ -83220,6 +83216,11 @@ async function openWorkspacePageIndexOverview(options = {}) {
     if (response.ok) {
       const data = await response.json();
       content = String(data.content || "");
+      const indexRow = document.getElementById("sidebar-workspace-page-index-row");
+      if (indexRow) {
+        indexRow.dataset.workspaceHasIndex = "1";
+        syncSidebarWorkspacePageIndexRowUi();
+      }
     } else {
       content = await buildWorkspacePageIndexMarkdownFromApi();
       workspaceGeneratedPageIndexCache.set(activeWorkspaceId || "main", content);
@@ -83265,6 +83266,11 @@ function ensureSidebarWorkspacePageIndexRow() {
   }
 
   row.classList.toggle("hidden", !activeWorkspaceId);
+  const workspaceKey = String(activeWorkspaceId || "");
+  if (row.dataset.workspaceAgentId !== workspaceKey) {
+    row.dataset.workspaceAgentId = workspaceKey;
+    row.dataset.workspaceHasIndex = "0";
+  }
 
   let footer = row.querySelector(".sidebar-workspace-page-index-open");
   if (!footer) {
@@ -83285,19 +83291,6 @@ function ensureSidebarWorkspacePageIndexRow() {
     row.appendChild(refreshBtn);
   }
 
-  const syncWorkspacePageIndexRowState = () => {
-    const hasIndex = row.dataset.workspaceHasIndex === "1";
-    const indexRelPath = getWorkspacePageIndexRelPath();
-    footer.textContent = "Индекс (оглавление) тем";
-    footer.classList.toggle("is-available", hasIndex);
-    footer.classList.toggle("is-generated", !hasIndex);
-    footer.title = hasIndex
-      ? `Открыть ${indexRelPath}`
-      : `Открыть preview оглавления (⟲ — сохранить ${indexRelPath} на диск)`;
-    refreshBtn.title = `Пересобрать и сохранить ${indexRelPath}`;
-    refreshBtn.setAttribute("aria-label", `Обновить ${indexRelPath}`);
-  };
-
   const setWorkspacePageIndexRefreshLoading = (loading) => {
     refreshBtn.disabled = loading;
     footer.disabled = loading;
@@ -83316,7 +83309,7 @@ function ensureSidebarWorkspacePageIndexRow() {
     }
   };
 
-  syncWorkspacePageIndexRowState();
+  syncSidebarWorkspacePageIndexRowUi();
 
   footer.onclick = (event) => {
     event.preventDefault();
@@ -83337,9 +83330,8 @@ function ensureSidebarWorkspacePageIndexRow() {
           showToast("Не удалось обновить оглавление тем", "error");
           return;
         }
-        const exists = await probeWorkspacePageIndexExists();
-        row.dataset.workspaceHasIndex = exists ? "1" : "0";
-        syncWorkspacePageIndexRowState();
+        row.dataset.workspaceHasIndex = "1";
+        syncSidebarWorkspacePageIndexRowUi();
         if (isReadOnlyWorkspacePageIndexView()) {
           void openWorkspacePageIndexOverview({ skipRouteSync: true });
         }
@@ -83352,12 +83344,6 @@ function ensureSidebarWorkspacePageIndexRow() {
         if (row.isConnected) setWorkspacePageIndexRefreshLoading(false);
       });
   };
-
-  void probeWorkspacePageIndexExists().then((exists) => {
-    if (!row.isConnected) return;
-    row.dataset.workspaceHasIndex = exists ? "1" : "0";
-    syncWorkspacePageIndexRowState();
-  });
 }
 
 async function refreshTopicStorageIndexOverview(topicPath) {

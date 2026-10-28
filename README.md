@@ -732,7 +732,7 @@ Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [табл
 ## Канон MCP `user-agent-cms`
 
 
-**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 232** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
+**🟢** канон · **⚪** на тестировании · **🟡** stub / идея · **🔴** на проверке · **🔵** черновик (REST есть, MCP — в работе) · **Итого 🟢: 233** · **⚪** 4 · **🟡** 34 · **🔴** 0 · **🔵** 8
 
 ```
 user-agent-cms
@@ -1115,8 +1115,9 @@ user-agent-cms
 │   ├── 🟢 user_notifications_list
 │   └── 🟢 user_notification_send
 │
-└── ⚡ Специальные (Special) · 1
-    └── 🟢 batch_tools_invoke
+└── ⚡ Специальные (Special) · 2
+    ├── 🟢 batch_tools_invoke
+    └── 🟢 paschal_eggs — один JSON: автор (Иван, iv-litovchenko@mail.ru, agent-cms.ru, GitHub, Telegram), stats (AGPL-3.0, ~233 🟢 MCP, workspaces/, commitCount из git), eggs — slogans + homeTitles (_content_/easter-eggs/); HTTP GET /api/platform/paschal-eggs (UI: GET /api/platform/ui-eggs)
 ```
 
 

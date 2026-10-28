@@ -33444,6 +33444,20 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/platform/paschal-eggs") {
+    try {
+      const { loadPlatformPaschalEggs } = require("./lib/platform/platform-paschal-eggs");
+      const payload = loadPlatformPaschalEggs(getProjectRoot());
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load paschal eggs",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/platform/settings-schema") {
     try {
       const payload = getAgentSettingsSchemaPayload(null, getProjectRoot(), "platform");

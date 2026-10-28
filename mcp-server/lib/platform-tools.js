@@ -221,4 +221,5 @@ export function registerPlatformTools(reg, client) {
       client.post("/api/platform/workspace-mounts", { mounts }, { agentScope: false }),
     options: { agentScope: false }
   });
+
 }

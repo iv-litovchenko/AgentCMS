@@ -137,6 +137,15 @@ export function registerBatchInvokeTools({ reg, client, toolRegistry }) {
     schema: batchSchema,
     handler: batchHandler
   });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "paschal_eggs",
+    description:
+      "Пасхальные яйца Agent CMS: author, project, stats (git-коммиты) + UI eggs (slogans, homeTitles из _content_/easter-eggs/). GET /api/platform/paschal-eggs.",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/paschal-eggs", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
 }
 
 export function createToolRegistry() {
