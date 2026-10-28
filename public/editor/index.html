@@ -1893,7 +1893,20 @@
                     type="button"
                     title="Кастомный дашборд (awn-dashboards)"
                     aria-label="Кастомный дашборд"
-                  ></button>
+                  >
+                    <span class="agents-picker-tool-icon" aria-hidden="true">
+                      <svg
+                        class="menu-marker-svg awn-dashboards-toolbar-btn-icon"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <rect x="4" y="4" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8" />
+                        <rect x="13" y="4" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8" />
+                        <rect x="4" y="13" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8" />
+                        <rect x="13" y="13" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8" />
+                      </svg>
+                    </span>
+                  </button>
                   <button
                     id="agents-picker-btn"
                     class="agents-picker-btn"
@@ -9177,14 +9190,14 @@ awn-type: awn.page.ws
                 : manifest && manifest.main
                   ? "/editor/" + manifest.main
                   : "";
-            if (url) {
+            if (url && !/\/main\.built\.js/i.test(url)) {
               startEditorMain(url);
               return;
             }
             throw new Error("manifest-main");
           })
           .catch(function () {
-            startEditorMain("/editor/main.built.js?v=" + version);
+            startEditorMain("/editor/main.js?v=" + version);
           });
       })();
     </script>

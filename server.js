@@ -30896,6 +30896,14 @@ async function handleApiForAgent(req, res, url) {
     if (!fileAbsolute) {
       fileAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
     }
+    if (
+      !fileAbsolute &&
+      storageContext.absolute &&
+      isManifestMdAbsolute(storageContext.absolute)
+    ) {
+      const sidecarPreview = await findNodePreviewImageAbsolute(storageContext.absolute);
+      if (sidecarPreview) fileAbsolute = sidecarPreview;
+    }
     if (!fileAbsolute) return sendJson(res, 404, { error: "Media file not found" });
 
     try {

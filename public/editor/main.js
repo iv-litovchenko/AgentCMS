@@ -9177,7 +9177,7 @@ function syncAgentNotePreviewStatusIndicator(rawContent = "") {
   }
 }
 
-function showAgentNotePreviewShell() {
+function syncAgentNotePreviewShell() {
   if (!agentTodoPreviewWrapNode || !activeWorkspaceId) {
     hideAgentTodoPreview();
     return false;
@@ -9186,6 +9186,10 @@ function showAgentNotePreviewShell() {
   syncAgentNotePreviewActiveState();
   syncSidebarNotePreviewAccordion();
   return true;
+}
+
+function showAgentNotePreviewShell() {
+  return syncAgentNotePreviewShell();
 }
 
 function clearAgentNotePreviewBody() {
@@ -9432,8 +9436,10 @@ async function syncAgentTodoPreview() {
     return;
   }
 
+  if (!syncAgentNotePreviewShell()) return;
+  if (!isSidebarNotePreviewExpanded()) return;
+
   const seq = ++agentTodoPreviewSeq;
-  showAgentNotePreviewShell();
 
   try {
     const fetchedNoteData = await fetchAgentSidebarNoteMarkdown();
@@ -16830,6 +16836,7 @@ async function switchActiveAgent(nextAgentId) {
         if (hasCachedView) {
           renderSystemFiles(systemFilesCache);
         }
+        syncAgentNotePreviewShell();
         if (isSidebarNotePreviewExpanded()) void syncAgentTodoPreview();
         await refreshAgentSliderCatalog(true);
         if (switchedAgentId !== activeWorkspaceId) return;
@@ -77083,19 +77090,36 @@ function appendNavigationItemPreviewThumb(
   img.loading = loading;
   img.decoding = "async";
 
-  const handlePreviewFail = () => {
-    if (clearOnError) {
-      img.remove();
-      if (!parent.childElementCount) parent.remove();
-      return;
-    }
-    applyBrokenImagePlaceholder(img, "Превью не найдено");
-  };
-
   const lifecycle = bindPreviewImageLifecycle(img, {
     loadingClassTarget: parent,
     timeoutMs: timeoutMs ?? resolvePreviewLoadTimeoutMs(imageUrl),
-    onFail: handlePreviewFail
+    onFail: () => {
+      const manifestPath = String(item?.path || item?.relativePath || item?.manifestPath || "").trim();
+      const triedFallback = img.dataset.menuPreviewSidecarFallback === "1";
+      if (
+        !triedFallback &&
+        manifestPath &&
+        (String(imageUrl || "").includes("/api/media/file") ||
+          String(img.dataset.originalSrc || img.src || "").includes("/api/media/file"))
+      ) {
+        img.dataset.menuPreviewSidecarFallback = "1";
+        let fallbackUrl = appendCacheBuster(
+          appendAgentToApiUrl(`/api/preview/image?path=${encodeURIComponent(manifestPath)}`)
+        );
+        fallbackUrl = stripMediaThumbFromApiUrl(fallbackUrl);
+        img.classList.remove("broken-image-placeholder", "markdown-image-missing");
+        img.removeAttribute("data-broken-placeholder");
+        img.src = fallbackUrl;
+        lifecycle.checkAlreadyLoaded();
+        return;
+      }
+      if (clearOnError) {
+        img.remove();
+        if (!parent.childElementCount) parent.remove();
+        return;
+      }
+      applyBrokenImagePlaceholder(img, "Превью не найдено");
+    }
   });
 
   parent.appendChild(img);
@@ -119101,6 +119125,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   syncAppHomeButton();
   updateBreadcrumbsForActiveMode();
   applyAgentWorkspaceCanvasUi();
+  syncAgentNotePreviewShell();
   if (isSidebarNotePreviewExpanded()) void syncAgentTodoPreview();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
@@ -135792,6 +135817,10 @@ async function init() {
     syncChannelLiveUpdates();
     syncHeaderFocusWorkspaceAvailability();
     syncHeaderFocusCount();
+    if (activeWorkspaceId) {
+      syncAgentNotePreviewShell();
+      if (isSidebarNotePreviewExpanded()) void syncAgentTodoPreview();
+    }
     if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED && isAgentWorkspaceSessionActive()) {
       void refreshWorkspaceNotifications(false);
     }
