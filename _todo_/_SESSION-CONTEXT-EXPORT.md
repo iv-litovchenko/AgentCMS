@@ -13,7 +13,7 @@
 Повторить:
 
 ```bash
-curl -sk "https://localhost:3002/api/agent/session-context?agent=0-ws-test" -o temp/_session-context-0-ws-test.json
+curl -sk "https://localhost:3002/api/agent/session-context?agent=0-ws-test" -o _todo_/_session-context-0-ws-test.json
 ```
 
 (или `http://localhost:3001/…` без `-k`)

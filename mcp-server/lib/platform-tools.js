@@ -31,7 +31,7 @@ export function registerPlatformTools(reg, client) {
     canonical: "platform_docs_list",
     legacy: "list_platform_docs",
     description:
-      "List .md files in the repository root (not skills/). Agent skills: platform_skills_list. Content: platform_doc_read.",
+      "List .md files in the repository root (not _skills_/). Agent skills: platform_skills_list. Content: platform_doc_read.",
     schema: z.object({}),
     handler: () => client.get("/api/platform/docs", {}, { agentScope: false }),
     options: { agentScope: false }
@@ -64,13 +64,13 @@ export function registerPlatformTools(reg, client) {
     .string()
     .min(1)
     .describe(
-      "Skill file name from platform_skills_list, e.g. GLOBAL-SKILL-1-BASE.md (optional prefix skills/)"
+      "Skill file name from platform_skills_list, e.g. GLOBAL-SKILL-1-BASE.md (optional prefix _skills_/)"
     );
 
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "platform_skills_list",
     description:
-      "List Agent CMS skills in skills/GLOBAL-SKILL-*.md (name, description from frontmatter, githubRawUrl).",
+      "List Agent CMS skills in _skills_/GLOBAL-SKILL-*.md (name, description from frontmatter, githubRawUrl).",
     schema: z.object({}),
     handler: () => client.get("/api/platform/skills", {}, { agentScope: false }),
     options: { agentScope: false }
@@ -79,7 +79,7 @@ export function registerPlatformTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "platform_skill_read",
     description:
-      "Read one Agent CMS skill from skills/ by file name. Same content via platform_doc_read({ path: basename }) as legacy.",
+      "Read one Agent CMS skill from _skills_/ by file name. Same content via platform_doc_read({ path: basename }) as legacy.",
     schema: z.object({
       path: platformSkillFileName,
       maxBytes: z

@@ -216,7 +216,7 @@
 - **по полям** — каталог записей по типу, тегам, статусу и другим YAML-полям (SQL-подобные запросы);
 - **по связям** — граф: кто ссылается на файл, куда ведут `[[wikilinks]]` и relation-поля (это не текстовый поиск).
 
-Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-SKILL-1-BASE.md](skills/GLOBAL-SKILL-1-BASE.md).
+Поиск можно **ограничить одной темой или областью** (фокус ◎ в шапке редактора — то же ограничение у MCP через `pathPrefix`). Отдельно — **банк фактов** (`awn-facts/`) и вопросы к архиву целиком. Детали инструментов: [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md).
 
 Все перечисленные термины **подробнее на интерактивной карте** (Mermaid, кликабельные узлы): [README.diagram.md](README.diagram.md) — на главной CMS открывается та же диаграмма.
 
@@ -246,7 +246,7 @@
 > - **by fields** — catalog by type, tags, status, and other YAML fields (SQL-like queries);
 > - **by links** — graph: who links to a file, where `[[wikilinks]]` and relation fields point (not plain text search).
 >
-> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](skills/GLOBAL-SKILL-1-BASE.md).
+> You can **limit search to one theme or area** (focus ◎ in the editor header — same limit for MCP via `pathPrefix`). Separately — **fact bank** (`awn-facts/`) and questions over the whole archive. Tool details: [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md).
 >
 > All terms above are **expanded on the interactive map** (Mermaid, clickable nodes): [README.diagram.md](README.diagram.md) — the same diagram opens on the CMS home page.
 
@@ -422,7 +422,7 @@ Chrome Companion: папка `browser-extension/` → URL CMS **`http://127.0.0.
    готовый JSON — Control → «MCP к агенту»
 
 8) Скиллы — после MCP:
-   в чат: «установи скиллы Agent CMS из GitHub» (`skills/GLOBAL-SKILL-*.md`)
+   в чат: «установи скиллы Agent CMS из GitHub» (`_skills_/GLOBAL-SKILL-*.md`)
    минимум: agent-cms; желательно: agent-cms-rules, agent-cms-response-style
 
 9) Дальше: agent-cms-cli start | stop | restart | update (+ rebuild после update)
@@ -757,19 +757,19 @@ npm run cms:desktop   # dev-окно без сборки
 
 ## 🇷🇺 Подключение скиллов для агента — Claude, Codex и другие (🇬🇧 Agent skills — Claude, Codex, and others)
 
-Исходники — **`skills/GLOBAL-SKILL-*.md`** в [репозитории на GitHub](https://github.com/iv-litovchenko/AgentCMS/tree/main/skills). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
+Исходники — **`_skills_/GLOBAL-SKILL-*.md`** в [репозитории на GitHub](https://github.com/iv-litovchenko/AgentCMS/tree/main/_skills_). Каждый файл — markdown с YAML frontmatter (`name`, `description`).
 
 | 🇷🇺 Файл · 🇬🇧 File | 🇷🇺 Скилл · 🇬🇧 Skill | 🇷🇺 Зачем · 🇬🇧 Purpose |
 | --- | --- | --- |
-| [GLOBAL-SKILL-0-MCP-WELCOME.md](skills/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | 🇷🇺 Ввод, старт MCP, карта скиллов<br>🇬🇧 Intro, MCP start, skill map |
-| [GLOBAL-SKILL-1-BASE.md](skills/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | 🇷🇺 Хранилище и MCP tools<br>🇬🇧 Workspace and MCP tools |
-| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](skills/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | 🇷🇺 Стиль ответов (🗄️ / 🌐 / 💭)<br>🇬🇧 Reply style (🗄️ / 🌐 / 💭) |
-| [GLOBAL-SKILL-3-RULES.md](skills/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | 🇷🇺 Глобальные правила<br>🇬🇧 Global rules |
-| [GLOBAL-SKILL-4-MARKDOWN.md](skills/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | 🇷🇺 Разметка в md<br>🇬🇧 Markdown in records |
-| [GLOBAL-SKILL-5-SEARCH.md](skills/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | 🇷🇺 Поиск, индексы, DQL<br>🇬🇧 Search, indexes, DQL |
-| [GLOBAL-SKILL-6-MODULES.md](skills/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | 🇷🇺 Git и модули<br>🇬🇧 Git and modules |
-| [GLOBAL-SKILL-7-VIZ-MAPS.md](skills/GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | 🇷🇺 Карты `*.viz.md`, «Атлас», `viz_map_*`<br>🇬🇧 Viz maps `*.viz.md`, Atlas, `viz_map_*` |
-| [GLOBAL-SKILL-8-SLOTS-LEGACY.md](skills/GLOBAL-SKILL-8-SLOTS-LEGACY.md) | `agent-cms-slots-legacy` | 🇷🇺 Legacy slot/kind<br>🇬🇧 Legacy slot/kind |
+| [GLOBAL-SKILL-0-MCP-WELCOME.md](_skills_/GLOBAL-SKILL-0-MCP-WELCOME.md) | `agent-cms-welcome` | 🇷🇺 Ввод, старт MCP, карта скиллов<br>🇬🇧 Intro, MCP start, skill map |
+| [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md) | `agent-cms` | 🇷🇺 Хранилище и MCP tools<br>🇬🇧 Workspace and MCP tools |
+| [GLOBAL-SKILL-2-RESPONSE-STYLE.md](_skills_/GLOBAL-SKILL-2-RESPONSE-STYLE.md) | `agent-cms-response-style` | 🇷🇺 Стиль ответов (🗄️ / 🌐 / 💭)<br>🇬🇧 Reply style (🗄️ / 🌐 / 💭) |
+| [GLOBAL-SKILL-3-RULES.md](_skills_/GLOBAL-SKILL-3-RULES.md) | `agent-cms-rules` | 🇷🇺 Глобальные правила<br>🇬🇧 Global rules |
+| [GLOBAL-SKILL-4-MARKDOWN.md](_skills_/GLOBAL-SKILL-4-MARKDOWN.md) | `agent-cms-markdown` | 🇷🇺 Разметка в md<br>🇬🇧 Markdown in records |
+| [GLOBAL-SKILL-5-SEARCH.md](_skills_/GLOBAL-SKILL-5-SEARCH.md) | `agent-cms-search` | 🇷🇺 Поиск, индексы, DQL<br>🇬🇧 Search, indexes, DQL |
+| [GLOBAL-SKILL-6-MODULES.md](_skills_/GLOBAL-SKILL-6-MODULES.md) | `agent-cms-modules` | 🇷🇺 Git и модули<br>🇬🇧 Git and modules |
+| [GLOBAL-SKILL-7-VIZ-MAPS.md](_skills_/GLOBAL-SKILL-7-VIZ-MAPS.md) | `agent-cms-viz` | 🇷🇺 Карты `*.viz.md`, «Атлас», `viz_map_*`<br>🇬🇧 Viz maps `*.viz.md`, Atlas, `viz_map_*` |
+| [GLOBAL-SKILL-8-SLOTS-LEGACY.md](_skills_/GLOBAL-SKILL-8-SLOTS-LEGACY.md) | `agent-cms-slots-legacy` | 🇷🇺 Legacy slot/kind<br>🇬🇧 Legacy slot/kind |
 
 **Как установить**
 
@@ -785,7 +785,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 > 🇬🇧 **[en]**
 >
-> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub (`skills/`). Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `platform_skills_list` / `platform_skill_read`. Refresh after `git pull`.
+> **Install:** [MCP](#-подключение-mcp-gb-mcp-connection) first; copy into `.cursor/skills/<name>/SKILL.md` or ask the agent to install from GitHub (`_skills_/`). Minimum **`agent-cms`**; add **response-style** and **rules**. Fallback: `platform_skills_list` / `platform_skill_read`. Refresh after `git pull`.
 
 ## 🇷🇺 Подключение MCP (🇬🇧 MCP connection)
 
@@ -812,7 +812,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 > ⚠️ **`node mcp-server/index.js` (stdio)** — legacy dev без Docker; в prod и в доке **не используем**.
 
-**Файлы / фото (MCP):** мелкие — `content_binary_write` (base64); **публичный URL** — `content_binary_write_from_url` или `content_binary_upload_begin` + **`sourceUrl`** (CMS сама качает); **большие** — `upload_begin` → **PUT** `putUrl` → `complete` (Mac) или **`upload_chunk`** → `complete` (облако); читать — `content_binary_read` / `content_read` + base64; ссылка в браузере — `content_binary_url_get`. Подробнее: [GLOBAL-SKILL-1-BASE.md](skills/GLOBAL-SKILL-1-BASE.md) §5.
+**Файлы / фото (MCP):** мелкие — `content_binary_write` (base64); **публичный URL** — `content_binary_write_from_url` или `content_binary_upload_begin` + **`sourceUrl`** (CMS сама качает); **большие** — `upload_begin` → **PUT** `putUrl` → `complete` (Mac) или **`upload_chunk`** → `complete` (облако); читать — `content_binary_read` / `content_read` + base64; ссылка в браузере — `content_binary_url_get`. Подробнее: [GLOBAL-SKILL-1-BASE.md](_skills_/GLOBAL-SKILL-1-BASE.md) §5.
 
 Legacy MCP: **`MCP_LEGACY_ALIASES`**, **`MCP_LEGACY_TOOLS`** — см. [таблицу `.env`](#-настройка--env-gb-configuration--env) (блок «Дополнительно в Compose»).
 
@@ -1215,7 +1215,7 @@ user-agent-cms
 
 🇷🇺 **[ru]**
 
-Файлы **`skills/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others).
+Файлы **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others).
 
 См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 
@@ -1223,7 +1223,7 @@ user-agent-cms
 
 > 🇬🇧 **[en]**
 >
-> **`skills/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (CMS home), full README on [GitHub](https://github.com/iv-litovchenko/AgentCMS). [Agent skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) above.
+> **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (CMS home), full README on [GitHub](https://github.com/iv-litovchenko/AgentCMS). [Agent skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) above.
 >
 > See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
 

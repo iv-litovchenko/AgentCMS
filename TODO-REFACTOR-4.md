@@ -1,6 +1,6 @@
 # Рефакторинг — часть 4
 
-**✅ Сделано (снято с этого списка):** единый `read/write/list_content` + `placement.kind` (topic · channel · media · database · repository · root); guards API; legacy MCP tools по умолчанию выключены (`MCP_LEGACY_TOOLS=1`); hub `awn-topics/`, `0-agent-kit` / `0-shared`, pinned TOC, `awn-topics/index.md`, hub `refresh_*_index_toc`, WS-MAP; синхрон `channel-presets.js` ↔ UI; карта MCP → `temp/_MCP-MAP.md` / `mcp-server/index.js`.
+**✅ Сделано (снято с этого списка):** единый `read/write/list_content` + `placement.kind` (topic · channel · media · database · repository · root); guards API; legacy MCP tools по умолчанию выключены (`MCP_LEGACY_TOOLS=1`); hub `awn-topics/`, `0-agent-kit` / `0-shared`, pinned TOC, `awn-topics/index.md`, hub `refresh_*_index_toc`, WS-MAP; синхрон `channel-presets.js` ↔ UI; карта MCP → `_todo_/_MCP-MAP.md` / `mcp-server/index.js`.
 
 **✅** сделано · **❌** не сделано.
 

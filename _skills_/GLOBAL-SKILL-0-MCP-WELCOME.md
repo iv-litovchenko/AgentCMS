@@ -26,7 +26,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 
 ## Скиллы (установи из репозитория)
 
-Файлы **`GLOBAL-SKILL-*.md`** в папке **`skills/`** репозитория https://github.com/iv-litovchenko/AgentCMS — установи скиллы в клиенте (Claude Desktop, Cursor и т.д.). Без скиллов модель видит только список tools.
+Файлы **`GLOBAL-SKILL-*.md`** в папке **`_skills_/`** репозитория https://github.com/iv-litovchenko/AgentCMS — установи скиллы в клиенте (Claude Desktop, Cursor и т.д.). Без скиллов модель видит только список tools.
 
 | Скилл | Файл | Когда |
 |-------|------|--------|
