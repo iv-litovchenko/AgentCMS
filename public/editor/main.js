@@ -2300,7 +2300,6 @@ const HEADER_DOC_PREVIEW_OPTIONS = { hideFrontmatter: true };
 const COMPONENTS_IDEAS_TOPIC_PATH = "components-ideas.md";
 const COMPONENTS_IDEAS_SUBTITLE = "My Graph ORM · черновик онтологии";
 let componentsIdeasMarkdownCache = null;
-const userDocsBtn = document.getElementById("user-docs-btn");
 const apiDocsBtn = document.getElementById("api-docs-btn");
 const mcpDocsBtn = document.getElementById("mcp-docs-btn");
 
@@ -135596,8 +135595,8 @@ componentsIdeasModalNode?.addEventListener("click", (event) => {
   if (event.target === componentsIdeasModalNode) closeComponentsIdeasModal();
 });
 
-userDocsBtn?.addEventListener("click", () => {
-  openAgentCmsDocsApp("guides");
+document.getElementById("user-docs-btn")?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
 });
 
 bestPracticesBtn?.addEventListener("click", () => {
