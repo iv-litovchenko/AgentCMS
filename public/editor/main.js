@@ -5334,6 +5334,7 @@ async function loadAgents() {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   agentsCache = Array.isArray(data.agents) ? data.agents : [];
+  clearLandingHubTopicsCache();
   const selectableAgents = getSelectableAgents();
   const route = parseAppRoute(location.pathname);
   const isAppLandingRoute = route.type === "root" || route.type === "legacy";
@@ -10520,9 +10521,12 @@ let globalMainItemsCache = [];
 let globalMainItemsLoadSeq = 0;
 let globalMainItemsLoading = false;
 let agentFocusItemsCache = [];
-let globalLandingHubTopicItemsCache = [];
 let globalFlowItemsCache = [];
-let landingHubTopicItemsLoadSeq = 0;
+/** @type {Map<string, object[]>} */
+const landingHubTopicsByAgent = new Map();
+/** @type {Map<string, Promise<object[]>>} */
+const landingHubTopicsInflight = new Map();
+const LANDING_HUB_TOPICS_MAX_PARALLEL = 4;
 let landingFlowLoadSeq = 0;
 let landingUiRevision = 0;
 let landingFocusShellRenderScheduled = 0;
@@ -13937,6 +13941,8 @@ async function ensureLandingChunkReady() {
       getAgentsForLandingOrbit,
       buildApiUrl,
       getLandingHubOrbitTopicItems,
+      hasLandingHubTopicsLoaded,
+      ensureLandingHubTopicsForAgent,
       getWorkspaceRootMenuTreeNode,
       mapMenuEntryToLandingTopicItem,
       shouldShowMenuTreeFolder,
@@ -16180,14 +16186,13 @@ function syncLandingAgentsViewUi() {
   }
   if (isHub) {
     renderAppLandingHub(getLandingHubOrbitTopicItems());
-    void loadGlobalLandingHubTopicItems();
+    scheduleLandingHubTopicsLoadForHub();
   }
   if (isOrbit) {
     if (globalMainItemsLoading) {
       renderLandingMainTopicsLoading();
     }
     renderAppLandingOrbit();
-    void loadGlobalLandingHubTopicItems();
   } else {
     void ensureLandingChunkReady().then((mod) => {
       if (mod.getLandingOrbitDiveAgentId?.()) mod.closeOrbitAgentDive?.();
@@ -16323,38 +16328,101 @@ function collectLandingHubOrbitTopicsFromMenu(menu, agent) {
   return acc;
 }
 
+function clearLandingHubTopicsCache() {
+  landingHubTopicsByAgent.clear();
+  landingHubTopicsInflight.clear();
+}
+
+function hasLandingHubTopicsLoaded(agentId) {
+  const id = String(agentId || "").trim();
+  return id ? landingHubTopicsByAgent.has(id) : false;
+}
+
 function getLandingHubOrbitTopicItems() {
-  return [...globalLandingHubTopicItemsCache].sort((a, b) => {
+  const all = [];
+  for (const items of landingHubTopicsByAgent.values()) {
+    if (Array.isArray(items)) all.push(...items);
+  }
+  return all.sort((a, b) => {
     const agentCmp = String(a.agentName || a.agentId).localeCompare(String(b.agentName || b.agentId), "ru");
     if (agentCmp !== 0) return agentCmp;
     return String(a.name || a.nodePath).localeCompare(String(b.name || b.nodePath), "ru");
   });
 }
 
-async function loadGlobalLandingHubTopicItems() {
-  const loadSeq = ++landingHubTopicItemsLoadSeq;
-  const agents = getAgentsForLandingGrid().filter((agent) => agent.folderExists !== false);
-  try {
-    const response = await fetch(
-      `/api/agents/menus?maxDepth=${encodeURIComponent(String(LANDING_HUB_ORBIT_MENU_MAX_DEPTH))}`
-    );
-    if (!response.ok) throw new Error(`menus:${response.status}`);
-    const data = await response.json();
-    if (loadSeq !== landingHubTopicItemsLoadSeq) return;
-    const menus = data?.menus && typeof data.menus === "object" ? data.menus : {};
-    globalLandingHubTopicItemsCache = agents.flatMap((agent) => {
-      const menu = menus[agent.id];
-      if (!menu) return [];
-      menuCacheByAgent.set(agent.id, menu);
-      return collectLandingHubOrbitTopicsFromMenu(menu, agent);
-    });
-  } catch {
-    if (loadSeq !== landingHubTopicItemsLoadSeq) return;
-    globalLandingHubTopicItemsCache = [];
+async function ensureLandingHubTopicsForAgent(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return [];
+  if (landingHubTopicsByAgent.has(id)) return landingHubTopicsByAgent.get(id) || [];
+  if (landingHubTopicsInflight.has(id)) return landingHubTopicsInflight.get(id);
+
+  const agent =
+    agentsCache.find((entry) => entry.id === id) ||
+    getAgentsForLandingGrid().find((entry) => entry.id === id);
+  if (!agent || agent.folderExists === false) {
+    landingHubTopicsByAgent.set(id, []);
+    return [];
   }
-  if (loadSeq !== landingHubTopicItemsLoadSeq) return;
-  bumpLandingUiRevision();
-  scheduleLandingFocusShellRender();
+
+  const loadPromise = (async () => {
+    try {
+      const url = buildApiUrl(
+        "/api/menu",
+        { maxDepth: LANDING_HUB_ORBIT_MENU_MAX_DEPTH },
+        id
+      );
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`menu:${response.status}`);
+      const menu = await response.json();
+      menuCacheByAgent.set(id, menu);
+      const topics = collectLandingHubOrbitTopicsFromMenu(menu, agent);
+      landingHubTopicsByAgent.set(id, topics);
+      return topics;
+    } catch {
+      landingHubTopicsByAgent.set(id, []);
+      return [];
+    } finally {
+      landingHubTopicsInflight.delete(id);
+      bumpLandingUiRevision();
+      scheduleLandingFocusShellRender();
+      void ensureLandingChunkReady().then((mod) => {
+        mod.mergeLandingOrbitFocusCacheForAgent?.(id, landingHubTopicsByAgent.get(id) || []);
+      });
+    }
+  })();
+
+  landingHubTopicsInflight.set(id, loadPromise);
+  return loadPromise;
+}
+
+function scheduleLandingHubTopicsLoadForHub() {
+  const run = () => {
+    const agents = getAgentsForLandingGrid().filter((agent) => agent.folderExists !== false);
+    let index = 0;
+    let active = 0;
+    const pump = () => {
+      while (active < LANDING_HUB_TOPICS_MAX_PARALLEL && index < agents.length) {
+        const agent = agents[index++];
+        if (landingHubTopicsByAgent.has(agent.id) || landingHubTopicsInflight.has(agent.id)) continue;
+        active += 1;
+        void ensureLandingHubTopicsForAgent(agent.id).finally(() => {
+          active -= 1;
+          pump();
+        });
+      }
+    };
+    pump();
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => run(), { timeout: 2500 });
+  } else {
+    window.setTimeout(run, 0);
+  }
+}
+
+/** @deprecated Hub loads topics per agent; kept for call-site compatibility. */
+function loadGlobalLandingHubTopicItems() {
+  if (getLandingAgentsView() === "hub") scheduleLandingHubTopicsLoadForHub();
 }
 
 function groupFocusItemsByAgent(items = []) {
@@ -16448,7 +16516,6 @@ async function renderAppLandingAgents() {
   } finally {
     void loadGlobalMainItems({ showLoading: true });
     void loadGlobalFlowItems();
-    void loadGlobalLandingHubTopicItems();
     syncLandingAgentsViewUi();
     renderAgentSelect();
   }

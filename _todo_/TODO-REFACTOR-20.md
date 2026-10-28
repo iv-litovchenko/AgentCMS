@@ -23,7 +23,7 @@
 
 | Запрос | ~Size | ~Time (скрин) | Зачем | Направление REFACTOR-20/14 |
 |--------|-------|---------------|-------|----------------------------|
-| `GET /api/.../menus?maxDepth=3` | 437 kB | 14–50 s, **много повторов** | Дерево меню workspace | Кэш, один refreshMenu на boot, не параллелить лишнее; slice save/menu |
+| ~~bulk `GET /api/agents/menus?maxDepth=3`~~ | — | — | Hub twigs (landing) | [x] Hub: `GET /api/menu?agent=…&maxDepth=3` по workspace (до 4 паралл., idle); Orbit без bulk; кэш `landingHubTopicsByAgent` |
 | `GET /api/health?ts=…` | 0.2 kB | 9–42 s, timeout | Ping сервера | Уже лёгкий endpoint; долгий time = очередь/сервер |
 | `GET /api/agents` | — | cancel ~12 s | Список workspace boot | Critical path landing/workspace |
 | `GET …/text?agent=main` | 0.5 kB | ~6 s | Context buffer | Lazy до открытия панели |

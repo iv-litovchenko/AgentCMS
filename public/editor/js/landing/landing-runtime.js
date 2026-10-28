@@ -17,6 +17,7 @@ export {
   registerLandingOrbitHost,
   renderAppLandingOrbit,
   setLandingOrbitFocusCache,
+  mergeLandingOrbitFocusCacheForAgent,
   renderAppLandingOrbitFocus,
   buildMockAgentAttentionShares,
   renderAppLandingAttention,

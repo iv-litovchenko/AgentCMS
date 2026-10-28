@@ -119,6 +119,7 @@ function createAppLandingHubRow(agent, focusItems = [], options = {}) {
   const branches = document.createElement("div");
   branches.className = "app-landing-hub-branches";
 
+  const topicsLoaded = options.topicsLoaded !== false;
   if (focusItems.length) {
     const twigs = document.createElement("div");
     twigs.className = `app-landing-hub-twigs${isList ? " app-landing-hub-twigs--list" : ""}`;
@@ -151,7 +152,12 @@ function createAppLandingHubRow(agent, focusItems = [], options = {}) {
   } else {
     const empty = document.createElement("span");
     empty.className = "app-landing-hub-empty";
-    empty.textContent = "Нет тем";
+    if (!topicsLoaded) {
+      empty.classList.add("is-loading");
+      empty.textContent = "Загрузка…";
+    } else {
+      empty.textContent = "Нет тем";
+    }
     branches.appendChild(empty);
   }
 
@@ -159,10 +165,20 @@ function createAppLandingHubRow(agent, focusItems = [], options = {}) {
   return row;
 }
 
+function hubRowTopicsLoaded(h, agentId) {
+  return typeof h.hasLandingHubTopicsLoaded === "function"
+    ? h.hasLandingHubTopicsLoaded(agentId)
+    : true;
+}
+
 function appendAppLandingHubAgents(container, agents, focusByAgent, options = {}) {
+  const h = requireHost();
   for (const agent of agents) {
     container.appendChild(
-      createAppLandingHubRow(agent, focusByAgent.get(agent.id) || [], options)
+      createAppLandingHubRow(agent, focusByAgent.get(agent.id) || [], {
+        ...options,
+        topicsLoaded: hubRowTopicsLoaded(h, agent.id)
+      })
     );
   }
 }
@@ -194,7 +210,9 @@ export function renderAppLandingHub(focusItems) {
     const orchSection = document.createElement("section");
     orchSection.className = "app-landing-hub-section app-landing-hub-section--orchestrator";
     orchSection.appendChild(
-      createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || [])
+      createAppLandingHubRow(orchestrator, focusByAgent.get(orchestrator.id) || [], {
+        topicsLoaded: hubRowTopicsLoaded(h, orchestrator.id)
+      })
     );
     h.appLandingHubNode.appendChild(orchSection);
   }

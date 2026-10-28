@@ -549,7 +549,6 @@ export function renderAppLandingOrbit() {
 
   renderAppLandingOrbitLinks(agents, layoutByAgentId);
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
-  setLandingOrbitFocusCache(host.getLandingHubOrbitTopicItems());
   syncOrbitDiveSelection();
   host.appLandingInnerNode?.classList.toggle("is-orbit-direct-open", ORBIT_BUBBLE_OPENS_WORKSPACE);
   applyCachedLandingOrbitGitSummariesIfFresh();
@@ -567,6 +566,15 @@ export function setLandingOrbitFocusCache(items = []) {
   if (landingOrbitDiveAgentId) {
     renderOrbitAgentDive(landingOrbitDiveAgentId);
   }
+}
+
+export function mergeLandingOrbitFocusCacheForAgent(agentId, items = []) {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  landingOrbitFocusByAgent.set(id, Array.isArray(items) ? items : []);
+  if (host.getLandingAgentsView() !== "orbit") return;
+  renderOrbitAllAgentFocusGraphs();
+  syncOrbitFocusHighlight(landingOrbitFocusHoverAgentId);
 }
 
 function clearOrbitAgentFocusDisplay() {
@@ -594,6 +602,9 @@ export function scheduleOrbitAgentFocusHide() {
 function syncOrbitFocusHighlight(agentId = null) {
   const resolvedAgentId = String(agentId || "").trim() || null;
   landingOrbitFocusHoverAgentId = resolvedAgentId;
+  if (resolvedAgentId && typeof host.ensureLandingHubTopicsForAgent === "function") {
+    void host.ensureLandingHubTopicsForAgent(resolvedAgentId);
+  }
   const showGraph = Boolean(resolvedAgentId);
 
   host.appLandingOrbitTwigsNode?.classList.toggle("is-visible", showGraph);
