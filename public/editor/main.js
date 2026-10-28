@@ -10255,6 +10255,8 @@ async function showAgentSliderFolderPath() {
 
 async function refreshAgentPreviewAfterFileChange(agentPath) {
   await loadAgents();
+  bumpAgentPreviewCacheTokenByPath(agentPath);
+  bumpLandingUiRevision();
   syncAgentsRegistryDraftPreview(agentPath);
   await refreshAgentSliderCatalog(true);
   syncAgentPreview();
@@ -10416,9 +10418,21 @@ function mountPreviewOrFallback(container, {
   };
 
   if (previewUrl) {
+    const existingImg = container.querySelector("img");
+    if (existingImg?.src) {
+      try {
+        if (new URL(existingImg.src).href === new URL(previewUrl, window.location.origin).href) {
+          return;
+        }
+      } catch {
+        // replace img below
+      }
+    }
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
+    img.loading = "lazy";
+    img.decoding = "async";
     container.replaceChildren();
     container.appendChild(img);
     const lifecycle = bindPreviewImageLifecycle(img, {
@@ -10506,6 +10520,41 @@ let globalLandingHubTopicItemsCache = [];
 let globalFlowItemsCache = [];
 let landingHubTopicItemsLoadSeq = 0;
 let landingFlowLoadSeq = 0;
+let landingUiRevision = 0;
+let landingFocusShellRenderScheduled = 0;
+let lastLandingFocusShellRenderKey = "";
+
+function bumpLandingUiRevision() {
+  landingUiRevision += 1;
+}
+
+function resolveAgentPreviewCacheToken(agentOrId) {
+  if (!agentOrId) return "0";
+  if (typeof agentOrId === "object" && agentOrId !== null) {
+    return String(agentOrId.previewCacheToken || agentOrId.id || "0");
+  }
+  const agent = agentsCache.find((entry) => entry.id === agentOrId);
+  return String(agent?.previewCacheToken || agentOrId || "0");
+}
+
+function bumpAgentPreviewCacheToken(agentId) {
+  const agent = agentsCache.find((entry) => entry.id === agentId);
+  if (agent) agent.previewCacheToken = String(Date.now());
+}
+
+function bumpAgentPreviewCacheTokenByPath(agentPath) {
+  const key = normalizeRegistryPathKey(agentPath);
+  const agent = agentsCache.find((entry) => normalizeRegistryPathKey(entry.path) === key);
+  if (agent) bumpAgentPreviewCacheToken(agent.id);
+}
+
+function scheduleLandingFocusShellRender() {
+  if (landingFocusShellRenderScheduled) return;
+  landingFocusShellRenderScheduled = requestAnimationFrame(() => {
+    landingFocusShellRenderScheduled = 0;
+    renderGlobalFocusPanel();
+  });
+}
 
 const LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH = 2;
 const LANDING_HUB_ORBIT_MENU_MAX_DEPTH = LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH + 1;
@@ -11667,10 +11716,14 @@ function bindAppLandingMainTopicsOpenDelegation() {
 function resolveFocusPreviewUrl(rawUrl, agentId) {
   const url = String(rawUrl || "").trim();
   if (!url) return null;
+  const agent = agentsCache.find((entry) => entry.id === agentId) || { id: agentId };
   if (url.startsWith("/api/agents/workspace-preview")) {
-    return appendCacheBuster(url);
+    return finalizeRegistryAgentPreviewUrl(url, agent);
   }
-  return appendCacheBuster(appendAgentToApiUrl(url, agentId));
+  if (url.startsWith("/api/")) {
+    return appendCacheBuster(appendAgentToApiUrl(url, agentId), resolveAgentPreviewCacheToken(agent));
+  }
+  return appendCacheBuster(url, resolveAgentPreviewCacheToken(agent));
 }
 
 function createFocusThumbCell(previewUrl, fallbackText, sizeClass = "", emoji = "", nodePath = "") {
@@ -12361,13 +12414,28 @@ function renderGlobalFocusPanel() {
   syncLandingFocusToolbarUi();
   const processed = getProcessedLandingFocusItems();
   const hubOrbitTopics = getLandingHubOrbitTopicItems();
-  if (getLandingAgentsView() === "hub") {
+  const view = getLandingAgentsView();
+  if (isAppLandingViewActive()) {
+    const shellKey = `${view}|${landingUiRevision}|${hubOrbitTopics.length}|${globalFlowItemsCache.length}`;
+    if (shellKey !== lastLandingFocusShellRenderKey) {
+      lastLandingFocusShellRenderKey = shellKey;
+      if (view === "hub") {
+        renderAppLandingHub(hubOrbitTopics);
+      } else if (view === "orbit") {
+        setLandingOrbitFocusCache(hubOrbitTopics);
+      } else if (view === "grid") {
+        renderAppLandingList(processed);
+      } else if (view === "flow") {
+        renderAppLandingFlow(globalFlowItemsCache);
+      }
+    }
+  } else if (view === "hub") {
     renderAppLandingHub(hubOrbitTopics);
-  } else if (getLandingAgentsView() === "orbit") {
+  } else if (view === "orbit") {
     setLandingOrbitFocusCache(hubOrbitTopics);
-  } else if (getLandingAgentsView() === "grid") {
+  } else if (view === "grid") {
     renderAppLandingList(processed);
-  } else if (getLandingAgentsView() === "flow") {
+  } else if (view === "flow") {
     renderAppLandingFlow(globalFlowItemsCache);
   }
   if (!globalMainItemsLoading) {
@@ -12451,7 +12519,8 @@ async function loadGlobalMainItems({ showLoading = false } = {}) {
   }
   if (loadSeq !== globalMainItemsLoadSeq) return;
   globalMainItemsLoading = false;
-  renderGlobalFocusPanel();
+  bumpLandingUiRevision();
+  scheduleLandingFocusShellRender();
 }
 
 async function loadGlobalFlowItems({ showLoading = false } = {}) {
@@ -12470,12 +12539,13 @@ async function loadGlobalFlowItems({ showLoading = false } = {}) {
     globalFlowItemsCache = [];
   }
   if (loadSeq !== landingFlowLoadSeq) return;
+  bumpLandingUiRevision();
   if (getLandingAgentsView() === "flow") {
     setAppLandingFlowLoadingUi(false);
     appLandingFlowGridNode?.classList.remove("is-loading");
     appLandingFlowNode?.classList.remove("is-loading");
-    renderAppLandingFlow(globalFlowItemsCache);
   }
+  scheduleLandingFocusShellRender();
 }
 
 async function loadAgentFocusItems(agentId = activeWorkspaceId) {
@@ -12565,6 +12635,8 @@ function createAgentPickerAgentButton(agent, avatarSize = 42) {
     img.onerror = () => {
       img.replaceWith(createAgentPickerFallback(agent, avatarSize));
     };
+    img.loading = "lazy";
+    img.decoding = "async";
     img.src = previewUrl;
     btn.appendChild(img);
   } else {
@@ -16277,11 +16349,8 @@ async function loadGlobalLandingHubTopicItems() {
     globalLandingHubTopicItemsCache = [];
   }
   if (loadSeq !== landingHubTopicItemsLoadSeq) return;
-  if (getLandingAgentsView() === "hub") {
-    renderAppLandingHub(getLandingHubOrbitTopicItems());
-  } else if (getLandingAgentsView() === "orbit") {
-    setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
-  }
+  bumpLandingUiRevision();
+  scheduleLandingFocusShellRender();
 }
 
 function groupFocusItemsByAgent(items = []) {
@@ -16377,7 +16446,6 @@ async function renderAppLandingAgents() {
     void loadGlobalFlowItems();
     void loadGlobalLandingHubTopicItems();
     syncLandingAgentsViewUi();
-    syncAppLandingActiveViewRender();
     renderAgentSelect();
   }
 }
@@ -17214,6 +17282,13 @@ async function openWorkspaceStorageTopic() {
   }
 }
 
+function finalizeRegistryAgentPreviewUrl(url, agent) {
+  if (!url || !agent?.id) return url;
+  const withAgent = appendAgentToApiUrl(url, agent.id);
+  const thumbUrl = appendMediaThumbToApiUrl(withAgent, MEDIA_THUMB_MAX_AVATAR);
+  return appendCacheBuster(thumbUrl, resolveAgentPreviewCacheToken(agent));
+}
+
 function getRegistryAgentPreviewUrl(agent) {
   if (!agent?.path) return null;
   if (
@@ -17221,19 +17296,13 @@ function getRegistryAgentPreviewUrl(agent) {
     agent.previewUrl?.startsWith("/api/media/file")
   ) {
     if (!agent.hasPreview) return null;
-    return appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(agent.previewUrl, agent.id)),
-      MEDIA_THUMB_MAX_AVATAR
-    );
+    return finalizeRegistryAgentPreviewUrl(agent.previewUrl, agent);
   }
   if (agent.hasPreview || agent.previewUrl?.startsWith("/api/agents/workspace-preview")) {
     const url = agent.previewUrl?.startsWith("/api/agents/workspace-preview")
       ? agent.previewUrl
       : `/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`;
-    return appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(url, agent.id)),
-      MEDIA_THUMB_MAX_AVATAR
-    );
+    return finalizeRegistryAgentPreviewUrl(url, agent);
   }
   return null;
 }
@@ -17280,7 +17349,9 @@ function updateRegistryRowPreview(row, agent) {
       previewSlot.classList.remove("has-image");
       updateRegistryRowPreview(row, agent);
     };
-    img.src = previewUrl;
+    img.loading = "lazy";
+    img.decoding = "async";
+    if (img.src !== previewUrl) img.src = previewUrl;
   } else if (img) {
     img.remove();
   }

@@ -210,6 +210,7 @@ function appendFlowGridTilePhotoMedia(btn, previewUrl) {
   const img = document.createElement("img");
   img.alt = "";
   img.draggable = false;
+  img.loading = "lazy";
   img.decoding = "async";
   img.addEventListener(
     "error",

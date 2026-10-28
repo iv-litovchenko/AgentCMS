@@ -687,6 +687,8 @@ function mountOrbitDiveOrbContent(container, {
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
+    img.loading = "lazy";
+    img.decoding = "async";
     img.onerror = () => {
       if (emoji) {
         container.replaceChildren();
