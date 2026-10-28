@@ -563,6 +563,10 @@
       return allCores().find((j) => j.id === id) || JARVIS[0];
     }
 
+    function isMainJarvisCore(entry) {
+      return Boolean(entry && JARVIS.some((j) => j.id === entry.id));
+    }
+
     function createCoreButton(entry, { extra = false } = {}) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -593,10 +597,10 @@
       if (!isFileProtocol && frame.getAttribute('src') !== entry.file) {
         frame.src = entry.file;
       }
-      const showScene3dBanner = entry.id === 'scene3d';
+      const showMcpBanner = !isFileProtocol && isMainJarvisCore(entry);
       if (scene3dBanner) {
-        scene3dBanner.hidden = !showScene3dBanner;
-        scene3dBanner.classList.toggle('is-visible', showScene3dBanner);
+        scene3dBanner.hidden = !showMcpBanner;
+        scene3dBanner.classList.toggle('is-visible', showMcpBanner);
       }
       try {
         localStorage.setItem(storageKey, entry.id);
