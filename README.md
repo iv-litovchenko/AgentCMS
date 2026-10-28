@@ -93,11 +93,13 @@
 | App | Описание |
 | --- | --- |
 | **Agent CMS Editor** | Основной редактор: дерево папок, темы и области, настройки, поиск по материалам, память и MCP |
-| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере |
-| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки |
+| **Agent CMS Commander** | Отдельный UI на **`/app-commander/`** (Electron `.app` или браузер): операции и сценарии поверх того же workspace |
+| **Agent CMS Voice** (Flow Window) | Голосовой диалог с агентом — те же данные, с компьютера, телефона или в браузере (**`/app-chat/`**) |
+| **Agent CMS Control** (Launcher) | Запуск сервера, сборка desktop-приложений, зависимости и ярлыки (**`/app-control/`**) |
+| **`agent-cms-cli`** | Утилита в терминале (алиас **`agent-cms`**): Docker/stack, `doctor`, `start` / `rebuild`, `.env`, ярлыки Electron — см. [CLI `agent-cms-cli`](#cli-agent-cms-cli) |
 | **Agent CMS Toolbar** | Панель на любой странице в браузере: что открыто на вкладке, ссылки и медиа, вставка в поля ввода — не уходя с сайта |
 | **Google Chrome extension** | Боковая панель на вкладке с shell и голосом; ставится из папки [`browser-extension/`](browser-extension/) (см. [инструкцию](browser-extension/README.md)) |
-| **Agent CMS Voice App (iPhone)** | Чисто голосовой коннект к вашему Agent CMS: говорите с агентом с телефона, без редактора и дерева — только микрофон, ответ и озвучка; проект в [`mobile/iphone-shell/`](mobile/iphone-shell/) |
+| **Agent CMS Voice App (iPhone)** *(идея)* | Чисто голосовой клиент с телефона — **пока задумка**, черновик в [`mobile/iphone-shell/`](mobile/iphone-shell/), не продукт |
 
 
 ## Один workspace — три входа. UI, MCP и голос — разные интерфейсы, одно хранилище.

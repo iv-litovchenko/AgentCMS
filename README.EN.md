@@ -90,11 +90,13 @@ A map of ideas and system pieces (workspace), Mermaid — in the repo root: [REA
 | App | Description |
 | --- | --- |
 | **Agent CMS Editor** | Main editor: folder tree, themes and areas, settings, search, memory, and MCP |
-| **Agent CMS Voice** (Flow Window) | Voice dialog with the agent — same data from desktop, phone, or browser |
-| **Agent CMS Control** (Launcher) | Start the server, build desktop apps, dependencies, and shortcuts |
+| **Agent CMS Commander** | Separate UI at **`/app-commander/`** (Electron `.app` or browser): ops and workflows on the same workspace |
+| **Agent CMS Voice** (Flow Window) | Voice dialog with the agent — same data from desktop, phone, or browser (**`/app-chat/`**) |
+| **Agent CMS Control** (Launcher) | Start the server, build desktop apps, dependencies, and shortcuts (**`/app-control/`**) |
+| **`agent-cms-cli`** | Terminal utility (alias **`agent-cms`**): Docker/stack, `doctor`, `start` / `rebuild`, `.env`, Electron shortcuts — see [CLI `agent-cms-cli`](#cli-agent-cms-cli) |
 | **Agent CMS Toolbar** | Panel on any browser tab: what’s open, links and media, paste into inputs — without leaving the site |
 | **Google Chrome extension** | Side panel on a tab with shell and voice; install from [`browser-extension/`](browser-extension/) ([guide](browser-extension/README.md)) |
-| **Agent CMS Voice App (iPhone)** | Voice-only link to your Agent CMS: talk to the agent from your phone — mic, reply, and TTS; project in [`mobile/iphone-shell/`](mobile/iphone-shell/) |
+| **Agent CMS Voice App (iPhone)** *(idea)* | Voice-only client from a phone — **concept only**, draft in [`mobile/iphone-shell/`](mobile/iphone-shell/), not a shipped product |
 
 
 ## One workspace — three entry points. UI, MCP, and voice are different interfaces, one store.
