@@ -33424,12 +33424,21 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/platform/ui-rotators") {
+    return sendJson(res, 410, {
+      error: "ui-rotators removed",
+      details: "Use GET /api/platform/ui-eggs (_content_/easter-eggs/*.json)."
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/ui-eggs") {
     try {
-      const payload = loadPlatformUiRotators(getProjectRoot());
+      const { loadPlatformUiEggs } = require("./lib/platform/platform-ui-eggs");
+      const payload = loadPlatformUiEggs(getProjectRoot());
+      res.setHeader("Cache-Control", "no-store");
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to load platform UI rotators",
+        error: "Failed to load UI eggs",
         details: String(error?.message || error)
       });
     }

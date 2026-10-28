@@ -2394,6 +2394,44 @@ function isBuiltinAwnDataGroupRel(relPath) {
   return top.startsWith("awn-");
 }
 
+/** Platform UI rotators (0-ui) — static in header; hide from sidebar infoblocks. */
+const MENU_HIDDEN_AWN_DATA_UI_ROOTS = new Set(["0-ui", "ui"]);
+
+function normalizeAwnDataMenuStoreRel(relPath) {
+  return String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+}
+
+function isMenuHiddenAwnDataUiStoreRel(relPath) {
+  const rel = normalizeAwnDataMenuStoreRel(relPath);
+  if (!rel) return false;
+  const head = rel.split("/")[0];
+  return MENU_HIDDEN_AWN_DATA_UI_ROOTS.has(head);
+}
+
+function omitMenuHiddenAwnDataUiStores(payload) {
+  if (!payload || !Array.isArray(payload.stores)) return payload;
+  const stores = [];
+  for (const store of payload.stores) {
+    if (store?.kind === "group") {
+      if (isMenuHiddenAwnDataUiStoreRel(store.relPath)) continue;
+      const children = (Array.isArray(store.children) ? store.children : []).filter(
+        (child) => !isMenuHiddenAwnDataUiStoreRel(child?.relPath)
+      );
+      stores.push({
+        ...store,
+        children,
+        childCount: children.length
+      });
+      continue;
+    }
+    if (isMenuHiddenAwnDataUiStoreRel(store?.relPath)) continue;
+    stores.push(store);
+  }
+  return { ...payload, stores };
+}
+
 function isAwnTaxonomiesParentGroup(parentGroup = awnDataCreateParentGroup) {
   const normalized = String(parentGroup || "")
     .trim()
@@ -133127,8 +133165,8 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
     return;
   }
 
-  menuAwnDataStoresLastPayload = payload;
-  const viewPayload = filterAwnDataStoresPayload(payload, menuAwnDataSearchQuery);
+  menuAwnDataStoresLastPayload = omitMenuHiddenAwnDataUiStores(payload);
+  const viewPayload = filterAwnDataStoresPayload(menuAwnDataStoresLastPayload, menuAwnDataSearchQuery);
   const stores = Array.isArray(viewPayload.stores) ? viewPayload.stores : [];
   if (!stores.length) {
     const item = document.createElement("li");

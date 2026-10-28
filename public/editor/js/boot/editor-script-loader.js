@@ -223,11 +223,8 @@
         await loadScript("/editor/js/editor/page-snapshot.js?v=0.1.0");
         await loadScript("/editor/js/panels/cms-page-picker.js?v=0.5.9");
         await loadScript("/editor/js/panels/companion-docs.js?v=5");
-        await Promise.all([
-          loadScript("/editor/js/app/app-home-title-rotator.js?v=14"),
-          loadScript("/editor/js/app/header-slogan-rotator.js?v=20"),
-          loadScript("/editor/js/app/app-footer-voice-cmd.js?v=3")
-        ]);
+        await loadScript("/editor/js/app/header-ui-eggs-boot.js?v=1");
+        await loadScript("/editor/js/app/app-footer-voice-cmd.js?v=3");
       })();
       }
     }

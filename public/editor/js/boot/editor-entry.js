@@ -44,8 +44,7 @@ import "../panels/page-picker-extract.js";
 import "../editor/page-snapshot.js";
 import "../panels/cms-page-picker.js";
 import "../panels/companion-docs.js";
-import "../app/app-home-title-rotator.js";
-import "../app/header-slogan-rotator.js";
+import "../app/header-ui-eggs-boot.js";
 import "../app/app-footer-voice-cmd.js";
 
 import "../panels/languagetool-panel.js";

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "items": [
+    { "text": "Agent CMS", "holdMs": 9000 },
+    { "text": "My Progress", "holdMs": 9000 },
+    { "text": "My Memory", "holdMs": 6500 },
+    { "text": "My Knowledge", "holdMs": 6500 },
+    { "text": "My Atlas", "holdMs": 6500 },
+    { "text": "My World", "holdMs": 6500 }
+  ]
+}

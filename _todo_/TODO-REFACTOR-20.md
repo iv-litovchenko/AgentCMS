@@ -17,6 +17,28 @@
 - **D (boot)** — `loadLandingAgentsGroups` только на landing; workspace: defer postMain/secondary/comfort; menu panels по demand (`REFACTOR-20-phase-d.md`)
 - **B (auto)** — `docs/REFACTOR-20-baseline.md`, `check:refactor-20`, devtools-steps, status
 
+## Network — долгие запросы (DevTools, F5 `/`, 2026-10-28)
+
+> **Time** в колонке — время в **очереди waterfall** (страница ждёт другие запросы/сервер), не только «чистый» backend. Много дублей — отдельная тема. Initiator часто показывает `connection-status.js` из‑за патча `fetch`, реальный вызов — в `main.js` / boot.
+
+| Запрос | ~Size | ~Time (скрин) | Зачем | Направление REFACTOR-20/14 |
+|--------|-------|---------------|-------|----------------------------|
+| `GET /api/.../menus?maxDepth=3` | 437 kB | 14–50 s, **много повторов** | Дерево меню workspace | Кэш, один refreshMenu на boot, не параллелить лишнее; slice save/menu |
+| `GET /api/health?ts=…` | 0.2 kB | 9–42 s, timeout | Ping сервера | Уже лёгкий endpoint; долгий time = очередь/сервер |
+| `GET /api/agents` | — | cancel ~12 s | Список workspace boot | Critical path landing/workspace |
+| `GET …/text?agent=main` | 0.5 kB | ~6 s | Context buffer | Lazy до открытия панели |
+| ~~`GET …/ui-rotators`~~ | — | — | **Убрано:** статика в `index.html`, `0-ui` скрыт в меню | — |
+| `GET …/recent-updates?limit=80` | 60 kB | 44 s – 1.7 min | Лента обновлений | После интерактивности / lazy |
+| `GET …/settings-global` | 6 kB | 45–51 s | Глобальные UI settings | С boot, но не блокировать splash |
+| `GET …/main` (fetch, не main.js) | 16 kB | 34 s – 1.6 min | Focus/landing «main» items | Только landing route |
+| `GET …/monitor?agent=…` | 2.7 kB | **2.4–3.8 min** | Мониторинг/live | Long-poll; не в critical path F5 |
+| `GET /api/.../workspace-preview?path=…` | webp ~30–40 kB | 43–47 s | Превью карточек агентов | Lazy + thumb; не на каждый agent в boot |
+| `main.js?v=…` | **~5 MB** | ~46 s | Editor bundle dev | `build:editor`, slices REFACTOR-14 |
+| `context-buffer-panel.js` | 14 kB | ~53 s | Панель context buffer | Уже premain; проверить нужность на `/` |
+| `GET …/status` (app-lock) | 0.5 kB | ~37 s | App lock scanner | Sync в index по дизайну |
+
+---
+
 ## ⏳ Доделать (кратко)
 
 1. **B** — DevTools Performance + Coverage на F5 `/` и workspace; таблицы в baseline
