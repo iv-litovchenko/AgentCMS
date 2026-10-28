@@ -167,6 +167,7 @@ case "$cmd" in
       echo "→ docker compose up -d (cms, mcp, control, caddy)"
       agent_cms_compose up -d cms mcp control caddy
       base="$(agent_cms_public_base)"
+      echo "MCP-connector: ${base}/app-mcp"
       echo "Editor:  ${base}/"
       echo "Control: ${base}/app-control/"
     fi

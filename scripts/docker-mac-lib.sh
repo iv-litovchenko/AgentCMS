@@ -109,6 +109,7 @@ docker_mac_open_urls() {
       xdg-open "$control_url" >/dev/null 2>&1 || true
     fi
   fi
+  echo "  MCP-connector: ${base}/app-mcp"
   echo "  Control:  ${control_url}"
   echo "  Editor:   ${editor_url}"
   if [[ "$(docker_mac_read_env_var AGENT_CMS_EDGE_SERVICES_ENABLED 1)" == "1" ]]; then
