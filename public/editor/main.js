@@ -4160,6 +4160,10 @@ function getAgentIdFromAppLocation() {
 
 function buildAppPathFromState() {
   if (appRootNode?.classList.contains("app-landing-view")) {
+    const urlRoute = parseAppRoute(location.pathname);
+    if (urlRoute.agentId && urlRoute.type !== "root" && urlRoute.type !== "legacy") {
+      return `/${encodeURIComponent(canonicalChpuWorkspaceAgentId(urlRoute.agentId))}`;
+    }
     return "/";
   }
 
@@ -4997,10 +5001,12 @@ async function applyAppRouteFromUrl() {
   const routeAgentId = canonicalChpuWorkspaceAgentId(route.agentId);
   route.agentId = routeAgentId;
 
-  const selectable = getSelectableAgents();
-  if (!selectable.some((agent) => agent.id === routeAgentId)) {
+  if (!agentsCache.some((agent) => agent.id === routeAgentId)) {
     showToast(`Агент «${routeAgentId}» не найден`, "error");
     return false;
+  }
+  if (!getSelectableAgents().some((agent) => agent.id === routeAgentId)) {
+    showToast(`Агент «${routeAgentId}» выключен или без папки — открываем в режиме просмотра`, "info");
   }
 
   if (routeAgentId !== activeWorkspaceId) {
@@ -5340,7 +5346,8 @@ async function loadAgents() {
   const route = parseAppRoute(location.pathname);
   const isAppLandingRoute = route.type === "root" || route.type === "legacy";
   const urlAgentId = getAgentIdFromAppLocation();
-  if (urlAgentId && selectableAgents.some((agent) => agent.id === urlAgentId)) {
+  const urlAgentInRegistry = urlAgentId && agentsCache.some((agent) => agent.id === urlAgentId);
+  if (urlAgentInRegistry) {
     activeWorkspaceId = urlAgentId;
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   } else if (isAppLandingRoute) {
@@ -5353,7 +5360,14 @@ async function loadAgents() {
     activeWorkspaceId = data.defaultAgentId || selectableAgents[0]?.id || agentsCache[0]?.id || "main";
     localStorage.setItem(ACTIVE_AGENT_STORAGE_KEY, activeWorkspaceId);
   }
-  const deferRouteSync = route.type === "node" || route.type === "systemFile" || route.type === "chpu";
+  if (urlAgentInRegistry && !isAppLandingRoute) {
+    hideAppLandingView();
+  }
+  const deferRouteSync =
+    route.type === "node" ||
+    route.type === "systemFile" ||
+    route.type === "chpu" ||
+    route.type === "agentHome";
   if (!deferRouteSync && !isAppLandingRoute) {
     syncAppRouteToUrl({ replace: true });
   }
@@ -5367,7 +5381,7 @@ async function loadAgents() {
   renderAgentSelect();
   updateWorkspaceShareLinkButton();
   ensureSidebarWorkspacePageIndexRow();
-  if (isAppLandingViewActive() || isAppLandingRoute) {
+  if (isAppLandingRoute) {
     paintAppLandingHomeImmediate();
     void renderAppLandingAgents();
   }
@@ -9029,8 +9043,19 @@ function syncAgentPreview(previewMeta = null, options = {}) {
 
   if (hasPreview && previewUrl && !isBrokenImageSrc(previewUrl, activePath)) {
     syncAgentPreviewPlaceholder({ broken: false });
-    const fullSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
-    const nextSrc = appendMediaThumbToApiUrl(fullSrc, MEDIA_THUMB_MAX_PREVIEW);
+    const agentForPreview = getActiveAgentMeta();
+    const registryPreviewUrl = agentForPreview ? getRegistryAgentPreviewUrl(agentForPreview) : null;
+    const useRegistryAvatarUrl =
+      registryPreviewUrl &&
+      (resolvedPreview.source !== "slider" ||
+        isWorkspaceAgentPreviewApiUrl(previewUrl) ||
+        String(previewUrl).includes("/api/media/file"));
+    let fullSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    let nextSrc = appendMediaThumbToApiUrl(fullSrc, MEDIA_THUMB_MAX_PREVIEW);
+    if (useRegistryAvatarUrl) {
+      nextSrc = registryPreviewUrl;
+      fullSrc = appendAgentToApiUrl(stripMediaThumbFromApiUrl(registryPreviewUrl));
+    }
 
     for (const target of targets) {
       const currentSrc = target.thumb.getAttribute("src") || "";
@@ -9062,6 +9087,8 @@ function syncAgentPreview(previewMeta = null, options = {}) {
       };
 
       target.thumb.dataset.fullSrc = fullSrc;
+      target.thumb.loading = "lazy";
+      target.thumb.decoding = "async";
       if (srcChanged) {
         target.thumb.src = nextSrc;
       } else if (alreadyLoaded && !target.wrap.classList.contains("is-revealed")) {
@@ -11273,16 +11300,16 @@ function renderHomeFocusGraph(listNode, items) {
     if (previewUrl) {
       const media = document.createElement("span");
       media.className = "home-focus-graph-node-media";
-      const img = document.createElement("img");
-      img.alt = "";
-      img.draggable = false;
-      img.src = previewUrl;
-      img.onerror = () => {
-        media.remove();
-        btn.classList.remove("home-focus-graph-node--has-preview");
-      };
-      media.appendChild(img);
-      btn.classList.add("home-focus-graph-node--has-preview");
+      mountPreviewOrFallback(media, {
+        previewUrl,
+        emoji: "",
+        fallbackText: "?",
+        emojiClass: "home-focus-graph-node-emoji",
+        initialsClass: "home-focus-graph-node-fallback"
+      });
+      if (media.querySelector("img")) {
+        btn.classList.add("home-focus-graph-node--has-preview");
+      }
       btn.appendChild(media);
     }
     const labelNode = document.createElement("span");
@@ -12731,21 +12758,17 @@ function createAgentPickerAgentButton(agent, avatarSize = 42) {
   btn.style.setProperty("--picker-avatar-size", `${avatarSize}px`);
 
   const previewUrl = getRegistryAgentPreviewUrl(agent);
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.className = "agents-picker-avatar";
-    img.alt = "";
-    img.draggable = false;
-    img.onerror = () => {
-      img.replaceWith(createAgentPickerFallback(agent, avatarSize));
-    };
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.src = previewUrl;
-    btn.appendChild(img);
-  } else {
-    btn.appendChild(createAgentPickerFallback(agent, avatarSize));
-  }
+  const avatarMount = document.createElement("span");
+  avatarMount.className = "agents-picker-avatar-mount";
+  mountPreviewOrFallback(avatarMount, {
+    previewUrl: previewUrl || "",
+    emoji: resolveAwnEmoji(agent),
+    fallbackText: getAgentPickerInitials(agent),
+    emojiClass: "agents-picker-avatar-emoji",
+    initialsClass: "agents-picker-avatar-fallback"
+  });
+  avatarMount.querySelector("img")?.classList.add("agents-picker-avatar");
+  btn.appendChild(avatarMount);
 
   const nameNode = document.createElement("span");
   nameNode.className = "agents-picker-name";
@@ -13592,9 +13615,9 @@ function renderAgentSelect() {
 
   agentSelectNode.disabled = false;
   const nextValue =
-    activeWorkspaceId && selectableAgents.some((agent) => agent.id === activeWorkspaceId)
+    activeWorkspaceId && agentsCache.some((agent) => agent.id === activeWorkspaceId)
       ? activeWorkspaceId
-      : previousValue && selectableAgents.some((agent) => agent.id === previousValue)
+      : previousValue && agentsCache.some((agent) => agent.id === previousValue)
         ? previousValue
         : "";
   agentSelectNode.value = nextValue;
@@ -18174,17 +18197,29 @@ function renderAgentDiscoverResults(items) {
     previewSlot.appendChild(previewFallback);
 
     if (item.path && (item.hasPreview || item.previewRel || item.manifest?.preview)) {
-      const img = document.createElement("img");
-      img.className = "agents-registry-preview-thumb";
-      img.alt = displayName;
-      img.draggable = false;
-      img.src = appendCacheBuster(`/api/agents/workspace-preview?path=${encodeURIComponent(item.path)}`);
-      img.onload = () => {
-        previewSlot.classList.add("has-image");
-        previewFallback.remove();
+      const discoverAgent = {
+        id: item.id || item.slug || "",
+        path: item.path,
+        hasPreview: true,
+        previewUrl: item.previewUrl || null,
+        previewCacheToken: item.id || item.path
       };
-      img.onerror = () => img.remove();
-      previewSlot.appendChild(img);
+      const discoverPreviewUrl = getRegistryAgentPreviewUrl(discoverAgent);
+      if (discoverPreviewUrl) {
+        const img = document.createElement("img");
+        img.className = "agents-registry-preview-thumb";
+        img.alt = displayName;
+        img.draggable = false;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = discoverPreviewUrl;
+        img.onload = () => {
+          previewSlot.classList.add("has-image");
+          previewFallback.remove();
+        };
+        img.onerror = () => img.remove();
+        previewSlot.appendChild(img);
+      }
     }
 
     const meta = document.createElement("div");
@@ -114796,19 +114831,13 @@ function renderAgentDashboardWorkspaceSection(counts) {
 
   const avatarWrap = document.createElement("div");
   avatarWrap.className = "home2-avatar";
-  const previewUrl = agent ? getRegistryAgentPreviewUrl(agent) : null;
-  if (previewUrl) {
-    const img = document.createElement("img");
-    img.alt = "";
-    img.draggable = false;
-    img.src = previewUrl;
-    img.onerror = () => {
-      avatarWrap.textContent = getAgentPickerInitials(agent);
-    };
-    avatarWrap.appendChild(img);
-  } else {
-    avatarWrap.textContent = getAgentPickerInitials(agent || { name: agentLabel });
-  }
+  mountPreviewOrFallback(avatarWrap, {
+    previewUrl: agent ? getRegistryAgentPreviewUrl(agent) : "",
+    emoji: agent ? resolveAwnEmoji(agent) : "",
+    fallbackText: getAgentPickerInitials(agent || { name: agentLabel }),
+    emojiClass: "home2-avatar-emoji",
+    initialsClass: "home2-avatar-initials"
+  });
 
   const copy = document.createElement("div");
   copy.className = "home2-identity-copy";
@@ -135364,7 +135393,15 @@ async function init() {
     finishSplash();
     syncChannelLiveUpdates();
     if (document.body.classList.contains("app-booting")) {
-      showAppLandingView("Загрузка заняла слишком много времени. Проверьте сервер (npm run cms:restart) и обновите страницу.");
+      const failsafeRoute = parseAppRoute(location.pathname);
+      const failsafeMsg =
+        "Загрузка заняла слишком много времени. Проверьте сервер (npm run cms:restart) и обновите страницу.";
+      if (failsafeRoute.type === "root" || failsafeRoute.type === "legacy") {
+        showAppLandingView(failsafeMsg);
+      } else {
+        hideAppSplash();
+        showToast(failsafeMsg, "error");
+      }
       setMenuLoading(false);
     }
   }, 20000);

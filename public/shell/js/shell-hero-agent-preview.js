@@ -1,4 +1,5 @@
 import { loadAgentSelectData } from "/_resources/agent-select.js";
+import { getRegistryAgentPreviewUrl } from "/_resources/agent-registry-preview-url.js";
 
 let agentsCache = null;
 let agentsCachePromise = null;
@@ -25,24 +26,6 @@ function findAgentById(agentId, agents) {
   return (agents || []).find((agent) => String(agent?.id || "").trim() === id) || null;
 }
 
-function buildWorkspacePreviewThumbUrl(agent) {
-  if (!agent?.path) return null;
-  const workspacePreview =
-    agent.hasPreview === true ||
-    String(agent.previewUrl || "").startsWith("/api/agents/workspace-preview");
-  if (!workspacePreview) return null;
-
-  const pathPart = String(agent.previewUrl || "").startsWith("/api/agents/workspace-preview")
-    ? agent.previewUrl
-    : `/api/agents/workspace-preview?path=${encodeURIComponent(agent.path)}`;
-  const url = new URL(pathPart, window.location.origin);
-  if (agent.id) url.searchParams.set("agent", String(agent.id));
-  url.searchParams.set("thumb", "1");
-  url.searchParams.set("max", "480");
-  url.searchParams.set("t", String(Date.now()));
-  return `${url.pathname}${url.search}`;
-}
-
 /**
  * @param {HTMLButtonElement | null} avatarBtn
  * @param {HTMLImageElement | null} img
@@ -60,13 +43,15 @@ export async function syncShellHeroAgentPreview(avatarBtn, img, agentId, agentHi
   }
   const agents = await getAgentsList();
   const agent = agentHint || findAgentById(id, agents);
-  const previewUrl = agent ? buildWorkspacePreviewThumbUrl(agent) : null;
+  const previewUrl = agent ? getRegistryAgentPreviewUrl(agent) : null;
   if (!previewUrl) {
     avatarBtn.classList.remove("has-agent-preview");
     img.removeAttribute("src");
     img.hidden = true;
     return;
   }
+  img.loading = "lazy";
+  img.decoding = "async";
   await new Promise((resolve) => {
     const onDone = () => {
       img.removeEventListener("load", onDone);
