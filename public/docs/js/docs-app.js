@@ -24,7 +24,11 @@
   let mcpVersion = DEFAULT_DOC_VERSION;
   let selectedGuidePath = "";
 
-  const md = typeof window.markdownit === "function" ? window.markdownit({ html: false, linkify: true }) : null;
+  let md =
+    typeof window.markdownit === "function" ? window.markdownit({ html: false, linkify: true, breaks: true }) : null;
+  if (md && window.UserDocsMarkdownPreview?.configureMarkdownIt) {
+    md = window.UserDocsMarkdownPreview.configureMarkdownIt(md, "");
+  }
 
   function escapeHtml(text) {
     return String(text ?? "")
@@ -326,10 +330,17 @@
     return response.text();
   }
 
-  function renderMarkdown(container, markdown) {
+  function renderMarkdown(container, markdown, guideRelPath = "") {
     if (!container) return;
     if (md) {
-      container.innerHTML = md.render(String(markdown || ""));
+      if (window.UserDocsMarkdownPreview?.configureMarkdownIt) {
+        window.UserDocsMarkdownPreview.configureMarkdownIt(md, guideRelPath);
+      }
+      container.innerHTML = md.render(String(markdown || ""), {
+        nodePath: window.UserDocsMarkdownPreview?.resolveGuideNodePath?.(guideRelPath) || "",
+        useImageThumbs: true
+      });
+      window.UserDocsMarkdownPreview?.hydrateGuideMarkdownRoot?.(container, guideRelPath);
       return;
     }
     container.innerHTML = `<pre>${escapeHtml(markdown)}</pre>`;
@@ -345,7 +356,7 @@
     const content = document.getElementById("docs-guides-content");
     content.innerHTML = "<p>Загрузка…</p>";
     const markdown = await fetchUserGuideMarkdown(path);
-    renderMarkdown(content, markdown);
+    renderMarkdown(content, markdown, path);
     document.querySelectorAll(".docs-guides-list button").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.path === path);
     });

@@ -182,6 +182,47 @@ body {
   font-size: 0.92em;
 }
 
+.docs-markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.docs-markdown .markdown-preview-image-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0.5em 0;
+}
+
+.docs-markdown .markdown-preview-image-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.docs-markdown .markdown-preview-image-action-btn {
+  border: 1px solid var(--docs-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--docs-text);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.docs-markdown .markdown-preview-image-counter {
+  color: var(--docs-muted);
+}
+
+.docs-markdown img.markdown-image-missing {
+  opacity: 0.45;
+  min-height: 48px;
+  min-width: 80px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .docs-subtitle {
   color: var(--docs-muted);
   font-size: 14px;

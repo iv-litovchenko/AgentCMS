@@ -41892,6 +41892,23 @@ body.workspace-pomodoro-break-active {
   display: none;
 }
 
+.node-navigation-hub-rail--loading {
+  opacity: 0.72;
+  font-size: 13px;
+  color: var(--text-muted, #888);
+  padding: 12px 8px;
+}
+
+.node-navigation-hub-rail-loading-note {
+  margin: 0;
+}
+
+.node-navigation-hub-rail-block--slots-toc {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .node-navigation-hub-main {
   min-width: 0;
   display: flex;

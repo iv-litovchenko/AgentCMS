@@ -20,8 +20,8 @@
 ## ⏳ Доделать (кратко)
 
 1. **B** — DevTools Performance + Coverage на F5 `/` и workspace; таблицы в baseline
-2. **A хвост** — preview картинок в app-docs guides; `build:editor` → `main.built.js`; `APP_LOCK_APPS` для docs при необходимости
-3. **D хвост** — slices `main.js` (REFACTOR-14 P1); правая панель слотов async (TODO.md)
+2. **A хвост** — [x] preview картинок в app-docs guides (`user-docs-markdown-preview-runtime.js`); `build:editor` → `main.built.js`; `APP_LOCK_APPS` для docs при необходимости
+3. **D хвост** — [x] slices: `editor-mode-groups-runtime.js`, `editor-save-api-runtime.js` (revisions); [x] hub rail: async placeholder + только `filled` слоты + блок «оглавление + слоты»; дальше — полный вынос `saveContent` (REFACTOR-14)
 4. **Prod** — smoke `?editorBuilt=1` на `/` и workspace; gzip main/core после slices
 5. **Регрессии** — `check:editor-boot`; ручной smoke (save, режимы, preview, file-hub)
 6. **Критерии** — цифры baseline + подтверждение меньше unused JS + smoke dev/prod без регрессий

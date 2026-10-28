@@ -113,6 +113,14 @@ async function main() {
       mainJs.includes("await loadLandingAgentsGroups")
   );
 
+  push(
+    "REFACTOR-20 slices: mode-groups + save-api + user-docs preview",
+    fs.existsSync(path.join(repoRoot, "public/editor/js/core/editor-mode-groups-runtime.js")) &&
+      fs.existsSync(path.join(repoRoot, "public/editor/js/core/editor-save-api-runtime.js")) &&
+      fs.existsSync(path.join(repoRoot, "public/editor/js/core/user-docs-markdown-preview-runtime.js")) &&
+      mainJs.includes("filterNavigationHubRailFilledSlots")
+  );
+
   const indexBytes = fs.statSync(path.join(repoRoot, "public/editor/index.html")).size;
   const mainBytes = fs.statSync(path.join(repoRoot, "public/editor/main.js")).size;
   const mainGzip = gzipBytes("public/editor/main.js");

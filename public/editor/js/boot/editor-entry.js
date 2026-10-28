@@ -17,6 +17,8 @@ import "../core/editor-storage-path-runtime.js";
 import "../core/editor-chpu-path-runtime.js";
 import "../core/editor-system-files-runtime.js";
 import "../core/editor-shared-theme-presets-runtime.js";
+import "../core/editor-mode-groups-runtime.js";
+import "../core/editor-save-api-runtime.js";
 import "../context-buffer/context-buffer-client.js";
 import "../context-buffer/context-buffer-panel.js";
 import "../file-hub/file-hub-band-panel.js";

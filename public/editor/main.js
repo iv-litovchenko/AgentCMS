@@ -18005,27 +18005,6 @@ async function saveAgentsRegistryDraft() {
   }
 }
 
-const NAVIGATION_GROUP = {
-  id: "navigation",
-  title: "Навигация",
-  icon: "🧭",
-  modes: [
-    { id: "mindmap", label: "Карта тем" },
-    { id: "graph", label: "Граф", disabled: true },
-    { id: "moc", label: "Карта (moc)", disabled: true },
-    { id: "index", label: "Индекс", disabled: true }
-  ]
-};
-
-const EXTRA_GROUP = {
-  id: "extra",
-  title: "Дополнительно",
-  icon: "✨",
-  modes: [
-    { id: "vectorization", label: "Векторизация", disabled: true }
-  ]
-};
-
 const TOPIC_SCHEMA_MODE_ICON = "📋";
 const TOPIC_SCHEMA_MODE_LABEL = "Схема полей";
 const TOPIC_SCHEMA_PANEL_TITLE = "Схема полей темы";
@@ -18080,62 +18059,8 @@ const NODE_SETTINGS_GROUP = {
   ]
 };
 
-const NODE_AUTO_GROUP = {
-  id: "auto",
-  title: "Автоматизация",
-  icon: "⚡",
-  modes: [
-    { id: "schedule", label: "Задачи по расписанию", disabled: true },
-    { id: "heartbeat", label: "Heartbeat (сердцебиение)", disabled: true }
-  ]
-};
-
-const MODE_GROUPS = [
-  {
-    id: "memory",
-    title: "Память",
-    icon: "🧠",
-    modes: [
-      { id: "external", label: "Многофайловая" },
-      { id: "internal", label: "Однофайловая" },
-      { id: "tabular", label: "Табличная" },
-      { id: "inbox", label: "Входящие" },
-      { id: "external-db", label: "Реляционная БД", disabled: true },
-      { id: "references", label: "Источники" }
-    ]
-  },
-  {
-    id: "files",
-    title: "Файлы",
-    icon: "📎",
-    modes: [{ id: "media", label: "Медиа" }]
-  }
-];
-
 function getNodeSettingsModeGroups() {
   return [NODE_SETTINGS_GROUP, NODE_AUTO_GROUP];
-}
-
-function getNodeGraphModeGroups() {
-  return [...MODE_GROUPS, NAVIGATION_GROUP, EXTRA_GROUP];
-}
-
-function getAllModeGroups() {
-  return [...getNodeSettingsModeGroups(), ...MODE_GROUPS, EXTRA_GROUP];
-}
-
-function getOverviewModeGroups() {
-  const byId = new Map(getAllModeGroups().map((group) => [group.id, group]));
-  const order = ["files", "main", "auto", "memory", "extra"];
-  const ordered = [];
-  for (const id of order) {
-    const group = byId.get(id);
-    if (group) ordered.push(group);
-  }
-  for (const group of getAllModeGroups()) {
-    if (!ordered.includes(group)) ordered.push(group);
-  }
-  return ordered;
 }
 
 const NODE_OVERVIEW_MODE = "overview";
@@ -82573,14 +82498,17 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   wrap.replaceChildren();
   delete wrap.dataset.loading;
 
-  if (!slots.length) return;
+  const visibleSlots = (slots || []).filter(
+    (slot) => Boolean(slot?.filled) || slot?.id === activeSlotKey
+  );
+  if (!visibleSlots.length) return;
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
   list.setAttribute("role", "tablist");
 
-  const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
-  const fullWidthSlots = slots.filter((slot) => isStorageSlotCounterFullWidth(slot));
+  const gridSlots = visibleSlots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
+  const fullWidthSlots = visibleSlots.filter((slot) => isStorageSlotCounterFullWidth(slot));
 
   for (const slot of gridSlots) {
     const item = document.createElement("li");
@@ -82604,7 +82532,7 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
       onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
     });
   }
-  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
+  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, visibleSlots);
 }
 
 function acquireEntryOverviewDataSlotBar(context, topicPath) {
@@ -90203,6 +90131,9 @@ async function markLiveSyncOwnSaveForActivePath() {
 }
 
 async function fetchLiveFileRevisions(paths) {
+  if (globalThis.EditorSaveApi?.fetchLiveFileRevisions) {
+    return globalThis.EditorSaveApi.fetchLiveFileRevisions(paths, activeWorkspaceId);
+  }
   const response = await fetch(buildApiUrl("/api/file/revisions"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96872,15 +96803,31 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
   return details;
 }
 
+function filterNavigationHubRailFilledSlots(topicSlotCounters = [], activeSlotId = "") {
+  const activeId = String(activeSlotId || "").trim();
+  return (topicSlotCounters || []).filter(
+    (slot) => Boolean(slot?.filled) || (activeId && slot?.id === activeId)
+  );
+}
+
+function createNavigationHubRailLoadingPlaceholder() {
+  const rail = document.createElement("aside");
+  rail.className = "node-navigation-hub-rail node-navigation-hub-rail--loading";
+  rail.setAttribute("aria-label", "Слоты и оглавление");
+  rail.setAttribute("aria-busy", "true");
+  const note = document.createElement("p");
+  note.className = "node-navigation-hub-rail-loading-note";
+  note.textContent = "Загрузка слотов…";
+  rail.appendChild(note);
+  return rail;
+}
+
 function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, prefetched = {}, options = {}) {
   const rail = document.createElement("aside");
   rail.className = "node-navigation-hub-rail";
-  rail.setAttribute("aria-label", "Слоты и подразделы");
+  rail.setAttribute("aria-label", "Слоты и оглавление");
 
   const activeCtx = buildNavigationHubRailActiveContext();
-
-  const subsections = renderNavigationHubRailSubsections(childEntries, activeCtx);
-  if (subsections) rail.appendChild(subsections);
 
   const documentOutline = renderNavigationHubRailDocumentOutline(
     options.documentMarkdown ?? "",
@@ -96888,19 +96835,23 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
     options.documentHeroTitle ?? ""
   );
 
+  const slotsBlock = document.createElement("section");
+  slotsBlock.className = "node-navigation-hub-rail-block node-navigation-hub-rail-block--slots-toc";
+
+  if (documentOutline) slotsBlock.appendChild(documentOutline);
+
   const slotsWrap = document.createElement("div");
   slotsWrap.className = "node-navigation-hub-rail-slots";
   if (options.sharedSlotMode) {
     slotsWrap.classList.add("node-navigation-hub-rail-slots--flexible");
   }
 
-  if (documentOutline) slotsWrap.appendChild(documentOutline);
-
   if (options.sharedSlotMode) {
     const flexSlot = renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx);
     if (flexSlot) slotsWrap.appendChild(flexSlot);
-  } else if (topicSlotCounters.length) {
-    for (const slot of topicSlotCounters) {
+  } else {
+    const filledSlots = filterNavigationHubRailFilledSlots(topicSlotCounters, activeCtx?.slotKey || "");
+    for (const slot of filledSlots) {
       const slotIndex = prepareNavigationHubRailSlotIndex(
         slot.id,
         nodePath,
@@ -96925,7 +96876,8 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
     }
   }
 
-  if (slotsWrap.childElementCount) rail.appendChild(slotsWrap);
+  if (slotsWrap.childElementCount) slotsBlock.appendChild(slotsWrap);
+  if (slotsBlock.childElementCount) rail.appendChild(slotsBlock);
 
   return rail.childElementCount ? rail : null;
 }
@@ -97020,35 +96972,46 @@ async function appendNodeNavigationSplitRail(
   { isStale = () => false, documentMarkdown = null } = {}
 ) {
   if (usesNavigationHubInlineSubsections(nodePath)) return false;
-  const slotsTemplate =
-    prefetched.slotsTemplate ?? (await readTopicSlotsTemplateForPath(nodePath));
-  if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
-    const childEntries = getNavigationSubsectionEntries();
-    const flatNavigationIndexes =
-      prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
-    if (isStale()) return false;
-    const rail = renderNavigationHubRail([], childEntries, nodePath, {
-      ...prefetched,
-      flatNavigationIndexes,
-      _flatIndexTopicPath: nodePath
-    }, { documentMarkdown, sharedSlotMode: true });
+
+  const loadingRail = createNavigationHubRailLoadingPlaceholder();
+  hub.appendChild(loadingRail);
+
+  const replaceLoadingRail = (rail) => {
     if (isStale()) return false;
     if (rail) {
-      hub.appendChild(rail);
+      loadingRail.replaceWith(rail);
       return true;
     }
+    loadingRail.remove();
     hub.classList.remove("node-navigation-hub--split");
     syncNodeOverviewNavigationSplitClass(false);
     return false;
-  }
-
-  const childEntries = getNavigationSubsectionEntries();
-  let topicSlotCounters =
-    prefetched.topicSlotCounters ?? (await buildEntryOverviewDataSlotCounters(nodePath, prefetched));
-  topicSlotCounters = patchTopicSlotCountersFromEntryOverviewNavigation(topicSlotCounters, prefetched);
-  if (isStale()) return false;
+  };
 
   try {
+    const slotsTemplate =
+      prefetched.slotsTemplate ?? (await readTopicSlotsTemplateForPath(nodePath));
+    if (isStale()) return false;
+
+    if (slotsTemplate === TOPIC_SLOTS_TEMPLATE_FLEXIBLE) {
+      const childEntries = getNavigationSubsectionEntries();
+      const flatNavigationIndexes =
+        prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
+      if (isStale()) return false;
+      const rail = renderNavigationHubRail([], childEntries, nodePath, {
+        ...prefetched,
+        flatNavigationIndexes,
+        _flatIndexTopicPath: nodePath
+      }, { documentMarkdown, sharedSlotMode: true });
+      return replaceLoadingRail(rail);
+    }
+
+    const childEntries = getNavigationSubsectionEntries();
+    let topicSlotCounters =
+      prefetched.topicSlotCounters ?? (await buildEntryOverviewDataSlotCounters(nodePath, prefetched));
+    topicSlotCounters = patchTopicSlotCountersFromEntryOverviewNavigation(topicSlotCounters, prefetched);
+    if (isStale()) return false;
+
     const assetsData =
       prefetched.assetsData ??
       (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null));
@@ -97076,18 +97039,14 @@ async function appendNodeNavigationSplitRail(
       },
       { documentMarkdown }
     );
-    if (isStale()) return false;
-    if (rail) {
-      hub.appendChild(rail);
-      return true;
-    }
+    return replaceLoadingRail(rail);
   } catch (railError) {
     console.warn("appendNodeNavigationSplitRail failed", railError);
+    loadingRail.remove();
+    hub.classList.remove("node-navigation-hub--split");
+    syncNodeOverviewNavigationSplitClass(false);
+    return false;
   }
-
-  hub.classList.remove("node-navigation-hub--split");
-  syncNodeOverviewNavigationSplitClass(false);
-  return false;
 }
 
 async function renderNodeNavigation() {
