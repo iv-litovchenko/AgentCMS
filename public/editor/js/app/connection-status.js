@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HEALTH_URL = "/api/docs-meta";
+  const HEALTH_URL = "/api/health";
   const LIVE_POLL_MS = 30000;
   const LOST_POLL_MS = 4000;
   const FETCH_NETWORK_RE = /Failed to fetch|NetworkError|Load failed|Network request failed/i;

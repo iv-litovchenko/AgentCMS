@@ -135299,7 +135299,7 @@ headerConnectBtn?.addEventListener("click", (event) => {
 headerConnectCloseBtn?.addEventListener("click", closeHeaderConnectPopover);
 headerConnectMcpBtn?.addEventListener("click", () => {
   closeHeaderConnectPopover();
-  void openMcpDocsModal();
+  openAgentCmsDocsApp("mcp");
 });
 headerConnectCopyBtn?.addEventListener("click", () => {
   void copyHeaderConnectPrompt();
@@ -136075,9 +136075,16 @@ componentsIdeasModalNode?.addEventListener("click", (event) => {
   if (event.target === componentsIdeasModalNode) closeComponentsIdeasModal();
 });
 
-userDocsBtn?.addEventListener("click", () => {
+function openAgentCmsDocsApp(view = "guides") {
   closeHeaderProfileMenu();
-  void openUserDocsModal();
+  const safe = String(view || "guides").trim().toLowerCase();
+  const v = safe === "api" || safe === "mcp" ? safe : "guides";
+  const url = `/app-docs/?view=${encodeURIComponent(v)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+userDocsBtn?.addEventListener("click", () => {
+  openAgentCmsDocsApp("guides");
 });
 userDocsVersionSelectNode?.addEventListener("change", () => {
   void (async () => {
@@ -136105,8 +136112,7 @@ bestPracticesModalNode?.addEventListener("click", (event) => {
 });
 
 apiDocsBtn?.addEventListener("click", () => {
-  closeHeaderProfileMenu();
-  void openApiDocsModal();
+  openAgentCmsDocsApp("api");
 });
 
 agentAwnTypesBtn?.addEventListener("click", () => {
@@ -136130,8 +136136,7 @@ apiDocsModalNode?.addEventListener("click", (event) => {
 });
 
 mcpDocsBtn?.addEventListener("click", () => {
-  closeHeaderProfileMenu();
-  void openMcpDocsModal();
+  openAgentCmsDocsApp("mcp");
 });
 headerProfileJournalBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
@@ -137619,9 +137624,6 @@ initCreateSectionSlugController();
 initCreateMemorySlugControllers();
 initCreateDisplayNameHints();
 initCreateMemoryFormatPicker();
-void fetchDocsMeta()
-  .then(() => syncApiMcpDocVersionSelects(DEFAULT_DOC_VERSION))
-  .catch(() => {});
 mediaViewSelectNode?.addEventListener("change", () => {
   setMediaViewMode(mediaViewSelectNode?.value || "dashboard");
 });

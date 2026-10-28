@@ -372,9 +372,7 @@
         editorSecondaryPanelsPromise = Promise.all([
           loadScript("/editor/js/panels/languagetool-panel.js?v=2"),
           loadScript("/editor/js/panels/file-find-bar.js?v=2"),
-          loadScript("/editor/js/editor/marker-blocks-preview.js?v=11"),
-          loadScript("/editor/js/panels/mcp-docs-primitives-help.js?v=1"),
-          loadScript("/editor/js/panels/api-docs-ui.js?v=2")
+          loadScript("/editor/js/editor/marker-blocks-preview.js?v=11")
         ]);
       }
     }

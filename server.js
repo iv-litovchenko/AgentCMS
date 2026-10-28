@@ -19116,6 +19116,7 @@ async function shouldServeMaintenancePage(reqPath, safePath) {
   if (normalized === "/app-chat" || normalized.startsWith("/app-chat/")) return false;
   if (normalized === "/app-commander" || normalized.startsWith("/app-commander/")) return false;
   if (normalized === "/app-mcp" || normalized.startsWith("/app-mcp/")) return false;
+  if (normalized === "/app-docs" || normalized.startsWith("/app-docs/")) return false;
   if (String(safePath || "").startsWith("control/")) return false;
 
   if (safePath === "index.html" || normalized === "/") return true;
@@ -33360,6 +33361,11 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/health") {
+    res.setHeader("Cache-Control", "no-store");
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/docs-meta") {
     return sendJson(res, 200, docsRegistry.getDocsMeta());
   }
@@ -34635,6 +34641,13 @@ function createRequestHandler() {
 
     if (url.pathname === "/app-chat") {
       const dest = url.search ? `/app-chat/${url.search}` : "/app-chat/";
+      res.writeHead(301, { Location: dest });
+      res.end();
+      return;
+    }
+
+    if (url.pathname === "/app-docs") {
+      const dest = url.search ? `/app-docs/${url.search}` : "/app-docs/";
       res.writeHead(301, { Location: dest });
       res.end();
       return;

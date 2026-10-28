@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent CMS — Справочник</title>
+    <link rel="icon" type="image/svg+xml" href="/editor/favicon.svg" />
+    <link rel="stylesheet" href="/docs/docs.css?v=1" />
+  </head>
+  <body>
+    <div class="docs-app">
+      <header class="docs-app-header">
+        <div class="docs-app-header-start">
+          <a class="docs-app-back" href="/" title="Agent CMS Editor">← Editor</a>
+          <h1 class="docs-app-title">Справочник</h1>
+        </div>
+        <nav class="docs-app-nav" aria-label="Разделы">
+          <button type="button" class="docs-app-nav-btn" data-view="guides">Руководства</button>
+          <button type="button" class="docs-app-nav-btn" data-view="api">HTTP API</button>
+          <button type="button" class="docs-app-nav-btn" data-view="mcp">MCP Server</button>
+        </nav>
+        <div class="docs-app-header-end">
+          <select id="docs-version-select" class="docs-version-select hidden" aria-label="Версия API/MCP"></select>
+        </div>
+      </header>
+
+      <div id="docs-status" class="docs-status hidden" role="alert"></div>
+
+      <div id="view-guides" class="docs-view hidden">
+        <aside class="docs-guides-sidebar" aria-label="Список руководств">
+          <ul id="docs-guides-list" class="docs-guides-list"></ul>
+        </aside>
+        <article id="docs-guides-content" class="docs-guides-content docs-markdown"></article>
+      </div>
+
+      <div id="view-api" class="docs-view hidden">
+        <p id="api-docs-subtitle" class="docs-subtitle"></p>
+        <div id="api-docs-notes" class="docs-notes"></div>
+        <div class="docs-search-bar">
+          <input id="api-docs-search" type="search" placeholder="Поиск по методам…" autocomplete="off" spellcheck="false" />
+          <p id="api-docs-search-empty" class="docs-search-empty hidden">Ничего не найдено</p>
+        </div>
+        <div id="api-docs-content" class="docs-content"></div>
+      </div>
+
+      <div id="view-mcp" class="docs-view hidden">
+        <div class="docs-mcp-toolbar">
+          <button id="mcp-docs-help-btn" type="button" class="docs-toolbar-btn" aria-expanded="false">Помощь MCP</button>
+        </div>
+        <p id="mcp-docs-subtitle" class="docs-subtitle"></p>
+        <div id="mcp-docs-notes" class="docs-notes"></div>
+        <pre id="mcp-docs-config" class="docs-mcp-config hidden"></pre>
+        <div id="mcp-docs-tools-wrap">
+          <div class="docs-search-bar">
+            <input id="mcp-docs-search" type="search" placeholder="Поиск по tools…" autocomplete="off" spellcheck="false" />
+            <p id="mcp-docs-search-empty" class="docs-search-empty hidden">Ничего не найдено</p>
+          </div>
+          <div id="mcp-docs-content" class="docs-content"></div>
+        </div>
+        <div id="mcp-docs-help-panel" class="docs-content docs-mcp-help hidden" hidden>
+          <p class="docs-mcp-help-lead">
+            Model Context Protocol (MCP) подключает сервер к IDE (Cursor, Claude Desktop). В Agent CMS в основном
+            реализованы <strong>Tools</strong> — список ниже на вкладке MCP.
+          </p>
+          <p class="docs-mcp-help-foot">
+            JSON для Cursor — в блоке конфигурации выше. Агент в чате видит tools через MCP, не эту страницу.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="/_resources/vendor/markdown-it.min.js"></script>
+    <script src="/docs/js/docs-app.js?v=1"></script>
+  </body>
+</html>

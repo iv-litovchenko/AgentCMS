@@ -51,9 +51,6 @@ import "../panels/viz-maps-aside.js";
 import "../viz/scene3d-preview.js";
 import "../panels/file-find-bar.js";
 import "../editor/marker-blocks-preview.js";
-import "../panels/mcp-docs-primitives-help.js";
-import "../panels/api-docs-ui.js";
-
 import "../app/connection-status.js";
 
 import "../panels/entity-registry-editor.js";

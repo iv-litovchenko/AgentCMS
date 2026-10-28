@@ -10,7 +10,7 @@
   if (!toggleBtn || !menuNode || !listNode) return;
 
   const ICON_BASE = "/editor/assets/platform-apps";
-  const UI_APP_ORDER = ["control", "chat", "commander"];
+  const UI_APP_ORDER = ["control", "chat", "commander", "docs"];
   const APP_ICON_FILE = {
     chat: "voice.svg",
     commander: "commander.svg",
