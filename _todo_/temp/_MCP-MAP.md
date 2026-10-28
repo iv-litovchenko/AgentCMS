@@ -153,9 +153,9 @@ agent-cms MCP
 
 ## Связанные документы
 
-- [GLOBAL-SKILL-0-MCP-WELCOME.md](../GLOBAL-SKILL-0-MCP-WELCOME.md) — welcome / карта скиллов  
-- [mcp-server/lib/mcp-instructions.js](../mcp-server/lib/mcp-instructions.js) — server instructions (inline)  
-- [mcp-server/README.md](../mcp-server/README.md) — установка и env  
+- [GLOBAL-SKILL-0-MCP-WELCOME.md](../../_skills_/GLOBAL-SKILL-0-MCP-WELCOME.md) — welcome / карта скиллов  
+- [mcp-server/lib/mcp-instructions.js](../../mcp-server/lib/mcp-instructions.js) — server instructions (inline)  
+- [mcp-server/README.md](../../mcp-server/README.md) — установка и env  
 - [TODO-REFACTOR-4.md](../TODO-REFACTOR-4.md) — модель placement (историческая карта)  
 - [TODO-REFACTOR-11-DONE.md](./TODO-REFACTOR-11-DONE.md) — что в `get_session_context`
 

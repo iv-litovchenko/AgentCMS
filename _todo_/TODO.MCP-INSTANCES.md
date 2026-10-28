@@ -174,7 +174,7 @@ Claude Desktop (один MCP stdio)
 - **`instances.json`** + UI только в Control
 - Туннель: `/api/tunnel/ws`, `tunnel:device`, invoke/devices API
 
-Подробности деплоя и портов — **`TODO.SERVER.md`**, коннекторы — **`docs/connectors/README.md`**.
+Подробности деплоя и портов — **`TODO.SERVER.md`**, коннекторы — **[docs/connectors/README.md](../docs/connectors/README.md)**.
 
 ---
 

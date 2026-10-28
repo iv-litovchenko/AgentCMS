@@ -290,13 +290,13 @@
 | **Сеть** | localhost / LAN | публичный IPv4; **22 / 80 / 443** — [установщик / Linux](#-установка--установщик-mac--windows--linux-gb-install--installer) |
 | **Не на сервере** | — | Electron, Control desktop, GUI |
 
-Prod (TLS, reverse proxy): [TODO.SERVER.md](TODO.SERVER.md).
+Prod (TLS, reverse proxy): [TODO.SERVER.md](_todo_/TODO.SERVER.md).
 
 ---
 
 > 🇬🇧 **[en]**
 >
-> Prefer the **installer** (below), then daily ops via **`agent-cms-cli`** (`agent-cms` alias). Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [TODO-REFACTOR-15.md](TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
+> Prefer the **installer** (below), then daily ops via **`agent-cms-cli`** (`agent-cms` alias). Manual clone + compose blocks remain as fallback. Config: **`.env` in the repo**. Details: [DOCKER.md](docs/deploy/DOCKER.md). Legacy npm/`install-deps.sh` — image dev only. Roadmap: [_todo_/TODO-REFACTOR-15.md](_todo_/TODO-REFACTOR-15.md) (Q9.1 / Q9.2).
 
 ## 🇷🇺 Установка — установщик (Mac / Windows / Linux) (🇬🇧 Install — installer)
 
@@ -705,7 +705,7 @@ npm run cms:desktop   # dev-окно без сборки
 | **`AGENT_CMS_SITE_TITLE`** | Заголовок сайта в UI | Site title | `Agent CMS` |
 | **`AGENT_CMS_PUBLIC_DOMAIN`** | Apex для **Caddy** (VPS) и edge (`*.domain` / **`*.localhost`** на Mac) | Public apex / Caddy domain | VPS: `maptex.ru` · Mac: `localhost` |
 | **`AGENT_CMS_CADDY_EMAIL`** | Email для **Let's Encrypt** (Caddy) | ACME email | `admin@example.com` |
-| **`AGENT_CMS_EDGE_SERVICES_ENABLED`** | **`1`** — **edge-сервисы** (`qwenpaw.*`, **`all.*`**, заглушка `http://foo.*`): Caddy + `docker-compose.edge-services.yml` / Mac overlay. MCP: **`platform_services_list`**. [DOCKER.md](docs/deploy/DOCKER.md#edge-сервисы-на-поддоменах-q10-v0) · [Q10](TODO-REFACTOR-15.md) | Subdomain edge services | **`1`** |
+| **`AGENT_CMS_EDGE_SERVICES_ENABLED`** | **`1`** — **edge-сервисы** (`qwenpaw.*`, **`all.*`**, заглушка `http://foo.*`): Caddy + `docker-compose.edge-services.yml` / Mac overlay. MCP: **`platform_services_list`**. [DOCKER.md](docs/deploy/DOCKER.md#edge-сервисы-на-поддоменах-q10-v0) · [Q10](_todo_/TODO-REFACTOR-15.md) | Subdomain edge services | **`1`** |
 | **`AGENT_CMS_EDGE_HTTP_GATE`** | **`1`** — CMS на `:3000` маршрутизирует edge по `Host` (Mac). VPS + Caddy — **`0`** / не задавать | CMS Host gateway without Caddy | Mac: auto |
 | **`AGENT_CMS_SERVICES_DATA_DIR`** | Имя папки под данные сервисов: **`workspaces/<dir>/<service-id>/`** | Edge services data root | `0-services-data` |
 | **`AGENT_CMS_MCP_TOKEN`** | Bearer-токен для **`/app-mcp`** и MCP-клиентов | MCP Bearer token | длинный секрет |
@@ -791,7 +791,7 @@ npm run cms:desktop   # dev-окно без сборки
 
 🇷🇺 **[ru]**
 
-Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](TODO.MCP-INSTANCES.md).
+Сначала запущен CMS (Mac или VPS). Подробнее: [docs/connectors/README.md](docs/connectors/README.md) · инстансы: [TODO.MCP-INSTANCES.md](_todo_/TODO.MCP-INSTANCES.md).
 
 **Cursor · Claude Desktop · другие MCP-клиенты (канон — HTTP):**
 
@@ -1217,7 +1217,7 @@ user-agent-cms
 
 Файлы **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (схема workspace — **на главной CMS**), полный **README** — в [репозитории](https://github.com/iv-litovchenko/AgentCMS). Для RAG и always-context. Скиллы — [раздел выше](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others).
 
-См. также: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
+См. также: [TODO.md](_todo_/TODO.md) · [TODO-file.md](_todo_/TODO-file.md) · [TODO.TimeTracker.md](_todo_/TODO.TimeTracker.md) · [TODO.Transfer.md](_todo_/TODO.Transfer.md)
 
 ---
 
@@ -1225,7 +1225,7 @@ user-agent-cms
 >
 > **`_skills_/GLOBAL-SKILL-*.md`**, [README.diagram.md](README.diagram.md) (CMS home), full README on [GitHub](https://github.com/iv-litovchenko/AgentCMS). [Agent skills](#-подключение-скиллов-для-агента--claude-codex-и-другие-gb-agent-skills--claude-codex-and-others) above.
 >
-> See also: [TODO.md](TODO.md) · [TODO-file.md](TODO-file.md) · [TODO.TimeTracker.md](TODO.TimeTracker.md) · [TODO.Transfer.md](TODO.Transfer.md)
+> See also: [TODO.md](_todo_/TODO.md) · [TODO-file.md](_todo_/TODO-file.md) · [TODO.TimeTracker.md](_todo_/TODO.TimeTracker.md) · [TODO.Transfer.md](_todo_/TODO.Transfer.md)
 
 ## 🇷🇺 Мечта (🇬🇧 Vision)
 

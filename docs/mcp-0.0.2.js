@@ -15,7 +15,7 @@ module.exports = {
     "list_vaults — alias для list_workspaces.",
     "Контент (placement): content_read / content_write / contents_list (legacy read_content, …); kind topic|channel|media|database|repository|root.",
     "Индексы и поиск — НЕ placement: nav_*, search_*, index_*. Legacy: rebuild_workspace_*, search_workspace_*, read_workspace_map, get_topic_map (deprecated).",
-    "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. TODO-REFACTOR-4.md).",
+    "MCP_LEGACY_TOOLS=1 — опционально: read_content_body, read_file, list_channel_items, … (см. _todo_/TODO-REFACTOR-4.md).",
     "awn-databases: databases_list / database_get … (legacy list_databases, database_frame_*); записи → *_content_* (kind: database, slot: data); TOC → read/refresh_databases_index_toc.",
     "Бинарники: content_binary_write / content_binary_write_from_url; legacy upload_file при MCP_LEGACY_TOOLS=1.",
     "Медиа-облако: module_media_cloud_providers_list, module_media_cloud_status, module_media_cloud_sync, module_media_cloud_links_repair; stub module_media_cloud_upload, module_media_cloud_url.",

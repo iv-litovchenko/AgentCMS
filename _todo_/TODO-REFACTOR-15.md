@@ -89,7 +89,7 @@
 
 MCP со списком приложений: что где работает, по каким адресам открывается, порты (dev), типа реестр с URL.
 
-**Именование MCP** (как в [README.md](README.md): `platform_info_get`, `platform_docs_list`, …):
+**Именование MCP** (как в [README.md](../README.md): `platform_info_get`, `platform_docs_list`, …):
 
 | Канон | Legacy alias | HTTP (CMS) |
 | --- | --- | --- |

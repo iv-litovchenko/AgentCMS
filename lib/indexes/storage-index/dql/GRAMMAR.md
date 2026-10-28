@@ -44,7 +44,7 @@ literal   ::= string | number | boolean | ident
 - CSV rows: indexed in `catalog.sqlite` + **csv-fulltext-index** (tokens + hash-tfidf semantic). Fallback: scan cells (`csv-cell`).
 - Raw SQL from clients is rejected.
 
-See `TODO.SQL.md`. Agent-facing summary: `GLOBAL-SKILL-5-SEARCH.md`.
+See `_todo_/TODO.SQL.md`. Agent-facing summary: `GLOBAL-SKILL-5-SEARCH.md`.
 
 ## Integration
 
