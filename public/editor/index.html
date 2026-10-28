@@ -1041,46 +1041,6 @@
                 <span class="header-chat-label">Чат</span>
               </button>
             </div>
-            <div id="header-focus-wrap" class="header-focus-wrap hidden">
-              <button
-                id="header-focus-toggle-btn"
-                class="header-tool-btn header-tool-btn--focus"
-                type="button"
-                title="Фокус — быстрый навигатор"
-                aria-label="Фокус"
-                aria-haspopup="dialog"
-                aria-expanded="false"
-                aria-controls="header-focus-popover"
-              >
-                <span class="header-focus-icon" aria-hidden="true">◎</span>
-                <span class="header-focus-label">Фокус</span>
-                <span id="header-focus-count" class="header-focus-badge hidden" aria-hidden="true">0</span>
-              </button>
-              <div
-                id="header-focus-popover"
-                class="header-focus-popover hidden"
-                role="dialog"
-                aria-label="Фокус — быстрый навигатор"
-              >
-                <div class="header-focus-popover-head">
-                  <div class="header-focus-popover-title-wrap">
-                    <p class="header-focus-popover-title">Фокус</p>
-                    <p class="header-focus-popover-subtitle">Быстрый навигатор</p>
-                  </div>
-                  <button
-                    id="header-focus-close-btn"
-                    class="header-focus-popover-close"
-                    type="button"
-                    aria-label="Закрыть"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div id="header-focus-list-shell" class="header-focus-list-shell">
-                  <div id="header-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
-                </div>
-              </div>
-            </div>
             <div id="header-index-wrap" class="header-index-wrap">
               <button
                 id="header-index-toggle-btn"
@@ -1546,6 +1506,46 @@
               </div>
             </div>
             <div class="header-profile-wrap">
+              <div id="header-focus-wrap" class="header-focus-wrap header-focus-wrap--user hidden">
+                <button
+                  id="header-focus-toggle-btn"
+                  class="header-tool-btn header-tool-btn--focus header-focus-toggle--user"
+                  type="button"
+                  title="Окна пользователя — темы в фокусе (awn-focus)"
+                  aria-label="Окна пользователя"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                  aria-controls="header-focus-popover"
+                >
+                  <span class="header-focus-icon" aria-hidden="true">◎</span>
+                  <span class="header-focus-label">Окна</span>
+                  <span id="header-focus-count" class="header-focus-badge hidden" aria-hidden="true">0</span>
+                </button>
+                <div
+                  id="header-focus-popover"
+                  class="header-focus-popover hidden"
+                  role="dialog"
+                  aria-label="Окна пользователя — быстрый навигатор"
+                >
+                  <div class="header-focus-popover-head">
+                    <div class="header-focus-popover-title-wrap">
+                      <p class="header-focus-popover-title">Окна пользователя</p>
+                      <p class="header-focus-popover-subtitle">Темы в фокусе · awn-focus</p>
+                    </div>
+                    <button
+                      id="header-focus-close-btn"
+                      class="header-focus-popover-close"
+                      type="button"
+                      aria-label="Закрыть"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div id="header-focus-list-shell" class="header-focus-list-shell">
+                    <div id="header-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
+                  </div>
+                </div>
+              </div>
               <button
                 id="header-user-profile-btn"
                 class="header-tool-btn header-tool-btn--profile header-user-profile-btn"
@@ -1595,6 +1595,15 @@
                     title="Профиль пользователя (user/)"
                   >
                     Профиль пользователя
+                  </button>
+                  <button
+                    id="header-profile-focus-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="Окна пользователя — темы в фокусе (awn-focus)"
+                  >
+                    ◎ Окна пользователя (фокус)
                   </button>
                   <button
                     id="app-lock-logout-btn"
@@ -2484,7 +2493,7 @@
           <div class="menu-sidebar-bottom">
             <section
               id="menu-awn-databases-band"
-              class="menu-awn-databases-band menu-awn-databases-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
+              class="menu-awn-databases-band menu-awn-databases-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
               aria-label="Накопители информации (инфоблоки)"
             >
               <div class="menu-awn-databases-band-head">
@@ -2492,7 +2501,7 @@
                   id="menu-awn-databases-band-toggle"
                   type="button"
                   class="menu-awn-databases-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--awn-databases"
-                  aria-expanded="true"
+                  aria-expanded="false"
                   aria-controls="menu-awn-databases-band-body"
                   title="Накопители информации (инфоблоки) — свернуть или показать"
                 >
@@ -2548,7 +2557,7 @@
                   </button>
                 </div>
               </div>
-              <div id="menu-awn-databases-band-body" class="menu-awn-databases-band-body">
+              <div id="menu-awn-databases-band-body" class="menu-awn-databases-band-body" hidden>
                 <div class="menu-awn-databases-toolbar">
                   <div class="menu-awn-databases-toolbar-row">
                     <button
@@ -2878,7 +2887,7 @@
             </section>
             <section
               id="menu-repositories-band"
-              class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
+              class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar is-collapsed"
               aria-label="Репозитории и исходники"
             >
               <div class="menu-repositories-band-head">
@@ -2886,7 +2895,7 @@
                   id="menu-repositories-band-toggle"
                   type="button"
                   class="menu-repositories-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--repositories"
-                  aria-expanded="true"
+                  aria-expanded="false"
                   aria-controls="menu-repositories-band-body"
                   title="Репозитории и исходники — свернуть или показать"
                 >
@@ -2943,7 +2952,7 @@
                   </button>
                 </div>
               </div>
-              <div id="menu-repositories-band-body" class="menu-repositories-band-body">
+              <div id="menu-repositories-band-body" class="menu-repositories-band-body" hidden>
                 <div class="menu-repositories-toolbar">
                   <button
                     id="menu-repositories-groups-btn"
@@ -3915,7 +3924,11 @@
               <p class="home-card-text">Медиа, документы и превью.</p>
             </article>
           </div>
-          <section id="home-focus" class="home-focus-section hidden" aria-label="Фокус">
+          <section id="home-focus" class="home-focus-section hidden" aria-label="Окна пользователя">
+            <div class="home-focus-section-head">
+              <h2 class="home-focus-section-title">Окна пользователя</h2>
+              <p class="home-focus-section-sub">Темы в фокусе · awn-focus</p>
+            </div>
             <div id="home-focus-list" class="home-focus-graph"></div>
           </section>
           </div>

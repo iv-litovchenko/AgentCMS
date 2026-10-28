@@ -2202,6 +2202,7 @@ const headerProfileEnvBtn = document.getElementById("header-profile-env-btn");
 const headerProfileSystemInfoBtn = document.getElementById("header-profile-system-info-btn");
 const headerProfileAgentBtn = document.getElementById("header-profile-agent-btn");
 const headerProfileSettingsBtn = document.getElementById("header-profile-settings-btn");
+const headerProfileFocusBtn = document.getElementById("header-profile-focus-btn");
 const webSiteBtn = document.getElementById("web-site-btn");
 const appLockLogoutBtn = document.getElementById("app-lock-logout-btn");
 let headerProfileMenuOpen = false;
@@ -9282,7 +9283,7 @@ function closeHeaderFocusPopover() {
 }
 
 function openHeaderFocusPopover() {
-  if (!headerFocusPopoverNode || !headerFocusToggleBtn || headerFocusWrapNode?.classList.contains("hidden")) return;
+  if (!headerFocusPopoverNode || !headerFocusToggleBtn || !activeWorkspaceId || isAppLandingViewActive()) return;
   closeHeaderIndexPopover();
   closeHeaderProfileMenu();
   closeHeaderWelcomePopover();
@@ -9293,7 +9294,11 @@ function openHeaderFocusPopover() {
   headerFocusPopoverNode.classList.remove("hidden");
   syncHeaderFocusButtonState();
   positionHeaderFocusPopover();
-  if (activeWorkspaceId) void loadAgentFocusItems(activeWorkspaceId);
+  if (shouldScheduleWorkspaceAgentFocusLoad()) {
+    scheduleWorkspaceAgentFocusLoadIfNeeded();
+  } else if (activeWorkspaceId) {
+    void loadAgentFocusItems(activeWorkspaceId);
+  }
 }
 
 function toggleHeaderFocusPopover() {
@@ -12492,15 +12497,18 @@ function renderGlobalFocusPanel() {
 }
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
-  if (!panelNode || !listNode) return;
+  if (!listNode) return;
+  const isHeaderFocus = panelNode === headerFocusWrapNode;
   listNode.replaceChildren();
   if (!activeWorkspaceId) {
-    panelNode.classList.add("hidden");
+    if (!isHeaderFocus && panelNode) panelNode.classList.add("hidden");
+    syncHeaderFocusWorkspaceAvailability();
     syncHeaderFocusCount();
     closeHeaderFocusPopover();
     return;
   }
-  panelNode.classList.remove("hidden");
+  if (!isHeaderFocus && panelNode) panelNode.classList.remove("hidden");
+  if (isHeaderFocus) syncHeaderFocusWorkspaceAvailability();
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "agent-focus-empty";
@@ -12589,6 +12597,34 @@ function scheduleLandingFlowItemsLoadIfNeeded() {
     if (getLandingAgentsView() !== "flow") return;
     if (globalFlowItemsLoaded || globalFlowItemsInflight) return;
     void loadGlobalFlowItems({ showLoading: true });
+  });
+}
+
+function shouldScheduleWorkspaceAgentFocusLoad() {
+  return (
+    Boolean(activeWorkspaceId) &&
+    !isAppLandingViewActive() &&
+    isAgentWorkspaceCanvasVisible() &&
+    agentWorkspaceView === "dashboard"
+  );
+}
+
+/** Как `scheduleLandingMainItemsLoadIfNeeded`: 1× idle `/api/agents/focus` только на виде «Главная». */
+function scheduleWorkspaceAgentFocusLoadIfNeeded() {
+  if (!shouldScheduleWorkspaceAgentFocusLoad()) return;
+  const agentId = activeWorkspaceId;
+  if (
+    agentFocusItemsLoadedAgentId === agentId &&
+    agentFocusItemsInflightAgentId !== agentId
+  ) {
+    renderAgentFocusPanels();
+    return;
+  }
+  if (agentFocusItemsInflight && agentFocusItemsInflightAgentId === agentId) return;
+  scheduleLandingIdleTask(() => {
+    if (!shouldScheduleWorkspaceAgentFocusLoad()) return;
+    if (activeWorkspaceId !== agentId) return;
+    void loadAgentFocusItems(agentId);
   });
 }
 
@@ -16713,6 +16749,9 @@ async function switchActiveAgent(nextAgentId) {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
     activeWorkspaceId = nextAgentId;
+    agentFocusItemsCache = [];
+    agentFocusItemsLoadedAgentId = null;
+    closeHeaderFocusPopover();
     agentGitLastStatus = null;
     agentGitLastStatusAgentId = null;
     agentGitRemoteCheckSeq += 1;
@@ -16799,14 +16838,12 @@ async function switchActiveAgent(nextAgentId) {
         if (isAgentWorkspaceCanvasVisible()) {
           applyAgentWorkspaceCanvasUi();
         }
-        agentFocusItemsLoadedAgentId = null;
         menuAgentWorkspaceStatsCache = null;
         menuAgentWorkspaceStatsAgentId = null;
         if (switchedAgentId !== activeWorkspaceId) return;
         updateDocumentTitle();
         updateBreadcrumbsForActiveMode();
         void loadAppFooterIdeasPreview();
-        scheduleVisibleMenuAgentStaticSummaries(switchedAgentId);
       } catch (error) {
         console.warn("switchActiveAgent background load failed", error);
       }
@@ -115150,6 +115187,7 @@ function renderAgentDashboardView() {
   const counts = countAgentMenuNodes(currentMenuData);
   renderAgentDashboardIdeaSection(counts);
   void refreshHomeWorkspaceManifestSection();
+  scheduleWorkspaceAgentFocusLoadIfNeeded();
 
   if (homeHintNode && !homeHintNode.classList.contains("is-alert")) {
     homeHintNode.textContent = AGENT_HOME_HINT_DEFAULT;
@@ -118878,6 +118916,7 @@ function hideAppLandingView() {
   appRootNode?.classList.remove("app-landing-view");
   appLandingPaneNode?.classList.add("hidden");
   setAppLandingHint("");
+  syncHeaderFocusWorkspaceAvailability();
   closeHeaderWelcomePopover();
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
@@ -118930,6 +118969,7 @@ function showAppLandingView(hint = "") {
   updateWorkspaceShareLinkButton();
   agentFocusItemsCache = [];
   renderAgentFocusPanels();
+  syncHeaderFocusWorkspaceAvailability();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();
@@ -121719,7 +121759,6 @@ function setupMenuAwnChannelsBandGroup() {
   syncMenuAwnChannelsBandAccordionUi();
   setupMenuAwnChannelsFlowStrip();
   setupMenuAwnChannelsUi();
-  if (isMenuAwnChannelsBandExpanded()) void refreshMenuAwnChannels();
   menuAwnChannelsBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnChannelsBandExpanded();
   });
@@ -121973,7 +122012,6 @@ function setupMenuAwnDataIndexRow() {
 
 function setupMenuMediaLibraryBandGroup() {
   syncMenuMediaLibraryBandAccordionUi();
-  if (isMenuMediaLibraryBandExpanded()) void refreshMenuMediaLibraries();
   menuMediaLibraryBandToggleBtn?.addEventListener("click", () => {
     toggleMenuMediaLibraryBandExpanded();
   });
@@ -121995,7 +122033,6 @@ function setupMenuAwnScriptsBandGroup() {
 
 function setupMenuRepositoriesBandGroup() {
   syncMenuRepositoriesBandAccordionUi();
-  if (isMenuRepositoriesBandExpanded()) void refreshMenuRepositories();
   menuRepositoriesBandToggleBtn?.addEventListener("click", () => {
     toggleMenuRepositoriesBandExpanded();
   });
@@ -122022,9 +122059,6 @@ function setupMenuAwnDataBandGroup() {
   syncMenuAwnDataBandAccordionUi();
   syncSidebarBottomFocusMode();
   setupMenuAwnDataIndexRow();
-  if (isMenuAwnDataBandExpanded()) {
-    void refreshMenuAwnDataStores(activeWorkspaceId, { showLoading: false });
-  }
   menuAwnDataBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnDataBandExpanded();
   });
@@ -122151,7 +122185,6 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
   setupMenuAwnBackupUi();
-  scheduleVisibleMenuAgentStaticSummaries();
 }
 
 function setupWorkspaceIndexPanelUi() {
@@ -134496,9 +134529,22 @@ function setupAppFooterIdeasPopover() {
   });
 }
 
+function syncHeaderFocusWorkspaceAvailability() {
+  if (!headerFocusWrapNode) return;
+  const show =
+    Boolean(activeWorkspaceId) &&
+    !isAppLandingViewActive() &&
+    !appRootNode?.classList.contains("not-found-view");
+  headerFocusWrapNode.classList.toggle("hidden", !show);
+  if (!show) closeHeaderFocusPopover();
+}
+
 function syncHeaderFocusCount() {
   if (!headerFocusCountNode) return;
-  const total = activeWorkspaceId ? agentFocusItemsCache.length : 0;
+  const total =
+    activeWorkspaceId && agentFocusItemsLoadedAgentId === activeWorkspaceId
+      ? agentFocusItemsCache.length
+      : 0;
   headerFocusCountNode.textContent = total ? String(total) : "";
   headerFocusCountNode.classList.toggle("hidden", !total);
   headerFocusToggleBtn?.classList.toggle("has-count", total > 0);
@@ -135091,6 +135137,7 @@ async function refreshMenu(options = {}) {
   });
   if (agentId === activeWorkspaceId) {
     updateActiveButton();
+    scheduleVisibleMenuAgentStaticSummaries(agentId);
     void syncAgentWorkspaceViewFromWorkspaceConfig(agentId).then(() => {
       if (agentId === activeWorkspaceId && isAgentWorkspaceCanvasVisible()) {
         applyAgentWorkspaceCanvasUi();
@@ -135648,6 +135695,8 @@ async function init() {
       void renderAppLandingAgents();
     }
     syncChannelLiveUpdates();
+    syncHeaderFocusWorkspaceAvailability();
+    syncHeaderFocusCount();
     if (WORKSPACE_NOTIFICATIONS_BACKGROUND_POLL_ENABLED && isAgentWorkspaceSessionActive()) {
       void refreshWorkspaceNotifications(false);
     }
@@ -135809,6 +135858,11 @@ headerProfileAgentBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("agent");
 });
+headerProfileFocusBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  openHeaderFocusPopover();
+});
+
 headerProfileSettingsBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("user");

@@ -22490,6 +22490,27 @@ ol .live-diff-preview-removed {
   margin: 0;
 }
 
+.home-focus-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.home-focus-section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #312e81;
+  letter-spacing: -0.02em;
+}
+
+.home-focus-section-sub {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .home-focus-section {
   width: 100%;
   margin: 0;
@@ -23618,7 +23639,7 @@ ol .live-diff-preview-removed {
   display: none;
 }
 
-.app.app-landing-view .header-tool-buttons > .header-focus-wrap,
+.app.app-landing-view .header-profile-wrap .header-focus-wrap,
 .app.app-landing-view .header-tool-buttons > .header-index-wrap,
 .app.app-landing-view .header-tool-buttons > .header-author-workspace-wrap,
 .app.app-landing-view .header-tool-buttons > .header-notifications-wrap,
@@ -26850,7 +26871,19 @@ a.header-tool-btn {
 .header-profile-wrap,
 .header-locale-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+.header-focus-wrap--user {
+  flex-shrink: 0;
+}
+
+.header-focus-toggle--user {
+  padding: 0 10px;
+  font-size: 11px;
 }
 
 .header-tool-btn--locale,

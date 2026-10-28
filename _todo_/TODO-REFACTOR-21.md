@@ -17,7 +17,7 @@
 | № | Что | | Комментарий |
 |---|-----|:-:|-------------|
 | | **Header** | | |
-| 1 | **Фокус** — `GET /api/agents/focus` только при открытии popover, не на F5 | ✅ | dedupe/inflight `loadAgentFocusItems` |
+| 1 | **Фокус** — `GET /api/agents/focus` idle на «Главной» (как `/api/agents/main` на landing); popover — из кэша или 1× если открыта тема | ✅ | `scheduleWorkspaceAgentFocusLoadIfNeeded` |
 | 2 | **Индекс** — monitor только при popover «Индекс» | ✅ | REFACTOR-20 + `header-index-popover-open` |
 | 3 | Git / share в header — только по клику | ⬜ | не трогали |
 | | **Sidebar верх** | | |
@@ -33,7 +33,7 @@
 | | **Прочее boot** | | |
 | 12 | **`/api/system-files`** — не без нужды на boot | ⬜ | всё ещё в `init()` |
 | 13 | **`loadAwnTypes`** — не блокировать menu | 🟡 | после `refreshMenu` |
-| 14 | **Focus** — без дублей | ✅ | кэш + только popover на boot |
+| 14 | **Focus** — без дублей | ✅ | inflight + кэш; не на F5 при открытой теме |
 | 15 | **Agent slider** — catalog не в boot storm | ⬜ | при смене agent как раньше |
 | 16 | **Git remote** — только `#sidebar-git-btn` / git view | ✅ | маркеры в дереве/repos — **`hasGitSelf` из menu**; без `fetchRemote` на `renderMenu` |
 | 17 | settings-global, pomodoro, context-buffer | ⬜ | вне scope |
@@ -64,6 +64,7 @@
 | 2026-10-29 | Таблица со статусами ✅/🟡/⬜ |
 | 2026-10-29 | Avatar: `thumb=1` для media/file + workspace-preview; thumb cache на server |
 | 2026-10-29 | `workspace-stats` 1× + reload; git remote только sidebar/git view; menu markers — `hasGitSelf` |
+| 2026-10-29 | Bands: каталоги после `refreshMenu` idle; фокус workspace — как landing main (`scheduleWorkspaceAgentFocusLoadIfNeeded`) |
 
 ## 🔗 Связано
 
