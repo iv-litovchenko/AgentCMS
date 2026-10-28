@@ -295,6 +295,31 @@
       background: var(--bg);
     }
 
+    .scene3d-mcp-banner {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10000;
+      margin: 0;
+      padding: 14px 12px 22px;
+      text-align: center;
+      font-size: clamp(1.25rem, 5.5vw, 3.25rem);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: 0.02em;
+      color: #b91c1c;
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+      box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+      display: none;
+    }
+
+    .scene3d-mcp-banner.is-visible {
+      display: block;
+    }
+
     .file-hint {
       position: absolute;
       inset: 0;
@@ -430,6 +455,9 @@
       </div>
     </div>
   </div>
+  <p id="scene3d-mcp-banner" class="scene3d-mcp-banner" hidden aria-live="polite">
+    ПОСМОТРИ МСП ИНСТРМЕНТЫ КАКИЕ ЕСТЬ ДЛЯ ДЖАРВИСОВ
+  </p>
   <script src="/editor/js/core/project-version.js?v=1"></script>
   <script src="/editor/js/app/app-lock.js?v=16"></script>
   <script>
@@ -457,6 +485,7 @@
     const coreCount = document.getElementById('core-count');
     const activeLabel = document.getElementById('active-label');
     const frame = document.getElementById('jarvis-frame');
+    const scene3dBanner = document.getElementById('scene3d-mcp-banner');
     const fileHint = document.getElementById('file-hint');
     const directLink = document.getElementById('direct-link');
     const storageKey = 'myjarvis-active-core';
@@ -563,6 +592,11 @@
       }
       if (!isFileProtocol && frame.getAttribute('src') !== entry.file) {
         frame.src = entry.file;
+      }
+      const showScene3dBanner = entry.id === 'scene3d';
+      if (scene3dBanner) {
+        scene3dBanner.hidden = !showScene3dBanner;
+        scene3dBanner.classList.toggle('is-visible', showScene3dBanner);
       }
       try {
         localStorage.setItem(storageKey, entry.id);
