@@ -5335,6 +5335,7 @@ async function loadAgents() {
   const data = await response.json();
   agentsCache = Array.isArray(data.agents) ? data.agents : [];
   clearLandingHubTopicsCache();
+  invalidateLandingFocusItemsCache();
   const selectableAgents = getSelectableAgents();
   const route = parseAppRoute(location.pathname);
   const isAppLandingRoute = route.type === "root" || route.type === "legacy";
@@ -10520,6 +10521,10 @@ function openCoreCatalogAgentFromLanding() {
 let globalMainItemsCache = [];
 let globalMainItemsLoadSeq = 0;
 let globalMainItemsLoading = false;
+let globalMainItemsInflight = null;
+let globalMainItemsLoaded = false;
+let globalFlowItemsInflight = null;
+let globalFlowItemsLoaded = false;
 let agentFocusItemsCache = [];
 let globalFlowItemsCache = [];
 /** @type {Map<string, object[]>} */
@@ -12509,7 +12514,57 @@ function renderAgentFocusPanels() {
   updateNodeOverviewHeroActionStates();
 }
 
-async function loadGlobalMainItems({ showLoading = false } = {}) {
+function invalidateLandingFocusItemsCache() {
+  globalMainItemsLoaded = false;
+  globalFlowItemsLoaded = false;
+  globalMainItemsInflight = null;
+  globalFlowItemsInflight = null;
+}
+
+function scheduleLandingIdleTask(task) {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => task(), { timeout: 2500 });
+  } else {
+    window.setTimeout(task, 0);
+  }
+}
+
+function scheduleLandingMainItemsLoadIfNeeded() {
+  if (!isAppLandingViewActive()) return;
+  const view = getLandingAgentsView();
+  if (view !== "orbit" && view !== "grid") return;
+  if (globalMainItemsLoaded || globalMainItemsInflight) {
+    if (globalMainItemsLoaded) scheduleLandingFocusShellRender();
+    return;
+  }
+  scheduleLandingIdleTask(() => {
+    if (globalMainItemsLoaded || globalMainItemsInflight) return;
+    void loadGlobalMainItems({ showLoading: getLandingAgentsView() === "orbit" });
+  });
+}
+
+function scheduleLandingFlowItemsLoadIfNeeded() {
+  if (!isAppLandingViewActive()) return;
+  if (getLandingAgentsView() !== "flow") return;
+  if (globalFlowItemsLoaded || globalFlowItemsInflight) {
+    if (globalFlowItemsLoaded) scheduleLandingFocusShellRender();
+    return;
+  }
+  scheduleLandingIdleTask(() => {
+    if (getLandingAgentsView() !== "flow") return;
+    if (globalFlowItemsLoaded || globalFlowItemsInflight) return;
+    void loadGlobalFlowItems({ showLoading: true });
+  });
+}
+
+async function loadGlobalMainItems({ showLoading = false, force = false } = {}) {
+  if (!force && globalMainItemsLoaded) {
+    if (showLoading) globalMainItemsLoading = false;
+    scheduleLandingFocusShellRender();
+    return globalMainItemsCache;
+  }
+  if (globalMainItemsInflight) return globalMainItemsInflight;
+
   const loadSeq = ++globalMainItemsLoadSeq;
   if (showLoading) {
     globalMainItemsLoading = true;
@@ -12517,43 +12572,81 @@ async function loadGlobalMainItems({ showLoading = false } = {}) {
       renderLandingMainTopicsLoading();
     }
   }
+
+  globalMainItemsInflight = (async () => {
+    try {
+      const response = await fetch("/api/agents/main");
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      globalMainItemsCache = Array.isArray(data.items) ? data.items : [];
+      globalMainItemsLoaded = true;
+    } catch {
+      globalMainItemsCache = [];
+      globalMainItemsLoaded = true;
+    }
+    if (loadSeq !== globalMainItemsLoadSeq) return globalMainItemsCache;
+    globalMainItemsLoading = false;
+    bumpLandingUiRevision();
+    scheduleLandingFocusShellRender();
+    return globalMainItemsCache;
+  })();
+
   try {
-    const response = await fetch("/api/agents/main");
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
-    globalMainItemsCache = Array.isArray(data.items) ? data.items : [];
-  } catch {
-    globalMainItemsCache = [];
+    return await globalMainItemsInflight;
+  } finally {
+    globalMainItemsInflight = null;
   }
-  if (loadSeq !== globalMainItemsLoadSeq) return;
-  globalMainItemsLoading = false;
-  bumpLandingUiRevision();
-  scheduleLandingFocusShellRender();
 }
 
-async function loadGlobalFlowItems({ showLoading = false } = {}) {
+async function loadGlobalFlowItems({ showLoading = false, force = false } = {}) {
+  if (!force && getLandingAgentsView() !== "flow" && isAppLandingViewActive()) {
+    return globalFlowItemsCache;
+  }
+  if (!force && globalFlowItemsLoaded) {
+    if (getLandingAgentsView() === "flow") {
+      setAppLandingFlowLoadingUi(false);
+      appLandingFlowGridNode?.classList.remove("is-loading");
+      appLandingFlowNode?.classList.remove("is-loading");
+    }
+    scheduleLandingFocusShellRender();
+    return globalFlowItemsCache;
+  }
+  if (globalFlowItemsInflight) return globalFlowItemsInflight;
+
   const loadSeq = ++landingFlowLoadSeq;
   if (showLoading && getLandingAgentsView() === "flow") {
     renderAppLandingFlowLoading();
   }
+
+  globalFlowItemsInflight = (async () => {
+    try {
+      const response = await fetch(
+        `/api/agents/recent-updates?limit=${encodeURIComponent(LANDING_FLOW_RECENT_LIMIT)}`
+      );
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      const data = await response.json();
+      globalFlowItemsCache = Array.isArray(data.items) ? data.items : [];
+      globalFlowItemsLoaded = true;
+    } catch {
+      globalFlowItemsCache = [];
+      globalFlowItemsLoaded = true;
+    }
+    if (loadSeq !== landingFlowLoadSeq) return globalFlowItemsCache;
+    bumpLandingUiRevision();
+    if (getLandingAgentsView() === "flow") {
+      setAppLandingFlowLoadingUi(false);
+      appLandingFlowGridNode?.classList.remove("is-loading");
+      appLandingFlowNode?.classList.remove("is-loading");
+    }
+    scheduleLandingFocusShellRender();
+    return globalFlowItemsCache;
+  })();
+
   try {
-    const response = await fetch(
-      `/api/agents/recent-updates?limit=${encodeURIComponent(LANDING_FLOW_RECENT_LIMIT)}`
-    );
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    const data = await response.json();
-    globalFlowItemsCache = Array.isArray(data.items) ? data.items : [];
-  } catch {
-    globalFlowItemsCache = [];
+    return await globalFlowItemsInflight;
+  } finally {
+    globalFlowItemsInflight = null;
   }
-  if (loadSeq !== landingFlowLoadSeq) return;
-  bumpLandingUiRevision();
-  if (getLandingAgentsView() === "flow") {
-    setAppLandingFlowLoadingUi(false);
-    appLandingFlowGridNode?.classList.remove("is-loading");
-    appLandingFlowNode?.classList.remove("is-loading");
-  }
-  scheduleLandingFocusShellRender();
 }
 
 async function loadAgentFocusItems(agentId = activeWorkspaceId) {
@@ -12580,9 +12673,12 @@ function isAppLandingViewActive() {
 async function refreshAllFocusPanels() {
   const tasks = [];
   if (isAppLandingViewActive()) {
-    tasks.push(loadGlobalMainItems(), loadGlobalFlowItems());
+    tasks.push(loadGlobalMainItems({ force: true }));
+    if (getLandingAgentsView() === "flow") {
+      tasks.push(loadGlobalFlowItems({ force: true }));
+    }
   } else if (activeWorkspaceId) {
-    tasks.push(loadAgentFocusItems(activeWorkspaceId), loadGlobalMainItems());
+    tasks.push(loadAgentFocusItems(activeWorkspaceId), loadGlobalMainItems({ force: true }));
   }
   if (tasks.length) await Promise.all(tasks);
 }
@@ -16193,6 +16289,7 @@ function syncLandingAgentsViewUi() {
       renderLandingMainTopicsLoading();
     }
     renderAppLandingOrbit();
+    scheduleLandingMainItemsLoadIfNeeded();
   } else {
     void ensureLandingChunkReady().then((mod) => {
       if (mod.getLandingOrbitDiveAgentId?.()) mod.closeOrbitAgentDive?.();
@@ -16200,9 +16297,10 @@ function syncLandingAgentsViewUi() {
   }
   if (isGrid) {
     renderAppLandingList(getProcessedLandingFocusItems());
+    scheduleLandingMainItemsLoadIfNeeded();
   }
   if (isFlow) {
-    void loadGlobalFlowItems({ showLoading: true });
+    scheduleLandingFlowItemsLoadIfNeeded();
   }
   if (isHub || isOrbit || isFlow) {
     const attentionAgents = isOrbit ? getAgentsForLandingOrbit() : getAgentsForLandingGrid();
@@ -16514,8 +16612,6 @@ async function renderAppLandingAgents() {
   } catch (error) {
     console.error("[landing] agents list render failed", error);
   } finally {
-    void loadGlobalMainItems({ showLoading: true });
-    void loadGlobalFlowItems();
     syncLandingAgentsViewUi();
     renderAgentSelect();
   }
@@ -118666,9 +118762,6 @@ function showAppLandingView(hint = "") {
   updateWorkspaceShareLinkButton();
   agentFocusItemsCache = [];
   renderAgentFocusPanels();
-  void loadGlobalMainItems();
-  void loadGlobalFlowItems();
-  void loadGlobalLandingHubTopicItems();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
   syncAppFooterWorkspaceToolsAvailability();

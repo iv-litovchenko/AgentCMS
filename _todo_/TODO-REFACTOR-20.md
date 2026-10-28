@@ -28,9 +28,9 @@
 | `GET /api/agents` | — | cancel ~12 s | Список workspace boot | Critical path landing/workspace |
 | `GET …/text?agent=main` | 0.5 kB | ~6 s | Context buffer | Lazy до открытия панели |
 | ~~`GET …/ui-rotators`~~ | — | — | **Убрано:** статика в `index.html`, `0-ui` скрыт в меню | — |
-| `GET …/recent-updates?limit=80` | 60 kB | 44 s – 1.7 min | Лента обновлений | После интерактивности / lazy |
+| `GET …/recent-updates?limit=80` | 60 kB | 44 s – 1.7 min | Лента обновлений | [x] только Flow, 1× + dedupe, idle |
 | `GET …/settings-global` | 6 kB | 45–51 s | Глобальные UI settings | С boot, но не блокировать splash |
-| `GET …/main` (fetch, не main.js) | 16 kB | 34 s – 1.6 min | Focus/landing «main» items | Только landing route |
+| `GET …/main` (fetch, не main.js) | 16 kB | 34 s – 1.6 min | Focus/landing «main» items | [x] Orbit/Grid 1× + dedupe, idle |
 | `GET …/monitor?agent=…` | 2.7 kB | **2.4–3.8 min** | Мониторинг/live | Long-poll; не в critical path F5 |
 | `GET /api/.../workspace-preview?path=…` | webp ~30–40 kB | 43–47 s | Превью карточек агентов | [x] stable `t=` (agent id), lazy img, coalesce landing shell render; следить Network |
 | `GET /api/agents/git-summaries` | JSON | долго | Git под пузырями Orbit | [x] client cache 90s + idle; server cache 60s, max 4 parallel git |
