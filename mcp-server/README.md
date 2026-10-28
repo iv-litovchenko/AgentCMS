@@ -68,7 +68,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 | Группа | Tools |
 |--------|-------|
 | Старт | `workspaces_list`, `workspace_*`, `workspaces_scan`, `workspace_groups_*`, `session_*`, `workspace_summary_get`, `workspace_activity_list`, `workspace_feed_list`; stub: `workspace_activity_count_zzz`, `workspace_activity_get_zzz` — `agent-utils-tools.js`; остальное **с `workspaceId`** |
-| Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_docs_list`, `platform_doc_read`, `platform_doc_write`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
+| Platform | `platform_info_get`, `platform_health_get` (нужен `workspaceId`), `platform_skills_list`, `platform_skill_read`, `platform_docs_list`, `platform_doc_read`, `platform_doc_write`, `platform_config_list`; настройки: `settings_list`, `setting_read`, `setting_write` |
 | Workspace CSV | `workspace_dependencies_read`, `workspace_dependencies_write` — `dependencies.csv` в корне выбранного workspace (**нужен `workspaceId`**) |
 | Навигация и поиск | `nav_*`, `record_id_resolve`, `record_path_resolve`, `record_url_get`, `search_*`, `index_*` — **не** `content_read`. Legacy: `rebuild_workspace_*`, `search_workspace_*`, `*_index_toc_*`, `read_workspace_map`, … |
 | Тема (manifest) | `topic_get`, `topic_*_read` / `topic_*_write`, `topics_list`, `topic_create`, `topic_delete`, … (legacy `get_topic`, `read_topic_*`, …) |
@@ -90,7 +90,7 @@ session_context_get({ workspaceId: "<выбранный-id>" })
 
 ## Документация
 
-- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; welcome — скилл `agent-cms-welcome` (`GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный; без него — `read_platform_doc`. Базовый скилл: **`read_platform_doc({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
+- MCP `instructions`: короткий inline в `mcp-server/lib/mcp-instructions.js`; welcome — скилл `agent-cms-welcome` (`skills/GLOBAL-SKILL-0-MCP-WELCOME.md`), необязательный; без него — `platform_skill_read`. Базовый скилл: **`platform_skill_read({ path: "GLOBAL-SKILL-1-BASE.md" })`** (не always-context)
 - HTTP JSON: `GET {CMS_BASE}/api/mcp-docs?version=0.0.2` (в Control / модалке **MCP** подставляется из `AGENT_CMS_PUBLIC_URL` или локального editor)
 
 ## Запуск

@@ -10,7 +10,7 @@ export function registerSessionTools(reg, client) {
     canonical: "session_context_get",
     legacy: "get_session_context",
     description:
-      "START HERE (light): wsMap (fresh WS-MAP markdown) + alwaysContext (full text of always-loaded files). Skills: platform_doc_read. Runtime lists: session_list_cron / session_list_heartbeat.",
+      "START HERE (light): wsMap (fresh WS-MAP markdown) + alwaysContext (full text of always-loaded files). Skills: platform_skills_list / platform_skill_read. Runtime lists: session_list_cron / session_list_heartbeat.",
     schema: emptySchema,
     handler: () => client.get("/api/agent/session-context")
   });

@@ -30,7 +30,8 @@ export function registerPlatformTools(reg, client) {
   registerCanonicalWithLegacyAlias(reg, {
     canonical: "platform_docs_list",
     legacy: "list_platform_docs",
-    description: "List .md files in the repository root (not subfolders). Use platform_doc_read for content.",
+    description:
+      "List .md files in the repository root (not skills/). Agent skills: platform_skills_list. Content: platform_doc_read.",
     schema: z.object({}),
     handler: () => client.get("/api/platform/docs", {}, { agentScope: false }),
     options: { agentScope: false }
@@ -53,6 +54,45 @@ export function registerPlatformTools(reg, client) {
     handler: ({ path, maxBytes }) =>
       client.get(
         "/api/platform/docs/read",
+        { path, ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}) },
+        { agentScope: false }
+      ),
+    options: { agentScope: false }
+  });
+
+  const platformSkillFileName = z
+    .string()
+    .min(1)
+    .describe(
+      "Skill file name from platform_skills_list, e.g. GLOBAL-SKILL-1-BASE.md (optional prefix skills/)"
+    );
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_skills_list",
+    description:
+      "List Agent CMS skills in skills/GLOBAL-SKILL-*.md (name, description from frontmatter, githubRawUrl).",
+    schema: z.object({}),
+    handler: () => client.get("/api/platform/skills", {}, { agentScope: false }),
+    options: { agentScope: false }
+  });
+
+  registerCanonicalWithLegacyAlias(reg, {
+    canonical: "platform_skill_read",
+    description:
+      "Read one Agent CMS skill from skills/ by file name. Same content via platform_doc_read({ path: basename }) as legacy.",
+    schema: z.object({
+      path: platformSkillFileName,
+      maxBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(2_000_000)
+        .optional()
+        .describe("Max bytes to read (default 2000000)")
+    }),
+    handler: ({ path, maxBytes }) =>
+      client.get(
+        "/api/platform/skills/read",
         { path, ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}) },
         { agentScope: false }
       ),

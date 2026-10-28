@@ -607,6 +607,8 @@ const {
 const {
   listPlatformDocs,
   readPlatformDoc,
+  listPlatformSkills,
+  readPlatformSkill,
   writePlatformDoc,
   buildPlatformInfo,
   buildPlatformConfigList,
@@ -23456,6 +23458,37 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read platform doc",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/skills") {
+    try {
+      const payload = await listPlatformSkills(getProjectRoot());
+      if (!payload.ok) return sendJson(res, 500, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list platform skills",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/skills/read") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const maxBytes = url.searchParams.get("maxBytes");
+      const payload = await readPlatformSkill(getProjectRoot(), relPath, {
+        maxBytes: maxBytes != null ? Number(maxBytes) : undefined
+      });
+      if (!payload.ok) return sendJson(res, payload.error === "File not found" ? 404 : 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform skill",
         details: String(error.message || error)
       });
     }

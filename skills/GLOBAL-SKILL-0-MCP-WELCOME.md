@@ -26,7 +26,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 
 ## Скиллы (установи из репозитория)
 
-Файлы **`GLOBAL-SKILL-*.md`** в корне https://github.com/iv-litovchenko/AgentCMS — установи скиллы в клиенте (Claude Desktop, Cursor и т.д.). Без скиллов модель видит только список tools.
+Файлы **`GLOBAL-SKILL-*.md`** в папке **`skills/`** репозитория https://github.com/iv-litovchenko/AgentCMS — установи скиллы в клиенте (Claude Desktop, Cursor и т.д.). Без скиллов модель видит только список tools.
 
 | Скилл | Файл | Когда |
 |-------|------|--------|
@@ -40,7 +40,7 @@ description: Ввод в Agent CMS — зачем хранилище, старт
 | Viz maps | `GLOBAL-SKILL-7-VIZ-MAPS.md` | карты `*.viz.md`, «Атлас» в UI, `viz_map_*` |
 | Slots legacy | `GLOBAL-SKILL-8-SLOTS-LEGACY.md` | алиасы slot/папок/kind для MCP |
 
-Через MCP можно прочитать текст скилла: `platform_doc_read({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы; список — `platform_docs_list`).
+Через MCP: `platform_skills_list` → `platform_skill_read({ path: "GLOBAL-SKILL-1-BASE.md" })` (и другие **имена файлов** из таблицы). Legacy: `platform_doc_read` с тем же basename.
 
 ## Больше информации
 
