@@ -25,7 +25,7 @@
 | 5 | **NOTE.md** — fetch только если band раскрыт | ✅ | `refreshNotePreview` по expanded |
 | 6 | **Дерево тем** — 1× `menu?agent=` на F5 | 🟡 | coalesce лишних `refreshMenu` — нет |
 | 7 | **Каналы** — 0 boot; load при expand | ✅ | catalog при expand; **intake/batch** отдельно от stats |
-| 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | idle после menu; только **видимые** темы; кэш ключ paths |
+| 7b | **`POST /api/intake/batch`** — бейджи дерева | ✅ | **после** idle-каталогов bands (~1.5s); видимые темы; кэш; не сразу после `/api/menu` |
 | 7c | **`POST /api/node/read/batch`** — «!» прочитано в меню | ✅ | вместо N× GET `/api/node/read`; idle; записи темы — в `paths[]` одного manifest |
 | | **Sidebar низ** | | |
 | 8 | **DB / медиа / repos / каналы** — не с tree | ✅ | не в `refreshMenu`; idle **1.5s** + только **раскрытые** bands **по очереди**; DB `summary=1`; repos без README/ensureAwnId |

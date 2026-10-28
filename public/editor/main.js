@@ -17561,7 +17561,10 @@ async function resolveAgentKitTopicPreviewUrl(kind = "agent", agentId = activeWo
       agentKitTopicPreviewUrlCache.set(cacheKey, null);
       return null;
     }
-    const finalized = finalizeNodePreviewApiUrl(data.imageUrl, agentId);
+    let finalized = finalizeNodePreviewApiUrl(data.imageUrl, agentId);
+    if (kind === "user" && isWorkspaceAgentPreviewApiUrl(finalized)) {
+      finalized = null;
+    }
     agentKitTopicPreviewUrlCache.set(cacheKey, finalized);
     return finalized;
   } catch {
@@ -17577,15 +17580,23 @@ function getAgentKitTopicPreviewUrl() {
 
 function mountIdentityAvatarWithFallbacks(
   container,
-  { primaryUrl = "", secondaryUrl = "", emoji = "", fallbackText = "?", emojiClass = "", initialsClass = "" } = {}
+  {
+    primaryUrl = "",
+    secondaryUrl = "",
+    emoji = "",
+    fallbackText = "?",
+    emojiClass = "",
+    initialsClass = "",
+    emptyClass = "",
+    iconClass = "",
+    nodePath = ""
+  } = {}
 ) {
+  const fallbackOpts = { emoji, fallbackText, emojiClass, initialsClass, emptyClass, iconClass, nodePath };
   const mountFallback = () => {
     mountPreviewOrFallback(container, {
       previewUrl: "",
-      emoji,
-      fallbackText,
-      emojiClass,
-      initialsClass
+      ...fallbackOpts
     });
   };
 
@@ -17593,10 +17604,7 @@ function mountIdentityAvatarWithFallbacks(
     if (secondaryUrl) {
       mountPreviewOrFallback(container, {
         previewUrl: secondaryUrl,
-        emoji,
-        fallbackText,
-        emojiClass,
-        initialsClass
+        ...fallbackOpts
       });
       const img = container.querySelector("img");
       if (img) img.onerror = mountFallback;
@@ -17608,10 +17616,7 @@ function mountIdentityAvatarWithFallbacks(
   if (primaryUrl) {
     mountPreviewOrFallback(container, {
       previewUrl: primaryUrl,
-      emoji,
-      fallbackText,
-      emojiClass,
-      initialsClass
+      ...fallbackOpts
     });
     const img = container.querySelector("img");
     if (img) img.onerror = trySecondary;
@@ -17654,9 +17659,14 @@ function mountIdentityAvatarWithKitFallback(
     apply("", "");
     return;
   }
+  if (kitKind === "user") {
+    apply("", "");
+  }
   void resolveAgentKitTopicPreviewUrl(kitKind, agentId).then((kitUrl) => {
     if (!container?.isConnected) return;
-    apply(kitUrl || "", "");
+    const url =
+      kitKind === "user" && isWorkspaceAgentPreviewApiUrl(kitUrl) ? "" : kitUrl || "";
+    apply(url, "");
   });
 }
 
@@ -17689,14 +17699,15 @@ function syncIdentityToolbarAvatars(agentId = activeWorkspaceId) {
     headerUserProfileBtn.classList.remove("hidden");
     headerProfileWrapNode?.classList.remove("hidden");
     mountIdentityAvatarWithKitFallback(headerUserProfileAvatarMountNode, {
-      registryUrl: registryPreviewUrl,
+      registryUrl: "",
       kitKind: "user",
       agentId,
       useKit: showKitAvatars,
       emoji: "",
       fallbackText: "",
       emojiClass: "header-user-profile-avatar-emoji",
-      initialsClass: "header-user-profile-avatar-initials"
+      initialsClass: "header-user-profile-avatar-initials",
+      emptyClass: "header-user-profile-avatar-icon"
     });
   }
 }
@@ -89432,11 +89443,11 @@ function scheduleMenuIntakeSummarySync(menu = currentMenuData, agentId = activeW
   };
   menuIntakeDeferTimer = window.setTimeout(() => {
     if (typeof requestIdleCallback === "function") {
-      requestIdleCallback(() => run(), { timeout: 2500 });
+      requestIdleCallback(() => run(), { timeout: 4500 });
     } else {
       run();
     }
-  }, 180);
+  }, 400);
 }
 
 function collectMenuTopicManifestApiPaths(menu, agentId = activeWorkspaceId) {
@@ -107295,7 +107306,6 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
     refreshClassicMenuTreeLines(agentId);
     refreshMenuTreeIntakeBadges(agentId);
     refreshMenuTreeRuntimeBadges(agentId);
-    scheduleMenuReadStateSync(menu, agentId);
   }
 
   if (agentId === activeWorkspaceId) {
@@ -107318,7 +107328,6 @@ function renderMenu(menu, agentId = activeWorkspaceId, options = {}) {
 
   if (agentId === activeWorkspaceId) {
     scheduleMenuAgentStatsSync(menu);
-    scheduleMenuIntakeSummarySync(menu, agentId);
     scheduleDeferredExpandedBandCatalogs(agentId);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
@@ -133955,6 +133964,9 @@ async function loadExpandedMenuBandCatalogsSequential(agentId = activeWorkspaceI
     if (seq !== menuBandCatalogLoadSeq) return;
     await step();
   }
+  if (seq !== menuBandCatalogLoadSeq || agentId !== activeWorkspaceId) return;
+  scheduleMenuIntakeSummarySync(currentMenuData, agentId);
+  scheduleMenuReadStateSync(currentMenuData, agentId);
 }
 
 /** @deprecated use scheduleDeferredExpandedBandCatalogs */
