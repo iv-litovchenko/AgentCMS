@@ -122282,11 +122282,16 @@ function setupWorkspaceIndexPanelUi() {
   });
 }
 
-function setupAwnDashboardsUi() {
+
+function ensureAwnDashboardsToolbarBtnIcon() {
   const toolbarBtn = document.getElementById("awn-dashboards-toolbar-btn");
-  if (toolbarBtn) {
-    mountAgentToolbarBtnIcon(toolbarBtn, createDashboardMarkerSvg(), "awn-dashboards-toolbar-btn-icon");
-  }
+  if (!toolbarBtn || toolbarBtn.querySelector(".agents-picker-tool-icon")) return toolbarBtn;
+  mountAgentToolbarBtnIcon(toolbarBtn, createDashboardMarkerSvg(), "awn-dashboards-toolbar-btn-icon");
+  return toolbarBtn;
+}
+
+function setupAwnDashboardsUi() {
+  const toolbarBtn = ensureAwnDashboardsToolbarBtnIcon();
   if (!window.AwnDashboards?.init) return;
   window.AwnDashboards.init({
     buildApiUrl,
@@ -136294,6 +136299,7 @@ setupMenuRepositoryGroupDragDrop();
 setupMenuStaticFooterGroup();
 setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();
+ensureAwnDashboardsToolbarBtnIcon();
 setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();

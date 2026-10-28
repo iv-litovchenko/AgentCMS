@@ -76091,7 +76091,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #6b7280;
 }
 
-.awn-dashboards-toolbar-btn .awn-dashboards-toolbar-btn-icon svg {
+.awn-dashboards-toolbar-btn .awn-dashboards-toolbar-btn-icon,
+.awn-dashboards-toolbar-btn .agents-picker-tool-icon svg {
   display: block;
   width: 16px;
   height: 16px;
